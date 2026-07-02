@@ -21,12 +21,12 @@ Five verbs exposed as REST endpoints — HTTP method carries semantics (GET = re
 Adding a new query or action NEVER adds a new route — all queries go through `/query`, all actions through `/run`. The surface self-describes via `schema`.
 
 ## Flow (every provider, every time)
-1. **Discover:** `GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `verbs`
-2. **Register:** `POST <endpoint>/agents/register` with freshly generated RSA-2048 public key → `agent_id`, `user_id`, `access_token`. New keypair per provider domain, stored at `~/.kiosk/<domain>/key.pem`.
+1. **Discover:** `GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `routing` (verb→method+path map)
+2. **Register:** `POST <endpoint>/agents/register` with freshly generated RSA-2048 public key → `agent_id`, `user_id`, `access_token`. Store keypair at `~/.kiosk/<domain>/key.pem` (chmod 600). **Before registering, check `~/.kiosk/<domain>/key.pem` for existing credentials — reuse if found.**
 3. **Learn surface:** `GET <endpoint>/schema` → list of queries, actions, params
 4. **Query:** `POST <endpoint>/query {name:"<name>", ...params}` → rows
 5. **Run:** `POST <endpoint>/run {name:"<name>", ...params}` → action result
-6. **Pay:** Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match `/.well-known/kiosk.json#issuer`. Submit via `POST <endpoint>/pay {intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}`.
+6. **Pay:** Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match `/.well-known/kiosk.json#issuer` verbatim. Submit via `POST <endpoint>/pay {intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}`. Payment mandate: `payment_method: "on_file"` for saved-card flow.
 
 ## Technical constraints
 - **JWT redaction:** Hermes masks JWT tokens as `***` in terminal(). Use Python `urllib` inside `execute_code` to keep tokens in memory only.
