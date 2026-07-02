@@ -29,7 +29,7 @@ All queries go through `/query`, all actions through `/run`. The surface self-de
 6. **Pay:** Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match `/.well-known/kiosk.json#issuer` verbatim. Submit via `POST <endpoint>/pay {intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}`. Payment mandate: `payment_method: "on_file"` for saved-card flow.
 
 ## Technical constraints
-- **JWT redaction:** Hermes masks JWT tokens as `***` in terminal(). Use Python `urllib` inside `execute_code` to keep tokens in memory only.
+- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Keep access tokens in Python memory — never pass them as shell command arguments where they'd appear in history and process listings. Use Python's `urllib` (stdlib) or `requests` for all HTTP calls.
 - **Key storage:** `~/.kiosk/<domain>/key.pem` (chmod 600). New RSA key per domain — no cross-merchant tracking.
 - **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`.
 - **Card setup:** `payment_setup` → `{status:"setup_required", setup_url}` → human enters card on Stripe → poll until `{status:"ready"}`.
