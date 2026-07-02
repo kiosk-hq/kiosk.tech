@@ -33,5 +33,4 @@ All queries go through `/query`, all actions through `/run`. The surface self-de
 - **Key storage:** `~/.kiosk/<domain>/key.pem` (chmod 600). New RSA key per domain — no cross-merchant tracking.
 - **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`.
 - **Card setup:** `payment_setup` → `{status:"setup_required", setup_url}` → human enters card on Stripe → poll until `{status:"ready"}`.
-- **Catalog items:** reference by `sku`, never display name. `create_order` uses `items: [{sku, qty}]`.
 - **Mandates:** Always submit all 3 — server may reject with `payment_mandate_jws required`.
