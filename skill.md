@@ -18,7 +18,7 @@ Five verbs exposed as REST endpoints — HTTP method carries semantics (GET = re
 | `run` | `POST` | `/run` | Perform action | `{name:"create_order", ...params}` |
 | `pay` | `POST` | `/pay` | Settle payment | `{intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}` |
 
-Adding a new query or action NEVER adds a new route — all queries go through `/query`, all actions through `/run`. The surface self-describes via `schema`.
+All queries go through `/query`, all actions through `/run`. The surface self-describes via `schema`.
 
 ## Flow (every provider, every time)
 1. **Discover:** `GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `routing` (verb→method+path map)
