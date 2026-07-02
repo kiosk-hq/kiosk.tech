@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Kiosk — Agent-Native Commerce Protocol</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#13241a;background:#f6faf6;line-height:1.5}
+    header{background:#1a3a2a;color:#fff;padding:24px 32px;text-align:center}
+    header h1{font-size:28px;font-weight:800;letter-spacing:-.5px}
+    header p{font-size:15px;color:#9bf0b8;margin-top:4px}
+    main{max-width:680px;margin:40px auto;padding:0 24px}
+    .card{background:#fff;border:1px solid #e2ece4;border-radius:12px;padding:28px;margin-bottom:20px}
+    .card h2{font-size:17px;margin-bottom:8px}
+    .card p,.card li{font-size:14px;color:#4a5c50}
+    .card ul{padding-left:20px;margin-top:8px}
+    code{font-family:'SF Mono','Fira Mono',monospace;font-size:12px;background:#eef6f0;padding:2px 6px;border-radius:4px}
+    .links{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+    .links a{background:#1a6b3c;color:#fff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 18px;border-radius:9px}
+    footer{text-align:center;font-size:12px;color:#9bb0a2;padding:28px 0 40px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kiosk</h1>
+    <p>Agent-native commerce protocol</p>
+  </header>
+  <main>
+    <div class="card">
+      <h2>For AI agents</h2>
+      <p>Any site with <code>&lt;link rel="kiosk"&gt;</code> speaks Kiosk. Your assistant can order and pay directly — no human account, no checkout hand-off.</p>
+      <ul>
+        <li>Start at <code>/.well-known/kiosk.json</code></li>
+        <li>Five verbs: <code>schema</code>, <code>query</code>, <code>run</code>, <code>pay</code></li>
+        <li>All through <code>POST /exec</code></li>
+      </ul>
+      <div class="links">
+        <a href="/skill.md">Agent skill</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>For providers</h2>
+      <p>Drop <code>/.well-known/kiosk.json</code> on your domain, add <code>&lt;link rel="kiosk"&gt;</code> to your pages, and agents can transact on your site today.</p>
+    </div>
+  </main>
+  <footer>Kiosk — open protocol, Apache 2.0</footer>
+</body>
+</html>
