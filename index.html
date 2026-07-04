@@ -2,46 +2,232 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Kiosk — Agent-Native Commerce Protocol</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiosk — Agent-Native Commerce</title>
+  <meta name="description" content="The next interface isn't something you touch — it's something you talk to. Kiosk lets any store speak to AI agents. No intermediary, no transaction fee, Apache 2.0.">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#13241a;background:#f6faf6;line-height:1.5}
-    header{background:#1a3a2a;color:#fff;padding:24px 32px;text-align:center}
-    header h1{font-size:28px;font-weight:800;letter-spacing:-.5px}
-    header p{font-size:15px;color:#9bf0b8;margin-top:4px}
-    main{max-width:680px;margin:40px auto;padding:0 24px}
-    .card{background:#fff;border:1px solid #e2ece4;border-radius:12px;padding:28px;margin-bottom:20px}
-    .card h2{font-size:17px;margin-bottom:8px}
-    .card p,.card li{font-size:14px;color:#4a5c50}
-    .card ul{padding-left:20px;margin-top:8px}
-    code{font-family:'SF Mono','Fira Mono',monospace;font-size:12px;background:#eef6f0;padding:2px 6px;border-radius:4px}
-    .links{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
-    .links a{background:#1a6b3c;color:#fff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 18px;border-radius:9px}
-    footer{text-align:center;font-size:12px;color:#9bb0a2;padding:28px 0 40px}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      background:#0d0d0d;
+      color:#e0e0e0;
+      line-height:1.6;
+      letter-spacing:-0.01em;
+    }
+    .logo{filter:invert(1);width:120px;height:auto;display:block;margin:0 auto 12px}
+    header{
+      text-align:center;
+      padding:80px 24px 60px;
+    }
+    header h1{
+      font-size:clamp(28px,6vw,48px);
+      font-weight:800;
+      letter-spacing:-0.02em;
+    }
+    .hero-line{
+      font-size:clamp(15px,3vw,18px);
+      color:#999;
+      margin-top:8px;
+      max-width:640px;
+      margin-left:auto;margin-right:auto;
+    }
+
+    section{padding:0 24px;max-width:720px;margin:0 auto 64px}
+
+    .evolution{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      font-size:13px;
+      color:#666;
+      margin-bottom:48px;
+    }
+    .evolution span{padding:6px 14px;border:1px solid #333;border-radius:6px;white-space:nowrap}
+    .evolution .arrow{font-size:16px;border:none;padding:0 4px}
+    .evolution .now{border-color:#4a7c59;color:#8bc49a}
+
+    .demo-box{
+      background:#161616;
+      border:1px solid #2a2a2a;
+      border-radius:14px;
+      padding:32px 28px;
+      margin-bottom:24px;
+    }
+    .demo-box h2{
+      font-size:20px;
+      font-weight:700;
+      margin-bottom:8px;
+    }
+    .demo-box .time{
+      font-size:14px;
+      color:#8bc49a;
+      margin-bottom:20px;
+    }
+    .demo-steps{
+      list-style:none;
+      counter-reset:step;
+    }
+    .demo-steps li{
+      counter-increment:step;
+      padding:8px 0 8px 32px;
+      position:relative;
+      font-size:14px;
+      color:#bbb;
+    }
+    .demo-steps li::before{
+      content:counter(step);
+      position:absolute;
+      left:0;
+      top:8px;
+      width:22px;
+      height:22px;
+      background:#2a2a2a;
+      border-radius:50%;
+      text-align:center;
+      font-size:12px;
+      line-height:22px;
+      color:#999;
+    }
+
+    .cant-do{
+      margin-top:48px;
+    }
+    .cant-do h3{
+      font-size:16px;
+      font-weight:600;
+      color:#d47;
+      margin-bottom:16px;
+    }
+    .cant-list{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+      gap:10px;
+      list-style:none;
+    }
+    .cant-list li{
+      font-size:13px;
+      color:#888;
+      padding:8px 14px;
+      background:#1a1a1a;
+      border-radius:8px;
+      border:1px solid #252525;
+    }
+    .cant-list li strong{color:#d47;font-weight:600}
+
+    .cta-row{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:32px;
+    }
+    .cta{
+      display:inline-block;
+      padding:12px 24px;
+      border-radius:10px;
+      font-weight:700;
+      font-size:14px;
+      text-decoration:none;
+      transition:background 0.15s;
+    }
+    .cta-primary{
+      background:#2d6b3f;
+      color:#fff;
+    }
+    .cta-primary:hover{background:#3a854f}
+    .cta-ghost{
+      border:1px solid #444;
+      color:#ccc;
+    }
+    .cta-ghost:hover{border-color:#888;color:#fff}
+
+    .protocol-desc{
+      font-size:13px;
+      color:#666;
+      margin-top:20px;
+      line-height:1.5;
+    }
+    .protocol-desc code{
+      font-family:'SF Mono','Fira Mono',monospace;
+      font-size:12px;
+      background:#1a1a1a;
+      padding:2px 6px;
+      border-radius:4px;
+      color:#aaa;
+    }
+
+    footer{
+      text-align:center;
+      padding:40px 24px;
+      font-size:12px;
+      color:#444;
+      border-top:1px solid #1a1a1a;
+      margin-top:60px;
+    }
+    footer a{color:#666;text-decoration:none}
+    footer a:hover{color:#999}
   </style>
 </head>
 <body>
   <header>
-    <h1>Kiosk</h1>
-    <p>Agent-native commerce protocol</p>
+    <img src="/logo.svg" alt="Kiosk" class="logo">
+    <h1>Agent-native commerce</h1>
+    <p class="hero-line">Punchcards. Keyboard and mouse. Touchscreen and voice. The next interface isn't something you touch — it's something you talk to.</p>
   </header>
-  <main>
-    <div class="card">
-      <h2>For AI agents</h2>
-      <p>Any site with <code>&lt;link rel="kiosk"&gt;</code> speaks Kiosk. Your assistant can order and pay directly — no human account, no checkout hand-off.</p>
-      <ul>
-        <li>Discover via <code>/.well-known/kiosk.json</code></li>
-        <li>REST: <code>GET /schema</code> · <code>POST /query</code> · <code>POST /run</code> · <code>POST /pay</code></li>
-      </ul>
-      <div class="links">
-        <a href="/skill.md">Agent skill</a>
+
+  <div class="evolution">
+    <span>🧾 Punchcards</span><span class="arrow">→</span>
+    <span>⌨️ Keyboard</span><span class="arrow">→</span>
+    <span>🖱️ GUI</span><span class="arrow">→</span>
+    <span>📱 Touch</span><span class="arrow">→</span>
+    <span>🗣️ Voice</span><span class="arrow">→</span>
+    <span class="now">🤖 Agent</span>
+  </div>
+
+  <section>
+    <div class="demo-box">
+      <h2>Groceries, by agent. 22 seconds of your time.</h2>
+      <p class="time">The human's job is done at 0:04. The agent does the rest.</p>
+      <ol class="demo-steps">
+        <li>Stick a note on the fridge. Write "buy groceries."</li>
+        <li>Agent reads your list, finds getgroceries.com</li>
+        <li>Checks stock: milk available, chocolate spread sold out — "peanut butter instead?"</li>
+        <li>You tap "Later." Agent remembers for next time.</li>
+        <li>Ordered ✓ &euro;19.65 paid. Delivery 14:30–15:00.</li>
+        <li>Second order: zero human taps. Card already on file.</li>
+      </ol>
+      <div class="cta-row">
+        <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">View on GitHub</a>
+        <a href="/skill.md" class="cta cta-ghost">Agent skill</a>
       </div>
     </div>
-    <div class="card">
-      <h2>For providers</h2>
-      <p>Drop <code>/.well-known/kiosk.json</code> on your domain, add <code>&lt;link rel="kiosk"&gt;</code> to your pages, and agents can transact on your site today.</p>
+
+    <div class="cant-do">
+      <h3>Today, none of these can do this</h3>
+      <ul class="cant-list">
+        <li><strong>Manus</strong> — hands you a payment link after 20 minutes</li>
+        <li><strong>ChatGPT Agent</strong> — redirects to merchant's app for payment</li>
+        <li><strong>Claude Connectors</strong> — search only. "Book on booking.com" → deep link out</li>
+        <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment</li>
+        <li><strong>Gemini</strong> — navigates app, then hands back for final payment tap</li>
+        <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints</li>
+      </ul>
     </div>
-  </main>
-  <footer>Kiosk — open protocol, Apache 2.0</footer>
+
+    <p class="protocol-desc">
+      getgroceries.com runs <strong>Kiosk</strong> — an open protocol that makes any service reachable by AI agents. Your store gets a <code>/.well-known/kiosk.json</code> endpoint. Agents discover, register, browse, order, and pay — all via REST. No intermediary. No transaction fee. Apache 2.0.
+    </p>
+
+    <div class="cta-row" style="margin-top:28px">
+      <a href="/skill.md" class="cta cta-ghost">Universal agent skill →</a>
+      <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-ghost">OSS reference implementation →</a>
+    </div>
+  </section>
+
+  <footer>
+    Kiosk is an open protocol. <a href="https://github.com/kiosk-hq/kiosk">Apache 2.0</a>. No intermediary, no transaction fees.<br>
+    Built for autonomous agents — Hermes, OpenClaw, OpenSquilla, and any runtime with filesystem access.
+  </footer>
 </body>
 </html>
