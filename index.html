@@ -142,6 +142,13 @@
     }
     .cta-ghost:hover{border-color:#888;color:#fff}
 
+    .audience h2{text-align:center;font-size:20px;margin-bottom:24px}
+    .audience-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+    .audience-card{background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:24px 20px}
+    .audience-card h3{font-size:16px;margin-bottom:8px}
+    .audience-card p{font-size:13px;color:#999;margin-bottom:12px;line-height:1.5}
+    .audience-card .fine{font-size:11px;color:#555;margin-top:12px}
+
     .protocol-desc{
       font-size:13px;
       color:#666;
@@ -208,6 +215,30 @@
         <a href="/skill.md" class="cta cta-ghost">Agent skill</a>
       </div>
     </div>
+
+    <section class="audience" style="margin-bottom:48px">
+      <h2>Three paths in</h2>
+      <div class="audience-grid">
+        <div class="audience-card">
+          <h3>🏪 I run a store</h3>
+          <p>Add one endpoint. Agents can discover, browse, order, and pay. 20 minutes.</p>
+          <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">Get the code →</a>
+          <p class="fine">Apache 2.0. Self-hosted. No transaction fees. Your customers, your data.</p>
+        </div>
+        <div class="audience-card">
+          <h3>🤖 I build agents</h3>
+          <p>One skill.md. Your agent learns to talk to <em>every</em> Kiosk provider.</p>
+          <a href="/skill.md" class="cta cta-primary">Teach your agent →</a>
+          <p class="fine">REST protocol. No SDK. Agents generate their own integration from the spec.</p>
+        </div>
+        <div class="audience-card">
+          <h3>👀 I'm curious</h3>
+          <p>Watch an agent buy groceries. 22 seconds, 4 seconds of human time.</p>
+          <a href="#demo" class="cta cta-primary">See the demo →</a>
+          <p class="fine">Real Stripe test-mode payment. Real agent. Fake grocery store (for now).</p>
+        </div>
+      </div>
+    </section>
 
     <div class="cant-do">
       <h3>Today, none of these can do this</h3>
