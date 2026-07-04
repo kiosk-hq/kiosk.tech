@@ -116,6 +116,14 @@
     }
     .cant-list li strong{color:#d47;font-weight:600}
 
+    .why-not{margin-top:32px}
+    .why-not h3{font-size:16px;font-weight:600;color:#8bc49a;margin-bottom:16px}
+    .why-list{list-style:none;display:flex;flex-direction:column;gap:14px}
+    .why-list li{font-size:13px;color:#999;line-height:1.6;background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:16px 18px}
+    .why-list li strong{color:#e0e0e0}
+    .why-list li a{color:#8bc49a;font-size:12px;text-decoration:none;display:inline-block;margin-top:6px}
+    .why-list li a:hover{text-decoration:underline}
+
     .cta-row{
       display:flex;
       gap:12px;
@@ -249,6 +257,22 @@
         <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment</li>
         <li><strong>Gemini</strong> — navigates app, then hands back for final payment tap</li>
         <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints</li>
+      </ul>
+    </div>
+
+    <div class="why-not">
+      <h3>Why not a simpler approach?</h3>
+      <ul class="why-list">
+        <li>
+          <strong>Why not MCP?</strong>
+          MCP assumes stateful sessions between agent and tool. Commerce is stateless — every purchase is a new transaction with its own mandates. REST endpoints are the right primitive.
+          <a href="https://github.com/kiosk-hq/kiosk-meta/blob/main/docs/adr/0006-rest-over-mcp.md">ADR-0006: REST over MCP →</a>
+        </li>
+        <li>
+          <strong>Why not an SDK?</strong>
+          An SDK that handles RSA keys and payment mandates is a supply-chain attack vector. A markdown spec is inert, versioned by kiosk.tech, and reviewable by every merchant before deployment. Agents generate their own integration.
+          <a href="https://github.com/kiosk-hq/kiosk-meta/blob/main/docs/adr/0003-agent-skill-distribution.md">ADR-0003: Spec over SDK →</a>
+        </li>
       </ul>
     </div>
 
