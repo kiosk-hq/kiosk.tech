@@ -188,6 +188,12 @@
     .oss-pledge{text-align:center;padding:40px 0}
     .oss-pledge h2{font-size:20px;font-weight:700;margin-bottom:8px}
     .oss-pledge p{font-size:14px;color:#999;max-width:560px;margin:0 auto 12px;line-height:1.6}
+    .benefits{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:48px}
+    .benefits h3{font-size:16px;margin-bottom:12px}
+    .benefits ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+    .benefits li{font-size:13px;color:#999;line-height:1.5;padding:0 0 0 18px;position:relative}
+    .benefits li::before{content:\"·\";position:absolute;left:4px;color:#8bc49a}
+    .benefits li strong{color:#e0e0e0}
   </style>
 </head>
 <body>
@@ -284,6 +290,28 @@
         </li>
       </ul>
     </div>
+
+    <section class="benefits">
+      <div>
+        <h3>🏪 For businesses</h3>
+        <ul>
+          <li><strong>No transaction fees.</strong> Unlike app stores (30%) or delivery platforms (15–30%), Kiosk takes zero cut. Your revenue is yours.</li>
+          <li><strong>Your customer, your data.</strong> No intermediary owns the relationship. The customer registers with <em>you</em>, not a platform.</li>
+          <li><strong>Proof-of-work, not CAPTCHA.</strong> Equihash PoW stops bots at ~1 GiB of solver memory — ASIC-resistant, invisible to real humans. No «click all the traffic lights.»</li>
+          <li><strong>KYC without the creep.</strong> Integrate with Persona, Sumsub, or your existing KYC provider. Verify real humans, filter out bought identities. The agent carries KYC attributes — «has valid ID,» «18+» — never raw documents.</li>
+          <li><strong>Reputation that sticks.</strong> A customer's agent key is unique per domain. Fraudulent actors can't recycle reputation across merchants. Legitimate customers build trust over time.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>🙋 For users</h3>
+        <ul>
+          <li><strong>No cross-provider tracking.</strong> A new RSA key is generated for every domain. Your identity at getgroceries.com is cryptographically separate from skooti.com. No shared identifier, no tracking profile.</li>
+          <li><strong>No personal data shared.</strong> Kiosk's KYC model shares <em>attributes</em> — «valid government ID exists,» «age ≥ 18» — never the underlying documents. The merchant never sees your passport.</li>
+          <li><strong>Your agent works for you.</strong> Not the merchant. Not the platform. The agent holds <em>your</em> keys, signs <em>your</em> mandates, and acts in <em>your</em> interest.</li>
+          <li><strong>Zero apps to install.</strong> No account creation forms. No password resets. Your agent handles registration, browsing, ordering, and payment.</li>
+        </ul>
+      </div>
+    </section>
 
     <section class="oss-pledge">
       <h2>Open source. Free. Forever.</h2>
