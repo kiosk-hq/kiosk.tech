@@ -76,8 +76,67 @@ This skill is versioned (see frontmatter `version`). The canonical source is `ht
 ```
 
 The agent:
-1. Loads the skill from the provider's referenced URL
-2. Verifies the SHA-256 hash matches
-3. Falls back to its locally cached skill if hash verification fails
+1. Compares the provider's `skill.version` (from `kiosk.json`) with its own cached version
+2. **If the provider's version is newer** — the agent MUST fetch and adopt the newer skill before transacting. The provider may depend on newer protocol features.
+3. Verifies the SHA-256 hash matches the fetched content
+4. Falls back to its locally cached skill if hash verification fails
 
-**Version mismatch.** If two providers reference different skill versions, the agent uses its most recent cached version. Skills are backward-compatible within a major version — new endpoints and fields are additive, existing flows never break. When a new major version is released, providers have a deprecation window to update their `kiosk.json` reference.
+**Backward compatibility.** Newer minor versions are backward-compatible — new endpoints and fields are additive, existing flows never break. An agent on v1.1 can transact with a v1.0 provider. A v1.0 agent MUST update before transacting with a v1.1 provider.
+
+---
+
+## AP2 payment mandates
+
+Kiosk uses a three-mandate chain for every payment. This creates a verifiable audit trail — the agent cryptographically commits to *what* it intends to buy, *what* it actually ordered, and *how* it paid.
+
+### What is a mandate?
+
+A mandate is a JSON payload signed by the agent's RSA-2048 private key as a **RS256 JWS** (RFC 7515). The `iss` (issuer) field MUST match the provider's issuer string from `/.well-known/kiosk.json` exactly — copy it verbatim. Each mandate includes `iat` (issued-at timestamp) and `jti` (unique ID).
+
+### The three mandates (in order)
+
+| # | Mandate | What it says | Key fields |
+|---|---------|-------------|------------|
+| 1 | **Intent** | «I plan to spend up to X on Y» | `cap_amount_cents`, `scope` (e.g. `"grocery"`), `iss` |
+| 2 | **Cart** | «This is exactly what I ordered» | `intent_mandate_id` (binds to #1), `line_items`, `total_amount_cents`, `iss` |
+| 3 | **Payment** | «Charge my saved card» | `cart_mandate_id` (binds to #2), `payment_method: "on_file"`, `iss` |
+
+Each mandate references the previous one — intent → cart → payment — forming a cryptographically linked chain. The server verifies all three signatures against the agent's registered public key.
+
+### Signing in Python
+
+```python
+import jwt
+
+private_key = open("~/.kiosk/<domain>/key.pem").read()
+iss = "getgroceries.com"  # from /.well-known/kiosk.json
+
+intent_jws = jwt.encode({
+    "iss": iss, "iat": now, "jti": uuid4(),
+    "cap_amount_cents": 5000, "scope": "grocery"
+}, private_key, algorithm="RS256")
+
+cart_jws = jwt.encode({
+    "iss": iss, "iat": now, "jti": uuid4(),
+    "intent_mandate_id": intent_id,
+    "line_items": [{"sku": "milk", "qty": 2}],
+    "total_amount_cents": 399
+}, private_key, algorithm="RS256")
+
+payment_jws = jwt.encode({
+    "iss": iss, "iat": now, "jti": uuid4(),
+    "cart_mandate_id": cart_id,
+    "payment_method": "on_file"
+}, private_key, algorithm="RS256")
+```
+
+Submit all three in one call:
+
+```
+POST <endpoint>/pay
+{"intent_mandate_jws": "...", "cart_mandate_jws": "...", "payment_mandate_jws": "..."}
+```
+
+### Why three mandates?
+
+Without agent-signed mandates, there's no non-repudiation. If the merchant charges $500 and the agent says «I authorized $50,» neither side can prove what was agreed. The intent mandate sets a ceiling. The cart mandate lists the exact items. The payment mandate authorizes the charge. Three signed JWS documents settle any dispute.
