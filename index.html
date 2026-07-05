@@ -178,6 +178,12 @@
     .agent-card strong{display:block;font-size:14px;margin-bottom:4px}
     .agent-card span{font-size:12px;color:#888;line-height:1.4}
     .agents-note{text-align:center;font-size:12px;color:#555;max-width:540px;margin:0 auto}
+    .agents-note a{color:#8bc49a;text-decoration:none}
+    .agents-note a:hover{text-decoration:underline}
+    .agent-reqs{list-style:none;max-width:540px;margin:0 auto 20px;display:flex;flex-direction:column;gap:8px}
+    .agent-reqs li{font-size:13px;color:#999;line-height:1.5;padding:10px 14px;background:#161616;border:1px solid #252525;border-radius:8px}
+    .agent-reqs li strong{color:#e0e0e0}
+    .agent-reqs li code{font-family:'SF Mono','Fira Mono',monospace;font-size:11px;background:#0d0d0d;padding:1px 5px;border-radius:3px;color:#8bc49a}
     .ref-badge{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px}
     .oss-pledge{text-align:center;padding:40px 0}
     .oss-pledge h2{font-size:20px;font-weight:700;margin-bottom:8px}
@@ -227,9 +233,9 @@
         </div>
         <div class="audience-card">
           <h3>🤖 I build agents</h3>
-          <p>One skill.md. Your agent learns to talk to <em>every</em> Kiosk provider — any vertical.</p>
-          <a href="/skill.md" class="cta cta-primary">Teach your agent →</a>
-          <p class="fine">REST protocol. No SDK. Agents generate their own integration from the spec.</p>
+          <p>If your agent can read files, make HTTP requests, and hold cryptographic keys — it already speaks Kiosk. <a href="/skill.md">One skill file</a> is all it needs.</p>
+          <a href="https://github.com/kiosk-hq/kiosk.tech" class="cta cta-ghost" style="font-size:12px;padding:8px 16px">Add your agent →</a>
+          <p class="fine">Submit a PR to list a compatible agent. No SDK. No library dependency.</p>
         </div>
       </div>
     </section>
@@ -282,7 +288,14 @@
 
   <section class="agents">
     <h2>Agents that can do this</h2>
-    <p class="agents-intro">Any agent runtime with filesystem access and the ability to hold cryptographic keys:</p>
+    <p class="agents-intro">An agent is Kiosk-compatible if it can:</p>
+    <ul class="agent-reqs">
+      <li><strong>Read and write files</strong> — store an RSA keypair and identity at <code>~/.kiosk/&lt;domain&gt;/</code></li>
+      <li><strong>Make HTTP requests</strong> — call REST endpoints with JSON bodies and JWS signatures</li>
+      <li><strong>Hold cryptographic keys</strong> — sign AP2 mandates (intent → cart → payment) with RS256</li>
+      <li><strong>Run code</strong> — execute Python scripts for JWT signing and Equihash PoW solving</li>
+    </ul>
+    <p class="agents-intro" style="margin-top:24px">Compatible agents today:</p>
     <div class="agent-grid">
       <div class="agent-card">
         <strong>Hermes</strong>
@@ -290,18 +303,16 @@
       </div>
       <div class="agent-card">
         <strong>Comet</strong>
-        <span>Open-source. Filesystem + key storage. Kiosk-native.</span>
+        <span>Open-source. Filesystem + key storage.</span>
       </div>
       <div class="agent-card">
         <strong>OpenClaw</strong>
         <span>Open-source agent runtime. Full tool access.</span>
       </div>
-      <div class="agent-card">
-        <strong>Your agent</strong>
-        <span>If it can read files and sign JWTs, it can speak Kiosk.</span>
-      </div>
     </div>
-    <p class="agents-note">These are reference-capable agents — not an exhaustive list. The protocol is open. Any runtime that can store keys and make HTTP requests can integrate.</p>
+    <p class="agents-note">
+      <a href="https://github.com/kiosk-hq/kiosk.tech">Add a compatible agent →</a> — submit a PR with your agent's name, description, and a link to its documentation.
+    </p>
   </section>
 
   <footer>
