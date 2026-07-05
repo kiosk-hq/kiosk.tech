@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kiosk — Agent-Native Commerce</title>
-  <meta name="description" content="The next interface isn't something you touch — it's something you talk to. Kiosk lets any store speak to AI agents. No intermediary, no transaction fee, Apache 2.0.">
+  <title>Kiosk — Your Service, Agent-Ready</title>
+  <meta name="description" content="The next interface isn't something you touch — it's something you talk to. Kiosk lets any business speak to AI agents — book, order, reserve, pay. No intermediary, no transaction fee, Apache 2.0.">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{
@@ -200,8 +200,8 @@
   <header>
     <img src="/logo.svg" alt="Kiosk" class="logo">
     <p class="ref-badge">Reference implementation</p>
-    <h1>Agent-native commerce</h1>
-    <p class="hero-line">Punchcards. Keyboard and mouse. Touchscreen and voice. The next interface isn't something you touch — it's something you talk to. The future looks like this.</p>
+    <h1>Your service, agent-ready</h1>
+    <p class="hero-line">Punchcards. Keyboard and mouse. Touchscreen and voice. The next interface isn't something you touch — it's something you talk to. Book a table, order groceries, reserve a scooter, schedule a haircut — your agent handles it. The future looks like this.</p>
   </header>
 
   <div class="evolution">
@@ -215,21 +215,20 @@
 
   <section style="text-align:center;margin-bottom:48px">
     <p style="font-size:16px;color:#aaa;max-width:600px;margin:0 auto;line-height:1.7">
-      A reference implementation that makes any online store reachable by AI agents. No intermediary. No transaction fee. Apache 2.0. Self-hosted, free, forever.
+      A reference implementation that makes any business reachable by AI agents. Bookings, reservations, orders, rentals, appointments — anything you'd normally use an app or website for. No intermediary. No transaction fee. Apache 2.0. Self-hosted, free, forever.
     </p>
   </section>
 
   <section>
     <div class="demo-box" id="demo">
-      <h2>Groceries, by agent. 22 seconds of your time.</h2>
-      <p class="time">The human's job is done at 0:04. The agent does the rest.</p>
+      <h2>What agents can do today</h2>
+      <p class="time">Groceries. Scooter rental. Salon booking. Restaurant reservations. All via Kiosk.</p>
       <ol class="demo-steps">
-        <li>Stick a note on the fridge. Write "buy groceries."</li>
-        <li>Agent reads your list, finds getgroceries.com</li>
-        <li>Checks stock: milk available, chocolate spread sold out — "peanut butter instead?"</li>
-        <li>You tap "Later." Agent remembers for next time.</li>
-        <li>Ordered ✓ &euro;19.65 paid. Delivery 14:30–15:00.</li>
-        <li>Second order: zero human taps. Card already on file.</li>
+        <li>«Book a table for 2 tomorrow at 8» — restaurant booked, confirmation in chat</li>
+        <li>«Reserve a scooter near the office» — unlocked, rental started, payment on file</li>
+        <li>«Schedule a haircut Saturday morning» — appointment confirmed, no app needed</li>
+        <li>«Buy groceries for the week» — cart filled, substitutions handled, delivered</li>
+        <li>Second order in any vertical: zero human taps. Card already on file.</li>
       </ol>
       <div class="cta-row">
         <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">View on GitHub</a>
@@ -241,22 +240,22 @@
       <h2>Three paths in</h2>
       <div class="audience-grid">
         <div class="audience-card">
-          <h3>🏪 I run a store</h3>
-          <p>Add one endpoint. Agents can discover, browse, order, and pay. 20 minutes.</p>
+          <h3>🏪 I run a business</h3>
+          <p>Add one endpoint. Agents can discover, browse, book, order, and pay. 20 minutes.</p>
           <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">Get the code →</a>
           <p class="fine">Apache 2.0. Self-hosted. No transaction fees. Your customers, your data.</p>
         </div>
         <div class="audience-card">
           <h3>🤖 I build agents</h3>
-          <p>One skill.md. Your agent learns to talk to <em>every</em> Kiosk provider.</p>
+          <p>One skill.md. Your agent learns to talk to <em>every</em> Kiosk provider — any vertical.</p>
           <a href="/skill.md" class="cta cta-primary">Teach your agent →</a>
           <p class="fine">REST protocol. No SDK. Agents generate their own integration from the spec.</p>
         </div>
         <div class="audience-card">
           <h3>👀 I'm curious</h3>
-          <p>Watch an agent buy groceries. 22 seconds, 4 seconds of human time.</p>
+          <p>Watch agents book restaurants, rent scooters, schedule appointments, buy groceries.</p>
           <a href="#demo" class="cta cta-primary">See the demo →</a>
-          <p class="fine">Real Stripe test-mode payment. Real agent. Fake grocery store (for now).</p>
+          <p class="fine">Real Stripe test-mode payments. Real agents. Reference implementations (for now).</p>
         </div>
       </div>
     </section>
@@ -264,39 +263,41 @@
     <div class="cant-do">
       <h3>Today, none of these can do this</h3>
       <ul class="cant-list">
-        <li><strong>Manus</strong> — hands you a payment link after 20 minutes</li>
-        <li><strong>ChatGPT Agent</strong> — redirects to merchant's app for payment</li>
-        <li><strong>Claude Connectors</strong> — search only. "Book on booking.com" → deep link out</li>
-        <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment</li>
+        <li><strong>Manus</strong> — hands you a payment link after 20 minutes of screen scraping</li>
+        <li><strong>ChatGPT Agent</strong> — redirects to merchant's app for booking or payment</li>
+        <li><strong>Claude Connectors</strong> — search only. «Book on booking.com» → deep link out</li>
+        <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment, no persistence</li>
         <li><strong>Gemini</strong> — navigates app, then hands back for final payment tap</li>
-        <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints</li>
+        <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints. Can't book, can't reserve, can't pay</li>
       </ul>
     </div>
 
     <div class="why-not">
-      <h3>Why not a simpler approach?</h3>
+      <h3>Why not — ?</h3>
       <ul class="why-list">
         <li>
           <strong>Why not MCP?</strong>
-          MCP assumes stateful sessions between agent and tool. Commerce is stateless — every purchase is a new transaction with its own mandates. REST endpoints are the right primitive.
-          <a href="https://github.com/kiosk-hq/kiosk-meta/blob/main/docs/adr/0006-rest-over-mcp.md">ADR-0006: REST over MCP →</a>
+          MCP assumes stateful sessions between agent and tool. Commerce is stateless — every purchase is a new transaction with its own mandates. REST endpoints are the right primitive. MCP was built for IDE integrations, not for autonomous agents that hold keys and sign payment mandates.
+        </li>
+        <li>
+          <strong>Why not MPP (Merchant Payment Protocol)?</strong>
+          MPP is merchant-initiated: the merchant pulls funds after the agent says «pay.» But an autonomous agent isn't a passive API caller — it's a party to the transaction. AP2 mandates (intent → cart → payment) are cryptographically signed by the agent, creating a verifiable audit trail. Without agent-signed mandates, there's no non-repudiation: if the merchant charges $500 and the agent says «I authorized $50,» neither side can prove what was agreed. Three signed JWS mandates settle the dispute.
         </li>
         <li>
           <strong>Why not an SDK?</strong>
-          An SDK that handles RSA keys and payment mandates is a supply-chain attack vector. A markdown spec is inert, versioned by kiosk.tech, and reviewable by every merchant before deployment. Agents generate their own integration.
-          <a href="https://github.com/kiosk-hq/kiosk-meta/blob/main/docs/adr/0003-agent-skill-distribution.md">ADR-0003: Spec over SDK →</a>
+          A Python package that handles RSA keys and payment mandates is a high-value supply-chain attack target. A markdown spec is inert — no code execution risk. Versioned by kiosk.tech, reviewable by every merchant before deployment. Agents generate their own integration from the spec at runtime.
         </li>
       </ul>
     </div>
 
     <section class="oss-pledge">
       <h2>Open source. Free. Forever.</h2>
-      <p>Kiosk is Apache 2.0. Self-host it on your own infrastructure. No transaction fees — we don't sit between you and your customers. No hosted control plane, no paid tiers, no "book a call."</p>
+      <p>Kiosk is Apache 2.0. Self-host it on your own infrastructure. No transaction fees — we don't sit between you and your business. No hosted control plane, no paid tiers, no «book a call.»</p>
       <p>Here's the code. Use it. It's free.</p>
     </section>
 
     <p class="protocol-desc">
-      Kiosk is a reference implementation of an open protocol. Your store gets a <code>/.well-known/kiosk.json</code> endpoint. Agents discover, register, browse, order, and pay — all via REST.
+      Kiosk is a reference implementation of an open protocol. Your service gets a <code>/.well-known/kiosk.json</code> endpoint. Agents discover, register, browse, book, order, and pay — all via REST. Any vertical: restaurants, salons, rentals, tickets, appointments — anything you'd normally use an app for.
     </p>
 
     <div class="cta-row" style="margin-top:20px">
