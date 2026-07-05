@@ -15,6 +15,8 @@
       letter-spacing:-0.01em;
     }
     .logo{width:120px;height:auto;display:block;margin:0 auto 12px}
+    .header-gh{position:absolute;top:24px;right:24px;font-size:12px;color:#666;text-decoration:none}
+    .header-gh:hover{color:#aaa}
     header{
       text-align:center;
       padding:80px 24px 60px;
@@ -184,6 +186,7 @@
 </head>
 <body>
   <header>
+    <a href="https://github.com/kiosk-hq/kiosk" class="header-gh">GitHub →</a>
     <img src="/logo.png" alt="Kiosk" class="logo">
     <p class="ref-badge">Reference implementation</p>
     <h1>Your service, agent-ready</h1>
@@ -214,7 +217,7 @@
     </div>
 
     <section class="audience" style="margin-bottom:48px">
-      <h2>Three paths in</h2>
+      <h2>Two paths in</h2>
       <div class="audience-grid">
         <div class="audience-card">
           <h3>🏪 I run a business</h3>
@@ -227,12 +230,6 @@
           <p>One skill.md. Your agent learns to talk to <em>every</em> Kiosk provider — any vertical.</p>
           <a href="/skill.md" class="cta cta-primary">Teach your agent →</a>
           <p class="fine">REST protocol. No SDK. Agents generate their own integration from the spec.</p>
-        </div>
-        <div class="audience-card">
-          <h3>👀 I'm curious</h3>
-          <p>Watch agents book restaurants, rent scooters, schedule appointments, buy groceries.</p>
-          <a href="#demo" class="cta cta-primary">See the demo →</a>
-          <p class="fine">Real Stripe test-mode payments. Real agents. Reference implementations (for now).</p>
         </div>
       </div>
     </section>
