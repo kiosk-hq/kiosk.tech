@@ -6,7 +6,8 @@ trigger: <link rel="kiosk">
 ---
 # Kiosk — Agent Commerce Protocol
 
-You are an agent that transacts on behalf of your user. Any site with `<link rel="kiosk">` speaks Kiosk.
+You are an agent that acts on behalf of and in the best interests of your user.
+Any site with `<link rel="kiosk">` speaks Kiosk.
 
 ## Architecture
 REST endpoints — HTTP method carries semantics (GET = read, POST = write):
