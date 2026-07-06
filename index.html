@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kiosk — Your Service, Agent-Ready</title>
-  <meta name="description" content="The next interface isn't something you touch — it's something you talk to. Kiosk lets any business speak to AI agents — book, order, reserve, pay. No intermediary, no transaction fee, Apache 2.0.">
+  <meta name="description" content="Your customers already have agents. Give them a gateway. Kiosk makes any business reachable by AI agents — bookings, orders, payments. No intermediary, Apache 2.0.">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{
@@ -211,12 +211,6 @@
     </p>
   </section>
 
-  <section style="max-width:600px;margin:0 auto 48px;text-align:center">
-    <p style="font-size:14px;color:#888;line-height:1.7">
-      Your customers tell their agent where to go: «getgroceries.com» for groceries, «skooti.com» for a scooter, or an aggregator like «booking.com.» The agent discovers your Kiosk endpoint at <code style="font-family:monospace;font-size:12px;color:#8bc49a">/.well-known/kiosk.json</code>, registers, and transacts. No app install. No account creation.
-    </p>
-  </section>
-
   <section>
     <div class="demo-box" id="demo">
       <h2>What agents can do today</h2>
@@ -234,62 +228,11 @@
       </div>
     </div>
 
-    <section class="audience" style="margin-bottom:48px">
-      <h2>Two paths in</h2>
-      <div class="audience-grid">
-        <div class="audience-card">
-          <h3>🏪 I run a business</h3>
-          <p>Add one endpoint. Agents can discover, browse, book, order, and pay. 20 minutes.</p>
-          <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">Get the code →</a>
-          <p class="fine">Apache 2.0. Self-hosted. No transaction fees. Your customers, your data.<br><a href="/onboarding.md" style="color:#8bc49a;font-size:11px">Step-by-step onboarding →</a></p>
-        </div>
-        <div class="audience-card">
-          <h3>🤖 I build agents</h3>
-          <p>If your agent can read files, make HTTP requests, and hold cryptographic keys — it already speaks Kiosk. <a href="/skill.md">One skill file</a> is all it needs.</p>
-          <a href="https://github.com/kiosk-hq/kiosk.tech" class="cta cta-ghost" style="font-size:12px;padding:8px 16px">Add your agent →</a>
-          <p class="fine">Submit a PR to list a compatible agent. No SDK. No library dependency.</p>
-        </div>
-      </div>
+    <section class="audience" style="margin-bottom:48px;text-align:center">
+      <p style="font-size:15px;color:#999;margin-bottom:16px">Add one endpoint. Agents discover, browse, book, order, and pay. 20 minutes.</p>
+      <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">Get the code →</a>
+      <p style="font-size:11px;color:#555;margin-top:12px">Apache 2.0. Self-hosted. No transaction fees. <a href="/onboarding.md" style="color:#8bc49a">Step-by-step onboarding →</a></p>
     </section>
-
-    <div class="cant-do">
-      <h3>Today, none of these can do this</h3>
-      <ul class="cant-list">
-        <li><strong>Manus</strong> — hands you a payment link after 20 minutes of screen scraping</li>
-        <li><strong>ChatGPT Agent</strong> — redirects to merchant's app for booking or payment</li>
-        <li><strong>Claude Connectors</strong> — search only. «Book on booking.com» → deep link out</li>
-        <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment, no persistence</li>
-        <li><strong>Gemini</strong> — navigates app, then hands back for final payment tap</li>
-        <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints. Can't book, can't reserve, can't pay</li>
-      </ul>
-    </div>
-
-    <div class="cant-do">
-      <h3>Not the «AI assistant» widget on every website</h3>
-      <ul class="cant-list">
-        <li><strong>Merchant chatbots</strong> — can search the catalog. Cannot register, cannot book, cannot pay. Lose context between visits.</li>
-        <li><strong>«Powered by AI» popups</strong> — a template with your logo. Same three questions. Zero integration with the actual ordering system.</li>
-        <li><strong>Voice assistants on speaker</strong> — «turn on the lights» works. «Book a haircut for Thursday» — silence.</li>
-      </ul>
-    </div>
-
-    <div class="why-not">
-      <h3>Why not — ?</h3>
-      <ul class="why-list">
-        <li>
-          <strong>Why not MCP?</strong>
-          MCP assumes stateful sessions between agent and tool. Commerce is stateless — every purchase is a new transaction with its own mandates. REST endpoints are the right primitive. MCP was built for IDE integrations, not for autonomous agents that hold keys and sign payment mandates.
-        </li>
-        <li>
-          <strong>Why not MPP (Merchant Payment Protocol)?</strong>
-          MPP is merchant-initiated: the merchant pulls funds after the agent says «pay.» But an autonomous agent isn't a passive API caller — it's a party to the transaction. AP2 mandates (intent → cart → payment) are cryptographically signed by the agent, creating a verifiable audit trail. Without agent-signed mandates, there's no non-repudiation: if the merchant charges $500 and the agent says «I authorized $50,» neither side can prove what was agreed. Three signed JWS mandates settle the dispute.
-        </li>
-        <li>
-          <strong>Why not an SDK?</strong>
-          A Python package that handles RSA keys and payment mandates is a high-value supply-chain attack target. A markdown spec is inert — no code execution risk. Versioned by kiosk.tech, reviewable by every merchant before deployment. Agents generate their own integration from the spec at runtime.
-        </li>
-      </ul>
-    </div>
 
     <section class="benefits">
       <div>
@@ -313,20 +256,56 @@
       </div>
     </section>
 
+    <div style="max-width:600px;margin:0 auto 48px;text-align:center">
+      <p style="font-size:14px;color:#888;line-height:1.7">
+        Your customers tell their agent where to go: «getgroceries.com» for groceries, «skooti.com» for a scooter, or an aggregator like «booking.com.» The agent discovers your Kiosk endpoint at <code style="font-family:monospace;font-size:12px;color:#8bc49a">/.well-known/kiosk.json</code>, registers, and transacts. No app install. No account creation.
+      </p>
+    </div>
+
+    <div class="cant-do">
+      <h3>Today, none of these can do this</h3>
+      <ul class="cant-list">
+        <li><strong>Manus</strong> — hands you a payment link after 20 minutes of screen scraping</li>
+        <li><strong>ChatGPT Agent</strong> — redirects to merchant's app for booking or payment</li>
+        <li><strong>Claude Connectors</strong> — search only. «Book on booking.com» → deep link out</li>
+        <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment, no persistence</li>
+        <li><strong>Gemini</strong> — navigates app, then hands back for final payment tap</li>
+        <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints. Can't book, can't reserve, can't pay</li>
+      </ul>
+    </div>
+
+    <div class="cant-do">
+      <h3>Not the «AI assistant» widget on every website</h3>
+      <ul class="cant-list">
+        <li><strong>Merchant chatbots</strong> — can search the catalog. Cannot register, cannot book, cannot pay. Lose context between visits.</li>
+        <li><strong>«Powered by AI» popups</strong> — a template with your logo. Same three questions. Zero integration with the actual ordering system.</li>
+        <li><strong>Voice assistants on speaker</strong> — «turn on the lights» works. «Book a haircut for Thursday» — silence.</li>
+      </ul>
+    </div>
+
+    <div class="why-not">
+      <h3>Why not X?</h3>
+      <ul class="why-list">
+        <li>
+          <strong>Why not MCP?</strong>
+          MCP assumes stateful sessions between agent and tool. Commerce is stateless — every purchase is a new transaction with its own mandates. REST endpoints are the right primitive. MCP was built for IDE integrations, not for autonomous agents that hold keys and sign payment mandates.
+        </li>
+        <li>
+          <strong>Why not MPP (Merchant Payment Protocol)?</strong>
+          MPP is merchant-initiated: the merchant pulls funds after the agent says «pay.» But an autonomous agent isn't a passive API caller — it's a party to the transaction. AP2 mandates (intent → cart → payment) are cryptographically signed by the agent, creating a verifiable audit trail. Without agent-signed mandates, there's no non-repudiation: if the merchant charges $500 and the agent says «I authorized $50,» neither side can prove what was agreed. Three signed JWS mandates settle the dispute.
+        </li>
+        <li>
+          <strong>Why not an SDK?</strong>
+          A Python package that handles RSA keys and payment mandates is a high-value supply-chain attack target. A markdown spec is inert — no code execution risk. Versioned by kiosk.tech, reviewable by every merchant before deployment. Agents generate their own integration from the spec at runtime.
+        </li>
+      </ul>
+    </div>
+
     <section class="oss-pledge">
       <h2>Open source. Free. Forever.</h2>
-      <p>Kiosk is Apache 2.0. Self-host it on your own infrastructure. No transaction fees — we don't sit between you and your business. No hosted control plane, no paid tiers, no «book a call.»</p>
+      <p>Apache 2.0. Self-hosted. No transaction fees. No hosted control plane, no paid tiers.</p>
       <p>Here's the code. Use it. It's free.</p>
     </section>
-
-    <p class="protocol-desc">
-      Kiosk is a reference implementation of an open protocol. Your service gets a <code>/.well-known/kiosk.json</code> endpoint. Agents discover, register, browse, book, order, and pay — all via REST. Any vertical: restaurants, salons, rentals, tickets, appointments — anything you'd normally use an app for.
-    </p>
-
-    <div class="cta-row" style="margin-top:20px">
-      <a href="/skill.md" class="cta cta-ghost" style="font-size:12px;padding:8px 16px">Agent skill</a>
-      <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-ghost" style="font-size:12px;padding:8px 16px">GitHub</a>
-    </div>
   </section>
 
   <section class="agents">
