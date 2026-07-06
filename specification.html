@@ -25,8 +25,6 @@
     th,td{text-align:left;padding:10px 14px;border-bottom:1px solid #1a1a1a}
     th{color:#888;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.05em}
     td code{font-size:12px}
-    .draft-banner{background:#2a1f1a;border:1px solid #8b5a2b;border-radius:10px;padding:16px 20px;margin-bottom:32px;font-size:14px;color:#d4a574;line-height:1.6}
-    .draft-banner strong{color:#f0c090}
     .mermaid{background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:24px;margin:16px 0 24px;text-align:center}
     ul,ol{padding-left:20px;margin-bottom:16px}
     li{font-size:15px;color:#bbb;margin-bottom:6px}
@@ -38,11 +36,7 @@
 <a href="/" class="back">← kiosk.tech</a>
 <article>
   <h1>Kiosk Protocol Specification</h1>
-  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.1 — Working Draft</p>
-
-  <div class="draft-banner">
-    <strong>This is an early-stage working draft (v0.1).</strong> The reference implementation is functional for our demo providers (getgroceries, foodelivery, hoteling, skooti), but the spec is evolving. Endpoints, payload shapes, and protocol flows are real and exercised by an automated E2E test suite. We are looking for feedback. <a href="https://github.com/kiosk-hq/kiosk">GitHub →</a>
-  </div>
+  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.1 — Stable</p>
 
   <h2>What this specification answers</h2>
   <p>As a merchant developer or agent author, you want to understand how your software and an AI agent communicate through Kiosk. This document describes the protocol — the exact HTTP requests and responses, the authentication model, and the payment mandate chain — backed by a working reference implementation.</p>
@@ -270,7 +264,7 @@ Authorization: Bearer kiosk_at_...
 
   <h2>Reference</h2>
   <ul>
-    <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation (Apache 2.0)</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk.tech">github.com/kiosk-hq/kiosk.tech</a> — this specification, onboarding guide, and agent skill (Apache 2.0)</li>
     <li><a href="/onboarding.html">Merchant onboarding guide</a> — add Kiosk to your Rails app in ~20 minutes</li>
     <li><a href="/skill.md">Agent skill</a> — the universal agent integration guide</li>
     <li><code>kiosk-demo-getgrocery/getgrocery_flow.rb</code> — full agent walkthrough: register → catalog → order → pay → schedule</li>
@@ -279,7 +273,7 @@ Authorization: Bearer kiosk_at_...
 </article>
 
 <footer>
-  <a href="https://github.com/kiosk-hq/kiosk">Apache 2.0</a> · No intermediary, no transaction fees
+  <a href="https://github.com/kiosk-hq/kiosk.tech">Apache 2.0</a> · No intermediary, no transaction fees
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
