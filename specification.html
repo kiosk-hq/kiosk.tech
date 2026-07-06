@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiosk Protocol Specification v0.1</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d0d0d;color:#e0e0e0;line-height:1.7;letter-spacing:-0.01em}
+    .back{display:inline-block;font-size:13px;color:#888;text-decoration:none;margin:20px 0 0 24px}.back:hover{color:#aaa}
+    article{max-width:760px;margin:0 auto;padding:24px 24px 80px}
+    h1{font-size:28px;font-weight:800;margin-bottom:4px}
+    h2{font-size:20px;font-weight:700;margin:40px 0 12px;padding-top:16px;border-top:1px solid #1a1a1a}
+    h3{font-size:16px;font-weight:600;margin:24px 0 8px}
+    p{font-size:15px;color:#bbb;margin-bottom:14px}
+    a{color:#8bc49a;text-decoration:none}a:hover{text-decoration:underline}
+    code{font-family:'SF Mono','Fira Mono',monospace;font-size:13px;background:#1a1a1a;padding:2px 6px;border-radius:4px;color:#ccc}
+    pre{margin:14px 0 24px;border-radius:10px;overflow:hidden;position:relative}
+    pre code{background:none;padding:16px 20px;display:block;overflow-x:auto;font-size:13px;line-height:1.55;color:#e0e0e0}
+    .copy-btn{position:absolute;top:8px;right:10px;background:#2a2a2a;color:#888;border:1px solid #444;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;opacity:0;transition:opacity 0.15s}
+    pre:hover .copy-btn{opacity:1}.copy-btn:hover{background:#3a3a3a;color:#fff}.copy-btn.copied{background:#2d6b3f;color:#fff}
+    table{border-collapse:collapse;width:100%;margin:16px 0 24px;font-size:14px}
+    th,td{text-align:left;padding:10px 14px;border-bottom:1px solid #1a1a1a}
+    th{color:#888;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.05em}
+    td code{font-size:12px}
+    .draft-banner{background:#2a1f1a;border:1px solid #8b5a2b;border-radius:10px;padding:16px 20px;margin-bottom:32px;font-size:14px;color:#d4a574;line-height:1.6}
+    .draft-banner strong{color:#f0c090}
+    .mermaid{background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:24px;margin:16px 0 24px;text-align:center}
+    ul,ol{padding-left:20px;margin-bottom:16px}
+    li{font-size:15px;color:#bbb;margin-bottom:6px}
+    .todo{background:#1a1a2a;border:1px solid #3a3a5a;border-radius:8px;padding:12px 18px;margin:16px 0;font-size:14px;color:#aab;line-height:1.6}
+    footer{text-align:center;padding:40px 24px;font-size:12px;color:#444;border-top:1px solid #1a1a1a}
+  </style>
+</head>
+<body>
+<a href="/" class="back">← kiosk.tech</a>
+<article>
+  <h1>Kiosk Protocol Specification</h1>
+  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.1 — Working Draft</p>
+
+  <div class="draft-banner">
+    <strong>This is an early-stage working draft (v0.1).</strong> The reference implementation is functional for our demo providers (getgroceries, foodelivery, hoteling, skooti), but the spec is evolving. Endpoints, payload shapes, and protocol flows are real and exercised by an automated E2E test suite. We are looking for feedback. <a href="https://github.com/kiosk-hq/kiosk">GitHub →</a>
+  </div>
+
+  <h2>What this specification answers</h2>
+  <p>As a merchant developer or agent author, you want to understand how your software and an AI agent communicate through Kiosk. This document describes the protocol — the exact HTTP requests and responses, the authentication model, and the payment mandate chain — backed by a working reference implementation.</p>
+  <p>The spec is intentionally small. It covers the <strong>invariants</strong> — the things every Kiosk provider and every compatible agent must agree on. Individual providers extend the surface with their own queries and actions (catalog, delivery slots, booking — whatever their vertical needs).</p>
+
+  <h2>High-level flow</h2>
+
+  <h3>Flow 1: Discovery and registration</h3>
+  <div class="mermaid">
+sequenceDiagram
+    participant A as Agent
+    participant P as Provider
+
+    A->>P: GET /.well-known/kiosk.json
+    P-->>A: {issuer, endpoint, routing, verbs, auth}
+
+    A->>A: Generate RSA-2048 keypair
+    A->>P: POST /kiosk/agents/register<br/>{name, public_key, role}
+    P-->>A: 201 {agent_id, user_id, access_token}
+
+    A->>P: GET /kiosk/schema<br/>Authorization: Bearer {token}
+    P-->>A: {queries: [...], actions: [...], verbs: [...]}
+  </div>
+
+  <h3>Flow 2: Proof-of-work (when required)</h3>
+  <div class="mermaid">
+sequenceDiagram
+    participant A as Agent
+    participant P as Provider
+
+    A->>P: POST /kiosk/query {name: "catalog"}
+    P-->>A: 402 {error: "pow_required",<br/>  challenge: {alg, salt_b64, params}}
+
+    A->>A: Solve Equihash PoW<br/>(~1 GiB RAM, ~seconds)
+    A->>P: POST /kiosk/query {name: "catalog"}<br/>+ pow: {alg, nonce:{indices}, ...}
+    P-->>A: 200 {rows: [...]}
+  </div>
+
+  <h3>Flow 3: Browse, order, pay</h3>
+  <div class="mermaid">
+sequenceDiagram
+    participant A as Agent
+    participant P as Provider
+    participant S as Stripe
+
+    A->>P: POST /kiosk/query {name: "catalog"}
+    P-->>A: {rows: [{sku, name, price_cents}, ...]}
+
+    A->>P: POST /kiosk/run {name: "create_order", items: [...]}
+    P-->>A: {value: {order_id, total_cents}}
+
+    A->>P: POST /kiosk/run {name: "payment_setup"}
+    P-->>A: {value: {status: "setup_required", setup_url}} <br/>or {status: "ready"}
+
+    opt Card setup (first time)
+        A->>A: Hand setup_url to human
+        Human->>S: Enter card on Stripe hosted page
+        A->>P: POST /kiosk/run {name: "payment_setup"}
+        P-->>A: {value: {status: "ready"}}
+    end
+
+    A->>A: Sign 3 JWS mandates<br/>(intent → cart → payment)
+    A->>P: POST /kiosk/pay<br/>{intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}
+    P-->>A: {value: {settlement_id, psp_reference}}
+
+    A->>P: POST /kiosk/run {name: "schedule_delivery", ...}
+    P-->>A: {value: {order_id, scheduled_at}}
+  </div>
+
+  <h2>Endpoints</h2>
+
+  <table>
+    <tr><th>Verb</th><th>Method</th><th>Path</th><th>Auth</th><th>Purpose</th></tr>
+    <tr><td>—</td><td><code>GET</code></td><td><code>/.well-known/kiosk.json</code></td><td>None</td><td>Discovery: issuer, endpoint, routing, auth methods</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/agents/register</code></td><td>None</td><td>Register an agent's public key, get access_token</td></tr>
+    <tr><td><code>schema</code></td><td><code>GET</code></td><td><code>/kiosk/schema</code></td><td>Bearer</td><td>Machine-readable surface: queries + actions</td></tr>
+    <tr><td><code>query</code></td><td><code>POST</code></td><td><code>/kiosk/query</code></td><td>Bearer</td><td>Read data (catalog, slots, orders)</td></tr>
+    <tr><td><code>run</code></td><td><code>POST</code></td><td><code>/kiosk/run</code></td><td>Bearer</td><td>Perform action (create_order, schedule_delivery, payment_setup)</td></tr>
+    <tr><td><code>pay</code></td><td><code>POST</code></td><td><code>/kiosk/pay</code></td><td>Bearer</td><td>Settle payment with signed AP2 mandates</td></tr>
+  </table>
+
+  <p>All <code>POST</code> bodies are JSON. All successful responses are JSON. The provider self-describes its surface via <code>GET /kiosk/schema</code> — queries and actions are provider-specific, not part of the spec.</p>
+
+  <h2>Authentication</h2>
+  <p>Agents authenticate with a Bearer token obtained at registration. The registration flow:</p>
+
+  <pre><code class="language-json">POST /kiosk/agents/register
+{
+  "name":       "hermes-grocery",
+  "public_key": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
+  "role":       "customer"
+}
+
+→ 201 Created
+{
+  "agent_id":     "b2e94107-3a1c-4f8d-bc2e-91d4a53c7e28",
+  "user_id":      "a7f3c291-1b2e-4d8a-9cf1-3e507b824f16",
+  "access_token": "kiosk_at_..."
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The server is <strong>idempotent</strong>: registering the same public key returns the same <code>user_id</code>. This means a saved payment card survives across sessions. The agent stores its RSA-2048 private key at <code>~/.kiosk/&lt;domain&gt;/key.pem</code> and its identity at <code>~/.kiosk/&lt;domain&gt;/identity.json</code>. A new keypair is generated per domain — no cross-provider tracking.</p>
+
+  <h2>Proof-of-work</h2>
+  <p>Providers MAY require proof-of-work before accepting queries or actions. When PoW is required, the server responds with HTTP <code>402</code>:</p>
+
+  <pre><code class="language-json">HTTP 402 Payment Required / PoW Required
+
+{
+  "error": "pow_required",
+  "challenge": {
+    "alg":    "equihash",
+    "salt_b64": "dGVzdC1zYWx0...",
+    "params": { "n": 192, "k": 7 },
+    "header_nonce": 0
+  }
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The agent solves the challenge and retries the request with a top-level <code>pow</code> field:</p>
+
+  <pre><code class="language-json">POST /kiosk/query
+{
+  "name": "catalog",
+  "pow": {
+    "alg":          "equihash",
+    "params":       { "n": 192, "k": 7 },
+    "nonce":        { "indices": [3, 17, 42, ...128 u64 integers] },
+    "header_nonce": 0
+  }
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p><strong>Default algorithm:</strong> Equihash (n=192, k=7). ~1 GiB solver memory, microseconds to verify. ASIC-resistant — building custom SRAM for 1 GiB costs ~$1k per chip. Honest clients on modern hardware solve in seconds. The reference solver is <code>solve.py</code> in <code>kiosk-pow-equihash</code>.</p>
+
+  <p>The provider can request <strong>N concurrent proofs</strong> for rate-limiting. Instead of a continuous difficulty dial, Kiosk uses proof count: a normal client solves 1 PoW, a suspicious one solves 3, an abuser solves 10. Each proof is independent — no amortization across challenges.</p>
+
+  <h2>Catalog query (example)</h2>
+
+  <pre><code class="language-json">POST /kiosk/query
+Authorization: Bearer kiosk_at_...
+{"name": "catalog"}
+
+→ 200 OK
+{
+  "rows": [
+    {"sku": "milk-1l",     "name": "Whole Milk 1L",        "price_cents": 199},
+    {"sku": "bread-ww",    "name": "Whole Wheat Bread",     "price_cents": 299},
+    {"sku": "eggs-12",     "name": "Free-Range Eggs 12-pack","price_cents": 449}
+  ]
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The query name (<code>"catalog"</code>) and the shape of <code>rows</code> are <strong>provider-defined</strong>. Kiosk does not mandate a product schema. The agent learns the available queries and their parameters from <code>GET /kiosk/schema</code>.</p>
+
+  <h2>Payment (AP2 mandate chain)</h2>
+  <p>Every payment requires three cryptographically signed mandates. Each is a <strong>RS256 JWS</strong> (RFC 7515) signed with the agent's private key. The <code>iss</code> field MUST match the provider's issuer from <code>/.well-known/kiosk.json</code>.</p>
+
+  <table>
+    <tr><th>#</th><th>Mandate</th><th>Meaning</th><th>Key fields</th></tr>
+    <tr><td>1</td><td><strong>Intent</strong></td><td>"I plan to spend up to €X on Y"</td><td><code>cap_amount_cents</code>, <code>scope</code></td></tr>
+    <tr><td>2</td><td><strong>Cart</strong></td><td>"This is exactly what I ordered"</td><td><code>intent_mandate_id</code>, <code>line_items</code>, <code>total_amount_cents</code></td></tr>
+    <tr><td>3</td><td><strong>Payment</strong></td><td>"Charge my saved card"</td><td><code>cart_mandate_id</code>, <code>payment_method: "on_file"</code></td></tr>
+  </table>
+
+  <p>Each mandate references the previous one by ID, forming a cryptographically linked chain. The server verifies all three signatures against the agent's registered public key. This provides <strong>non-repudiation</strong>: if a dispute arises, any party can present the signed chain as proof of what was agreed.</p>
+
+  <pre><code class="language-json">POST /kiosk/pay
+Authorization: Bearer kiosk_at_...
+{
+  "intent_mandate_jws":  "eyJhbGciOiJSUzI1NiJ9...",
+  "cart_mandate_jws":    "eyJhbGciOiJSUzI1NiJ9...",
+  "payment_mandate_jws": "eyJhbGciOiJSUzI1NiJ9..."
+}
+
+→ 200 OK
+{
+  "value": {
+    "settlement_id":      "f1b3e259-8c4d-4a7f-9e12-84b5c7d2a963",
+    "psp_reference":      "pi_3Rz...",
+    "settled_amount_cents": 2499,
+    "currency":           "eur"
+  }
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <h2>Card setup</h2>
+  <p>Payment uses Stripe's <strong>SetupIntent card-on-file</strong> model. The agent calls <code>payment_setup</code> before every payment:</p>
+
+  <pre><code class="language-json">POST /kiosk/run
+Authorization: Bearer kiosk_at_...
+{"name": "payment_setup"}
+
+→ First time (no card saved):
+{
+  "value": {
+    "status":    "setup_required",
+    "setup_url": "https://checkout.stripe.com/c/pay/..."
+  }
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The agent hands the <code>setup_url</code> to the human. <strong>Never automate Stripe forms</strong> — the human enters their card once on Stripe's hosted page. The agent polls <code>payment_setup</code> until <code>status: "ready"</code>, then proceeds to <code>pay</code>. Subsequent payments use the saved card without human intervention.</p>
+
+  <h2>KYC</h2>
+  <p>Kiosk supports KYC brokering through Persona, Sumsub, or any existing provider. The model is <strong>attribute-based</strong>: the agent carries verified attributes, never raw identity documents.</p>
+
+  <pre><code class="language-json">// KYC attributes carried by the agent (never raw documents)
+{
+  "kyc": {
+    "document":       { "type": "government_id", "country": "DE" },
+    "age_verified":   true,
+    "age_at_least":   18,
+    "verified_at":    "2025-03-15T10:30:00Z"
+  }
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The merchant receives "has valid government ID from Germany", "age ≥ 18" — never the passport scan. This is a provider-integration concern: Kiosk defines the attribute schema, the provider plugs in their KYC broker.</p>
+
+  <h2>Reputation</h2>
+  <p>Each agent identity is tied to a unique RSA keypair per domain. There is no shared identifier across providers. This means:</p>
+  <ul>
+    <li><strong>Fraudulent actors can't recycle reputation.</strong> A banned user on getgroceries.com has a different cryptographic identity on skooti.com.</li>
+    <li><strong>Legitimate customers build trust over time.</strong> Repeated successful transactions at the same provider accumulate positive reputation signals.</li>
+  </ul>
+  <p>Reputation is provider-local. Kiosk does not define a cross-provider reputation protocol. The <code>kiosk-reputation</code> gem provides policy hooks for providers to implement their own scoring.</p>
+
+  <div class="todo">
+    <strong>TODO:</strong> Merchant-sent events. Currently the protocol is agent-initiated: the agent polls for state changes. A future version will add server-sent events or webhooks so the provider can push updates (order status changes, delivery notifications) to the agent without polling.
+  </div>
+
+  <h2>Reference</h2>
+  <ul>
+    <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation (Apache 2.0)</li>
+    <li><a href="/onboarding.html">Merchant onboarding guide</a> — add Kiosk to your Rails app in ~20 minutes</li>
+    <li><a href="/skill.md">Agent skill</a> — the universal agent integration guide</li>
+    <li><code>kiosk-demo-getgrocery/getgrocery_flow.rb</code> — full agent walkthrough: register → catalog → order → pay → schedule</li>
+    <li><code>e2e/run.sh</code> — automated E2E test that builds a fresh Rails app and exercises every endpoint</li>
+  </ul>
+</article>
+
+<footer>
+  <a href="https://github.com/kiosk-hq/kiosk">Apache 2.0</a> · No intermediary, no transaction fees
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+function copy(btn){const c=btn.parentElement.querySelector('code').innerText;navigator.clipboard.writeText(c).then(()=>{btn.textContent='Copied!';btn.classList.add('copied');setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('copied')},1500)})}
+</script>
+</body>
+</html>
