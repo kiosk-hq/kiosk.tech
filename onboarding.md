@@ -30,7 +30,7 @@ rails db:migrate
 ```ruby
 Kiosk.configure do |c|
   c.user_model     = "User"          # your existing User model
-  c.user_id_type   = :uuid           # or :integer
+  c.user_id_type   = :uuid           # or :integer, :bigint
   c.user_id_column = :id
 
   c.issuer = ENV.fetch("KIOSK_ISSUER", "https://your-domain.com")
