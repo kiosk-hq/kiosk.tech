@@ -229,9 +229,9 @@
     </div>
 
     <section class="audience" style="margin-bottom:48px;text-align:center">
-      <p style="font-size:15px;color:#999;margin-bottom:16px">Add one endpoint. Agents discover, browse, book, order, and pay. 20 minutes.</p>
-      <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">Get the code →</a>
-      <p style="font-size:11px;color:#555;margin-top:12px">Apache 2.0. Self-hosted. No transaction fees. <a href="/onboarding.md" style="color:#8bc49a">Step-by-step onboarding →</a></p>
+      <p style="font-size:15px;color:#999;margin-bottom:16px">Add a gateway. Agents discover, browse, book, order, and pay.</p>
+      <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary"><strong>Get the code</strong> — Apache 2.0, self-hosted, free</a>
+      <p style="font-size:12px;color:#555;margin-top:14px"><a href="/onboarding.md" style="color:#8bc49a">Step-by-step onboarding →</a> &nbsp;·&nbsp; Or write your own — it's an open specification.</p>
     </section>
 
     <section class="benefits">
@@ -261,6 +261,36 @@
         Your customers tell their agent where to go: «getgroceries.com» for groceries, «skooti.com» for a scooter, or an aggregator like «booking.com.» The agent discovers your Kiosk endpoint at <code style="font-family:monospace;font-size:12px;color:#8bc49a">/.well-known/kiosk.json</code>, registers, and transacts. No app install. No account creation.
       </p>
     </div>
+
+    <section style="margin-top:48px">
+      <h2 style="text-align:center;font-size:20px;margin-bottom:16px">Compatible agents today</h2>
+      <div class="agent-grid">
+        <div class="agent-card">
+          <strong><a href="https://github.com/NousResearch/hermes-agent" style="color:#e0e0e0;text-decoration:none">Hermes</a></strong>
+          <span>Nous Research. Full filesystem, persistent memory, skills.</span>
+        </div>
+        <div class="agent-card">
+          <strong><a href="https://github.com/nous-research/comet" style="color:#e0e0e0;text-decoration:none">Comet</a></strong>
+          <span>Open-source. Filesystem + key storage.</span>
+        </div>
+        <div class="agent-card">
+          <strong><a href="https://github.com/Shishamou/OpenClaw" style="color:#e0e0e0;text-decoration:none">OpenClaw</a></strong>
+          <span>Open-source agent runtime. Full tool access.</span>
+        </div>
+      </div>
+      <p class="agents-note" style="margin-bottom:16px">
+        <a href="https://github.com/kiosk-hq/kiosk.tech">Add a compatible agent →</a> — submit a PR.
+      </p>
+      <details style="max-width:540px;margin:0 auto;font-size:13px;color:#888">
+        <summary style="cursor:pointer;color:#aaa;margin-bottom:12px">What makes an agent compatible?</summary>
+        <ul class="agent-reqs" style="margin-bottom:0">
+          <li>Filesystem — store an RSA keypair at <code>~/.kiosk/&lt;domain&gt;/</code></li>
+          <li>HTTP — REST with JSON + JWS signatures</li>
+          <li>Crypto — sign AP2 mandates (intent → cart → payment) with RS256</li>
+          <li>Code — Python for JWT signing and Equihash PoW solving</li>
+        </ul>
+      </details>
+    </section>
 
     <div class="cant-do">
       <h3>Today, none of these can do this</h3>
@@ -300,41 +330,6 @@
         </li>
       </ul>
     </div>
-
-    <section class="oss-pledge">
-      <h2>Open source. Free. Forever.</h2>
-      <p>Apache 2.0. Self-hosted. No transaction fees. No hosted control plane, no paid tiers.</p>
-      <p>Here's the code. Use it. It's free.</p>
-    </section>
-  </section>
-
-  <section class="agents">
-    <h2>Agents that can do this</h2>
-    <p class="agents-intro">An agent is Kiosk-compatible if it can:</p>
-    <ul class="agent-reqs">
-      <li><strong>Read and write files</strong> — store an RSA keypair and identity at <code>~/.kiosk/&lt;domain&gt;/</code></li>
-      <li><strong>Make HTTP requests</strong> — call REST endpoints with JSON bodies and JWS signatures</li>
-      <li><strong>Hold cryptographic keys</strong> — sign AP2 mandates (intent → cart → payment) with RS256</li>
-      <li><strong>Run code</strong> — execute Python scripts for JWT signing and Equihash PoW solving</li>
-    </ul>
-    <p class="agents-intro" style="margin-top:24px">Compatible agents today:</p>
-    <div class="agent-grid">
-      <div class="agent-card">
-        <strong>Hermes</strong>
-        <span>Nous Research. Full filesystem, persistent memory, skills.</span>
-      </div>
-      <div class="agent-card">
-        <strong>Comet</strong>
-        <span>Open-source. Filesystem + key storage.</span>
-      </div>
-      <div class="agent-card">
-        <strong>OpenClaw</strong>
-        <span>Open-source agent runtime. Full tool access.</span>
-      </div>
-    </div>
-    <p class="agents-note">
-      <a href="https://github.com/kiosk-hq/kiosk.tech">Add a compatible agent →</a> — submit a PR with your agent's name, description, and a link to its documentation.
-    </p>
   </section>
 
   <footer>
