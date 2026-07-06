@@ -1,4 +1,4 @@
-# Merchant onboarding — 20 minutes to agent-ready
+# Merchant onboarding -- 20 minutes to agent-ready
 
 A step-by-step guide for adding Kiosk to an existing Rails app, based on
 the [getgroceries](https://github.com/kiosk-hq/kiosk) demo provider.
@@ -113,7 +113,7 @@ end
 
 ## Step 5: Register your actions (5 min)
 
-Actions mutate state — create orders, schedule delivery, set up payment.
+Actions mutate state -- create orders, schedule delivery, set up payment.
 
 `config/initializers/kiosk_actions.rb`:
 
@@ -214,7 +214,7 @@ bundle exec ruby getgrocery_flow.rb
 
 ## How agents find you (add 3 hooks, invisible to humans)
 
-Agents need to discover that your site speaks Kiosk. Three hooks — two
+Agents need to discover that your site speaks Kiosk. Three hooks -- two
 machine-readable, one visual cue for the curious. None interfere with
 your existing site.
 
@@ -236,9 +236,9 @@ In your controller:
 response.set_header("Link", '<https://kiosk.tech/skill.md>; rel="kiosk"')
 ```
 
-A HEAD request is enough — no page download needed.
+A HEAD request is enough -- no page download needed.
 
-### 3. Visual "Agents — over here" card (human-readable, subtle)
+### 3. Visual "Agents -- over here" card (human-readable, subtle)
 
 Add a small section at the bottom of your homepage. It tells agent
 users that your store speaks Kiosk without distracting regular customers:
@@ -246,9 +246,9 @@ users that your store speaks Kiosk without distracting regular customers:
 ```html
 <section style="background:#0f2a1c;color:#fff;border-radius:16px;
                 padding:26px 28px;max-width:880px;margin:8px auto 56px">
-  <h2 style="font-size:19px">🤖 Agents — over here. This store speaks Kiosk.</h2>
+  <h2 style="font-size:19px">🤖 Agents -- over here. This store speaks Kiosk.</h2>
   <p style="font-size:14px;opacity:.92">
-    Your assistant can order and pay directly — no human account needed.
+    Your assistant can order and pay directly -- no human account needed.
     Start at <code>/.well-known/kiosk.json</code>, then <code>/kiosk/help</code>.
   </p>
   <a href="/.well-known/kiosk.json">/.well-known/kiosk.json</a>
@@ -256,7 +256,7 @@ users that your store speaks Kiosk without distracting regular customers:
 </section>
 ```
 
-See [getgroceries' homepage](https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/views/home/index.html.erb) for a live example — it's at the bottom, below the product categories. Regular users scroll past it. Agent users know where to look.
+See [getgroceries' homepage](https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/views/home/index.html.erb) for a live example -- it's at the bottom, below the product categories. Regular users scroll past it. Agent users know where to look.
 
 ---
 
@@ -264,13 +264,13 @@ See [getgroceries' homepage](https://github.com/kiosk-hq/kiosk/blob/main/kiosk-d
 
 From the agent's perspective, after these 7 steps:
 
-1. **Discovery:** `GET /.well-known/kiosk.json` → finds your endpoint
-2. **Registration:** generates RSA key, `POST /agents/register` → gets `access_token`
-3. **Browse:** `POST /query {name:"catalog"}` → sees your products
-4. **Order:** `POST /run {name:"create_order", …}` → order created
-5. **Card setup:** `POST /run {name:"payment_setup"}` → human enters card once on Stripe
-6. **Pay:** agent signs 3 JWS mandates, `POST /pay` → payment settled
-7. **Schedule:** `POST /run {name:"schedule_delivery", …}` → delivery booked
+1. **Discovery:** `GET /.well-known/kiosk.json` -> finds your endpoint
+2. **Registration:** generates RSA key, `POST /agents/register` -> gets `access_token`
+3. **Browse:** `POST /query {name:"catalog"}` -> sees your products
+4. **Order:** `POST /run {name:"create_order", …}` -> order created
+5. **Card setup:** `POST /run {name:"payment_setup"}` -> human enters card once on Stripe
+6. **Pay:** agent signs 3 JWS mandates, `POST /pay` -> payment settled
+7. **Schedule:** `POST /run {name:"schedule_delivery", …}` -> delivery booked
 
 The agent never sees your UI. It never creates an account for the user.
 It transacts entirely through the REST surface you just added.
@@ -280,16 +280,16 @@ It transacts entirely through the REST surface you just added.
 ## What to do next
 
 - **Test with your own agent.** Point Hermes (or any Kiosk-compatible agent) at your local server and say "order groceries."
-- **Add more queries.** Expose anything an agent might need — store locations, nutritional info, allergy filters.
-- **Add more actions.** Reservations, cancellations, loyalty points — anything your app does today.
+- **Add more queries.** Expose anything an agent might need -- store locations, nutritional info, allergy filters.
+- **Add more actions.** Reservations, cancellations, loyalty points -- anything your app does today.
 - **Go to production.** Swap `STRIPE_SECRET_KEY` for a live key, add your domain to `KIOSK_ISSUER`, and deploy.
 
 ---
 
 ## Reference
 
-- [kiosk.tech](https://kiosk.tech) — landing page + agent skill
-- [kiosk.tech/skill.md](https://kiosk.tech/skill.md) — the universal agent skill
-- [github.com/kiosk-hq/kiosk](https://github.com/kiosk-hq/kiosk) — OSS reference implementation
-- `getgrocery_flow.rb` — full agent walkthrough in this demo
-- `bin/demo` — `rake demo` runner with curl output
+- [kiosk.tech](https://kiosk.tech) -- landing page + agent skill
+- [kiosk.tech/skill.md](https://kiosk.tech/skill.md) -- the universal agent skill
+- [github.com/kiosk-hq/kiosk](https://github.com/kiosk-hq/kiosk) -- OSS reference implementation
+- `getgrocery_flow.rb` -- full agent walkthrough in this demo
+- `bin/demo` -- `rake demo` runner with curl output
