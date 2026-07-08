@@ -53,9 +53,13 @@ sequenceDiagram
     A->>P: GET /.well-known/kiosk.json
     P-->>A: {issuer, endpoint, routing, verbs, auth}
 
-    A->>A: Generate RSA-2048 keypair
-    A->>P: POST /kiosk/agents/register<br/>{name, public_key, role}
+    A->>A: Generate RSA-2048 keypair (first visit)
+    A->>P: GET /kiosk/auth/challenge?public_key=…
+    P-->>A: {challenge, exp}
+    A->>A: Sign challenge (aud = this origin)
+    A->>P: POST /kiosk/auth/register<br/>{public_key, signed}
     P-->>A: 201 {agent_id, user_id, access_token}
+    Note over A,P: Returning key → POST /kiosk/auth/login<br/>{public_key, signed} → 200 {access_token}
 
     A->>P: GET /kiosk/schema<br/>Authorization: Bearer {token}
     P-->>A: {queries: [...], actions: [...], verbs: [...]}
@@ -111,7 +115,10 @@ sequenceDiagram
   <table>
     <tr><th>Verb</th><th>Method</th><th>Path</th><th>Auth</th><th>Purpose</th></tr>
     <tr><td>—</td><td><code>GET</code></td><td><code>/.well-known/kiosk.json</code></td><td>None</td><td>Discovery: issuer, endpoint, routing, auth methods</td></tr>
-    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/agents/register</code></td><td>None</td><td>Register an agent's public key, get access_token</td></tr>
+    <tr><td>—</td><td><code>GET</code></td><td><code>/kiosk/auth/challenge</code></td><td>None</td><td>Get a single-use challenge nonce for a public key</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/register</code></td><td>None</td><td>Register a NEW public key with a signed challenge → access_token</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/login</code></td><td>None</td><td>Refresh a token for an EXISTING public key with a signed challenge</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/revoke</code></td><td>Bearer</td><td>Revoke all of this identity's tokens ("log out other sessions"); returns a fresh one</td></tr>
     <tr><td><code>schema</code></td><td><code>GET</code></td><td><code>/kiosk/schema</code></td><td>Bearer</td><td>Machine-readable surface: queries + actions</td></tr>
     <tr><td><code>query</code></td><td><code>POST</code></td><td><code>/kiosk/query</code></td><td>Bearer</td><td>Read data (catalog, slots, orders)</td></tr>
     <tr><td><code>run</code></td><td><code>POST</code></td><td><code>/kiosk/run</code></td><td>Bearer</td><td>Perform action (create_order, schedule_delivery, payment_setup)</td></tr>
@@ -120,24 +127,47 @@ sequenceDiagram
 
   <p>All <code>POST</code> bodies are JSON. All successful responses are JSON. The provider self-describes its surface via <code>GET /kiosk/schema</code> — queries and actions are provider-specific, not part of the spec.</p>
 
-  <h2>Authentication</h2>
-  <p>Agents authenticate with a Bearer token obtained at registration. The registration flow:</p>
+  <h2>Registration &amp; login</h2>
+  <p>A public key is not a credential — it is public. Before issuing a token, the provider requires <strong>proof of possession</strong> of the matching private key: it hands out a challenge, the agent signs it. This also separates two operations the naïve flow conflates — <strong>register</strong> (a key the provider has never seen) and <strong>login</strong> (refresh a token for a key it already knows).</p>
 
-  <pre><code class="language-json">POST /kiosk/agents/register
+  <p><strong>Step 1 — get a challenge</strong> for your public key. Single-use, short-lived.</p>
+  <pre><code class="language-json">GET /kiosk/auth/challenge?public_key=&lt;url-encoded PEM&gt;
+
+→ 200 OK
+{ "challenge": "S6f2yq…", "exp": 1751846400 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p><strong>Step 2 — sign the challenge</strong> as a compact RS256 JWS with your private key, then <code>register</code> (new key) or <code>login</code> (known key).</p>
+  <pre><code class="language-json">// JWS payload signed with your RSA private key
 {
-  "name":       "hermes-grocery",
-  "public_key": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
-  "role":       "customer"
+  "aud":   "https://getgroceries.com",   // the origin you connected to
+  "nonce": "S6f2yq…",                     // the challenge from step 1
+  "pub":   "&lt;RFC 7638 thumbprint of your public key&gt;",
+  "jti":   "0f1c…", "iat": 1751846340
 }
 
+POST /kiosk/auth/register        // NEW key — 409 Conflict if already registered (use /login)
+{ "public_key": "-----BEGIN PUBLIC KEY-----\n…", "signed": "eyJhbGciOiJSUzI1NiJ9…" }
 → 201 Created
-{
-  "agent_id":     "b2e94107-3a1c-4f8d-bc2e-91d4a53c7e28",
-  "user_id":      "a7f3c291-1b2e-4d8a-9cf1-3e507b824f16",
-  "access_token": "kiosk_at_..."
-}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+{ "agent_id": "b2e9…", "user_id": "a7f3…", "access_token": "kiosk_at_…" }
 
-  <p>The server is <strong>idempotent</strong>: registering the same public key returns the same <code>user_id</code>. This means a saved payment card survives across sessions. The agent stores its RSA-2048 private key at <code>~/.kiosk/&lt;domain&gt;/key.pem</code> and its identity at <code>~/.kiosk/&lt;domain&gt;/identity.json</code>. A new keypair is generated per domain — no cross-provider tracking.</p>
+POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first)
+{ "public_key": "-----BEGIN PUBLIC KEY-----\n…", "signed": "eyJhbGciOiJSUzI1NiJ9…" }
+→ 200 OK
+{ "access_token": "kiosk_at_…" }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p><strong>Origin binding (relay defense).</strong> The <code>aud</code> claim MUST be the origin the agent actually connected to — filled in by the agent from the connection it dialed, never echoed from server-supplied data. The provider rejects any proof whose <code>aud</code> is not its own origin, so a signature captured by a malicious endpoint cannot be relayed to a different provider and cannot take over an existing account. This is WebAuthn's anti-phishing model, and the same audience-binding principle as the mandate <code>iss</code> claim below.</p>
+
+  <p><strong>Identity ↔ card.</strong> A key the provider already knows maps to the same <code>user_id</code>, so a saved payment card survives across sessions — but that mapping is served by <code>/auth/login</code>, not by re-registering (registering a known key is a <code>409 Conflict</code>). The agent stores its RSA-2048 private key at <code>~/.kiosk/&lt;domain&gt;/key.pem</code> and its identity at <code>~/.kiosk/&lt;domain&gt;/identity.json</code>; a new keypair is generated per domain — no cross-provider tracking.</p>
+
+  <p><strong>Token &amp; key lifetime.</strong> Access tokens are short-lived (default 1&nbsp;hour); refresh by calling <code>/auth/login</code> again — the private key is the durable credential, not the token. Multiple concurrent tokens for one identity stay valid at once (multiple devices/instances); a new login never invalidates its siblings. To sign every other session out, call <code>/auth/revoke</code>: it revokes all of the identity's current tokens and returns a fresh one, so the caller stays signed in. The identity keypair itself is long-lived — it has no calendar expiry and is replaced by rotation or revocation, not by an expiry clock.</p>
+
+  <div class="todo">
+    <strong>TODO — log out other sessions.</strong> <code>/auth/revoke</code> currently records a per-identity "revoked-before" watermark held in-process. A durable, cross-process token ledger (the provisioned <code>agent_tokens</code> table) lands in a follow-up so revocation survives restarts and multi-worker deployments.
+  </div>
+
+  <div class="todo">
+    <strong>TODO — key rotation.</strong> Rotate an identity by signing the new public key with the old private key; the provider rebinds the <code>user_id</code> (and its reputation) to the new key, so rotation is not a reputation reset. Endpoint shape TBD.
+  </div>
 
   <h2>Proof-of-work</h2>
   <p>Providers MAY require proof-of-work before accepting queries or actions. When PoW is required, the server responds with HTTP <code>402</code>:</p>
@@ -251,12 +281,10 @@ Authorization: Bearer kiosk_at_...
   <p>The merchant receives "has valid government ID from Germany", "age ≥ 18" — never the passport scan. This is a provider-integration concern: Kiosk defines the attribute schema, the provider plugs in their KYC broker.</p>
 
   <h2>Reputation</h2>
-  <p>Each agent identity is tied to a unique RSA keypair per domain. There is no shared identifier across providers. This means:</p>
-  <ul>
-    <li><strong>Fraudulent actors can't recycle reputation.</strong> A banned user on getgroceries.com has a different cryptographic identity on skooti.com.</li>
-    <li><strong>Legitimate customers build trust over time.</strong> Repeated successful transactions at the same provider accumulate positive reputation signals.</li>
-  </ul>
-  <p>Reputation is provider-local. Kiosk does not define a cross-provider reputation protocol. The <code>kiosk-reputation</code> gem provides policy hooks for providers to implement their own scoring.</p>
+  <p>Each agent identity is a self-generated keypair, proven at registration/login by the challenge-response above. Reputation is a per-provider signal on that identity: successful transactions raise it, suspicious behaviour lowers it.</p>
+  <p>Reputation is <strong>enforced through proof-of-work cost</strong>. Rather than a continuous difficulty dial, Kiosk uses <strong>proof count as a function of reputation</strong>: an established identity solves 0–1 proofs, an unknown one ~3, a flagged abuser ~10 (each proof independent, no amortization). A legitimate-but-newly-suspicious agent can cheaply re-establish itself; sustained abuse gets progressively more expensive.</p>
+  <p>Minting a fresh identity is <strong>not blocked — it is made unprofitable</strong>. A new keypair is a new identity that starts at the unknown tier and pays the corresponding proof-of-work up front and per action, earning lower cost only through verified good behaviour. Shedding a bad reputation therefore costs at least as much work as complying would, and forfeits any positive reputation already accrued. Whitewashing is a <strong>treadmill, not a reset</strong> — its effectiveness depends on how fast the provider detects abuse relative to its value per identity.</p>
+  <p>Reputation is provider-local; a keypair is unique per domain, so there is no cross-provider identifier. The <code>kiosk-reputation</code> gem provides policy hooks for the reputation→proof-count function.</p>
 
   <div class="todo">
     <strong>TODO:</strong> Merchant-sent events. Currently the protocol is agent-initiated: the agent polls for state changes. A future version will add server-sent events or webhooks so the provider can push updates (order status changes, delivery notifications) to the agent without polling.

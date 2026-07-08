@@ -83,13 +83,16 @@ add_index :stripe_customers, :user_id, unique: true</code><button class="copy-bt
 
   <h2>Step 3: Mount the routes <span style="font-weight:400;font-size:14px;color:#666">(1 min)</span></h2>
   <p><code>config/routes.rb</code>:</p>
-  <pre><code class="language-ruby"># Kiosk wire surface (6 REST endpoints + discovery)
+  <pre><code class="language-ruby"># Kiosk wire surface (REST endpoints + auth + discovery)
 get  "/.well-known/kiosk.json", to: "kiosk/server/well_known#show"
 get  "/kiosk/schema",           to: "kiosk/server/exec#schema"
 post "/kiosk/query",            to: "kiosk/server/exec#query"
 post "/kiosk/run",              to: "kiosk/server/exec#run"
 post "/kiosk/pay",              to: "kiosk/server/exec#pay"
-post "/kiosk/agents/register",  to: "kiosk/server/agents_registration#create"</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+get  "/kiosk/auth/challenge",   to: "kiosk/server/auth#challenge"
+post "/kiosk/auth/register",    to: "kiosk/server/auth#register"
+post "/kiosk/auth/login",       to: "kiosk/server/auth#login"
+post "/kiosk/auth/revoke",      to: "kiosk/server/auth#revoke"</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 4: Register your queries <span style="font-weight:400;font-size:14px;color:#666">(5 min)</span></h2>
   <p>Queries are read-only data access. Agents use them to browse your catalog.</p>
@@ -217,10 +220,10 @@ rails db:seed</code><button class="copy-btn" onclick="copy(this)">Copy</button><
   &lt;h2 style="font-size:19px"&gt;🤖 Agents — over here. This store speaks Kiosk.&lt;/h2&gt;
   &lt;p style="font-size:14px;opacity:.92"&gt;
     Your assistant can order and pay directly — no human account needed.
-    Start at &lt;code&gt;/.well-known/kiosk.json&lt;/code&gt;, then &lt;code&gt;/kiosk/help&lt;/code&gt;.
+    Start at &lt;code&gt;/.well-known/kiosk.json&lt;/code&gt;, then &lt;code&gt;/kiosk/schema&lt;/code&gt;.
   &lt;/p&gt;
   &lt;a href="/.well-known/kiosk.json"&gt;/.well-known/kiosk.json&lt;/a&gt;
-  &lt;a href="/kiosk/help"&gt;/kiosk/help&lt;/a&gt;
+  &lt;a href="/kiosk/schema"&gt;/kiosk/schema&lt;/a&gt;
 &lt;/section&gt;</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <blockquote>See <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/views/home/index.html.erb">getgroceries' homepage</a> for a live example — it's at the bottom, below the product categories. Regular users scroll past it. Agent users know where to look.</blockquote>
@@ -231,7 +234,7 @@ rails db:seed</code><button class="copy-btn" onclick="copy(this)">Copy</button><
   <p>From the agent's perspective, after these 7 steps:</p>
   <ol class="steps">
     <li><strong>Discovery:</strong> <code>GET /.well-known/kiosk.json</code> → finds your endpoint</li>
-    <li><strong>Registration:</strong> generates RSA key, <code>POST /agents/register</code> → gets <code>access_token</code></li>
+    <li><strong>Registration:</strong> generates RSA key, proves possession (<code>GET /auth/challenge</code> → sign → <code>POST /auth/register</code>) → gets <code>access_token</code>; returning keys refresh via <code>/auth/login</code></li>
     <li><strong>Browse:</strong> <code>POST /query {name:"catalog"}</code> → sees your products</li>
     <li><strong>Order:</strong> <code>POST /run {name:"create_order", …}</code> → order created</li>
     <li><strong>Card setup:</strong> <code>POST /run {name:"payment_setup"}</code> → human enters card once on Stripe</li>

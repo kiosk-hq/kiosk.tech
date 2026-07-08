@@ -28,14 +28,10 @@ All queries go through `/query`, all actions through `/run`. The surface self-de
 `GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `routing` (verb→method+path map).
 
 ### Step 2: Identity (REUSE if possible)
-**Check `~/.kiosk/<domain>/identity.json` first.** Only register if no identity exists.
+**Check `~/.kiosk/<domain>/identity.json` first.** A public key is not a credential — every token is issued only after you prove possession of the matching PRIVATE key. Both register and login are two steps: (1) `GET <endpoint>/auth/challenge?public_key=<url-encoded PEM>` → `{challenge}`; (2) sign a compact RS256 JWS `{aud, nonce, jti, iat}` with your private key and POST it. **`aud` MUST be the origin you actually connected to** — that's the relay defense (a proof for one provider can't be replayed at another). See «Auth handshake» below.
 
-- **Identity exists** → skip to Step 3. Re-register with the SAME key (`POST <endpoint>/agents/register` with stored public key) to get a fresh `access_token`. The server is **idempotent**: same public key ⇒ same `user_id`, so your saved card survives.
-- **No identity** → generate RSA-2048 keypair, store PRIVATE key at `~/.kiosk/<domain>/key.pem`, save identity:
-  ```json
-  {"user_id": "...", "agent_id": "..."}
-  ```
-  at `~/.kiosk/<domain>/identity.json`. `chmod 600` both files.
+- **Identity exists** → `POST <endpoint>/auth/login {public_key, signed}` → `{access_token}`. Same key ⇒ same `user_id`, so your saved card survives. Do NOT re-register a known key — that's a `409`; use login.
+- **No identity** → generate an RSA-2048 keypair, then `POST <endpoint>/auth/register {public_key, signed}` → `{user_id, agent_id, access_token}`. Store the PRIVATE key at `~/.kiosk/<domain>/key.pem` and identity `{"user_id":"…","agent_id":"…"}` at `~/.kiosk/<domain>/identity.json`. `chmod 600` both files.
 
 ### Step 3: Learn surface
 `GET <endpoint>/schema` → list of queries, actions, params.
@@ -58,7 +54,7 @@ Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match `/.wel
 - **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`.
 - **Card setup:** Human-only. Present the `setup_url` to the user, poll until `status:"ready"`. Never automate Stripe forms.
 - **Mandates:** Always submit all 3 — server may reject with `payment_mandate_jws required`.
-- **Re-registration is safe:** Server matches existing public key → returns same `user_id`. Your card persists across sessions.
+- **Login vs register:** existing key → `/auth/login` (fresh token, same `user_id`, card persists); new key → `/auth/register`. Re-registering a known key is a `409` — use login. Tokens are short-lived; call `/auth/login` again to refresh. To sign out other sessions, `POST /auth/revoke` (returns a fresh token).
 
 ## Versioning & verification
 
@@ -84,6 +80,29 @@ The agent:
 **Backward compatibility.** Newer minor versions are backward-compatible — new endpoints and fields are additive, existing flows never break. An agent on v1.1 can transact with a v1.0 provider. A v1.0 agent MUST update before transacting with a v1.1 provider.
 
 ---
+
+## Auth handshake (register / login)
+
+Prove possession of your private key, origin-bound so the proof can't be relayed to another provider:
+
+```python
+import jwt, time, json, urllib.parse, urllib.request
+from uuid import uuid4
+
+origin = "https://getgroceries.com"          # the endpoint origin you dialed
+pem    = pub_pem                              # your PUBLIC key PEM
+ch = json.load(urllib.request.urlopen(
+    f"{origin}/kiosk/auth/challenge?public_key={urllib.parse.quote(pem)}"))
+
+signed = jwt.encode(
+    {"aud": origin, "nonce": ch["challenge"], "jti": str(uuid4()), "iat": int(time.time())},
+    private_key, algorithm="RS256")
+
+# new key  → POST {origin}/kiosk/auth/register {"public_key": pem, "signed": signed}
+# known key → POST {origin}/kiosk/auth/login    {"public_key": pem, "signed": signed}
+```
+
+`aud` MUST be the origin you connected to — the provider rejects a mismatch, and that rejection is exactly what stops a relayed/phished proof from taking over an account.
 
 ## AP2 payment mandates
 
