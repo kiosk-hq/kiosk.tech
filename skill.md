@@ -28,7 +28,7 @@ All queries go through `/query`, all actions through `/run`. The surface self-de
 `GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `routing` (verb→method+path map).
 
 ### Step 2: Identity (REUSE if possible)
-**Check `~/.kiosk/<domain>/identity.json` first.** A public key is not a credential — every token is issued only after you prove possession of the matching PRIVATE key. Both register and login are two steps: (1) `GET <endpoint>/auth/challenge?public_key=<url-encoded PEM>` → `{challenge}`; (2) sign a compact RS256 JWS `{aud, nonce, jti, iat}` with your private key and POST it. **`aud` MUST be the origin you actually connected to** — that's the relay defense (a proof for one provider can't be replayed at another). See «Auth handshake» below.
+**Check `~/.kiosk/<domain>/identity.json` first.** A public key is not a credential — every token is issued only after you prove possession of the matching PRIVATE key. Both register and login are two steps: (1) `GET <endpoint>/auth/challenge?public_key=<url-encoded PEM>` → `{challenge}`; (2) sign a compact RS256 JWS `{aud, nonce, jti, iat}` with your private key and POST it. **`aud` MUST be the origin you actually connected to** — that's the relay defense (a proof for one provider can't be replayed at another). See "Auth handshake" below.
 
 - **Identity exists** → `POST <endpoint>/auth/login {public_key, signed}` → `{access_token}`. Same key ⇒ same `user_id`, so your saved card survives. Do NOT re-register a known key — that's a `409`; use login.
 - **No identity** → generate an RSA-2048 keypair, then `POST <endpoint>/auth/register {public_key, signed}` → `{user_id, agent_id, access_token}`. Store the PRIVATE key at `~/.kiosk/<domain>/key.pem` and identity `{"user_id":"…","agent_id":"…"}` at `~/.kiosk/<domain>/identity.json`. `chmod 600` both files.
@@ -53,7 +53,8 @@ Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match `/.wel
 - **Key storage:** `~/.kiosk/<domain>/key.pem` (private) + `~/.kiosk/<domain>/identity.json` (user_id, agent_id). Both `chmod 600`. New RSA key per domain — no cross-merchant tracking.
 - **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`.
 - **Card setup:** Human-only. Present the `setup_url` to the user, poll until `status:"ready"`. Never automate Stripe forms.
-- **Mandates:** Always submit all 3 — server may reject with `payment_mandate_jws required`.
+- **Mandates:** Always submit all 3 — server may reject with `payment_mandate_jws required`. Every mandate needs `id`, `user_id`, `agent_id`, `iss` (verbatim), `iat`, `exp`.
+- **Proof-of-work:** any request may return HTTP 402 `pow_required` — solve every challenge and retry the same body with the `pow` field (see the Proof-of-work section).
 - **Login vs register:** existing key → `/auth/login` (fresh token, same `user_id`, card persists); new key → `/auth/register`. Re-registering a known key is a `409` — use login. Tokens are short-lived; call `/auth/login` again to refresh. To sign out other sessions, `POST /auth/revoke` (returns a fresh token).
 
 ## Versioning & verification
@@ -104,48 +105,97 @@ signed = jwt.encode(
 
 `aud` MUST be the origin you connected to — the provider rejects a mismatch, and that rejection is exactly what stops a relayed/phished proof from taking over an account.
 
+## Proof-of-work (HTTP 402)
+
+Any `query` or `run` may come back `402` — the provider is charging compute for this request:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "pow_required",
+    "challenges": [
+      {"id": "9b1c…", "alg": "equihash", "params": {"n": 192, "k": 7},
+       "salt": "dGVzdC1zYWx0…", "exp": 1751846400, "sig": "hmac…"}
+    ]
+  }
+}
+```
+
+Rules:
+- **Solve EVERY challenge in the list.** The count is the provider's rate-limiting: an established identity gets 0-1, an unknown one ~3. Each challenge has its own salt — no shortcuts across them.
+- **Retry the SAME request body**, adding a top-level `pow` field. Each proof echoes its challenge back **verbatim** (it carries the provider's HMAC signature and is bound to this exact request — changing the body invalidates the proofs):
+
+```json
+{
+  "name": "catalog",
+  "pow": {
+    "proofs": [
+      {"challenge": {"id": "9b1c…", "alg": "equihash", "params": {"n": 192, "k": 7},
+                     "salt": "dGVzdC1zYWx0…", "exp": 1751846400, "sig": "hmac…"},
+       "nonce": {"indices": [3, 17, 42, "…128 ascending u64 integers"]}}
+    ]
+  }
+}
+```
+
+- For a single challenge, the shorthand `"pow": {"challenge": {…}, "nonce": {…}}` is also accepted.
+- Challenges expire (`exp`) and proofs are single-use — solve and retry promptly, do not cache.
+- Equihash (n=192, k=7) needs ~1 GiB of memory to solve. Reference solver: `solve.py` in `kiosk-pow-equihash` (github.com/kiosk-hq/kiosk).
+
 ## AP2 payment mandates
 
 Kiosk uses a three-mandate chain for every payment. This creates a verifiable audit trail — the agent cryptographically commits to *what* it intends to buy, *what* it actually ordered, and *how* it paid.
 
 ### What is a mandate?
 
-A mandate is a JSON payload signed by the agent's RSA-2048 private key as a **RS256 JWS** (RFC 7515). The `iss` (issuer) field MUST match the provider's issuer string from `/.well-known/kiosk.json` exactly — copy it verbatim. Each mandate includes `iat` (issued-at timestamp) and `jti` (unique ID).
+A mandate is a JSON payload signed by the agent's RSA-2048 private key as a **RS256 JWS** (RFC 7515). Every mandate MUST carry these claims — the server rejects a mandate missing any of them:
+
+- `id` — unique UUID for this mandate (later mandates reference it)
+- `user_id`, `agent_id` — from your `~/.kiosk/<domain>/identity.json`; the server matches them against the authenticated identity
+- `iss` — the provider's issuer string from `/.well-known/kiosk.json`, copied verbatim
+- `iat` — issued-at timestamp
+- `exp` — expiry, REQUIRED. A mandate without `exp` is rejected outright. Use a few minutes (e.g. now + 600).
 
 ### The three mandates (in order)
 
-| # | Mandate | What it says | Key fields |
+| # | Mandate | What it says | Type-specific fields (on top of the required claims) |
 |---|---------|-------------|------------|
-| 1 | **Intent** | «I plan to spend up to X on Y» | `cap_amount_cents`, `scope` (e.g. `"grocery"`), `iss` |
-| 2 | **Cart** | «This is exactly what I ordered» | `intent_mandate_id` (binds to #1), `line_items`, `total_amount_cents`, `iss` |
-| 3 | **Payment** | «Charge my saved card» | `cart_mandate_id` (binds to #2), `payment_method: "on_file"`, `iss` |
+| 1 | **Intent** | "I plan to spend up to X on Y" | `scope` (e.g. `"grocery"`), `cap_amount_cents`, `currency` |
+| 2 | **Cart** | "This is exactly what I ordered" | `intent_mandate_id` (= intent's `id`), `line_items`, `total_amount_cents`, `currency` |
+| 3 | **Payment** | "Charge my saved card" | `cart_mandate_id` (= cart's `id`), `payment_method: "on_file"`, `amount_cents`, `currency` |
 
-Each mandate references the previous one — intent → cart → payment — forming a cryptographically linked chain. The server verifies all three signatures against the agent's registered public key.
+Each mandate references the previous one — intent → cart → payment — forming a cryptographically linked chain. The server verifies all three signatures against the agent's registered public key, and enforces the bindings: cart total ≤ intent cap, payment `amount_cents` equal to the cart total in the same currency.
 
 ### Signing in Python
 
 ```python
-import jwt
+import jwt, json, time
+from uuid import uuid4
 
 private_key = open("~/.kiosk/<domain>/key.pem").read()
-iss = "getgroceries.com"  # from /.well-known/kiosk.json
+identity = json.load(open("~/.kiosk/<domain>/identity.json"))
+iss = well_known["kiosk"]["issuer"]   # from /.well-known/kiosk.json — copy VERBATIM
+now = int(time.time())
 
-intent_jws = jwt.encode({
-    "iss": iss, "iat": now, "jti": uuid4(),
-    "cap_amount_cents": 5000, "scope": "grocery"
+common = {"user_id": identity["user_id"], "agent_id": identity["agent_id"],
+          "iss": iss, "iat": now, "exp": now + 600}
+
+intent_id = str(uuid4())
+intent_jws = jwt.encode({**common, "id": intent_id,
+    "scope": "grocery", "cap_amount_cents": 5000, "currency": "eur"
 }, private_key, algorithm="RS256")
 
-cart_jws = jwt.encode({
-    "iss": iss, "iat": now, "jti": uuid4(),
+cart_id = str(uuid4())
+cart_jws = jwt.encode({**common, "id": cart_id,
     "intent_mandate_id": intent_id,
     "line_items": [{"sku": "milk", "qty": 2}],
-    "total_amount_cents": 399
+    "total_amount_cents": 398, "currency": "eur"
 }, private_key, algorithm="RS256")
 
-payment_jws = jwt.encode({
-    "iss": iss, "iat": now, "jti": uuid4(),
-    "cart_mandate_id": cart_id,
-    "payment_method": "on_file"
+payment_jws = jwt.encode({**common, "id": str(uuid4()),
+    "cart_mandate_id": cart_id, "payment_method": "on_file",
+    "amount_cents": 398, "currency": "eur"
 }, private_key, algorithm="RS256")
 ```
 
@@ -158,4 +208,4 @@ POST <endpoint>/pay
 
 ### Why three mandates?
 
-Without agent-signed mandates, there's no non-repudiation. If the merchant charges $500 and the agent says «I authorized $50,» neither side can prove what was agreed. The intent mandate sets a ceiling. The cart mandate lists the exact items. The payment mandate authorizes the charge. Three signed JWS documents settle any dispute.
+Without agent-signed mandates, there's no non-repudiation. If the merchant charges $500 and the agent says "I authorized $50," neither side can prove what was agreed. The intent mandate sets a ceiling. The cart mandate lists the exact items. The payment mandate authorizes the charge. Three signed JWS documents settle any dispute.
