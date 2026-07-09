@@ -74,7 +74,7 @@ sequenceDiagram
     A->>P: POST /kiosk/query {name: "catalog"}
     P-->>A: 402 {error: {code: "pow_required",<br/>  challenges: [{id, alg, params, salt, exp, sig}, …]}}
 
-    A->>A: Solve each Equihash challenge<br/>(reference solver: ~10s, ~1.3 GiB per proof)
+    A->>A: Solve each Equihash challenge<br/>(reference solver: ~10s, ~1 GiB per proof)
     A->>P: POST /kiosk/query {name: "catalog",<br/>  pow: {proofs: [{challenge, nonce: {indices}}, …]}}
     P-->>A: 200 {rows: [...]}
   </div>
@@ -215,7 +215,7 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
   <p>For a single challenge, the shorthand <code>"pow": {"challenge": {…}, "nonce": {…}}</code> is also accepted. The retried body must be identical to the original apart from the added <code>pow</code> field — the proof is bound to the request fingerprint.</p>
 
-  <p><strong>Default algorithm:</strong> Equihash (n=168, k=7). Memory-hard. The shipped reference solver (pure Python + numpy) clears the default in about 10&nbsp;s using ~1.3&nbsp;GiB; verification is microseconds and a few KB. Parameters are provider-tunable — the default was chosen by a benchmark sweep as the largest params under a ~30&nbsp;s / 1–2&nbsp;GiB laptop budget; a provider raises <code>n</code> for a heavier toll.</p>
+  <p><strong>Default algorithm:</strong> Equihash (n=168, k=7). Memory-hard. The shipped reference solver (pure Python + numpy) clears the default in about 10&nbsp;s using ~1&nbsp;GiB; verification is microseconds and a few KB. Parameters are provider-tunable — the default was chosen by a benchmark sweep as the largest params under a ~30&nbsp;s / 1–2&nbsp;GiB laptop budget; a provider raises <code>n</code> for a heavier toll.</p>
 
   <p><strong>What PoW is, and is not.</strong> It is a metered toll with a cheap verify, plus a rate-limiting knob — not a hardware wall. Equihash is not ASIC- or GPU-proof (it was ASIC'd on Zcash, and GPUs solve it well); no proof-of-work equalises a laptop against special-purpose hardware. What PoW buys the provider is real: a microsecond verify (so a flood of bad proofs is rejected by the HMAC and expiry checks before any backend work), a non-zero, non-amortisable price per anonymous request, and — unlike a cryptocurrency — no block reward to subsidise attacker hardware. Abuse resistance comes from <em>reputation and caps</em>; PoW just makes free-riding cost something. The challenge carries <code>{alg, params}</code>, so a provider can raise parameters or swap the algorithm without a protocol change.</p>
 
