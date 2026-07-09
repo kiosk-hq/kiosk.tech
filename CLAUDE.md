@@ -11,6 +11,11 @@ Changing normative spec text is a decision — it needs an ADR or a ledger
 `decision` reference. Landing and skill text must trace to behavior
 demonstrated by the reference implementation.
 
+This repo will eventually be PUBLIC (the site already is). Published pages
+must not depend on private material (meta/, umbrella files); the pointers
+below serve the private development phase and are scrubbed before
+publication (workspace T-011).
+
 Part of the Kiosk workspace — the workspace constitution binds here. Paths
 below are absolute on purpose: worktree checkouts live outside the umbrella.
 
