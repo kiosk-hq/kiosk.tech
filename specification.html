@@ -51,7 +51,7 @@ sequenceDiagram
     participant P as Provider
 
     A->>P: GET /.well-known/kiosk.json
-    P-->>A: {issuer, endpoint, routing, verbs, auth}
+    P-->>A: {issuer, endpoint, routing, verbs, auth, skill}
 
     A->>A: Generate RSA-2048 keypair (first visit)
     A->>P: GET /kiosk/auth/challenge?public_key=…
@@ -114,7 +114,7 @@ sequenceDiagram
 
   <table>
     <tr><th>Verb</th><th>Method</th><th>Path</th><th>Auth</th><th>Purpose</th></tr>
-    <tr><td>—</td><td><code>GET</code></td><td><code>/.well-known/kiosk.json</code></td><td>None</td><td>Discovery: issuer, endpoint, routing, auth methods</td></tr>
+    <tr><td>—</td><td><code>GET</code></td><td><code>/.well-known/kiosk.json</code></td><td>None</td><td>Discovery: issuer, endpoint, routing, auth, and the <code>skill</code> URL + SHA-256 (dual-check)</td></tr>
     <tr><td>—</td><td><code>GET</code></td><td><code>/kiosk/auth/challenge</code></td><td>None</td><td>Get a single-use challenge nonce for a public key</td></tr>
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/register</code></td><td>None</td><td>Register a NEW public key with a signed challenge → access_token</td></tr>
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/login</code></td><td>None</td><td>Refresh a token for an EXISTING public key with a signed challenge</td></tr>
