@@ -1,0 +1,40 @@
+# kiosk.tech (published site) — constitution
+
+This repo is everything published at https://kiosk.tech (GitHub Pages,
+`CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
+universal agent skill (`skill-v1.0.md` is the frozen v1.0 snapshot),
+`index.html` — landing, `onboarding.html`, `payment/return` (Stripe Checkout
+return page, ADR-0004). Static files, no build step.
+
+Extra weight of rule 1 here: the spec is the ROOT of the authority chain.
+Changing normative spec text is a decision — it needs an ADR or a ledger
+`decision` reference. Landing and skill text must trace to behavior
+demonstrated by the reference implementation.
+
+Part of the Kiosk workspace — the workspace constitution binds here. Paths
+below are absolute on purpose: worktree checkouts live outside the umbrella.
+
+- Workspace root: `/Users/pirj/source/kiosk` — `GOAL.md`, `PLAN.md`, `ARCHITECTURE.md`
+- Findings ledger (record ALL discrepancies here): `/Users/pirj/source/kiosk/findings.md`
+- Planned work: `/Users/pirj/source/kiosk/TODO.md`
+- Reference implementation: `/Users/pirj/source/kiosk/reference/`
+- ADRs: `/Users/pirj/source/kiosk/meta/docs/adr/`
+
+## The five rules
+
+1. **Authority chain.** The spec (`kiosk.tech/specification.html`) is
+   normative. Code and skill conform to the spec; landing/HN/README claim
+   only what the code demonstrably does. An ADR may override the spec — then
+   the spec must be updated to match.
+2. **Conflict rule.** On a conflict with no recorded decision (ADR or a
+   ledger `decision`): do NOT pick a side. Record it in the findings ledger
+   as `decision-needed` and skip that item.
+3. **Scope rule.** Found a problem outside your current task? Record it in
+   the findings ledger. Do not fix it inline.
+4. **Merge gate.** Tests covering the change must be green before merge; for
+   `reference` that means the touched gem's own suite + `e2e/run.sh`.
+5. **Changelog rule.** Significant changes — anything altering behavior, spec
+   text, skill instructions, or claims — get ONE line in the touched repo's
+   `CHANGELOG.md`: 1–2 sentences stating the essence and intent of the
+   change, not its content. Tests-only changes, refactors, typos do not
+   qualify.
