@@ -242,9 +242,9 @@ Authorization: Bearer kiosk_at_...
 
   <table>
     <tr><th>#</th><th>Mandate</th><th>Meaning</th><th>Key fields</th></tr>
-    <tr><td>1</td><td><strong>Intent</strong></td><td>"I plan to spend up to €X on Y"</td><td><code>cap_amount_cents</code>, <code>scope</code></td></tr>
-    <tr><td>2</td><td><strong>Cart</strong></td><td>"This is exactly what I ordered"</td><td><code>intent_mandate_id</code>, <code>line_items</code>, <code>total_amount_cents</code></td></tr>
-    <tr><td>3</td><td><strong>Payment</strong></td><td>"Charge my saved card"</td><td><code>cart_mandate_id</code>, <code>payment_method: "on_file"</code></td></tr>
+    <tr><td>1</td><td><strong>Intent</strong></td><td>"I plan to spend up to €X on Y"</td><td><code>cap_amount_cents</code>, <code>scope</code>, <code>currency</code></td></tr>
+    <tr><td>2</td><td><strong>Cart</strong></td><td>"This is exactly what I ordered"</td><td><code>intent_mandate_id</code>, <code>line_items</code>, <code>total_amount_cents</code>, <code>currency</code></td></tr>
+    <tr><td>3</td><td><strong>Payment</strong></td><td>"Charge my saved card"</td><td><code>cart_mandate_id</code>, <code>amount_cents</code>, <code>currency</code> (<code>payment_method: "on_file"</code> optional)</td></tr>
   </table>
 
   <p>Each mandate references the previous one by ID, forming a cryptographically linked chain. The server verifies all three signatures against the agent's registered public key. This provides <strong>non-repudiation</strong>: if a dispute arises, any party can present the signed chain as proof of what was agreed.</p>
