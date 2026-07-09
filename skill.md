@@ -133,7 +133,7 @@ Rules:
     "proofs": [
       {"challenge": {"id": "9b1c…", "alg": "equihash", "params": {"n": 192, "k": 7},
                      "salt": "dGVzdC1zYWx0…", "exp": 1751846400, "sig": "hmac…"},
-       "nonce": {"indices": [3, 17, 42, "…128 ascending u64 integers"]}}
+       "nonce": {"indices": [3, 17, 42, "…128 u64 integers in canonical tree order (NOT sorted)"]}}
     ]
   }
 }
