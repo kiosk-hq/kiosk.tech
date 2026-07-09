@@ -36,7 +36,7 @@
 <a href="/" class="back">← kiosk.tech</a>
 <article>
   <h1>Kiosk Protocol Specification</h1>
-  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.1 — Stable</p>
+  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.1 — Draft (wire format stable)</p>
 
   <h2>What this specification answers</h2>
   <p>As a merchant developer or agent author, you want to understand how your software and an AI agent communicate through Kiosk. This document describes the protocol — the exact HTTP requests and responses, the authentication model, and the payment mandate chain — backed by a working reference implementation.</p>
@@ -72,10 +72,10 @@ sequenceDiagram
     participant P as Provider
 
     A->>P: POST /kiosk/query {name: "catalog"}
-    P-->>A: 402 {error: "pow_required",<br/>  challenge: {alg, salt_b64, params}}
+    P-->>A: 402 {error: {code: "pow_required",<br/>  challenges: [{id, alg, params, salt, exp, sig}, …]}}
 
-    A->>A: Solve Equihash PoW<br/>(~1 GiB RAM, ~seconds)
-    A->>P: POST /kiosk/query {name: "catalog"}<br/>+ pow: {alg, nonce:{indices}, ...}
+    A->>A: Solve each Equihash challenge<br/>(~1 GiB RAM, ~seconds per proof)
+    A->>P: POST /kiosk/query {name: "catalog",<br/>  pow: {proofs: [{challenge, nonce: {indices}}, …]}}
     P-->>A: 200 {rows: [...]}
   </div>
 
@@ -175,31 +175,46 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
   <pre><code class="language-json">HTTP 402 Payment Required / PoW Required
 
 {
-  "error": "pow_required",
-  "challenge": {
-    "alg":    "equihash",
-    "salt_b64": "dGVzdC1zYWx0...",
-    "params": { "n": 192, "k": 7 },
-    "header_nonce": 0
+  "ok": false,
+  "error": {
+    "code": "pow_required",
+    "message": "solve the challenges and retry",
+    "challenges": [
+      {
+        "id":     "9b1c…",
+        "alg":    "equihash",
+        "params": { "n": 192, "k": 7 },
+        "salt":   "dGVzdC1zYWx0…",
+        "exp":    1751846400,
+        "sig":    "hmac-sha256…"
+      }
+    ]
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The agent solves the challenge and retries the request with a top-level <code>pow</code> field:</p>
+  <p>Each challenge is <strong>stateless and request-bound</strong>: the HMAC <code>sig</code> covers the challenge fields plus a fingerprint of the exact request, so the server stores nothing to trust it, and a proof cannot be replayed against a different request. Valid proofs are single-use (a spent-id set on the provider side).</p>
+
+  <p>The agent solves <strong>every</strong> challenge in the list and retries the <strong>same request body</strong> with a top-level <code>pow</code> field, echoing each challenge back verbatim:</p>
 
   <pre><code class="language-json">POST /kiosk/query
 {
   "name": "catalog",
   "pow": {
-    "alg":          "equihash",
-    "params":       { "n": 192, "k": 7 },
-    "nonce":        { "indices": [3, 17, 42, ...128 u64 integers] },
-    "header_nonce": 0
+    "proofs": [
+      {
+        "challenge": { "id": "9b1c…", "alg": "equihash", "params": { "n": 192, "k": 7 },
+                       "salt": "dGVzdC1zYWx0…", "exp": 1751846400, "sig": "hmac-sha256…" },
+        "nonce":     { "indices": [3, 17, 42, "…128 ascending u64 integers"] }
+      }
+    ]
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p><strong>Default algorithm:</strong> Equihash (n=192, k=7). ~1 GiB solver memory, microseconds to verify. ASIC-resistant — building custom SRAM for 1 GiB costs ~$1k per chip. Honest clients on modern hardware solve in seconds. The reference solver is <code>solve.py</code> in <code>kiosk-pow-equihash</code>.</p>
+  <p>For a single challenge, the shorthand <code>"pow": {"challenge": {…}, "nonce": {…}}</code> is also accepted. The retried body must be identical to the original apart from the added <code>pow</code> field — the proof is bound to the request fingerprint.</p>
 
-  <p>The provider can request <strong>N concurrent proofs</strong> for rate-limiting. Instead of a continuous difficulty dial, Kiosk uses proof count: a normal client solves 1 PoW, a suspicious one solves 3, an abuser solves 10. Each proof is independent — no amortization across challenges.</p>
+  <p><strong>Default algorithm:</strong> Equihash (n=192, k=7). Memory-hard: about 1 GiB per solver instance, seconds to solve on commodity hardware, microseconds and a few KB to verify. The asymmetry protects the provider — floods of bad proofs are rejected by the cheap HMAC and expiry checks before any expensive work. PoW is an economic toll, not a wall: the challenge carries <code>{alg, params}</code>, so a provider can raise parameters or swap the algorithm without a protocol change. The reference solver is <code>solve.py</code> in <code>kiosk-pow-equihash</code>.</p>
+
+  <p>The provider requests <strong>N independent proofs</strong> for rate-limiting. Instead of a continuous difficulty dial, Kiosk uses proof count: a normal client solves 1 PoW, a suspicious one solves 3, an abuser solves 10. Each challenge has its own salt — no amortization across proofs.</p>
 
   <h2>Catalog query (example)</h2>
 
@@ -229,6 +244,8 @@ Authorization: Bearer kiosk_at_...
   </table>
 
   <p>Each mandate references the previous one by ID, forming a cryptographically linked chain. The server verifies all three signatures against the agent's registered public key. This provides <strong>non-repudiation</strong>: if a dispute arises, any party can present the signed chain as proof of what was agreed.</p>
+
+  <p><strong>Required claims.</strong> Every mandate MUST carry <code>id</code>, <code>user_id</code>, <code>agent_id</code>, <code>iss</code>, <code>iat</code>, <code>exp</code>. The server rejects a mandate whose <code>user_id</code>/<code>agent_id</code> do not match the authenticated identity, whose <code>iss</code> is not its own issuer (copied verbatim from <code>/.well-known/kiosk.json</code>), or whose <code>exp</code> is missing or passed — a non-expiring mandate is rejected outright. Binding rules: <code>cart.intent_mandate_id</code> equals the intent's <code>id</code> and the cart total must not exceed the intent's cap; <code>payment.cart_mandate_id</code> equals the cart's <code>id</code> and <code>payment.amount_cents</code> must equal the cart total in the same <code>currency</code>.</p>
 
   <pre><code class="language-json">POST /kiosk/pay
 Authorization: Bearer kiosk_at_...
@@ -264,6 +281,10 @@ Authorization: Bearer kiosk_at_...
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The agent hands the <code>setup_url</code> to the human. <strong>Never automate Stripe forms</strong> — the human enters their card once on Stripe's hosted page. The agent polls <code>payment_setup</code> until <code>status: "ready"</code>, then proceeds to <code>pay</code>. Subsequent payments use the saved card without human intervention.</p>
+
+  <div class="todo">
+    <strong>TODO — refunds &amp; cancellations.</strong> The mandate chain covers authorization and settlement. Reversal currently rides on provider business logic — a provider can expose <code>cancel_order</code> as a regular action (same as <code>create_order</code>), and money moves back through the PSP's normal refund flow. A first-class refund verb that references the settlement is under consideration; endpoint shape TBD.
+  </div>
 
   <h2>KYC</h2>
   <p>Kiosk supports KYC brokering through Persona, Sumsub, or any existing provider. The model is <strong>attribute-based</strong>: the agent carries verified attributes, never raw identity documents.</p>
