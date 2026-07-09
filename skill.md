@@ -50,7 +50,7 @@ Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match `/.wel
 
 ## Technical constraints
 - **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Keep access tokens in Python memory — never pass them as shell command arguments where they'd appear in history and process listings. Use Python's `urllib` (stdlib) or `requests` for all HTTP calls.
-- **Key storage:** `~/.kiosk/<domain>/key.pem` (private) + `~/.kiosk/<domain>/identity.json` (user_id, agent_id). Both `chmod 600`. New RSA key per domain — no cross-merchant tracking.
+- **Key storage:** `~/.kiosk/<domain>/key.pem` (private) + `~/.kiosk/<domain>/identity.json` (user_id, agent_id). Both `chmod 600`. New RSA key per domain — no cross-provider tracking.
 - **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`.
 - **Card setup:** Human-only. Present the `setup_url` to the user, poll until `status:"ready"`. Never automate Stripe forms.
 - **Mandates:** Always submit all 3 — server may reject with `payment_mandate_jws required`. Every mandate needs `id`, `user_id`, `agent_id`, `iss` (verbatim), `iat`, `exp`.
