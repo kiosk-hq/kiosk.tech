@@ -62,7 +62,7 @@ sequenceDiagram
     Note over A,P: Returning key → POST /kiosk/auth/login<br/>{public_key, signed} → 200 {access_token}
 
     A->>P: GET /kiosk/schema<br/>Authorization: Bearer {token}
-    P-->>A: {queries: [...], actions: [...]}
+    P-->>A: {verbs: [...], queries: [...], actions: [...]}
   </div>
 
   <h3>Flow 2: Proof-of-work (when required)</h3>
@@ -268,9 +268,9 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
   <p><strong>Index ordering.</strong> The <code>nonce.indices</code> array MUST be in <strong>Zcash canonical (subtree/tree) order</strong> — the ordering a genuine Wagner solution produces, where at each collision level the left half's first index precedes the right half's. It is <strong>not</strong> a global ascending sort: the verifier explicitly <strong>rejects a globally-sorted array of indices</strong>, because that ordering is a trivial reshuffle that does not correspond to the algorithm-bound solution. Submit the indices exactly as the solver emits them.</p>
 
-  <p><strong>Default algorithm:</strong> Equihash (n=168, k=7). Memory-hard. The shipped reference solver (pure Python + numpy) clears the default in about 10&nbsp;s using ~1.3&nbsp;GiB; verification is microseconds and a few KB. Parameters are provider-tunable — the default was chosen by a benchmark sweep as the largest params under a ~30&nbsp;s / 1–2&nbsp;GiB laptop budget; a provider raises <code>n</code> for a heavier toll.</p>
+  <p><strong>Default algorithm:</strong> Equihash (n=168, k=7). Memory-hard. The shipped reference solver (pure Python + numpy) clears the default in about 10&nbsp;s using ~1.3&nbsp;GiB; verification is a few milliseconds (~17&nbsp;ms, pure-Ruby reference) and a few KB. Parameters are provider-tunable — the default was chosen by a benchmark sweep as the largest params under a ~30&nbsp;s / 1–2&nbsp;GiB laptop budget; a provider raises <code>n</code> for a heavier toll.</p>
 
-  <p><strong>What PoW is, and is not.</strong> It is a metered toll with a cheap verify, plus a rate-limiting knob — not a hardware wall. Equihash is not ASIC- or GPU-proof (it was ASIC'd on Zcash, and GPUs solve it well); no proof-of-work equalises a laptop against special-purpose hardware. What PoW buys the provider is real: a microsecond verify (so a flood of bad proofs is rejected by the HMAC and expiry checks before any backend work), a non-zero, non-amortisable price per anonymous request, and — unlike a cryptocurrency — no block reward to subsidise attacker hardware. Abuse resistance comes from <em>reputation and caps</em>; PoW just makes free-riding cost something. The challenge carries <code>{alg, params}</code>, so a provider can raise parameters or swap the algorithm without a protocol change.</p>
+  <p><strong>What PoW is, and is not.</strong> It is a metered toll with a cheap verify, plus a rate-limiting knob — not a hardware wall. Equihash is not ASIC- or GPU-proof (it was ASIC'd on Zcash, and GPUs solve it well); no proof-of-work equalises a laptop against special-purpose hardware. What PoW buys the provider is real: a cheap verify (a flood of malformed proofs is rejected by the HMAC and expiry checks in microseconds, before any backend work; a full equihash check is a few milliseconds and a few KB), a non-zero, non-amortisable price per anonymous request, and — unlike a cryptocurrency — no block reward to subsidise attacker hardware. Abuse resistance comes from <em>reputation and caps</em>; PoW just makes free-riding cost something. The challenge carries <code>{alg, params}</code>, so a provider can raise parameters or swap the algorithm without a protocol change.</p>
 
   <p>The provider requests <strong>N independent proofs</strong> for rate-limiting. Instead of a continuous difficulty dial, Kiosk escalates by proof count: a normal client solves 1, a suspicious one ~3, an abuser ~10. Each challenge has its own salt — no amortization across proofs. N prices <em>throughput</em>, not latency (a solver with enough memory runs them in parallel), so the cost lands on a sustained scraper. Because a slow honest client may solve N proofs sequentially, each challenge's expiry scales with N.</p>
 
@@ -393,7 +393,7 @@ Authorization: Bearer &lt;jwt&gt;
     <li><a href="/onboarding.html">Merchant onboarding guide</a> — add Kiosk to your Rails app in ~20 minutes</li>
     <li><a href="/skill.md">Agent skill</a> — the universal agent integration guide</li>
     <li><code>kiosk-demo-getgrocery/getgrocery_flow.rb</code> — full agent walkthrough: register → catalog → order → pay → schedule</li>
-    <li><code>e2e/run.sh</code> — automated E2E test that builds a fresh Rails app and exercises every endpoint</li>
+    <li><code>e2e/run.sh</code> — automated E2E test that builds a fresh Rails app and exercises the core wire flow (discovery, registration, query, run, pay, and error envelopes)</li>
   </ul>
 </article>
 
