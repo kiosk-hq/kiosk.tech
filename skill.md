@@ -115,7 +115,7 @@ Any `query` or `run` may come back `402` — the provider is charging compute fo
   "error": {
     "code": "pow_required",
     "challenges": [
-      {"id": "9b1c…", "alg": "equihash", "params": {"n": 192, "k": 7},
+      {"id": "9b1c…", "alg": "equihash", "params": {"n": 168, "k": 7},
        "salt": "dGVzdC1zYWx0…", "exp": 1751846400, "sig": "hmac…"}
     ]
   }
@@ -131,7 +131,7 @@ Rules:
   "name": "catalog",
   "pow": {
     "proofs": [
-      {"challenge": {"id": "9b1c…", "alg": "equihash", "params": {"n": 192, "k": 7},
+      {"challenge": {"id": "9b1c…", "alg": "equihash", "params": {"n": 168, "k": 7},
                      "salt": "dGVzdC1zYWx0…", "exp": 1751846400, "sig": "hmac…"},
        "nonce": {"indices": [3, 17, 42, "…128 u64 integers in canonical tree order (NOT sorted)"]}}
     ]
@@ -141,7 +141,8 @@ Rules:
 
 - For a single challenge, the shorthand `"pow": {"challenge": {…}, "nonce": {…}}` is also accepted.
 - Challenges expire (`exp`) and proofs are single-use — solve and retry promptly, do not cache.
-- Equihash (n=192, k=7) needs ~1 GiB of memory to solve. Reference solver: `solve.py` in `kiosk-pow-equihash` (github.com/kiosk-hq/kiosk).
+- Reference solver: `solve.py` in `kiosk-pow-equihash` (github.com/kiosk-hq/kiosk). Cost depends on the provider's `params`: the shipped default (n=168, k=7) solves in ~10s using ~1.3 GiB on that solver; a larger `n` costs more. Estimate time/memory from `params` before solving — if a challenge would blow your compute budget (a very large `n`, or a high proof count), tell the user rather than hanging. You act in the user's interest, and a runaway PoW is not it.
+- `/auth/register` may also return `402` — solve its challenges and resubmit the same register body with the `pow` field (the PoP signature is not consumed on the 402, so reuse the same `signed`).
 
 ## AP2 payment mandates
 

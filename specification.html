@@ -74,7 +74,7 @@ sequenceDiagram
     A->>P: POST /kiosk/query {name: "catalog"}
     P-->>A: 402 {error: {code: "pow_required",<br/>  challenges: [{id, alg, params, salt, exp, sig}, …]}}
 
-    A->>A: Solve each Equihash challenge<br/>(~1 GiB RAM, ~seconds per proof)
+    A->>A: Solve each Equihash challenge<br/>(reference solver: ~10s, ~1.3 GiB per proof)
     A->>P: POST /kiosk/query {name: "catalog",<br/>  pow: {proofs: [{challenge, nonce: {indices}}, …]}}
     P-->>A: 200 {rows: [...]}
   </div>
@@ -159,6 +159,8 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
   <p><strong>Identity ↔ card.</strong> A key the provider already knows maps to the same <code>user_id</code>, so a saved payment card survives across sessions — but that mapping is served by <code>/auth/login</code>, not by re-registering (registering a known key is a <code>409 Conflict</code>). The agent stores its RSA-2048 private key at <code>~/.kiosk/&lt;domain&gt;/key.pem</code> and its identity at <code>~/.kiosk/&lt;domain&gt;/identity.json</code>; a new keypair is generated per domain — no cross-provider tracking.</p>
 
+  <p><strong>Optional registration toll.</strong> A provider MAY price fresh-identity minting: <code>POST /auth/register</code> can answer <code>402 pow_required</code> with the same Equihash challenge wire as the Proof-of-work section below. The agent solves every challenge and resubmits the same signed body with the <code>pow</code> field. The proof-of-possession signature is not consumed on the 402, so the same <code>signed</code> is reused. Default is no registration toll.</p>
+
   <p><strong>Token &amp; key lifetime.</strong> Access tokens are short-lived (default 1&nbsp;hour); refresh by calling <code>/auth/login</code> again — the private key is the durable credential, not the token. Multiple concurrent tokens for one identity stay valid at once (multiple devices/instances); a new login never invalidates its siblings. To sign every other session out, call <code>/auth/revoke</code>: it revokes all of the identity's current tokens and returns a fresh one, so the caller stays signed in. The identity keypair itself is long-lived — it has no calendar expiry and is replaced by rotation or revocation, not by an expiry clock.</p>
 
   <div class="todo">
@@ -183,7 +185,7 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
       {
         "id":     "9b1c…",
         "alg":    "equihash",
-        "params": { "n": 192, "k": 7 },
+        "params": { "n": 168, "k": 7 },
         "salt":   "dGVzdC1zYWx0…",
         "exp":    1751846400,
         "sig":    "hmac-sha256…"
@@ -212,9 +214,11 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
   <p>For a single challenge, the shorthand <code>"pow": {"challenge": {…}, "nonce": {…}}</code> is also accepted. The retried body must be identical to the original apart from the added <code>pow</code> field — the proof is bound to the request fingerprint.</p>
 
-  <p><strong>Default algorithm:</strong> Equihash (n=192, k=7). Memory-hard: about 1 GiB per solver instance, seconds to solve on commodity hardware, microseconds and a few KB to verify. The asymmetry protects the provider — floods of bad proofs are rejected by the cheap HMAC and expiry checks before any expensive work. PoW is an economic toll, not a wall: the challenge carries <code>{alg, params}</code>, so a provider can raise parameters or swap the algorithm without a protocol change. The reference solver is <code>solve.py</code> in <code>kiosk-pow-equihash</code>.</p>
+  <p><strong>Default algorithm:</strong> Equihash (n=168, k=7). Memory-hard. The shipped reference solver (pure Python + numpy) clears the default in about 10&nbsp;s using ~1.3&nbsp;GiB; verification is microseconds and a few KB. Parameters are provider-tunable — the default was chosen by a benchmark sweep as the largest params under a ~30&nbsp;s / 1–2&nbsp;GiB laptop budget; a provider raises <code>n</code> for a heavier toll.</p>
 
-  <p>The provider requests <strong>N independent proofs</strong> for rate-limiting. Instead of a continuous difficulty dial, Kiosk uses proof count: a normal client solves 1 PoW, a suspicious one solves 3, an abuser solves 10. Each challenge has its own salt — no amortization across proofs.</p>
+  <p><strong>What PoW is, and is not.</strong> It is a metered toll with a cheap verify, plus a rate-limiting knob — not a hardware wall. Equihash is not ASIC- or GPU-proof (it was ASIC'd on Zcash, and GPUs solve it well); no proof-of-work equalises a laptop against special-purpose hardware. What PoW buys the provider is real: a microsecond verify (so a flood of bad proofs is rejected by the HMAC and expiry checks before any backend work), a non-zero, non-amortisable price per anonymous request, and — unlike a cryptocurrency — no block reward to subsidise attacker hardware. Abuse resistance comes from <em>reputation and caps</em>; PoW just makes free-riding cost something. The challenge carries <code>{alg, params}</code>, so a provider can raise parameters or swap the algorithm without a protocol change.</p>
+
+  <p>The provider requests <strong>N independent proofs</strong> for rate-limiting. Instead of a continuous difficulty dial, Kiosk escalates by proof count: a normal client solves 1, a suspicious one ~3, an abuser ~10. Each challenge has its own salt — no amortization across proofs. N prices <em>throughput</em>, not latency (a solver with enough memory runs them in parallel), so the cost lands on a sustained scraper. Because a slow honest client may solve N proofs sequentially, each challenge's expiry scales with N.</p>
 
   <h2>Catalog query (example)</h2>
 
