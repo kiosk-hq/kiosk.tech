@@ -210,10 +210,10 @@
       <h2>What agents can do today</h2>
       <p class="time">Groceries. Scooter rental. Salon booking. Restaurant reservations. All via Kiosk.</p>
       <ol class="demo-steps">
-        <li>«Book a table for 2 tomorrow at 8» — restaurant booked, confirmation in chat</li>
-        <li>«Reserve a scooter near the office» — unlocked, rental started, payment on file</li>
-        <li>«Schedule a haircut Saturday morning» — appointment confirmed, no app needed</li>
-        <li>«Buy groceries for the week» — cart filled, substitutions handled, delivered</li>
+        <li>"Book a table for 2 tomorrow at 8" — restaurant booked, confirmation in chat</li>
+        <li>"Reserve a scooter near the office" — unlocked, rental started, payment on file</li>
+        <li>"Schedule a haircut Saturday morning" — appointment confirmed, no app needed</li>
+        <li>"Buy groceries for the week" — cart filled, substitutions handled, delivered</li>
         <li>Second order in any vertical: zero human taps. Card already on file.</li>
       </ol>
     </div>
@@ -221,12 +221,17 @@
     <section class="audience" style="margin-bottom:48px;text-align:center">
       <p style="font-size:15px;color:#999;margin-bottom:6px">Add a gateway. Agents discover, browse, book, order, and pay.</p>
       <p style="font-size:14px;color:#888;line-height:1.7;margin-bottom:18px;max-width:560px;margin-left:auto;margin-right:auto">
-        Your customers tell their agent where to go: «getgroceries.com», «skooti.com», «hoteling.com», or an aggregator. The agent discovers your endpoint at <code style="font-family:monospace;font-size:12px;color:#8bc49a">/.well-known/kiosk.json</code>, <a href="/skill.md" style="color:#8bc49a">learns the published skill</a>, registers, and transacts.
+        Your customers tell their agent where to go: "getgroceries.com", "skooti.com", "hoteling.com", or an aggregator. The agent discovers your endpoint at <code style="font-family:monospace;font-size:12px;color:#8bc49a">/.well-known/kiosk.json</code>, <a href="/skill.md" style="color:#8bc49a">learns the published skill</a>, registers, and transacts.
       </p>
       <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary"><strong>Get the code</strong></a>
       <span style="font-size:12px;color:#555;margin-left:12px">Apache 2.0, self-hosted, free</span>
       <p style="font-size:12px;color:#555;margin-top:14px"><a href="/onboarding.html" style="color:#8bc49a">Step-by-step onboarding →</a> &nbsp;·&nbsp; Or write your own — <a href="/specification.html" style="color:#8bc49a">it's an open specification</a>.</p>
     </section>
+
+    <div class="demo-box">
+      <h2>Why now</h2>
+      <p style="font-size:14px;color:#bbb;line-height:1.7;margin-bottom:0">About half of web traffic is bots, and merchants pay Cloudflare and DataDome to fight it — while their own customers' agents burn context windows scraping HTML that changes weekly. Cloudflare blocks AI crawlers by default since July 2025. Amazon and Perplexity are in court over whether an agent may use a customer's own login. OpenAI walked back Instant Checkout after merchants refused to cede their checkout. The arms race has no finish line. Kiosk is the sanctioned exit: a gateway agents don't have to fight through, run by the merchant.</p>
+    </div>
 
     <section style="margin-top:48px">
       <h2 style="text-align:center;font-size:20px;margin-bottom:16px">Compatible agents today</h2>
@@ -251,20 +256,20 @@
 
     <section class="benefits">
       <div>
-        <h3>🏪 For businesses</h3>
+        <h3>For businesses</h3>
         <ul>
           <li><strong>No transaction fees.</strong> Unlike delivery platforms (15–30%), Kiosk takes zero cut. Your revenue is yours.</li>
           <li><strong>Your customer, your data.</strong> No intermediary owns the relationship. The customer registers with <em>you</em>, not a platform.</li>
-          <li><strong>Proof-of-work, not CAPTCHA.</strong> Equihash PoW stops bots at ~1 GiB of solver memory — ASIC-resistant, invisible to real humans. No «click all the traffic lights.»</li>
-          <li><strong>KYC without the creep.</strong> Integrate with Persona, Sumsub, or your existing KYC provider. Verify real humans, filter out bought identities. The agent carries KYC attributes — «has valid ID», «18+» — never raw documents.</li>
+          <li><strong>Proof-of-work, not CAPTCHA.</strong> Suspicious requests pay in compute: memory-hard Equihash challenges (~1 GiB per solver), verified by your server in microseconds. Escalating proof count instead of a ban list. Invisible to your human visitors — no "click all the traffic lights."</li>
+          <li><strong>KYC without the creep.</strong> Integrate with Persona, Sumsub, or your existing KYC provider. Verify real humans, filter out bought identities. The agent carries KYC attributes — "has valid ID", "18+" — never raw documents.</li>
           <li><strong>Reputation that sticks.</strong> Reputation rides on the customer's per-domain agent key: good behaviour earns lower friction, and shedding a bad record isn't free — a fresh key restarts at the unknown tier and pays proof-of-work to climb back. No cross-merchant identifier.</li>
         </ul>
       </div>
       <div>
-        <h3>🙋 For users</h3>
+        <h3>For users</h3>
         <ul>
           <li><strong>No cross-provider tracking.</strong> A new RSA key is generated for every domain. Your identity at getgroceries.com is cryptographically separate from skooti.com. No shared identifier, no tracking profile.</li>
-          <li><strong>No personal data shared.</strong> Kiosk's KYC model shares <em>attributes</em> — «valid government ID exists», «age ≥ 18» — never the underlying documents. The merchant never sees your passport.</li>
+          <li><strong>No personal data shared.</strong> Kiosk's KYC model shares <em>attributes</em> — "valid government ID exists", "age ≥ 18" — never the underlying documents. The merchant never sees your passport.</li>
           <li><strong>Your agent works for you.</strong> Not the merchant. Not the platform. The agent holds <em>your</em> keys, signs <em>your</em> mandates, and acts in <em>your</em> interest.</li>
           <li><strong>Zero apps to install.</strong> No password resets. Your agent handles everything from registration to payment.</li>
         </ul>
@@ -273,10 +278,11 @@
 
     <div class="cant-do">
       <h3>Today, none of these can do this</h3>
+      <p style="font-size:11px;color:#555;margin-bottom:12px">As of July 2026.</p>
       <ul class="cant-list">
         <li><strong>Manus</strong> — hands you a payment link after 20 minutes of screen scraping</li>
         <li><strong>ChatGPT Agent</strong> — redirects to merchant's app for booking or payment</li>
-        <li><strong>Claude Connectors</strong> — search only. «Book on booking.com» → deep link out</li>
+        <li><strong>Claude Connectors</strong> — search only. "Book on booking.com" → deep link out</li>
         <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment, no persistence</li>
         <li><strong>Gemini</strong> — navigates app, then hands back for final payment tap</li>
         <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints. Can't book, can't reserve, can't pay</li>
@@ -284,11 +290,11 @@
     </div>
 
     <div class="cant-do">
-      <h3>Not the «AI assistant» widget on every website</h3>
+      <h3>Not the "AI assistant" widget on every website</h3>
       <ul class="cant-list">
         <li><strong>Merchant chatbots</strong> — can search the catalog. Cannot register, cannot book, cannot pay. Lose context between visits.</li>
-        <li><strong>«Powered by AI» popups</strong> — a template with your logo. Same three questions. Zero integration with the actual ordering system.</li>
-        <li><strong>Voice assistants on speaker</strong> — «turn on the lights» works. «Book a haircut for Thursday» — silence.</li>
+        <li><strong>"Powered by AI" popups</strong> — a template with your logo. Same three questions. Zero integration with the actual ordering system.</li>
+        <li><strong>Voice assistants on speaker</strong> — "turn on the lights" works. "Book a haircut for Thursday" — silence.</li>
       </ul>
     </div>
 
@@ -300,8 +306,8 @@
           MCP assumes stateful sessions between agent and tool. Commerce is stateless — every purchase is a new transaction with its own mandates. REST endpoints are the right primitive. MCP was built for IDE integrations, not for autonomous agents that hold keys and sign payment mandates.
         </li>
         <li>
-          <strong>Why not MPP (Merchant Payment Protocol)?</strong>
-          MPP is merchant-initiated: the merchant pulls funds after the agent says «pay.» But an autonomous agent isn't a passive API caller — it's a party to the transaction. AP2 mandates (intent → cart → payment) are cryptographically signed by the agent, creating a verifiable audit trail. Without agent-signed mandates, there's no non-repudiation: if the merchant charges $500 and the agent says «I authorized $50,» neither side can prove what was agreed. Three signed JWS mandates settle the dispute.
+          <strong>What about MPP (Machine Payments Protocol)?</strong>
+          MPP (Stripe + Tempo, 2026) is a payment rail: sessions with pre-authorized spending caps, stablecoin and fiat settlement. Kiosk is payment-rail agnostic — the reference implementation ships a Stripe card-on-file adapter, and other rails, MPP included, can slot in as payment adapters. Evaluating MPP as a settlement option is on the roadmap.
         </li>
         <li>
           <strong>Why not an SDK?</strong>
@@ -312,8 +318,8 @@
   </section>
 
   <footer>
-    Kiosk is a reference implementation. <a href="https://github.com/kiosk-hq/kiosk">Apache 2.0</a>. No intermediary, no transaction fees.<br>
-    Reference implementation at <a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a>.
+    Kiosk is an open protocol with an <a href="https://github.com/kiosk-hq/kiosk">Apache 2.0 reference implementation</a>. No intermediary, no transaction fees.<br>
+    Built by <a href="https://github.com/pirj">Phil Pirozhkov</a>.
   </footer>
 </body>
 </html>
