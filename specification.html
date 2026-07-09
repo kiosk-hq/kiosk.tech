@@ -141,8 +141,9 @@ sequenceDiagram
 {
   "aud":   "https://getgroceries.com",   // the origin you connected to
   "nonce": "S6f2yq…",                     // the challenge from step 1
-  "pub":   "&lt;RFC 7638 thumbprint of your public key&gt;",
   "jti":   "0f1c…", "iat": 1751846340
+  // "pub": "&lt;RFC 7638 thumbprint&gt;"  — OPTIONAL: the server verifies it
+  //   only when present (the public_key field already binds the proof).
 }
 
 POST /kiosk/auth/register        // NEW key — 409 Conflict if already registered (use /login)
