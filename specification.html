@@ -190,7 +190,8 @@ sequenceDiagram
 {
   "aud":   "https://getgroceries.com",   // the origin you connected to
   "nonce": "S6f2yq…",                     // the challenge from step 1
-  "jti":   "0f1c…", "iat": 1751846340
+  "jti":   "0f1c…"
+  // "iat": 1751846340                    — OPTIONAL: informational only (see below).
   // "pub": "&lt;RFC 7638 thumbprint&gt;"  — OPTIONAL: the server verifies it
   //   only when present (the public_key field already binds the proof).
 }
@@ -204,6 +205,8 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 { "public_key": "-----BEGIN PUBLIC KEY-----\n…", "signed": "eyJhbGciOiJSUzI1NiJ9…" }
 → 200 OK
 { "access_token": "eyJhbGciOiJSUzI1NiJ9.eyJhZ2VudF9pZCI6….Qk7…" }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The proof's required claims are exactly <code>aud</code>, <code>nonce</code>, and <code>jti</code>; <code>iat</code> is <strong>optional and informational only</strong>. The <code>nonce</code> is server-issued, single-use, and expires on a server-held TTL — it is the authoritative freshness and anti-replay bound, so a client-asserted <code>iat</code> (which the server cannot trust) adds nothing the server relies on. (Contrast the AP2 mandates below: those are standalone credentials carrying no server-issued nonce, so THEY require both <code>iat</code> and <code>exp</code> to bound their own validity window.)</p>
 
   <p><strong>Origin binding (relay defense).</strong> The <code>aud</code> claim MUST be the origin the agent actually connected to — filled in by the agent from the connection it dialed, never echoed from server-supplied data. The provider rejects any proof whose <code>aud</code> is not its own origin, so a signature captured by a malicious endpoint cannot be relayed to a different provider and cannot take over an existing account. This is WebAuthn's anti-phishing model, and the same audience-binding principle as the mandate <code>iss</code> claim below.</p>
 

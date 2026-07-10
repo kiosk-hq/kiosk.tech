@@ -25,7 +25,7 @@ All queries go through `/query`, all actions through `/run`. The surface self-de
 ## Flow (every provider, every visit)
 
 ### Step 1: Discover
-`GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `routing` (verb→method+path map).
+`GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `capabilities` (which verbs the endpoint serves — a subset of `schema`/`query`/`run`/`pay`). The HTTP binding is fixed and known to you, not advertised in the document: `schema` is `GET`, `query`/`run`/`pay` are `POST` (see the Architecture table above). Read `capabilities` to learn *which* verbs exist here, then call them with those methods.
 
 ### Step 2: Identity (REUSE if possible)
 **Check `~/.kiosk/<domain>/identity.json` first.** A public key is not a credential — every token is issued only after you prove possession of the matching PRIVATE key. Both register and login are two steps: (1) `GET <endpoint>/auth/challenge?public_key=<url-encoded PEM>` → `{challenge}`; (2) sign a compact RS256 JWS `{aud, nonce, jti, iat}` with your private key and POST it. **`aud` MUST be the origin you actually connected to** — that's the relay defense (a proof for one provider can't be replayed at another). See "Auth handshake" below.

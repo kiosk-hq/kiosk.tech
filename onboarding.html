@@ -82,9 +82,13 @@ openssl genrsa 2048 | base64
 
   # Registration mints a fresh principal (an "assistant account", not a human).
   # By default Kiosk would call User.create! with no attributes and 500 on any
-  # validated model, so supply a factory that satisfies YOUR validations and
-  # returns the new record's id. `pubkey` is the agent's registered public key.
-  c.assistant_creation do |assistant_account_id, pubkey|
+  # validated model, so supply a factory that creates the account satisfying
+  # YOUR validations and RETURNS its id. That returned id becomes the agent's
+  # principal — so this works on ANY PK type (bigint, uuid, …): the id is your
+  # own model's PK, whatever it is. `pubkey` is the agent's registered public
+  # key (bind the account to it if you like). NOTE: this is an ASSIGNMENT
+  # (attr_accessor) — a `do…end` block form silently no-ops.
+  c.assistant_creation = ->(pubkey) do
     User.create!(email: "agent-#{SecureRandom.hex(6)}@assistants.your-domain.com").id
   end
 
@@ -96,7 +100,7 @@ openssl genrsa 2048 | base64
   )
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code>, and the <code>stripe_customers</code> table below uses <code>t.uuid :user_id</code>. If your <code>users.id</code> is a Rails-default <code>bigint</code>, set <code>c.user_id_type = :bigint</code> and change the column types to match, or migrations fail with a datatype mismatch.</blockquote>
+  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code> and bakes <code>uuid</code> into all six kiosk migrations (the <code>kiosk.agents.user_id</code> FK and the mandate tables that reference it), and the <code>stripe_customers</code> table below uses <code>t.uuid :user_id</code>. If your <code>users.id</code> is a Rails-default <code>bigint</code>, don't just edit the <code>stripe_customers</code> column — <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches), set <code>c.user_id_type = :bigint</code>, and make the <code>stripe_customers.user_id</code> column <code>t.bigint</code> to match — otherwise migrations fail with a datatype mismatch.</blockquote>
 
   <p>You need a <code>stripe_customers</code> table (referenced by the resolver/saver above):</p>
   <pre><code class="language-ruby"># db/migrate/…_create_stripe_customers.rb
@@ -276,7 +280,31 @@ rails s</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-bash">curl -s http://localhost:3000/.well-known/kiosk.json | jq '.kiosk | {issuer, capabilities}'
 # => { "issuer": "http://localhost:3000", "capabilities": ["schema","query","run","pay"] }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>Every wire verb — including <code>schema</code> — is authenticated, so first obtain a token by registering. Registration is a proof-of-possession handshake (generate an RSA key, sign the challenge, POST it); the <code>kiosk</code> CLI or any Kiosk-compatible agent does this for you. With a token in <code>$TOKEN</code>, confirm your surface and browse the catalog — nothing but <code>curl</code> + <code>jq</code>:</p>
+  <p>Every wire verb — including <code>schema</code> — is authenticated, so first obtain a token by registering. Registration is a proof-of-possession handshake: fetch a challenge for your public key, sign it as an RS256 JWS whose payload is <code>{aud, nonce, jti}</code> (<code>aud</code> = the origin you dialed, <code>nonce</code> = the challenge), then POST the public key + signature. A Kiosk-compatible agent does this for you, but here it is as a self-contained script (Ruby stdlib + the <code>jwt</code> gem — the same gem kiosk-server uses) so registration is followable without any external CLI:</p>
+  <pre><code class="language-ruby"># register.rb — PoP handshake against a local Kiosk provider. `gem install jwt`
+require "openssl"; require "json"; require "net/http"; require "uri"
+require "securerandom"; require "jwt"
+
+origin = ENV.fetch("KIOSK_ISSUER", "http://localhost:3000")   # the origin you dial == aud
+key    = OpenSSL::PKey::RSA.new(2048)                          # your identity keypair (save key.to_pem!)
+pub    = key.public_key.to_pem
+
+# 1. GET a single-use challenge nonce for this public key.
+chal = JSON.parse(Net::HTTP.get(URI(
+  "#{origin}/kiosk/auth/challenge?public_key=#{URI.encode_www_form_component(pub)}")))
+
+# 2. Sign {aud, nonce, jti} as a compact RS256 JWS with the PRIVATE key.
+signed = JWT.encode(
+  { aud: origin, nonce: chal.fetch("challenge"), jti: SecureRandom.uuid },
+  key, "RS256")
+
+# 3. POST public_key + signed → 201 Created { user_id, agent_id, access_token }.
+res = Net::HTTP.post(URI("#{origin}/kiosk/auth/register"),
+  { public_key: pub, signed: signed }.to_json, "Content-Type" => "application/json")
+puts res.code                                   # => 201
+puts JSON.parse(res.body)["access_token"]       # export this as $TOKEN
+# (Returning key? Same body to /kiosk/auth/login → 200 with a fresh token, same user_id.)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and browse the catalog — nothing but <code>curl</code> + <code>jq</code>:</p>
   <pre><code class="language-bash"># Inspect the machine-readable surface (your registered queries + actions):
 curl -s http://localhost:3000/kiosk/schema \
   -H "Authorization: Bearer $TOKEN" | jq '.value.queries | map(.name)'

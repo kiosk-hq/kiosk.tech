@@ -22,16 +22,34 @@ REST endpoints — HTTP method carries semantics (GET = read, POST = write):
 
 All queries go through `/query`, all actions through `/run`. The surface self-describes via `schema`.
 
+## Response envelope
+
+Every `schema`/`query`/`run`/`pay` response is wrapped in a uniform envelope — branch on `ok`, then read the payload under the field named by `kind`:
+
+```json
+// query → rows           // schema / run / pay → value
+{"ok": true,               {"ok": true,
+ "kind": "rows",            "kind": "value",
+ "rows": [ … ]}             "value": { … }}
+
+// error (any endpoint)
+{"ok": false, "error": {"code": "…", "message": "…"}}
+```
+
+So `query` results are under `rows` (an array); `schema`, `run`, and `pay` results are under `value` (an object). The payload snippets shown below (e.g. `{status:"ready"}`) are the *contents* of that `value`/`rows` field, not the whole response.
+
 ## Flow (every provider, every visit)
 
 ### Step 1: Discover
 `GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `capabilities` (which verbs the endpoint serves — a subset of `schema`/`query`/`run`/`pay`). The HTTP binding is fixed and known to you, not advertised in the document: `schema` is `GET`, `query`/`run`/`pay` are `POST` (see the Architecture table above). Read `capabilities` to learn *which* verbs exist here, then call them with those methods.
 
+Two terms, don't conflate them: **`origin`** is the provider's bare base URL (e.g. `http://host` or `https://getgroceries.com`) — where the well-known document lives (`<origin>/.well-known/kiosk.json`) and the value you sign as `aud` in the auth proof. **`endpoint`** is the mounted wire surface, read from the document; by default `endpoint = origin + /kiosk`, so the wire and auth calls hang off it: `schema` is `<endpoint>/schema` = `<origin>/kiosk/schema`, and the handshake is `<endpoint>/auth/challenge` = `<origin>/kiosk/auth/challenge`. Take `endpoint` from the document rather than assuming the `/kiosk` suffix.
+
 ### Step 2: Identity (REUSE if possible)
 **Check `~/.kiosk/<domain>/identity.json` first.** A public key is not a credential — every token is issued only after you prove possession of the matching PRIVATE key. Both register and login are two steps: (1) `GET <endpoint>/auth/challenge?public_key=<url-encoded PEM>` → `{challenge}`; (2) sign a compact RS256 JWS `{aud, nonce, jti, iat}` with your private key and POST it. **`aud` MUST be the origin you actually connected to** — that's the relay defense (a proof for one provider can't be replayed at another). See "Auth handshake" below.
 
 - **Identity exists** → `POST <endpoint>/auth/login {public_key, signed}` → `{access_token}`. Same key ⇒ same `user_id`, so your saved card survives. Do NOT re-register a known key — that's a `409`; use login.
-- **No identity** → generate an RSA-2048 keypair, then `POST <endpoint>/auth/register {public_key, signed}` → `{user_id, agent_id, access_token}`. Store the PRIVATE key at `~/.kiosk/<domain>/key.pem` and identity `{"user_id":"…","agent_id":"…"}` at `~/.kiosk/<domain>/identity.json`. `chmod 600` both files.
+- **No identity** → generate an RSA-2048 keypair, then `POST <endpoint>/auth/register {public_key, signed}` → **`201 Created`** `{user_id, agent_id, access_token}` (login, by contrast, returns `200`). Store the PRIVATE key at `~/.kiosk/<domain>/key.pem` and identity `{"user_id":"…","agent_id":"…"}` at `~/.kiosk/<domain>/identity.json`. `chmod 600` both files.
 
 ### Step 3: Learn surface
 `GET <endpoint>/schema` → list of queries, actions, params.
@@ -51,7 +69,7 @@ Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match `/.wel
 ## Technical constraints
 - **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Keep access tokens in Python memory — never pass them as shell command arguments where they'd appear in history and process listings. Use Python's `urllib` (stdlib) or `requests` for all HTTP calls.
 - **Key storage:** `~/.kiosk/<domain>/key.pem` (private) + `~/.kiosk/<domain>/identity.json` (user_id, agent_id). Both `chmod 600`. New RSA key per domain — no cross-provider tracking.
-- **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`.
+- **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`. If pip refuses with `externally-managed-environment` (PEP 668 — common on system Python), don't force it; create a venv first: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography`, then run your script with `~/.kiosk/venv/bin/python`.
 - **Card setup:** Human-only. Present the `setup_url` to the user, poll until `status:"ready"`. Never automate Stripe forms.
 - **Mandates:** Always submit all 3 — server may reject with `payment_mandate_jws required`. Every mandate needs `id`, `user_id`, `agent_id`, `iss` (verbatim), `iat`, `exp`.
 - **Proof-of-work:** any request may return HTTP 402 `pow_required` — solve every challenge and retry the same body with the `pow` field (see the Proof-of-work section).
