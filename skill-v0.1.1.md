@@ -1,7 +1,7 @@
 ---
 name: kiosk-agent-commerce
-version: "1.0"
-description: "Universal protocol for agent-native commerce. Talk to any Kiosk-speaking provider — discover, register, browse, order, pay."
+version: "0.1.1"
+description: "Universal protocol for agent-native commerce. Talk to any Kiosk-speaking provider — register, discover its capabilities via schema, then act: order, book, apply, pay."
 tags: [kiosk, agent-commerce, ap2]
 trigger: <link rel="kiosk">
 ---
@@ -22,63 +22,98 @@ REST endpoints — HTTP method carries semantics (GET = read, POST = write):
 
 All queries go through `/query`, all actions through `/run`. The surface self-describes via `schema`.
 
+**All four verbs require auth:** send the access token from Step 2 as `Authorization: Bearer <access_token>` on every `schema`/`query`/`run`/`pay` call — the provider answers `401` without it.
+
+## Response envelope
+
+Every `schema`/`query`/`run`/`pay` response is wrapped in a uniform envelope — branch on `ok`, then read the payload under the field named by `kind`:
+
+```json
+// query → rows           // schema / run / pay → value
+{"ok": true,               {"ok": true,
+ "kind": "rows",            "kind": "value",
+ "rows": [ … ]}             "value": { … }}
+
+// error (any endpoint)
+{"ok": false, "error": {"code": "…", "message": "…"}}
+```
+
+So `query` results are under `rows` (an array); `schema`, `run`, and `pay` results are under `value` (an object). The payload snippets shown below (e.g. `{status:"ready"}`) are the *contents* of that `value`/`rows` field, not the whole response.
+
 ## Flow (every provider, every visit)
 
 ### Step 1: Discover
-`GET <origin>/.well-known/kiosk.json` → `endpoint`, `issuer`, `capabilities` (which verbs the endpoint serves — a subset of `schema`/`query`/`run`/`pay`). The HTTP binding is fixed and known to you, not advertised in the document: `schema` is `GET`, `query`/`run`/`pay` are `POST` (see the Architecture table above). Read `capabilities` to learn *which* verbs exist here, then call them with those methods.
+`GET <origin>/.well-known/kiosk.json` — the document nests **everything under a top-level `kiosk` key**: read `doc["kiosk"]["endpoint"]`, `doc["kiosk"]["issuer"]`, `doc["kiosk"]["capabilities"]` (a top-level subscript is a `KeyError`). `capabilities` lists which verbs the endpoint serves — a subset of `schema`/`query`/`run`/`pay`. The HTTP binding is fixed and known to you, not advertised in the document: `schema` is `GET`, `query`/`run`/`pay` are `POST` (see the Architecture table above). Read `capabilities` to learn *which* verbs exist here, then call them with those methods.
+
+Two terms, don't conflate them: **`origin`** is the provider's bare base URL (e.g. `http://host` or `https://getgroceries.com`) — where the well-known document lives (`<origin>/.well-known/kiosk.json`) and the value you sign as `aud` in the auth proof. **`endpoint`** is the mounted wire surface, read from the document; by default `endpoint = origin + /kiosk`, so the wire and auth calls hang off it: `schema` is `<endpoint>/schema` = `<origin>/kiosk/schema`, and the handshake is `<endpoint>/auth/challenge` = `<origin>/kiosk/auth/challenge`. Take `endpoint` from the document rather than assuming the `/kiosk` suffix.
 
 ### Step 2: Identity (REUSE if possible)
 **Check `~/.kiosk/<domain>/identity.json` first.** A public key is not a credential — every token is issued only after you prove possession of the matching PRIVATE key. Both register and login are two steps: (1) `GET <endpoint>/auth/challenge?public_key=<url-encoded PEM>` → `{challenge}`; (2) sign a compact RS256 JWS `{aud, nonce, jti, iat}` with your private key and POST it. **`aud` MUST be the origin you actually connected to** — that's the relay defense (a proof for one provider can't be replayed at another). See "Auth handshake" below.
 
 - **Identity exists** → `POST <endpoint>/auth/login {public_key, signed}` → `{access_token}`. Same key ⇒ same `user_id`, so your saved card survives. Do NOT re-register a known key — that's a `409`; use login.
-- **No identity** → generate an RSA-2048 keypair, then `POST <endpoint>/auth/register {public_key, signed}` → `{user_id, agent_id, access_token}`. Store the PRIVATE key at `~/.kiosk/<domain>/key.pem` and identity `{"user_id":"…","agent_id":"…"}` at `~/.kiosk/<domain>/identity.json`. `chmod 600` both files.
+- **No identity** → generate an RSA-2048 keypair, then `POST <endpoint>/auth/register {public_key, signed}` → **`201 Created`** `{user_id, agent_id, access_token}` (login, by contrast, returns `200`). Store the PRIVATE key at `~/.kiosk/<domain>/key.pem` and identity `{"user_id":"…","agent_id":"…"}` at `~/.kiosk/<domain>/identity.json`. `chmod 600` both files.
 
 ### Step 3: Learn surface
-`GET <endpoint>/schema` → list of queries, actions, params.
+`GET <endpoint>/schema` with the Bearer header → the provider's queries and actions, each with params and a free-text `description`. Read the descriptions — they tell you what this provider actually does; do not assume names.
 
-### Step 4: Browse & order
-`POST <endpoint>/query {name:"catalog"}` → available products.
-`POST <endpoint>/run {name:"create_order", items:[{sku,qty},...]}` → order.
+```python
+req = urllib.request.Request(f"{endpoint}/schema",
+    headers={"Authorization": f"Bearer {access_token}"})
+schema = json.load(urllib.request.urlopen(req))["value"]
+```
+
+Send the same `Authorization: Bearer <access_token>` header on every `query`, `run`, and `pay` call below.
+
+### Step 4: Act
+Providers differ only in what their schema lists — pick queries and actions by their descriptions, then call them:
+
+- a shop: `POST <endpoint>/query {name:"catalog"}` → `POST <endpoint>/run {name:"create_order", items:[{sku,qty},…]}`
+- a salon or restaurant: query availability → run the booking action with time and party size
+- a job board: query listings → run the apply action — possibly no payment step at all
+
+Steps 5–6 apply only when the task involves payment and the provider advertises the `pay` capability.
 
 ### Step 5: Card setup (human-in-the-loop)
-`POST <endpoint>/run {name:"payment_setup"}` → `{status:"setup_required", setup_url}` or `{status:"ready"}`.
+`POST <endpoint>/run {name:"payment_setup"}` (Bearer header) → `{status:"setup_required", setup_url}` or `{status:"ready"}`.
 
 **If `setup_required`:** hand the `setup_url` to the human. **NEVER fill Stripe forms with browser automation.** Poll `payment_setup` every few seconds until `status:"ready"`.
 
 ### Step 6: Pay
-Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match `/.well-known/kiosk.json#issuer` verbatim. Submit via `POST <endpoint>/pay {intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}`. Payment mandate: `payment_method: "on_file"` for saved-card flow.
+Sign 3 RS256 JWS mandates (intent → cart → payment). `iss` must match the `issuer` from `/.well-known/kiosk.json` (under the `kiosk` key) verbatim. Submit via `POST <endpoint>/pay {intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}` with the Bearer header. Payment mandate: `payment_method: "on_file"` for saved-card flow. A `402 payment_setup_required` here means no saved card — run `payment_setup` (Step 5), then retry (see "Two kinds of 402").
 
 ## Technical constraints
-- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Keep access tokens in Python memory — never pass them as shell command arguments where they'd appear in history and process listings. Use Python's `urllib` (stdlib) or `requests` for all HTTP calls.
+- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Keep access tokens in Python memory and send them only as the `Authorization: Bearer` header on wire calls — never pass them as shell command arguments where they'd appear in history and process listings. Use Python's `urllib` (stdlib) or `requests` for all HTTP calls.
 - **Key storage:** `~/.kiosk/<domain>/key.pem` (private) + `~/.kiosk/<domain>/identity.json` (user_id, agent_id). Both `chmod 600`. New RSA key per domain — no cross-provider tracking.
-- **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`.
+- **Dependencies:** `pyjwt`, `cryptography`. Install if missing: `pip install pyjwt cryptography`. If pip refuses with `externally-managed-environment` (PEP 668 — common on system Python), don't force it; create a venv first: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography`, then run your script with `~/.kiosk/venv/bin/python`.
 - **Card setup:** Human-only. Present the `setup_url` to the user, poll until `status:"ready"`. Never automate Stripe forms.
 - **Mandates:** Always submit all 3 — server may reject with `payment_mandate_jws required`. Every mandate needs `id`, `user_id`, `agent_id`, `iss` (verbatim), `iat`, `exp`.
-- **Proof-of-work:** any request may return HTTP 402 `pow_required` — solve every challenge and retry the same body with the `pow` field (see the Proof-of-work section).
+- **Proof-of-work:** any request may return HTTP 402 `pow_required` — solve every challenge and retry the same body with the `pow` field. `POST /pay` can instead 402 with `payment_setup_required` (no `challenges`) — that one means run `payment_setup`, not solve PoW. Branch on `error.code` (see "Two kinds of 402").
 - **Login vs register:** existing key → `/auth/login` (fresh token, same `user_id`, card persists); new key → `/auth/register`. Re-registering a known key is a `409` — use login. Tokens are short-lived; call `/auth/login` again to refresh. To sign out other sessions, `POST /auth/revoke` (returns a fresh token).
 
 ## Versioning & verification
 
-This skill is versioned (see frontmatter `version`). The canonical source is `https://kiosk.tech/skill.md`.
+This skill is versioned (see frontmatter `version`). Published versions are immutable files at `https://kiosk.tech/skill-vX.Y.Z.md` — a version file never changes once published; `https://kiosk.tech/skill.md` is the "latest" alias with identical content.
 
-**Dual-check.** Every Kiosk provider MUST include a `skill` field in their `/.well-known/kiosk.json`:
+**Dual-check.** A provider MAY pin a skill reference in its `/.well-known/kiosk.json` (optional; nested under the top-level `kiosk` key like everything else):
 
 ```json
 {
-  "skill": {
-    "url": "https://kiosk.tech/skill-v1.0.md",
-    "sha256": "abc123..."
+  "kiosk": {
+    "skill": {
+      "url": "https://kiosk.tech/skill-v0.1.1.md",
+      "sha256": "abc123..."
+    }
   }
 }
 ```
 
-The agent:
-1. Compares the provider's `skill.version` (from `kiosk.json`) with its own cached version
-2. **If the provider's version is newer** — the agent MUST fetch and adopt the newer skill before transacting. The provider may depend on newer protocol features.
-3. Verifies the SHA-256 hash matches the fetched content
-4. Falls back to its locally cached skill if hash verification fails
+When the pin is present:
+1. Read the pinned version from the URL itself (`skill-vX.Y.Z.md`) — `kiosk.json` carries no skill-version field
+2. **If the pinned version is newer than your cached one** — fetch and adopt it before transacting. The provider may depend on newer protocol features.
+3. Verify the fetched file: its frontmatter `version` line matches the version in the URL, and the SHA-256 of the content matches the pinned `sha256`
+4. Fall back to your locally cached skill if verification fails
 
-**Backward compatibility.** Newer minor versions are backward-compatible — new endpoints and fields are additive, existing flows never break. An agent on v1.1 can transact with a v1.0 provider. A v1.0 agent MUST update before transacting with a v1.1 provider.
+**Backward compatibility.** Newer versions in the 0.1.x series are backward-compatible — new endpoints and fields are additive, existing flows never break. An agent on 0.1.2 can transact with a provider pinning 0.1.1; an agent on 0.1.1 MUST update before transacting with a provider pinning 0.1.2.
 
 ---
 
@@ -144,6 +179,13 @@ Rules:
 - Reference solver: `solve.py` in `kiosk-pow-equihash` (github.com/kiosk-hq/kiosk). Cost depends on the provider's `params`: the shipped default (n=168, k=7) solves in ~10s using ~1.3 GiB on that solver; a larger `n` costs more. Estimate time/memory from `params` before solving — if a challenge would blow your compute budget (a very large `n`, or a high proof count), tell the user rather than hanging. You act in the user's interest, and a runaway PoW is not it.
 - `/auth/register` may also return `402` — solve its challenges and resubmit the same register body with the `pow` field (the PoP signature is not consumed on the 402, so reuse the same `signed`).
 
+### Two kinds of 402
+
+HTTP 402 carries two distinct errors — branch on `error.code`, never on the status alone:
+
+- `pow_required` — has `error.challenges`. Solve every challenge and retry the same body with the `pow` field (this section).
+- `payment_setup_required` — NO `challenges` field; returned by `POST /pay` when the identity has no saved card. Run `payment_setup` (Step 5), let the human complete the setup, then retry the pay call — re-sign the mandates first if their `exp` has passed.
+
 ## AP2 payment mandates
 
 Kiosk uses a three-mandate chain for every payment. This creates a verifiable audit trail — the agent cryptographically commits to *what* it intends to buy, *what* it actually ordered, and *how* it paid.
@@ -204,6 +246,7 @@ Submit all three in one call:
 
 ```
 POST <endpoint>/pay
+Authorization: Bearer <access_token>
 {"intent_mandate_jws": "...", "cart_mandate_jws": "...", "payment_mandate_jws": "..."}
 ```
 
