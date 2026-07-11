@@ -71,8 +71,11 @@ openssl genrsa 2048 | base64
   c.roles  = %i[customer]
   c.owner  = { name: "Your Business", support: "help@your-domain.com" }
 
-  # Role pinned to every self-registered agent (agents can't choose their own).
-  # Omitting this raises a ConfigurationError on register.
+  # OPTIONAL — role pinned to every self-registered agent (agents can't
+  # choose their own). By default no role is assigned, and single-role
+  # providers like this one can leave it out entirely. Alternatively, assign
+  # the role yourself when creating the account in the assistant_creation
+  # hook below — that's where provider-owned role assignment belongs.
   c.registration_role = :customer
 
   # Which identity provider verifies agent tokens. The bundled default issues
@@ -100,7 +103,7 @@ openssl genrsa 2048 | base64
   )
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code> and bakes <code>uuid</code> into all six kiosk migrations (the <code>kiosk.agents.user_id</code> FK and the mandate tables that reference it), and the <code>stripe_customers</code> table below uses <code>t.uuid :user_id</code>. If your <code>users.id</code> is a Rails-default <code>bigint</code>, don't just edit the <code>stripe_customers</code> column — <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches), set <code>c.user_id_type = :bigint</code>, and make the <code>stripe_customers.user_id</code> column <code>t.bigint</code> to match — otherwise migrations fail with a datatype mismatch.</blockquote>
+  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code> and emits seven kiosk migrations, baking <code>uuid</code> into every one that touches a user id (the <code>kiosk.agents.user_id</code> FK and the mandate tables that reference it), and the <code>stripe_customers</code> table below uses <code>t.uuid :user_id</code>. If your <code>users.id</code> is a Rails-default <code>bigint</code>, don't just edit the <code>stripe_customers</code> column — <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches), set <code>c.user_id_type = :bigint</code>, and make the <code>stripe_customers.user_id</code> column <code>t.bigint</code> to match — otherwise migrations fail with a datatype mismatch.</blockquote>
 
   <p>You need a <code>stripe_customers</code> table (referenced by the resolver/saver above):</p>
   <pre><code class="language-ruby"># db/migrate/…_create_stripe_customers.rb
@@ -314,7 +317,7 @@ curl -s http://localhost:3000/kiosk/schema \
 curl -s -X POST http://localhost:3000/kiosk/query \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"catalog"}' | jq '.rows'</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <blockquote>The full register → order → <strong>pay</strong> → schedule flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server, or use the <code>kiosk</code> CLI, rather than hand-signing mandates with curl. The <code>pay</code> leg additionally needs a real <code>sk_test_…</code> Stripe key and a saved card on file.</blockquote>
+  <blockquote>The full register → order → <strong>pay</strong> → schedule flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow scripted end-to-end, run <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>'s <code>bin/demo</code> (<code>rake demo</code>). The <code>pay</code> leg additionally needs a real <code>sk_test_…</code> Stripe key and a saved card on file.</blockquote>
 
   <h2>How agents find you <span style="font-weight:400;font-size:14px;color:#666">(add 3 hooks, invisible to humans)</span></h2>
   <p>Agents need to discover that your site speaks Kiosk. Three hooks — two machine-readable, one visual cue for the curious. None interfere with your existing site.</p>

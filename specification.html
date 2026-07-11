@@ -128,13 +128,13 @@ sequenceDiagram
   <p>All <code>POST</code> bodies are JSON. All successful responses are JSON. The provider self-describes its surface via <code>GET /kiosk/schema</code> — queries and actions are provider-specific, not part of the spec.</p>
 
   <h3>Response envelope</h3>
-  <p>Every <code>query</code>, <code>run</code>, and <code>pay</code> response — success or error — is wrapped in a uniform envelope so an agent can branch on one field. A success carries <code>ok: true</code> and a <code>kind</code> discriminator naming the payload shape, alongside the payload itself:</p>
+  <p>Every <code>schema</code>, <code>query</code>, <code>run</code>, and <code>pay</code> response — success or error — is wrapped in a uniform envelope so an agent can branch on one field. A success carries <code>ok: true</code> and a <code>kind</code> discriminator naming the payload shape, alongside the payload itself:</p>
   <ul>
     <li><code>kind: "rows"</code> → payload under <code>rows</code> (an array; queries).</li>
-    <li><code>kind: "value"</code> → payload under <code>value</code> (a single object; actions and <code>pay</code>).</li>
+    <li><code>kind: "value"</code> → payload under <code>value</code> (a single object; <code>schema</code>, actions, and <code>pay</code>).</li>
     <li><code>kind: "events"</code> → payload under <code>events</code> (streaming; reserved).</li>
   </ul>
-  <pre><code class="language-json">// query success                    // action / pay success
+  <pre><code class="language-json">// query success                    // schema / action / pay success
 { "ok": true,                       { "ok": true,
   "kind": "rows",                     "kind": "value",
   "rows": [ … ] }                     "value": { … } }
@@ -163,7 +163,7 @@ sequenceDiagram
       "login_url":     "https://getgroceries.com/kiosk/auth/login",
       "revoke_url":    "https://getgroceries.com/kiosk/auth/revoke"
     },
-    "skill": { "url": "https://kiosk.tech/skill.md", "sha256": "…" }
+    "skill": { "url": "https://kiosk.tech/skill-v0.1.1.md", "sha256": "…" }
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -175,6 +175,12 @@ sequenceDiagram
     <li><code>pay</code> — present iff payments are configured.</li>
   </ul>
   <p>Typically all four are present. HTTP methods are <strong>not</strong> encoded in <code>capabilities</code>: the method binding is fixed and known to the agent — <code>schema</code> is <code>GET</code>, <code>query</code> is <code>POST</code>, <code>run</code> is <code>POST</code>, and <code>pay</code> is <code>POST</code>. An agent needs the capability list, not a method map. There is no <code>routing</code> or <code>verbs</code> field; the endpoint paths derive from <code>endpoint</code> and the fixed verb-to-path binding in the Endpoints table above.</p>
+
+  <p><strong>The "this site speaks Kiosk" signal.</strong> A provider advertises Kiosk support on its human-facing pages with a <code>&lt;link rel="kiosk"&gt;</code> tag in the HTML <code>&lt;head&gt;</code> (an equivalent HTTP <code>Link: &lt;…&gt;; rel="kiosk"</code> response header also counts), so an agent browsing the site knows to bootstrap from <code>/.well-known/kiosk.json</code> on the same origin:</p>
+
+  <pre><code class="language-html">&lt;link rel="kiosk" href="https://kiosk.tech/skill.md"&gt;</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The tag is a <strong>signal, not a source</strong>: its <code>href</code> points at the universal skill on kiosk.tech, and an agent must never load skill instructions from the provider itself — a malicious provider could inject arbitrary agent instructions. Everything provider-specific comes from the origin's own <code>/.well-known/kiosk.json</code>.</p>
 
   <h2>Registration &amp; login (kiosk-pop)</h2>
   <p>Kiosk's auth scheme is <strong>kiosk-pop</strong> — a proof-of-possession challenge-response, advertised as <code>auth.kind: "kiosk-pop"</code> in the discovery document. It is <strong>not</strong> OAuth. A public key is not a credential — it is public. Before issuing a token, the provider requires <strong>proof of possession</strong> of the matching private key: it hands out a single-use challenge, the agent signs it as an RS256 JWS. This also separates two operations the naïve flow conflates — <strong>register</strong> (a key the provider has never seen) and <strong>login</strong> (refresh a token for a key it already knows).</p>
@@ -214,7 +220,7 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
   <p><strong>Optional registration toll.</strong> A provider MAY price fresh-identity minting: <code>POST /auth/register</code> can answer <code>402 pow_required</code> with the same Equihash challenge wire as the Proof-of-work section below. The registration toll <strong>binds to the agent's public key</strong> being registered (not to a request fingerprint), so a proof solved for one key cannot be reused to mint another. The agent solves every challenge and resubmits the same signed body with the <code>pow</code> field. The proof-of-possession signature is not consumed on the 402, so the same <code>signed</code> is reused. Default is no registration toll.</p>
 
-  <p><strong>Access-token format.</strong> The <code>access_token</code> is a standard <strong>3-part RS256 JWT</strong> (<code>header.payload.signature</code>), not an opaque handle — it carries the <code>agent_id</code> and role and is signed by the provider, so the provider verifies it statelessly on every request. It is presented as <code>Authorization: Bearer &lt;jwt&gt;</code>.</p>
+  <p><strong>Access-token format.</strong> The <code>access_token</code> is a standard <strong>3-part RS256 JWT</strong> (<code>header.payload.signature</code>), not an opaque handle — it carries the <code>agent_id</code> and is signed by the provider, so the provider verifies it statelessly on every request. It is presented as <code>Authorization: Bearer &lt;jwt&gt;</code>. A <code>role</code> claim is <strong>optional</strong>: a single-role provider (the common case) omits it, and registration MUST NOT require or accept a client-requested role. When a provider distinguishes roles, it assigns the role itself while creating the account (the reference implementation's <code>assistant_creation</code> hook); roles are never sourced from an IdP in 0.1.</p>
 
   <p><strong>Token &amp; key lifetime.</strong> Access tokens are short-lived (default 1&nbsp;hour); refresh by calling <code>/auth/login</code> again — the private key is the durable credential, not the token. Multiple concurrent tokens for one identity stay valid at once (multiple devices/instances); a new login never invalidates its siblings. To sign every other session out, call <code>/auth/revoke</code>: it stamps a per-identity <strong>"revoked-before" watermark</strong>, so every token issued before that instant stops verifying, then returns a fresh token so the caller stays signed in. The identity keypair itself is long-lived — it has no calendar expiry and is replaced by rotation or revocation, not by an expiry clock.</p>
 
