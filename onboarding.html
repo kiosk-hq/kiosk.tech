@@ -78,10 +78,13 @@ openssl genrsa 2048 | base64
   # hook below — that's where provider-owned role assignment belongs.
   c.registration_role = :customer
 
-  # Which identity provider verifies agent tokens. The bundled default issues
-  # and verifies Kiosk's own JWTs. Omitting this → 401 "no IdP" on every call.
-  # (Note the FULL namespace — Kiosk::Server::AgentIdentityProviders, not Kiosk::.)
-  c.agent_idp = Kiosk::Server::AgentIdentityProviders::DefaultAgentIdp.new
+  # OPTIONAL — which identity provider verifies agent tokens. When omitted,
+  # kiosk-server uses its bundled kiosk-pop engine (DefaultAgentIdp): it
+  # verifies exactly the JWTs the register/login endpoints mint, so the
+  # zero-config install works end-to-end. Set this only to front another
+  # agent-identity system or to compose adapters; `c.user_idp` additionally
+  # lets your existing session auth (Devise etc.) call the same endpoints.
+  # c.agent_idp = MyCustomAgentIdp.new
 
   # Registration mints a fresh principal (an "assistant account", not a human).
   # By default Kiosk would call User.create! with no attributes and 500 on any
