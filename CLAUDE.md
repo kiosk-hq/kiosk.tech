@@ -2,9 +2,11 @@
 
 This repo is everything published at https://kiosk.tech (GitHub Pages,
 `CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
-universal agent skill (`skill-v1.0.md` is the frozen v1.0 snapshot),
-`index.html` — landing, `onboarding.html`, `payment/return` (Stripe Checkout
-return page, ADR-0004). Static files, no build step.
+universal agent skill (the "latest" alias; the immutable published versions
+are `skill-v0.1.N.md`, current `skill-v0.1.2.md`, per ADR-0012 — a published
+version file is never edited, every change ships a new one), `index.html` —
+landing, `onboarding.html`, `payment/return` (Stripe Checkout return page,
+ADR-0004). Static files, no build step.
 
 Extra weight of rule 1 here: the spec is the ROOT of the authority chain.
 Changing normative spec text is a decision — it needs an ADR or a ledger

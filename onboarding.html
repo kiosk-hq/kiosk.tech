@@ -309,7 +309,8 @@ res = Net::HTTP.post(URI("#{origin}/kiosk/auth/register"),
   { public_key: pub, signed: signed }.to_json, "Content-Type" => "application/json")
 puts res.code                                   # => 201
 puts JSON.parse(res.body)["access_token"]       # export this as $TOKEN
-# (Returning key? Same body to /kiosk/auth/login → 200 with a fresh token, same user_id.)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+# (Returning key? Challenges are single-use — fetch a FRESH one, sign {aud, nonce, jti},
+#  POST to /kiosk/auth/login → 200 { access_token }. No new user_id: login just refreshes the token.)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and browse the catalog — nothing but <code>curl</code> + <code>jq</code>:</p>
   <pre><code class="language-bash"># Inspect the machine-readable surface (your registered queries + actions):
 curl -s http://localhost:3000/kiosk/schema \
@@ -332,7 +333,7 @@ curl -s -X POST http://localhost:3000/kiosk/query \
 
   <h3>2. HTTP <code>Link</code> header (for agents that don't parse HTML)</h3>
   <p>In your controller:</p>
-  <pre><code class="language-ruby">response.set_header("Link", '<https://kiosk.tech/skill.md>; rel="kiosk"')</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <pre><code class="language-ruby">response.set_header("Link", '&lt;https://kiosk.tech/skill.md&gt;; rel="kiosk"')</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>A HEAD request is enough — no page download needed.</p>
 
   <h3>3. Visual "Agents — over here" card (human-readable, subtle)</h3>
