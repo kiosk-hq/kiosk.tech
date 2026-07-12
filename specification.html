@@ -119,6 +119,7 @@ sequenceDiagram
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/register</code></td><td>None</td><td>Register a NEW public key with a signed challenge → access_token</td></tr>
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/login</code></td><td>None</td><td>Refresh a token for an EXISTING public key with a signed challenge</td></tr>
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/revoke</code></td><td>Bearer</td><td>Revoke all of this identity's tokens ("log out other sessions"); returns a fresh one</td></tr>
+    <tr><td>—</td><td><code>GET</code></td><td><code>/kiosk/.well-known/jwks.json</code></td><td>None</td><td>JWKS (RFC 7517): the provider's public signing keys, so an agent can verify the RS256 access tokens Kiosk issues</td></tr>
     <tr><td><code>schema</code></td><td><code>GET</code></td><td><code>/kiosk/schema</code></td><td>Bearer</td><td>Machine-readable surface: queries + actions</td></tr>
     <tr><td><code>query</code></td><td><code>POST</code></td><td><code>/kiosk/query</code></td><td>Bearer</td><td>Read data (catalog, slots, orders)</td></tr>
     <tr><td><code>run</code></td><td><code>POST</code></td><td><code>/kiosk/run</code></td><td>Bearer</td><td>Perform action (create_order, schedule_delivery, payment_setup)</td></tr>
@@ -163,7 +164,7 @@ sequenceDiagram
       "login_url":     "https://getgroceries.com/kiosk/auth/login",
       "revoke_url":    "https://getgroceries.com/kiosk/auth/revoke"
     },
-    "skill": { "url": "https://kiosk.tech/skill-v0.1.1.md", "sha256": "…" }
+    "skill": { "url": "https://kiosk.tech/skill-v0.1.2.md", "sha256": "…" }
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -181,6 +182,18 @@ sequenceDiagram
   <pre><code class="language-html">&lt;link rel="kiosk" href="https://kiosk.tech/skill.md"&gt;</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The tag is a <strong>signal, not a source</strong>: its <code>href</code> points at the universal skill on kiosk.tech, and an agent must never load skill instructions from the provider itself — a malicious provider could inject arbitrary agent instructions. Everything provider-specific comes from the origin's own <code>/.well-known/kiosk.json</code>.</p>
+
+  <h3>Skill versioning &amp; the dual-check</h3>
+  <p>The universal skill is <strong>versioned and immutable</strong>. Each published version is a distinct file at <code>https://kiosk.tech/skill-vX.Y.Z.md</code> whose content <strong>never changes once published</strong>; a change ships a NEW version file rather than editing an existing one. <code>https://kiosk.tech/skill.md</code> is the <strong>"latest" alias</strong>, byte-identical to the newest version file. A file's own version lives in its frontmatter <code>version</code> field, matching the version in its URL.</p>
+
+  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.1.2.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When a provider pins a skill, the agent performs the <strong>dual-check</strong>:</p>
+  <ol>
+    <li>Read the pinned version from the URL (<code>skill-vX.Y.Z.md</code>).</li>
+    <li>If it is newer than the agent's cached skill, fetch and adopt it before transacting — the provider may rely on newer protocol features.</li>
+    <li>Fetch the file <strong>from kiosk.tech</strong> (never from the provider) and verify both that its frontmatter <code>version</code> matches the URL and that the SHA-256 of its content equals the pinned <code>sha256</code>.</li>
+    <li>If verification fails, fall back to the locally cached skill.</li>
+  </ol>
+  <p>Within the <strong>0.1.x</strong> series, versions are <strong>backward-compatible and additive</strong> — new endpoints and fields only, existing flows never break — so an agent on a newer 0.1.x can still transact with a provider pinning an older one, and must update before transacting with a provider pinning a newer one.</p>
 
   <h2>Registration &amp; login (kiosk-pop)</h2>
   <p>Kiosk's auth scheme is <strong>kiosk-pop</strong> — a proof-of-possession challenge-response, advertised as <code>auth.kind: "kiosk-pop"</code> in the discovery document. It is <strong>not</strong> OAuth. A public key is not a credential — it is public. Before issuing a token, the provider requires <strong>proof of possession</strong> of the matching private key: it hands out a single-use challenge, the agent signs it as an RS256 JWS. This also separates two operations the naïve flow conflates — <strong>register</strong> (a key the provider has never seen) and <strong>login</strong> (refresh a token for a key it already knows).</p>
@@ -218,9 +231,13 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
   <p><strong>Identity ↔ card.</strong> A key the provider already knows maps to the same <code>user_id</code>, so a saved payment card survives across sessions — but that mapping is served by <code>/auth/login</code>, not by re-registering (registering a known key is a <code>409 Conflict</code>). The agent stores its RSA-2048 private key at <code>~/.kiosk/&lt;domain&gt;/key.pem</code> and its identity at <code>~/.kiosk/&lt;domain&gt;/identity.json</code>; a new keypair is generated per domain — no cross-provider tracking.</p>
 
+  <p><strong>Agents use kiosk-pop; a provider's own session is an additional channel.</strong> <code>kiosk-pop</code> is the default and the scheme every agent uses: an agent always authenticates the wire verbs (<code>schema</code>, <code>query</code>, <code>run</code>, <code>pay</code>) with the <code>Authorization: Bearer</code> access token above. A provider MAY <em>additionally</em> let its <strong>own</strong> already-authenticated principal — a signed-in web or mobile session on the provider's frontend — call those same wire endpoints, so the provider can build its human UI on the identical surface. When both are configured, each request is resolved <strong>agent-IdP first</strong> (verify the Bearer token); only when that yields no identity does the provider fall back to its session channel. This session channel is a provider-side integration seam, not something an agent selects: an agent never sees it and always presents kiosk-pop.</p>
+
   <p><strong>Optional registration toll.</strong> A provider MAY price fresh-identity minting: <code>POST /auth/register</code> can answer <code>402 pow_required</code> with the same Equihash challenge wire as the Proof-of-work section below. The registration toll <strong>binds to the agent's public key</strong> being registered (not to a request fingerprint), so a proof solved for one key cannot be reused to mint another. The agent solves every challenge and resubmits the same signed body with the <code>pow</code> field. The proof-of-possession signature is not consumed on the 402, so the same <code>signed</code> is reused. Default is no registration toll.</p>
 
   <p><strong>Access-token format.</strong> The <code>access_token</code> is a standard <strong>3-part RS256 JWT</strong> (<code>header.payload.signature</code>), not an opaque handle — it carries the <code>agent_id</code> and is signed by the provider, so the provider verifies it statelessly on every request. It is presented as <code>Authorization: Bearer &lt;jwt&gt;</code>. A <code>role</code> claim is <strong>optional</strong>: a single-role provider (the common case) omits it, and registration MUST NOT require or accept a client-requested role. When a provider distinguishes roles, it assigns the role itself while creating the account (the reference implementation's <code>assistant_creation</code> hook); roles are never sourced from an IdP in 0.1.</p>
+
+  <p><strong>Public keys — <code>GET /kiosk/.well-known/jwks.json</code>.</strong> The token is signed with the provider's own signing key; the matching public key is published as a JWKS document (RFC 7517) at <code>GET /kiosk/.well-known/jwks.json</code>, unauthenticated. Each key carries <code>kty</code>, <code>use: "sig"</code>, <code>alg: "RS256"</code>, a <code>kid</code> thumbprint, and the public parameters <code>n</code>/<code>e</code> — never private parameters. Anyone who needs to verify a Kiosk-issued token independently of the issuing provider (an agent checking its own token, an audit consumer, a cross-provider mandate validator) fetches this document and selects the key by <code>kid</code>. This is the <code>/kiosk</code>-mounted key source, distinct from the origin-root discovery document at <code>/.well-known/kiosk.json</code>.</p>
 
   <p><strong>Token &amp; key lifetime.</strong> Access tokens are short-lived (default 1&nbsp;hour); refresh by calling <code>/auth/login</code> again — the private key is the durable credential, not the token. Multiple concurrent tokens for one identity stay valid at once (multiple devices/instances); a new login never invalidates its siblings. To sign every other session out, call <code>/auth/revoke</code>: it stamps a per-identity <strong>"revoked-before" watermark</strong>, so every token issued before that instant stops verifying, then returns a fresh token so the caller stays signed in. The identity keypair itself is long-lived — it has no calendar expiry and is replaced by rotation or revocation, not by an expiry clock.</p>
 
@@ -257,6 +274,8 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
   <p>Each challenge is <strong>stateless and request-bound</strong>: the HMAC <code>sig</code> covers the challenge fields plus a fingerprint of the exact request, so the server stores nothing to trust it, and a proof cannot be replayed against a different request. Valid proofs are single-use (a spent-id set on the provider side).</p>
 
+  <p><strong>Two kinds of 402.</strong> HTTP <code>402</code> carries two distinct errors — an agent MUST branch on <code>error.code</code>, never on the status alone. <code>pow_required</code> (above) always carries an <code>error.challenges</code> array. The other, <code>payment_setup_required</code>, is returned only by <code>POST /kiosk/pay</code> when the identity has no card on file; it carries <strong>no <code>challenges</code> field</strong> and means "run <code>payment_setup</code>", not "solve proof-of-work" (see <a href="#card-setup">Card setup</a>).</p>
+
   <p>The agent solves <strong>every</strong> challenge in the list and retries the <strong>same request body</strong> with a top-level <code>pow</code> field, echoing each challenge back verbatim:</p>
 
   <pre><code class="language-json">POST /kiosk/query
@@ -286,7 +305,7 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
   <h2>Catalog query (example)</h2>
 
   <pre><code class="language-json">POST /kiosk/query
-Authorization: Bearer <jwt>
+Authorization: Bearer &lt;jwt&gt;
 {"name": "catalog"}
 
 → 200 OK
@@ -317,7 +336,7 @@ Authorization: Bearer <jwt>
   <p><strong>Required claims.</strong> Every mandate MUST carry <code>id</code>, <code>user_id</code>, <code>agent_id</code>, <code>iss</code>, <code>iat</code>, <code>exp</code>. The server rejects a mandate whose <code>user_id</code>/<code>agent_id</code> do not match the authenticated identity, whose <code>iss</code> is not its own issuer (copied verbatim from <code>/.well-known/kiosk.json</code>), or whose <code>exp</code> is missing or passed — a non-expiring mandate is rejected outright. Binding rules: <code>cart.intent_mandate_id</code> equals the intent's <code>id</code> and the cart total must not exceed the intent's cap; <code>payment.cart_mandate_id</code> equals the cart's <code>id</code> and <code>payment.amount_cents</code> must equal the cart total in the same <code>currency</code>.</p>
 
   <pre><code class="language-json">POST /kiosk/pay
-Authorization: Bearer <jwt>
+Authorization: Bearer &lt;jwt&gt;
 {
   "intent_mandate_jws":  "eyJhbGciOiJSUzI1NiJ9...",
   "cart_mandate_jws":    "eyJhbGciOiJSUzI1NiJ9...",
@@ -336,11 +355,11 @@ Authorization: Bearer <jwt>
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <h2>Card setup</h2>
+  <h2 id="card-setup">Card setup</h2>
   <p>Payment uses Stripe's <strong>SetupIntent card-on-file</strong> model. The agent calls <code>payment_setup</code> before every payment:</p>
 
   <pre><code class="language-json">POST /kiosk/run
-Authorization: Bearer <jwt>
+Authorization: Bearer &lt;jwt&gt;
 {"name": "payment_setup"}
 
 → First time (no card saved):
@@ -354,6 +373,19 @@ Authorization: Bearer <jwt>
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The agent hands the <code>setup_url</code> to the human. <strong>Never automate Stripe forms</strong> — the human enters their card once on Stripe's hosted page. The agent polls <code>payment_setup</code> until <code>status: "ready"</code>, then proceeds to <code>pay</code>. Subsequent payments use the saved card without human intervention.</p>
+
+  <p><strong>The <code>payment_setup_required</code> 402.</strong> If the agent skips setup and calls <code>POST /kiosk/pay</code> with no card on file, the server answers <code>402</code> with error code <code>payment_setup_required</code> and <strong>no <code>challenges</code> field</strong> (this is the second of the two 402s — it is <em>not</em> proof-of-work). The agent then runs <code>payment_setup</code>, hands the <code>setup_url</code> to the human, waits for <code>status: "ready"</code>, and retries the pay call — re-signing the mandates first if their <code>exp</code> has passed.</p>
+
+  <pre><code class="language-json">POST /kiosk/pay        // no card on file yet
+
+→ 402
+{
+  "ok": false,
+  "error": {
+    "code":    "payment_setup_required",
+    "message": "payment setup required"
+  }
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <div class="todo">
     <strong>TODO — refunds &amp; cancellations.</strong> The mandate chain covers authorization and settlement. Reversal currently rides on provider business logic — a provider could, for illustration, expose a <code>cancel_order</code> action (an ordinary provider-defined action, same mechanism as <code>create_order</code>; not a spec-defined verb and not shipped by the reference implementation), and money moves back through the PSP's normal refund flow. A first-class refund verb that references the settlement is under consideration; endpoint shape TBD.
