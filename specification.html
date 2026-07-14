@@ -253,6 +253,7 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
   <p>Providers MAY require proof-of-work before accepting queries or actions. When PoW is required, the server responds with HTTP <code>402</code>:</p>
 
   <pre><code class="language-json">HTTP 402 Payment Required / PoW Required
+WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"
 
 {
   "ok": false,
@@ -275,6 +276,8 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
   <p>Each challenge is <strong>stateless and request-bound</strong>: the HMAC <code>sig</code> covers the challenge fields plus a fingerprint of the exact request, so the server stores nothing to trust it, and a proof cannot be replayed against a different request. Valid proofs are single-use (a spent-id set on the provider side).</p>
 
   <p><strong>Two kinds of 402.</strong> HTTP <code>402</code> carries two distinct errors — an agent MUST branch on <code>error.code</code>, never on the status alone. <code>pow_required</code> (above) always carries an <code>error.challenges</code> array. The other, <code>payment_setup_required</code>, is returned only by <code>POST /kiosk/pay</code> when the identity has no card on file; it carries <strong>no <code>challenges</code> field</strong> and means "run <code>payment_setup</code>", not "solve proof-of-work" (see <a href="#card-setup">Card setup</a>).</p>
+
+  <p><strong><code>WWW-Authenticate</code> disambiguates the two 402s at the header level.</strong> Following RFC 7235, each 402 also carries a <code>WWW-Authenticate</code> response header naming the gate — <code>WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"</code> for the proof-of-work gate, and <code>WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"</code> for the payment-setup gate (the IETF <code>Payment</code> scheme; Kiosk settles via AP2). A client MAY branch on this header to tell the two gates apart without parsing the body; it MUST still read the body for the challenge list / setup pointer (the header names the gate, the body carries the payload). The header is additive — clients that branch only on <code>error.code</code> are unaffected.</p>
 
   <p>The agent solves <strong>every</strong> challenge in the list and retries the <strong>same request body</strong> with a top-level <code>pow</code> field, echoing each challenge back verbatim:</p>
 
@@ -374,11 +377,12 @@ Authorization: Bearer &lt;jwt&gt;
 
   <p>The agent hands the <code>setup_url</code> to the human. <strong>Never automate Stripe forms</strong> — the human enters their card once on Stripe's hosted page. The agent polls <code>payment_setup</code> until <code>status: "ready"</code>, then proceeds to <code>pay</code>. Subsequent payments use the saved card without human intervention.</p>
 
-  <p><strong>The <code>payment_setup_required</code> 402.</strong> If the agent skips setup and calls <code>POST /kiosk/pay</code> with no card on file, the server answers <code>402</code> with error code <code>payment_setup_required</code> and <strong>no <code>challenges</code> field</strong> (this is the second of the two 402s — it is <em>not</em> proof-of-work). The agent then runs <code>payment_setup</code>, hands the <code>setup_url</code> to the human, waits for <code>status: "ready"</code>, and retries the pay call — re-signing the mandates first if their <code>exp</code> has passed.</p>
+  <p><strong>The <code>payment_setup_required</code> 402.</strong> If the agent skips setup and calls <code>POST /kiosk/pay</code> with no card on file, the server answers <code>402</code> with error code <code>payment_setup_required</code> and <strong>no <code>challenges</code> field</strong> (this is the second of the two 402s — it is <em>not</em> proof-of-work). This response also carries <code>WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"</code> so a client can tell it apart from the PoW 402 at the header level. The agent then runs <code>payment_setup</code>, hands the <code>setup_url</code> to the human, waits for <code>status: "ready"</code>, and retries the pay call — re-signing the mandates first if their <code>exp</code> has passed.</p>
 
   <pre><code class="language-json">POST /kiosk/pay        // no card on file yet
 
 → 402
+WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"
 {
   "ok": false,
   "error": {

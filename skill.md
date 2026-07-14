@@ -146,7 +146,7 @@ signed = jwt.encode(
 
 ## Proof-of-work (HTTP 402)
 
-Any `query` or `run` may come back `402` — the provider is charging compute for this request:
+Any `query` or `run` may come back `402` — the provider is charging compute for this request. The response carries `WWW-Authenticate: Kiosk-PoW realm="<issuer>"`, which flags this 402 as the proof-of-work gate (the body still carries the challenges):
 
 ```json
 {
@@ -185,10 +185,10 @@ Rules:
 
 ### Two kinds of 402
 
-HTTP 402 carries two distinct errors — branch on `error.code`, never on the status alone:
+HTTP 402 carries two distinct errors — branch on `error.code`, never on the status alone. Each 402 also carries a `WWW-Authenticate` header naming the gate (RFC 7235), so you MAY branch on the header instead of the body — but you MUST still read the body for the challenge list / setup pointer:
 
-- `pow_required` — has `error.challenges`. Solve every challenge and retry the same body with the `pow` field (this section).
-- `payment_setup_required` — NO `challenges` field; returned by `POST /pay` when the identity has no saved card. Run `payment_setup` (Step 5), let the human complete the setup, then retry the pay call — re-sign the mandates first if their `exp` has passed.
+- `pow_required` — `WWW-Authenticate: Kiosk-PoW realm="<issuer>"`; has `error.challenges`. Solve every challenge and retry the same body with the `pow` field (this section).
+- `payment_setup_required` — `WWW-Authenticate: Payment realm="<issuer>", method="ap2"` (the IETF `Payment` scheme; Kiosk settles via AP2); NO `challenges` field; returned by `POST /pay` when the identity has no saved card. Run `payment_setup` (Step 5), let the human complete the setup, then retry the pay call — re-sign the mandates first if their `exp` has passed.
 
 ## AP2 payment mandates
 
