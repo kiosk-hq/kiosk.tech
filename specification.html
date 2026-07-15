@@ -29,6 +29,7 @@
     ul,ol{padding-left:20px;margin-bottom:16px}
     li{font-size:15px;color:#bbb;margin-bottom:6px}
     .todo{background:#1a1a2a;border:1px solid #3a3a5a;border-radius:8px;padding:12px 18px;margin:16px 0;font-size:14px;color:#aab;line-height:1.6}
+    .refnote{background:#14201b;border:1px solid #2a4a38;border-radius:8px;padding:12px 18px;margin:16px 0;font-size:14px;color:#9ab5a5;line-height:1.6}
     footer{text-align:center;padding:40px 24px;font-size:12px;color:#444;border-top:1px solid #1a1a1a}
   </style>
 </head>
@@ -41,6 +42,8 @@
   <h2>What this specification answers</h2>
   <p>As a merchant developer or agent author, you want to understand how your software and an AI agent communicate through Kiosk. This document describes the protocol — the exact HTTP requests and responses, the authentication model, and the payment mandate chain — backed by a working reference implementation.</p>
   <p>The spec is intentionally small. It covers the <strong>invariants</strong> — the things every Kiosk provider and every compatible agent must agree on. Individual providers extend the surface with their own queries and actions (catalog, delivery slots, booking — whatever their vertical needs).</p>
+  <p><strong>Normative language.</strong> The key words <strong>MUST</strong>, <strong>MUST NOT</strong>, <strong>SHOULD</strong>, and <strong>MAY</strong> are to be interpreted as described in <a href="https://www.rfc-editor.org/rfc/rfc2119">RFC 2119</a>. Requirements bind two conformance targets: the <strong>provider</strong> (the party serving the endpoints) and the <strong>agent</strong> (the client calling them). Boxes marked <em>Reference note</em> describe the Ruby reference implementation and are non-normative — one way to satisfy a requirement, not the requirement itself.</p>
+  <p><strong>Protocol version.</strong> This page specifies protocol version <strong>0.1</strong>. Within the 0.1.x series the wire is <strong>additive and backward-compatible</strong> — new endpoints and fields only, existing flows never break (the same rule the skill files follow below).</p>
 
   <h2>High-level flow</h2>
 
@@ -142,11 +145,57 @@ sequenceDiagram
 
 // error (any endpoint)
 { "ok": false,
-  "error": { "code": "…", "message": "…" } }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  "error": { "code": "…", "message": "…",
+             "hint": "…",             // optional — remediation pointer
+             "challenges": [ … ] } }  // pow_required only</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>The examples below show only the payload field for brevity; the full response always carries the <code>ok</code>/<code>kind</code> envelope shown here.</p>
 
+  <h3>Error vocabulary</h3>
+  <p>The <code>error.code</code> values are a closed, stable vocabulary — an agent branches on <code>code</code>, never on the HTTP status alone. The error object is <code>{code, message, hint?, challenges?}</code>: <code>hint</code> is an optional remediation pointer (for example the known query names on a <code>not_found</code>), and <code>challenges</code> appears only on <code>pow_required</code>.</p>
+  <table>
+    <tr><th>code</th><th>HTTP</th><th>Meaning</th></tr>
+    <tr><td><code>bad_request</code></td><td>400</td><td>Malformed request: unparseable JSON body, missing or invalid fields</td></tr>
+    <tr><td><code>unauthenticated</code></td><td>401</td><td>Missing, invalid, expired, or revoked Bearer token</td></tr>
+    <tr><td><code>forbidden</code></td><td>403</td><td>Authenticated, but this identity may not do this</td></tr>
+    <tr><td><code>rls_denied</code></td><td>403</td><td>A row-level-security policy denied the statement (providers running opt-in RLS)</td></tr>
+    <tr><td><code>not_found</code></td><td>404</td><td>Unknown query or action name, or a missing resource; <code>hint</code> carries the known names</td></tr>
+    <tr><td><code>conflict</code></td><td>409</td><td>State conflict — e.g. registering a public key that is already registered (use <code>/auth/login</code>)</td></tr>
+    <tr><td><code>pow_required</code></td><td>402</td><td>Proof-of-work gate; carries <code>challenges</code> and <code>WWW-Authenticate: Kiosk-PoW</code> (see Proof-of-work)</td></tr>
+    <tr><td><code>payment_setup_required</code></td><td>402</td><td>Payment gate: no card on file; no <code>challenges</code>; carries <code>WWW-Authenticate: Payment</code> (see <a href="#card-setup">Card setup</a>)</td></tr>
+    <tr><td><code>quota_exceeded</code></td><td>429</td><td>Reserved for the quotas companion; the core provider never emits it</td></tr>
+    <tr><td><code>action_failed</code></td><td>500</td><td>A provider-registered action raised</td></tr>
+    <tr><td><code>internal_error</code></td><td>500</td><td>Catch-all server error</td></tr>
+  </table>
+  <p>The auth endpoints speak the same envelope: registering an already-known key is <code>conflict</code>/409, logging in an unknown key is <code>not_found</code>/404 (register first).</p>
+
+  <h2>The <code>schema</code> verb — self-description</h2>
+  <p><code>GET /kiosk/schema</code> (Bearer) returns a <code>kind: "value"</code> envelope whose <code>value</code> is exactly <code>{verbs, queries, actions}</code>:</p>
+  <pre><code class="language-json">GET /kiosk/schema
+Authorization: Bearer &lt;jwt&gt;
+
+→ 200 OK
+{
+  "ok":   true,
+  "kind": "value",
+  "value": {
+    "verbs":   ["query", "run", "pay", "schema"],
+    "queries": [
+      { "name": "catalog", "description": "Browse the product catalog", "params": null }
+    ],
+    "actions": [
+      { "name": "create_order",  "description": "Create an order from items", "params": { "items": "array" } },
+      { "name": "payment_setup", "description": "Check or begin card setup",  "params": null }
+    ]
+  }
+}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <ul>
+    <li><code>verbs</code> — the full fixed wire surface: all four verb names, always (array order is not significant here, unlike the canonical ordering of <code>capabilities</code>). This is <strong>not</strong> the advertised capability set: <code>capabilities</code> in <code>/.well-known/kiosk.json</code> is computed from what the provider actually registered (it drops <code>pay</code> when no payment provider is configured), while <code>verbs</code> names the protocol surface itself.</li>
+    <li><code>queries</code> / <code>actions</code> — arrays of descriptors, sorted by name. A descriptor is <code>{name, description, params}</code>: <code>description</code> is a string or <code>null</code>; <code>params</code> is a <strong>free-form provider-defined hint object</strong> (by convention a map of parameter name → type-hint string) or <code>null</code>. It is documentation for the agent, not a typed schema language — the provider validates arguments server-side.</li>
+  </ul>
+  <div class="todo"><strong>ROADMAP — typed parameter schema.</strong> <code>params</code> is a free-form hint today; a structured parameter schema is under consideration. Treat descriptors as agent-facing documentation, not a validation contract.</div>
+
   <h2>Discovery</h2>
-  <p>Every provider serves a discovery document at <code>GET /.well-known/kiosk.json</code>, unauthenticated, so an agent can bootstrap from the origin alone. It carries the <code>issuer</code> (the AP2 mandate <code>iss</code> anchor), the API <code>endpoint</code>, the <code>auth</code> block, an optional pinned <code>skill</code> reference, and a top-level <strong><code>capabilities</code></strong> array.</p>
+  <p>Every provider serves a discovery document at <code>GET /.well-known/kiosk.json</code>, unauthenticated, so an agent can bootstrap from the origin alone. It carries the <code>issuer</code> (the AP2 mandate <code>iss</code> anchor), the API <code>endpoint</code>, the <code>auth</code> block, an optional pinned <code>skill</code> reference, and a top-level <strong><code>capabilities</code></strong> array. The document's own <code>version</code> field is the <strong>discovery-document format version</strong> (currently <code>"1.0"</code>) — independent of the protocol version (0.1) this page specifies.</p>
 
   <pre><code class="language-json">GET /.well-known/kiosk.json
 
@@ -229,13 +278,15 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
   <p><strong>Origin binding (relay defense).</strong> The <code>aud</code> claim MUST be the origin the agent actually connected to — filled in by the agent from the connection it dialed, never echoed from server-supplied data. The provider rejects any proof whose <code>aud</code> is not its own origin, so a signature captured by a malicious endpoint cannot be relayed to a different provider and cannot take over an existing account. This is WebAuthn's anti-phishing model, and the same audience-binding principle as the mandate <code>iss</code> claim below.</p>
 
-  <p><strong>Identity ↔ card.</strong> A key the provider already knows maps to the same <code>user_id</code>, so a saved payment card survives across sessions — but that mapping is served by <code>/auth/login</code>, not by re-registering (registering a known key is a <code>409 Conflict</code>). The agent stores its RSA-2048 private key at <code>~/.kiosk/&lt;domain&gt;/key.pem</code> and its identity at <code>~/.kiosk/&lt;domain&gt;/identity.json</code>; a new keypair is generated per domain — no cross-provider tracking.</p>
+  <p><strong>Identity ↔ card.</strong> A key the provider already knows maps to the same <code>user_id</code>, so a saved payment card survives across sessions — but that mapping is served by <code>/auth/login</code>, not by re-registering (registering a known key is a <code>409 Conflict</code>). An agent SHOULD generate a fresh keypair per provider origin — the keypair is the identity, and a per-origin key means no cross-provider identifier exists.</p>
+  <div class="refnote"><strong>Reference note.</strong> The reference agent scripts store the RSA-2048 private key at <code>~/.kiosk/&lt;domain&gt;/key.pem</code> and the issued identity at <code>~/.kiosk/&lt;domain&gt;/identity.json</code>.</div>
 
   <p><strong>Agents use kiosk-pop; a provider's own session is an additional channel.</strong> <code>kiosk-pop</code> is the default and the scheme every agent uses: an agent always authenticates the wire verbs (<code>schema</code>, <code>query</code>, <code>run</code>, <code>pay</code>) with the <code>Authorization: Bearer</code> access token above. A provider MAY <em>additionally</em> let its <strong>own</strong> already-authenticated principal — a signed-in web or mobile session on the provider's frontend — call those same wire endpoints, so the provider can build its human UI on the identical surface. When both are configured, each request is resolved <strong>agent-IdP first</strong> (verify the Bearer token); only when that yields no identity does the provider fall back to its session channel. This session channel is a provider-side integration seam, not something an agent selects: an agent never sees it and always presents kiosk-pop.</p>
 
   <p><strong>Optional registration toll.</strong> A provider MAY price fresh-identity minting: <code>POST /auth/register</code> can answer <code>402 pow_required</code> with the same Equihash challenge wire as the Proof-of-work section below. The registration toll <strong>binds to the agent's public key</strong> being registered (not to a request fingerprint), so a proof solved for one key cannot be reused to mint another. The agent solves every challenge and resubmits the same signed body with the <code>pow</code> field. The proof-of-possession signature is not consumed on the 402, so the same <code>signed</code> is reused. Default is no registration toll.</p>
 
-  <p><strong>Access-token format.</strong> The <code>access_token</code> is a standard <strong>3-part RS256 JWT</strong> (<code>header.payload.signature</code>), not an opaque handle — it carries the <code>agent_id</code> and is signed by the provider, so the provider verifies it statelessly on every request. It is presented as <code>Authorization: Bearer &lt;jwt&gt;</code>. A <code>role</code> claim is <strong>optional</strong>: a single-role provider (the common case) omits it, and registration MUST NOT require or accept a client-requested role. When a provider distinguishes roles, it assigns the role itself while creating the account (the reference implementation's <code>assistant_creation</code> hook); roles are never sourced from an IdP in 0.1.</p>
+  <p><strong>Access-token format.</strong> The <code>access_token</code> is a standard <strong>3-part RS256 JWT</strong> (<code>header.payload.signature</code>), not an opaque handle — it carries the <code>agent_id</code> and is signed by the provider, so the provider verifies it statelessly on every request. It is presented as <code>Authorization: Bearer &lt;jwt&gt;</code>. A <code>role</code> claim is <strong>optional</strong>: a single-role provider (the common case) omits it, and registration MUST NOT require or accept a client-requested role. When a provider distinguishes roles, it assigns the role itself while creating the account; roles are never sourced from an IdP in 0.1.</p>
+  <div class="refnote"><strong>Reference note.</strong> In the reference implementation the provider-assigned role is set in the <code>assistant_creation</code> hook while the account is created.</div>
 
   <p><strong>Public keys — <code>GET /kiosk/.well-known/jwks.json</code>.</strong> The token is signed with the provider's own signing key; the matching public key is published as a JWKS document (RFC 7517) at <code>GET /kiosk/.well-known/jwks.json</code>, unauthenticated. Each key carries <code>kty</code>, <code>use: "sig"</code>, <code>alg: "RS256"</code>, a <code>kid</code> thumbprint, and the public parameters <code>n</code>/<code>e</code> — never private parameters. Anyone who needs to verify a Kiosk-issued token independently of the issuing provider (an agent checking its own token, an audit consumer, a cross-provider mandate validator) fetches this document and selects the key by <code>kid</code>. This is the <code>/kiosk</code>-mounted key source, distinct from the origin-root discovery document at <code>/.well-known/kiosk.json</code>.</p>
 
@@ -248,6 +299,16 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
   <div class="todo">
     <strong>TODO — key rotation.</strong> Rotate an identity by signing the new public key with the old private key; the provider rebinds the <code>user_id</code> (and its reputation) to the new key, so rotation is not a reputation reset. Endpoint shape TBD.
   </div>
+
+  <h2>Identity binding (the session contract)</h2>
+  <p>Every authenticated verb call executes <strong>as</strong> the identity carried by its Bearer token — the <code>{user_id, agent_id}</code> pair minted at registration. This is the contract that makes a provider's data plane safe to expose to agents:</p>
+  <ul>
+    <li>The provider MUST resolve the token to its identity on every authenticated request, before the verb runs.</li>
+    <li>The provider MUST scope every read a <code>query</code> performs and every write or side effect a <code>run</code> or <code>pay</code> performs to the authenticated identity. The unit of data ownership is the <code>user_id</code>: rows belonging to another <code>user_id</code> are never readable or affectable through this token. (<code>agent_id</code> names the acting agent — it is what mandates and audit records carry.)</li>
+    <li>Provider-registered queries and actions MUST NOT execute with no identity bound.</li>
+  </ul>
+  <p>How a provider implements the scoping is out of scope for the wire — application-layer filtering, database row-level security, or both. The requirement is the observable behavior: cross-identity reads and writes fail.</p>
+  <div class="refnote"><strong>Reference note.</strong> The Ruby reference propagates the identity into Postgres as a transaction-scoped setting (<code>kiosk.current_user_id()</code>) inside a per-request session context; registered queries and actions read it for scoping, and opt-in row-level-security policies enforce it as defense-in-depth. The demos' isolation flows demonstrate the cross-agent denial end-to-end.</div>
 
   <h2>Proof-of-work</h2>
   <p>Providers MAY require proof-of-work before accepting queries or actions. When PoW is required, the server responds with HTTP <code>402</code>:</p>
@@ -299,7 +360,8 @@ WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"
 
   <p><strong>Index ordering.</strong> The <code>nonce.indices</code> array MUST be in <strong>Zcash canonical (subtree/tree) order</strong> — the ordering a genuine Wagner solution produces, where at each collision level the left half's first index precedes the right half's. It is <strong>not</strong> a global ascending sort: the verifier explicitly <strong>rejects a globally-sorted array of indices</strong>, because that ordering is a trivial reshuffle that does not correspond to the algorithm-bound solution. Submit the indices exactly as the solver emits them.</p>
 
-  <p><strong>Default algorithm:</strong> Equihash (n=168, k=7). Memory-hard. The shipped reference solver (pure Python + numpy) clears the default in about 10&nbsp;s using ~1.3&nbsp;GiB; verification is a few milliseconds (~17&nbsp;ms, pure-Ruby reference) and a few KB. Parameters are provider-tunable — the default was chosen by a benchmark sweep as the largest params under a ~30&nbsp;s / 1–2&nbsp;GiB laptop budget; a provider raises <code>n</code> for a heavier toll.</p>
+  <p><strong>Default algorithm:</strong> Equihash (n=168, k=7). Memory-hard. Verification is cheap by design (milliseconds, a few KB) while solving is expensive. Parameters are provider-tunable; a provider raises <code>n</code> for a heavier toll.</p>
+  <div class="refnote"><strong>Reference note.</strong> The shipped reference solver (pure Python + numpy) clears the default in about 10&nbsp;s using ~1.3&nbsp;GiB; the pure-Ruby verifier takes ~17&nbsp;ms. The defaults came from a benchmark sweep as the largest parameters under a ~30&nbsp;s / 1–2&nbsp;GiB laptop budget. The reference ships frozen known-answer tests (KATs) at these production parameters — the oracle a ported verifier validates against.</div>
 
   <p><strong>What PoW is, and is not.</strong> It is a metered toll with a cheap verify, plus a rate-limiting knob — not a hardware wall. Equihash is not ASIC- or GPU-proof (it was ASIC'd on Zcash, and GPUs solve it well); no proof-of-work equalises a laptop against special-purpose hardware. What PoW buys the provider is real: a cheap verify (a flood of malformed proofs is rejected by the HMAC and expiry checks in microseconds, before any backend work; a full equihash check is a few milliseconds and a few KB), a non-zero, non-amortisable price per anonymous request, and — unlike a cryptocurrency — no block reward to subsidise attacker hardware. Abuse resistance comes from <em>reputation and caps</em>; PoW just makes free-riding cost something. The challenge carries <code>{alg, params}</code>, so a provider can raise parameters or swap the algorithm without a protocol change.</p>
 
@@ -431,6 +493,29 @@ Authorization: Bearer &lt;jwt&gt;
   <div class="todo">
     <strong>TODO:</strong> Merchant-sent events. Currently the protocol is agent-initiated: the agent polls for state changes. A future version will add server-sent events or webhooks so the provider can push updates (order status changes, delivery notifications) to the agent without polling.
   </div>
+
+  <h2>Conformance — port Kiosk</h2>
+  <p>The protocol is stack-neutral; Ruby is just the reference. This is the checklist for implementing Kiosk on any stack.</p>
+
+  <h3>Provider profile</h3>
+  <p>An implementation is a <strong>Kiosk provider</strong> when it serves the core plus whichever optional modules it advertises:</p>
+  <ol>
+    <li><strong>Core — discovery:</strong> <code>/.well-known/kiosk.json</code> (issuer, endpoint, capabilities, auth block; optional skill pin) and the JWKS document at <code>/kiosk/.well-known/jwks.json</code>.</li>
+    <li><strong>Core — auth (kiosk-pop):</strong> challenge / register / login / revoke with proof-of-possession verification, origin-bound <code>aud</code> rejection, single-use server-held nonces, RS256 JWT access tokens, and the revoked-before watermark.</li>
+    <li><strong>Core — wire:</strong> <code>schema</code> (GET) and <code>query</code>/<code>run</code> (POST) with the response envelope, the error vocabulary, and the schema self-description format above.</li>
+    <li><strong>Core — identity binding:</strong> the session contract above — every verb scoped to the authenticated identity.</li>
+    <li><strong>Module <code>pay</code></strong> (advertised via <code>capabilities</code>): AP2 mandate-chain verification — required claims, chain binding, cap/total/amount rules — plus the <code>payment_setup</code> convention and the <code>payment_setup_required</code> 402 with <code>WWW-Authenticate: Payment</code>.</li>
+    <li><strong>Module proof-of-work</strong> (MAY): the Equihash 402 gate — stateless HMAC-signed challenges, all-proofs verification, single-use spent set, canonical index-order rejection, <code>WWW-Authenticate: Kiosk-PoW</code> — and the optional registration toll binding proofs to the registering key.</li>
+    <li><strong>Module KYC</strong> (MAY): the attestation endpoint with issuer, <code>sub</code>, <code>exp</code>, and <code>level</code> verification.</li>
+  </ol>
+
+  <h3>Agent profile</h3>
+  <p>A client is a <strong>Kiosk-compatible agent</strong> when it: branches on <code>error.code</code>, never on the HTTP status alone; fills the proof's <code>aud</code> from the origin it dialed, never from server-supplied data; solves <strong>every</strong> challenge in a <code>pow_required</code> list and retries the identical body plus the <code>pow</code> field; runs <code>payment_setup</code> and hands <code>setup_url</code> to the human rather than automating card entry; and performs the skill dual-check, never loading skill instructions from the provider.</p>
+
+  <h3>Conformance anchors</h3>
+  <p>Two oracles pin behavior beyond this text: the reference's <strong>frozen Equihash known-answer tests</strong> at production parameters (n=168, k=7) — a ported verifier MUST reproduce them — and the reference's <strong>end-to-end agent harness</strong> (see Reference below), which exercises the golden path an independent implementation should survive: discovery → register → schema → query → run → pay, plus the error envelopes. A published stack-neutral conformance suite does not exist yet.</p>
+
+  <p><strong>Ports are invited.</strong> The reference implementation is deliberately one stack, done completely. A Go, Python, or Node implementation of this page is a Kiosk provider — start from the provider profile, validate proof-of-work against the KATs, then run an agent through the golden path.</p>
 
   <h2>Reference</h2>
   <ul>
