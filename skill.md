@@ -1,6 +1,6 @@
 ---
 name: kiosk-agent-commerce
-version: "0.1.3"
+version: "0.2.0"
 description: "Universal protocol for agent-native commerce. Talk to any Kiosk-speaking provider — register, discover its capabilities via schema, then act: order, book, apply, pay."
 tags: [kiosk, agent-commerce, ap2]
 trigger: <link rel="kiosk">
@@ -45,7 +45,7 @@ So `query` results are under `rows` (an array); `schema`, `run`, and `pay` resul
 ### Step 1: Discover
 `GET <origin>/.well-known/kiosk.json` — the document nests **everything under a top-level `kiosk` key**: read `doc["kiosk"]["endpoint"]`, `doc["kiosk"]["issuer"]`, `doc["kiosk"]["capabilities"]` (a top-level subscript is a `KeyError`). `capabilities` lists which verbs the endpoint serves — a subset of `schema`/`query`/`run`/`pay`. The HTTP binding is fixed and known to you, not advertised in the document: `schema` is `GET`, `query`/`run`/`pay` are `POST` (see the Architecture table above). Read `capabilities` to learn *which* verbs exist here, then call them with those methods.
 
-Also read the **auth block**, `doc["kiosk"]["auth"]`: `kind` names the scheme (`"kiosk-pop"`), and `challenge_url`/`register_url`/`login_url`/`revoke_url` are the absolute auth URLs. Use those URLs verbatim for the handshake — do not hardcode endpoint-relative paths; the handshake examples below show the default layout (`<endpoint>/auth/*`), but the discovery document is authoritative.
+Also read the **auth block**, `doc["kiosk"]["auth"]`: `kind` names the scheme (`"kiosk-pop"`), and `challenge_url`/`register_url`/`login_url`/`revoke_url` are the absolute auth URLs — plus, when the provider supports account binding, `device_authorization_url` and `claim_url` (see Step 2b). Use those URLs verbatim for the handshake — do not hardcode endpoint-relative paths; the handshake examples below show the default layout (`<endpoint>/auth/*`), but the discovery document is authoritative.
 
 Two terms, don't conflate them: **`origin`** is the provider's bare base URL (e.g. `http://host` or `https://getgroceries.com`) — where the well-known document lives (`<origin>/.well-known/kiosk.json`) and the value you sign as `aud` in the auth proof. **`endpoint`** is the mounted wire surface, read from the document; by default `endpoint = origin + /kiosk`, so the wire and auth calls hang off it: `schema` is `<endpoint>/schema` = `<origin>/kiosk/schema`, and the handshake is `<endpoint>/auth/challenge` = `<origin>/kiosk/auth/challenge`. Take `endpoint` from the document rather than assuming the `/kiosk` suffix.
 
@@ -54,6 +54,14 @@ Two terms, don't conflate them: **`origin`** is the provider's bare base URL (e.
 
 - **Identity exists** → `POST <endpoint>/auth/login {public_key, signed}` → `{access_token}`. Same key ⇒ same `user_id`, so your saved card survives. Do NOT re-register a known key — that's a `409`; use login. If login returns `404` (the provider does not know this key), fall through to register instead.
 - **No identity** → generate an RSA-2048 keypair, then `POST <endpoint>/auth/register {public_key, signed}` → **`201 Created`** `{user_id, agent_id, access_token}` (login, by contrast, returns `200`). Store the PRIVATE key at `~/.kiosk/<domain>/key.pem` and identity `{"user_id":"…","agent_id":"…"}` at `~/.kiosk/<domain>/identity.json`. `chmod 600` both files.
+
+### Step 2b: Bind to the human's account (only when they ask)
+Registration gives you a fresh, self-standing assistant account. When the human says the account is theirs ("use MY account"), **bind** your key to it instead — one ceremony, then normal login forever after:
+
+- **No code from the human** → start the claim ceremony: `POST {auth.device_authorization_url} {"public_key": pem}` → `{device_code, user_code, verification_uri, expires_in, interval}`. Show the human `verification_uri` AND `user_code` in one message; they open the page in their own browser and confirm. Meanwhile poll: fetch a fresh challenge for your key, sign it (same JWS as register/login), then `POST <origin>/kiosk/oauth/token` (form-encoded) with `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, and `signed`. `{"error": "authorization_pending"}` → keep polling every `interval` seconds (`slow_down` → back off); on approval → `{access_token, agent_id, user_id}`. These two `/kiosk/oauth/*` endpoints use OAuth error objects, NOT the Kiosk envelope.
+- **The human hands you a code** (from the provider's "link an assistant" page) → redeem it register-style: challenge → sign → `POST {auth.claim_url} {"code": code, "public_key": pem, "signed": signed}` → `201 {agent_id, user_id, access_token}`.
+
+Both directions require the possession proof (`signed`). Binding works with a fresh key or with your already-registered key — either way your identity ends up under the human's account (your reputation carries over). Store the identity files as usual (Step 2) and refresh with `/auth/login`; the ceremony never repeats. If the human later unlinks you, login answers `401` — ask before re-binding.
 
 ### Step 3: Learn surface
 `GET <endpoint>/schema` with the Bearer header → the provider's queries and actions, each with params and a free-text `description`. Read the descriptions — they tell you what this provider actually does; do not assume names.
