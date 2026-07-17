@@ -342,9 +342,9 @@ grant_type=urn:ietf:params:oauth:grant-type:device_code
   <p><strong>What approval creates.</strong> A binding is created only after BOTH the human's approval AND a valid possession proof — a failed proof answers <code>invalid_client</code> and binds nothing (the row is not consumed; retry with a valid proof). A key the provider has never seen is registered as a <strong>linked assistant account</strong> under the human's <code>user_id</code>. A key that already has a self-standing account is <strong>rebound</strong>: its <code>agent_id</code> is stable, its <code>user_id</code> becomes the human's, and the identity's reputation carries over — claiming is <em>not</em> a reputation reset (no whitewashing) and grants no inherited trust. The old standalone account's provider-domain data is not moved; a provider MAY migrate it in its claim hook.</p>
 
   <h3>Link (human-initiated — Kiosk extension)</h3>
-  <p>auth.md-style ceremonies are agent-initiated. Kiosk adds the reverse direction: the human, signed in on the provider's site, mints a short-lived <strong>single-use link code</strong> ("link an assistant"), hands it to their agent, and the agent redeems it with the register-shaped body — possession proof required:</p>
+  <p>auth.md-style ceremonies are agent-initiated. Kiosk adds the reverse direction: the human, signed in on the provider's site, mints a short-lived <strong>single-use link code</strong> ("link an assistant") and hands it to their agent, which redeems it with the register-shaped body — possession proof required. Unlike the claim ceremony's <code>user_code</code> (short, typed by a human), the link code travels by paste, so it is a <strong>long opaque token</strong>, device-code-grade:</p>
   <pre><code class="language-json">POST /kiosk/auth/claim
-{ "code": "WDJB-MJHT",
+{ "code": "3n9tQx7vRk2mW…",
   "public_key": "-----BEGIN PUBLIC KEY-----\n…",
   "signed": "eyJhbGciOiJSUzI1NiJ9…" }
 
