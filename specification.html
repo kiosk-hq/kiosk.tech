@@ -37,13 +37,13 @@
 <a href="/" class="back">← kiosk.tech</a>
 <article>
   <h1>Kiosk Protocol Specification</h1>
-  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.1 — Draft (wire format stable)</p>
+  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.2 — Draft (wire format stable)</p>
 
   <h2>What this specification answers</h2>
   <p>As a merchant developer or agent author, you want to understand how your software and an AI agent communicate through Kiosk. This document describes the protocol — the exact HTTP requests and responses, the authentication model, and the payment mandate chain — backed by a working reference implementation.</p>
   <p>The spec is intentionally small. It covers the <strong>invariants</strong> — the things every Kiosk provider and every compatible agent must agree on. Individual providers extend the surface with their own queries and actions (catalog, delivery slots, booking — whatever their vertical needs).</p>
   <p><strong>Normative language.</strong> The key words <strong>MUST</strong>, <strong>MUST NOT</strong>, <strong>SHOULD</strong>, and <strong>MAY</strong> are to be interpreted as described in <a href="https://www.rfc-editor.org/rfc/rfc2119">RFC 2119</a>. Requirements bind two conformance targets: the <strong>provider</strong> (the party serving the endpoints) and the <strong>agent</strong> (the client calling them). Boxes marked <em>Reference note</em> describe the Ruby reference implementation and are non-normative — one way to satisfy a requirement, not the requirement itself.</p>
-  <p><strong>Protocol version.</strong> This page specifies protocol version <strong>0.1</strong>. Within the 0.1.x series the wire is <strong>additive and backward-compatible</strong> — new endpoints and fields only, existing flows never break (the same rule the skill files follow below).</p>
+  <p><strong>Protocol version.</strong> This page specifies protocol version <strong>0.2</strong>. The protocol, the reference implementation, and the skill share their MAJOR.MINOR version (<strong>version parity</strong>: a provider on Kiosk 0.2 pins a 0.2 skill against a 0.2 wire). Within a MINOR series (0.2.x) the wire is <strong>additive and backward-compatible</strong> — new endpoints and fields only, existing flows never break (the same rule the skill files follow below).</p>
 
   <h2>High-level flow</h2>
 
@@ -123,6 +123,12 @@ sequenceDiagram
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/login</code></td><td>None</td><td>Refresh a token for an EXISTING public key with a signed challenge</td></tr>
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/revoke</code></td><td>Bearer</td><td>Revoke all of this identity's tokens ("log out other sessions"); returns a fresh one</td></tr>
     <tr><td>—</td><td><code>GET</code></td><td><code>/kiosk/.well-known/jwks.json</code></td><td>None</td><td>JWKS (RFC 7517): the provider's public signing keys, so an agent can verify the RS256 access tokens Kiosk issues</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/oauth/device_authorization</code></td><td>None</td><td>Account binding: start the claim ceremony for a public key → <code>user_code</code> + <code>verification_uri</code></td></tr>
+    <tr><td>—</td><td><code>GET/POST</code></td><td><code>/kiosk/oauth/device/verify</code></td><td>Provider session</td><td>Account binding: the human approves/denies the code (human-side page, not an agent call)</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/oauth/token</code></td><td>PoP (<code>signed</code>)</td><td>Account binding: poll for completion with a possession proof → kiosk JWT (OAuth-shaped, see Account binding)</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/link</code></td><td>Provider session</td><td>Account binding: the human mints a single-use link code (human-side)</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/claim</code></td><td>PoP (<code>signed</code>)</td><td>Account binding: redeem a link code with <code>{code, public_key, signed}</code> → linked assistant account + token</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/unlink</code></td><td>Provider session</td><td>Account binding: deactivate a key's binding (registration-layer revocation, human-side)</td></tr>
     <tr><td><code>schema</code></td><td><code>GET</code></td><td><code>/kiosk/schema</code></td><td>Bearer</td><td>Machine-readable surface: queries + actions</td></tr>
     <tr><td><code>query</code></td><td><code>POST</code></td><td><code>/kiosk/query</code></td><td>Bearer</td><td>Read data (catalog, slots, orders)</td></tr>
     <tr><td><code>run</code></td><td><code>POST</code></td><td><code>/kiosk/run</code></td><td>Bearer</td><td>Perform action (create_order, schedule_delivery, payment_setup)</td></tr>
@@ -166,7 +172,7 @@ sequenceDiagram
     <tr><td><code>action_failed</code></td><td>500</td><td>A provider-registered action raised</td></tr>
     <tr><td><code>internal_error</code></td><td>500</td><td>Catch-all server error</td></tr>
   </table>
-  <p>The auth endpoints speak the same envelope: registering an already-known key is <code>conflict</code>/409, logging in an unknown key is <code>not_found</code>/404 (register first).</p>
+  <p>The auth endpoints speak the same envelope: registering an already-known key is <code>conflict</code>/409, logging in an unknown key is <code>not_found</code>/404 (register first). The one exception on this page is the account-binding <code>/kiosk/oauth/*</code> pair, which follows the OAuth wire (see <a href="#account-binding">Account binding</a>).</p>
 
   <h2>The <code>schema</code> verb — self-description</h2>
   <p><code>GET /kiosk/schema</code> (Bearer) returns a <code>kind: "value"</code> envelope whose <code>value</code> is exactly <code>{verbs, queries, actions}</code>:</p>
@@ -211,7 +217,9 @@ Authorization: Bearer &lt;jwt&gt;
       "challenge_url": "https://getgroceries.com/kiosk/auth/challenge",
       "register_url":  "https://getgroceries.com/kiosk/auth/register",
       "login_url":     "https://getgroceries.com/kiosk/auth/login",
-      "revoke_url":    "https://getgroceries.com/kiosk/auth/revoke"
+      "revoke_url":    "https://getgroceries.com/kiosk/auth/revoke",
+      "device_authorization_url": "https://getgroceries.com/kiosk/oauth/device_authorization",
+      "claim_url":     "https://getgroceries.com/kiosk/auth/claim"
     },
     "skill": { "url": "https://kiosk.tech/skill-v0.1.3.md", "sha256": "…" }
   }
@@ -242,7 +250,7 @@ Authorization: Bearer &lt;jwt&gt;
     <li>Fetch the file <strong>from kiosk.tech</strong> (never from the provider) and verify both that its frontmatter <code>version</code> matches the URL and that the SHA-256 of its content equals the pinned <code>sha256</code>.</li>
     <li>If verification fails, fall back to the locally cached skill.</li>
   </ol>
-  <p>Within the <strong>0.1.x</strong> series, versions are <strong>backward-compatible and additive</strong> — new endpoints and fields only, existing flows never break — so an agent on a newer 0.1.x can still transact with a provider pinning an older one, and must update before transacting with a provider pinning a newer one.</p>
+  <p>Within a <strong>MINOR series</strong> (0.1.x, 0.2.x, …), versions are <strong>backward-compatible and additive</strong> — new endpoints and fields only, existing flows never break — so an agent on a newer patch version can still transact with a provider pinning an older one, and must update before transacting with a provider pinning a newer one. The skill's MAJOR.MINOR tracks the protocol version (version parity).</p>
 
   <h2>Registration &amp; login (kiosk-pop)</h2>
   <p>Kiosk's auth scheme is <strong>kiosk-pop</strong> — a proof-of-possession challenge-response, advertised as <code>auth.kind: "kiosk-pop"</code> in the discovery document. It is <strong>not</strong> OAuth. A public key is not a credential — it is public. Before issuing a token, the provider requires <strong>proof of possession</strong> of the matching private key: it hands out a single-use challenge, the agent signs it as an RS256 JWS. This also separates two operations the naïve flow conflates — <strong>register</strong> (a key the provider has never seen) and <strong>login</strong> (refresh a token for a key it already knows).</p>
@@ -309,6 +317,45 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
   </ul>
   <p>How a provider implements the scoping is out of scope for the wire — application-layer filtering, database row-level security, or both. The requirement is the observable behavior: cross-identity reads and writes fail.</p>
   <div class="refnote"><strong>Reference note.</strong> The Ruby reference propagates the identity into Postgres as a transaction-scoped setting (<code>kiosk.current_user_id()</code>) inside a per-request session context; registered queries and actions read it for scoping, and opt-in row-level-security policies enforce it as defense-in-depth. The demos' isolation flows demonstrate the cross-agent denial end-to-end.</div>
+
+  <h2 id="account-binding">Account binding — claim &amp; link</h2>
+  <p>kiosk-pop registration creates a <em>self-standing</em> assistant account. When the human already has an account at the provider, Kiosk instead <strong>binds</strong> the agent to it: a one-time ceremony creates a durable link between the agent's public key and the human's account. Binding does not change how tokens work — after the ceremony the agent calls <code>/auth/login</code> with its private key like any other identity, and the ceremony never repeats. There are two directions.</p>
+
+  <h3>Claim (agent-initiated)</h3>
+  <p>The RFC 8628 device-authorization shape, carrying the agent's key:</p>
+  <pre><code class="language-json">POST /kiosk/oauth/device_authorization
+{ "public_key": "-----BEGIN PUBLIC KEY-----\n…" }
+
+→ 200 OK
+{ "device_code": "GmRhm…", "user_code": "WDJB-MJHT",
+  "verification_uri": "https://getgroceries.com/kiosk/oauth/device/verify",
+  "expires_in": 900, "interval": 5 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p>The agent shows the human the <code>verification_uri</code> and <code>user_code</code>. The human opens the page <strong>in their own browser</strong>, authenticated by the provider's normal web session, sees exactly what is being bound (the key's fingerprint, when it was requested), and approves or denies. Meanwhile the agent polls the token endpoint. The poll MUST carry a <strong>possession proof</strong>: <code>signed</code> is the same challenge-response JWS over <code>{aud, nonce, jti}</code> as register/login — fetch a challenge for the same public key first.</p>
+  <pre><code class="language-json">POST /kiosk/oauth/token
+grant_type=urn:ietf:params:oauth:grant-type:device_code
+&amp;device_code=GmRhm…&amp;signed=eyJhbGciOiJSUzI1NiJ9…
+
+→ while pending: 400 { "error": "authorization_pending" }   // keep polling at `interval`
+→ on approval:   200 { "access_token": "…kiosk RS256 JWT…", "token_type": "Bearer",
+                       "agent_id": "b2e9…", "user_id": "a7f3…" }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p><strong>The OAuth-shaped exception.</strong> The two <code>/kiosk/oauth/*</code> endpoints follow the OAuth/RFC 8628 wire — form-encoded requests are accepted and errors use the OAuth object (<code>authorization_pending</code>, <code>slow_down</code>, <code>expired_token</code>, <code>access_denied</code>, <code>invalid_grant</code>, and <code>invalid_client</code> for a failed possession proof) — a deliberate exception to the Kiosk envelope, so the ceremony stays recognizable to standard device-grant tooling. Every other endpoint on this page speaks the envelope.</p>
+  <p><strong>What approval creates.</strong> A binding is created only after BOTH the human's approval AND a valid possession proof — a failed proof answers <code>invalid_client</code> and binds nothing (the row is not consumed; retry with a valid proof). A key the provider has never seen is registered as a <strong>linked assistant account</strong> under the human's <code>user_id</code>. A key that already has a self-standing account is <strong>rebound</strong>: its <code>agent_id</code> is stable, its <code>user_id</code> becomes the human's, and the identity's reputation carries over — claiming is <em>not</em> a reputation reset (no whitewashing) and grants no inherited trust. The old standalone account's provider-domain data is not moved; a provider MAY migrate it in its claim hook.</p>
+
+  <h3>Link (human-initiated — Kiosk extension)</h3>
+  <p>auth.md-style ceremonies are agent-initiated. Kiosk adds the reverse direction: the human, signed in on the provider's site, mints a short-lived <strong>single-use link code</strong> ("link an assistant"), hands it to their agent, and the agent redeems it with the register-shaped body — possession proof required:</p>
+  <pre><code class="language-json">POST /kiosk/auth/claim
+{ "code": "WDJB-MJHT",
+  "public_key": "-----BEGIN PUBLIC KEY-----\n…",
+  "signed": "eyJhbGciOiJSUzI1NiJ9…" }
+
+→ 201 Created
+{ "agent_id": "b2e9…", "user_id": "a7f3…", "access_token": "eyJ…" }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p>Fresh-vs-known key semantics are identical to the claim flow. The code-minting and unlink endpoints (<code>/kiosk/auth/link</code>, <code>/kiosk/auth/unlink</code>) authenticate with the provider's own web session — they are human-side surfaces, never agent calls.</p>
+
+  <h3>Unbinding &amp; code hygiene</h3>
+  <p><strong>Unlink is registration-layer revocation</strong>, complementing the credential-layer <code>/auth/revoke</code> watermark: the human (or the provider) deactivates a key's binding — its tokens stop verifying and its <code>/auth/login</code> is denied. An unlinked key does not revert to a standalone account. Assistants are independently revocable; the human's own credentials are untouched.</p>
+  <p>Codes are stored <strong>hashed</strong>, are single-use, and expire on a short TTL; code entry and polling are attempt-capped (<code>slow_down</code>). The verify page MUST require an authenticated session and MUST display what is being bound. The discovery layer advertises the agent-callable binding endpoints (<code>auth.device_authorization_url</code>, <code>auth.claim_url</code> in <code>/.well-known/kiosk.json</code>), and the provider's <code>/auth.md</code> describes the full auth surface.</p>
+  <div class="refnote"><strong>Reference note.</strong> The reference persists ceremonies in a durable <code>kiosk.device_authorizations</code> store (an in-memory adapter exists for tests), ships minimal overridable engine views for the verify and link pages, and exposes <code>assistant_claimed</code> / <code>assistant_unlinked</code> hooks for provider-side reactions such as domain-data migration.</div>
 
   <h2>Proof-of-work</h2>
   <p>Providers MAY require proof-of-work before accepting queries or actions. When PoW is required, the server responds with HTTP <code>402</code>:</p>
@@ -506,11 +553,12 @@ Authorization: Bearer &lt;jwt&gt;
     <li><strong>Core — identity binding:</strong> the session contract above — every verb scoped to the authenticated identity.</li>
     <li><strong>Module <code>pay</code></strong> (advertised via <code>capabilities</code>): AP2 mandate-chain verification — required claims, chain binding, cap/total/amount rules — plus the <code>payment_setup</code> convention and the <code>payment_setup_required</code> 402 with <code>WWW-Authenticate: Payment</code>.</li>
     <li><strong>Module proof-of-work</strong> (MAY): the Equihash 402 gate — stateless HMAC-signed challenges, all-proofs verification, single-use spent set, canonical index-order rejection, <code>WWW-Authenticate: Kiosk-PoW</code> — and the optional registration toll binding proofs to the registering key.</li>
+    <li><strong>Module binding</strong> (MAY): the claim ceremony (device authorization + session-authenticated verify + possession-proof token poll) and/or the link-code redeem, the fresh/rebind semantics with reputation carry-over, and unlink (see <a href="#account-binding">Account binding</a>).</li>
     <li><strong>Module KYC</strong> (MAY): the attestation endpoint with issuer, <code>sub</code>, <code>exp</code>, and <code>level</code> verification.</li>
   </ol>
 
   <h3>Agent profile</h3>
-  <p>A client is a <strong>Kiosk-compatible agent</strong> when it: branches on <code>error.code</code>, never on the HTTP status alone; fills the proof's <code>aud</code> from the origin it dialed, never from server-supplied data; solves <strong>every</strong> challenge in a <code>pow_required</code> list and retries the identical body plus the <code>pow</code> field; runs <code>payment_setup</code> and hands <code>setup_url</code> to the human rather than automating card entry; and performs the skill dual-check, never loading skill instructions from the provider.</p>
+  <p>A client is a <strong>Kiosk-compatible agent</strong> when it: branches on <code>error.code</code>, never on the HTTP status alone; fills the proof's <code>aud</code> from the origin it dialed, never from server-supplied data; solves <strong>every</strong> challenge in a <code>pow_required</code> list and retries the identical body plus the <code>pow</code> field; runs <code>payment_setup</code> and hands <code>setup_url</code> to the human rather than automating card entry; performs the skill dual-check, never loading skill instructions from the provider; and, when the human owns an existing provider account, binds instead of registering — the claim ceremony (hand over <code>user_code</code> + <code>verification_uri</code>, poll with a possession proof) or a human-supplied link code redeemed with <code>{code, public_key, signed}</code>.</p>
 
   <h3>Conformance anchors</h3>
   <p>Two oracles pin behavior beyond this text: the reference's <strong>frozen Equihash known-answer tests</strong> at production parameters (n=168, k=7) — a ported verifier MUST reproduce them — and the reference's <strong>end-to-end agent harness</strong> (see Reference below), which exercises the golden path an independent implementation should survive: discovery → register → schema → query → run → pay, plus the error envelopes. A published stack-neutral conformance suite does not exist yet.</p>
