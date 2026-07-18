@@ -1,0 +1,11 @@
+{
+  "id": "int-001",
+  "user_id": "a7f3",
+  "agent_id": "b2e9",
+  "iss": "https://getgroceries.example",
+  "iat": 1751846340,
+  "exp": 1751846940,
+  "cap_amount_cents": 5000,
+  "currency": "eur",
+  "scope": "groceries"
+}

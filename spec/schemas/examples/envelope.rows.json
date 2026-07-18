@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "kind": "rows",
+  "rows": [
+    { "sku": "milk-1l", "name": "Whole Milk 1L", "price_cents": 199 },
+    { "sku": "eggs-12", "name": "Free-Range Eggs 12-pack", "price_cents": 449 }
+  ]
+}

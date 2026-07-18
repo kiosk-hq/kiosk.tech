@@ -1,0 +1,12 @@
+{
+  "id": "pay-001",
+  "user_id": "a7f3",
+  "agent_id": "b2e9",
+  "iss": "https://getgroceries.example",
+  "iat": 1751846350,
+  "exp": 1751846950,
+  "cart_mandate_id": "cart-001",
+  "amount_cents": 2499,
+  "currency": "eur",
+  "payment_method": "on_file"
+}

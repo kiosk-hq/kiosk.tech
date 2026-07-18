@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kiosk.tech/spec/schemas/error.schema.json",
+  "title": "Kiosk error object",
+  "description": "The value of error in an error envelope {ok:false, error:{...}}.",
+  "type": "object",
+  "required": ["code"],
+  "properties": {
+    "code": {
+      "description": "The closed, stable error vocabulary. Agents branch on code, never on HTTP status alone.",
+      "enum": [
+        "bad_request",
+        "unauthenticated",
+        "forbidden",
+        "rls_denied",
+        "not_found",
+        "conflict",
+        "pow_required",
+        "payment_setup_required",
+        "quota_exceeded",
+        "action_failed",
+        "internal_error"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable message (optional; dropped when absent)."
+    },
+    "hint": {
+      "type": "string",
+      "description": "Optional remediation pointer (e.g. the known query names on a not_found)."
+    },
+    "challenges": {
+      "type": "array",
+      "description": "Present ONLY on pow_required; the list of PoW challenges to solve.",
+      "items": { "$ref": "https://kiosk.tech/spec/schemas/pow.schema.json#/$defs/challenge" }
+    }
+  }
+}

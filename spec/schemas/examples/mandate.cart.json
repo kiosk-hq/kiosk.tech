@@ -1,0 +1,15 @@
+{
+  "id": "cart-001",
+  "user_id": "a7f3",
+  "agent_id": "b2e9",
+  "iss": "https://getgroceries.example",
+  "iat": 1751846345,
+  "exp": 1751846945,
+  "intent_mandate_id": "int-001",
+  "total_amount_cents": 2499,
+  "currency": "eur",
+  "line_items": [
+    { "sku": "milk-1l", "qty": 2, "price_cents": 199 },
+    { "sku": "eggs-12", "qty": 1, "price_cents": 449 }
+  ]
+}

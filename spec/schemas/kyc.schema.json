@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kiosk.tech/spec/schemas/kyc.schema.json",
+  "title": "Kiosk KYC attestation",
+  "description": "The decoded JWS payload of a KYC attestation and the POST /kiosk/agents/kyc request body.",
+  "$defs": {
+    "attestation": {
+      "type": "object",
+      "description": "Signed by the KYC provider, verified with its configured public key.",
+      "required": ["sub", "level", "iss", "iat", "exp"],
+      "properties": {
+        "sub": { "type": "string", "description": "MUST equal the authenticated user_id." },
+        "level": { "const": "verified", "description": "Binary; anything other than \"verified\" is rejected." },
+        "iss": { "type": "string", "description": "MUST equal the provider-configured KYC issuer." },
+        "iat": { "type": "integer" },
+        "exp": { "type": "integer", "description": "REQUIRED; an expired attestation is rejected." }
+      }
+    },
+    "request": {
+      "type": "object",
+      "required": ["kyc_jws"],
+      "properties": {
+        "kyc_jws": { "type": "string", "description": "The attestation as a compact RS256 JWS." }
+      }
+    }
+  }
+}

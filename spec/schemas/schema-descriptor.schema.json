@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kiosk.tech/spec/schemas/schema-descriptor.schema.json",
+  "title": "Kiosk schema descriptor",
+  "description": "The value of the kind:\"value\" envelope returned by GET /kiosk/schema.",
+  "type": "object",
+  "required": ["verbs", "queries", "actions"],
+  "properties": {
+    "verbs": {
+      "type": "array",
+      "description": "The fixed wire surface actually served, from the canonical set.",
+      "items": { "enum": ["schema", "query", "run", "pay"] },
+      "uniqueItems": true
+    },
+    "queries": {
+      "type": "array",
+      "description": "Query descriptors, sorted by name.",
+      "items": { "$ref": "#/$defs/descriptor" }
+    },
+    "actions": {
+      "type": "array",
+      "description": "Action descriptors, sorted by name.",
+      "items": { "$ref": "#/$defs/descriptor" }
+    }
+  },
+  "$defs": {
+    "descriptor": {
+      "type": "object",
+      "required": ["name", "description", "params"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Human-facing description or null."
+        },
+        "params": {
+          "type": ["object", "null"],
+          "description": "Free-form provider-defined hint object (by convention name -> type-hint string), or null. Documentation, not a validation contract."
+        }
+      }
+    }
+  }
+}

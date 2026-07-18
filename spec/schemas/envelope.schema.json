@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kiosk.tech/spec/schemas/envelope.schema.json",
+  "title": "Kiosk response envelope",
+  "description": "Every schema/query/run/pay response — success or error — is one of these two shapes.",
+  "oneOf": [
+    { "$ref": "#/$defs/success" },
+    { "$ref": "#/$defs/error" }
+  ],
+  "$defs": {
+    "success": {
+      "type": "object",
+      "required": ["ok", "kind"],
+      "properties": {
+        "ok": { "const": true },
+        "kind": {
+          "enum": ["rows", "value", "events"],
+          "description": "Payload discriminator: rows (array), value (single object), events (reserved)."
+        },
+        "rows": { "type": "array" },
+        "value": {},
+        "events": { "type": "array" }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "rows" } } }, "then": { "required": ["rows"] } },
+        { "if": { "properties": { "kind": { "const": "value" } } }, "then": { "required": ["value"] } },
+        { "if": { "properties": { "kind": { "const": "events" } } }, "then": { "required": ["events"] } }
+      ]
+    },
+    "error": {
+      "type": "object",
+      "required": ["ok", "error"],
+      "properties": {
+        "ok": { "const": false },
+        "error": { "$ref": "https://kiosk.tech/spec/schemas/error.schema.json" }
+      }
+    }
+  }
+}

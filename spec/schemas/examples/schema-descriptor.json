@@ -1,0 +1,10 @@
+{
+  "verbs": ["schema", "query", "run", "pay"],
+  "queries": [
+    { "name": "catalog", "description": "Browse the product catalog", "params": null }
+  ],
+  "actions": [
+    { "name": "create_order", "description": "Create an order from items", "params": { "items": "array" } },
+    { "name": "payment_setup", "description": null, "params": null }
+  ]
+}

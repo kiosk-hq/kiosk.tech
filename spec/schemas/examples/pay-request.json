@@ -1,0 +1,5 @@
+{
+  "intent_mandate_jws": "eyJhbGciOiJSUzI1NiJ9.eyJpZCI6ImludC0wMDEifQ.SIG",
+  "cart_mandate_jws": "eyJhbGciOiJSUzI1NiJ9.eyJpZCI6ImNhcnQtMDAxIn0.SIG",
+  "payment_mandate_jws": "eyJhbGciOiJSUzI1NiJ9.eyJpZCI6InBheS0wMDEifQ.SIG"
+}

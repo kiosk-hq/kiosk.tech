@@ -1,0 +1,11 @@
+{
+  "challenge": {
+    "id": "9b1c",
+    "alg": "equihash",
+    "params": { "n": 168, "k": 7 },
+    "salt": "dGVzdC1zYWx0",
+    "exp": 1751846400,
+    "sig": "hmac-sha256-abc123"
+  },
+  "nonce": { "indices": [3, 42, 17, 88, 5, 200, 61, 129] }
+}

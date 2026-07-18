@@ -1,0 +1,8 @@
+{
+  "ok": false,
+  "error": {
+    "code": "not_found",
+    "message": "unknown query",
+    "hint": "catalog, slots, orders"
+  }
+}

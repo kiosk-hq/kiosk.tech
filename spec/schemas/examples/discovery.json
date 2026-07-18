@@ -1,0 +1,23 @@
+{
+  "kiosk": {
+    "version": "1.0",
+    "issuer": "https://getgroceries.example",
+    "endpoint": "https://getgroceries.example/kiosk",
+    "capabilities": ["schema", "query", "run", "pay"],
+    "min_client": "0.2.0",
+    "owner": { "email": "ops@getgroceries.example" },
+    "auth": {
+      "kind": "kiosk-pop",
+      "challenge_url": "https://getgroceries.example/kiosk/auth/challenge",
+      "register_url": "https://getgroceries.example/kiosk/auth/register",
+      "login_url": "https://getgroceries.example/kiosk/auth/login",
+      "revoke_url": "https://getgroceries.example/kiosk/auth/revoke",
+      "device_authorization_url": "https://getgroceries.example/kiosk/oauth/device_authorization",
+      "claim_url": "https://getgroceries.example/kiosk/auth/claim"
+    },
+    "skill": {
+      "url": "https://kiosk.tech/skill-v0.2.2.md",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }
+}

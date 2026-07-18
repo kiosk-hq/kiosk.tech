@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kiosk.tech/spec/schemas/discovery.schema.json",
+  "title": "Kiosk discovery document",
+  "description": "The JSON served at GET /.well-known/kiosk.json (Kiosk protocol 0.2).",
+  "type": "object",
+  "required": ["kiosk"],
+  "properties": {
+    "kiosk": {
+      "type": "object",
+      "required": ["version", "issuer", "endpoint", "capabilities", "auth"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Discovery-document FORMAT version (currently \"1.0\"), independent of the protocol version."
+        },
+        "issuer": {
+          "type": "string",
+          "description": "The AP2 mandate iss anchor and the token iss/aud. An absolute https URL."
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "The wire-verb root (base URL + mount path), e.g. https://example.com/kiosk."
+        },
+        "capabilities": {
+          "type": "array",
+          "description": "The verbs this endpoint actually serves, from the canonical set, in canonical order.",
+          "items": { "enum": ["schema", "query", "run", "pay"] },
+          "uniqueItems": true
+        },
+        "min_client": {
+          "type": "string",
+          "description": "Advisory minimum client version (optional)."
+        },
+        "owner": {
+          "type": "object",
+          "description": "Provider-chosen contact info (optional); SHOULD include at least an email."
+        },
+        "auth": {
+          "type": "object",
+          "description": "The kiosk-pop proof-of-possession auth block.",
+          "required": [
+            "kind",
+            "challenge_url",
+            "register_url",
+            "login_url",
+            "revoke_url",
+            "device_authorization_url",
+            "claim_url"
+          ],
+          "properties": {
+            "kind": { "const": "kiosk-pop" },
+            "challenge_url": { "type": "string" },
+            "register_url": { "type": "string" },
+            "login_url": { "type": "string" },
+            "revoke_url": { "type": "string" },
+            "device_authorization_url": { "type": "string" },
+            "claim_url": { "type": "string" }
+          }
+        },
+        "skill": {
+          "type": "object",
+          "description": "Optional pinned skill reference. Omitted entirely when no skill is pinned.",
+          "required": ["url", "sha256"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "A versioned, immutable skill URL on kiosk.tech (skill-vX.Y.Z.md)."
+            },
+            "sha256": {
+              "type": "string",
+              "description": "Lowercase hex SHA-256 of the skill file content.",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

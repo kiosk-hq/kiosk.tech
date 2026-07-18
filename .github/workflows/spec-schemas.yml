@@ -1,0 +1,28 @@
+name: spec-schemas
+
+# Lints the formal-spec JSON Schemas and validates their example payloads
+# (kiosk.tech/spec/schemas) on every change. Keeps the machine-readable
+# contract honest; see ADR-0018 (two specifications) and the D8 cross-check.
+
+on:
+  push:
+    paths:
+      - "spec/**"
+      - ".github/workflows/spec-schemas.yml"
+  pull_request:
+    paths:
+      - "spec/**"
+      - ".github/workflows/spec-schemas.yml"
+
+jobs:
+  schemas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install ajv-cli
+        run: npm i -g ajv-cli@5.0.0
+      - name: Validate schemas + examples
+        run: bash spec/schemas/validate.sh
