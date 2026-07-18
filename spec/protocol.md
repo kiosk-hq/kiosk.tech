@@ -160,7 +160,7 @@ the canonical order and **MUST NOT** advertise a verb it does not serve.
 
 ### 4.3 The `auth` block
 
-`kiosk.auth` **MUST** carry `kind: "kiosk-pop"` and the seven URLs an agent needs
+`kiosk.auth` **MUST** carry `kind: "kiosk-pop"` and the six URLs an agent needs
 to authenticate and bind: `challenge_url`, `register_url`, `login_url`,
 `revoke_url` (§5), and `device_authorization_url`, `claim_url` (§6). Each is an
 absolute URL derived from `endpoint`.

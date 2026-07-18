@@ -7,12 +7,12 @@
     "attestation": {
       "type": "object",
       "description": "Signed by the KYC provider, verified with its configured public key.",
-      "required": ["sub", "level", "iss", "iat", "exp"],
+      "required": ["sub", "level", "iss", "exp"],
       "properties": {
         "sub": { "type": "string", "description": "MUST equal the authenticated user_id." },
         "level": { "const": "verified", "description": "Binary; anything other than \"verified\" is rejected." },
         "iss": { "type": "string", "description": "MUST equal the provider-configured KYC issuer." },
-        "iat": { "type": "integer" },
+        "iat": { "type": "integer", "description": "Optional; issued-at timestamp. Not enforced by the verifier." },
         "exp": { "type": "integer", "description": "REQUIRED; an expired attestation is rejected." }
       }
     },
