@@ -252,6 +252,18 @@ Authorization: Bearer &lt;jwt&gt;
   </ol>
   <p>Within a <strong>MINOR series</strong> (0.1.x, 0.2.x, …), versions are <strong>backward-compatible and additive</strong> — new endpoints and fields only, existing flows never break — so an agent on a newer patch version can still transact with a provider pinning an older one, and must update before transacting with a provider pinning a newer one. The skill's MAJOR.MINOR tracks the protocol version (version parity).</p>
 
+  <h3>Standard discovery surfaces</h3>
+  <p>Alongside <code>kiosk.json</code> — the canonical structured contract — a provider serves the emerging agent-web discovery surfaces. All are rendered from the same registry model as <code>kiosk.json</code>, so they cannot drift from it:</p>
+  <table>
+    <tr><th>Path</th><th>Format</th><th>What it carries</th></tr>
+    <tr><td><code>/agents.txt</code></td><td>agents.txt v1.0, <code>text/plain</code> + CORS <code>*</code></td><td>Directives: <code>Protocols: ap2</code> · <code>Payments: required</code> · <code>Authorization: agent-auth auth-md</code> · <code>Identity: required</code> · <code>Skills: &lt;the pinned skill URL&gt;</code></td></tr>
+    <tr><td><code>/agents.json</code></td><td>agents.json v1.0</td><td><code>site</code>, <code>payments.ap2</code> (<code>required: true</code>), <code>authorization</code> (<code>protocols: ["agent-auth", "auth-md"]</code>, <code>discovery: /.well-known/agent-configuration</code>, <code>identity: required</code>), <code>skills[]</code>; the Kiosk wire rides the sanctioned <code>x-kiosk</code> extension (<code>wire.verbs</code>, <code>wire.schema</code>, <code>min_client</code>, <code>api_version</code>, <code>mount_path</code>, <code>api_catalog</code>)</td></tr>
+    <tr><td><code>/.well-known/agent-configuration</code></td><td>RFC 8414-style JSON</td><td>agent-auth discovery: <code>issuer</code>, <code>endpoints</code> (challenge / register / login / revoke + the binding URLs), <code>jwks_uri</code>, <code>auth_modes: ["kiosk-pop", "user-claimed", "link-code"]</code>, <code>auth_md</code> pointer</td></tr>
+    <tr><td><code>/.well-known/api-catalog</code></td><td>RFC 9727, <code>application/linkset+json</code></td><td>Linkset of the live wire endpoints, filtered to the advertised <code>capabilities</code>; <code>schema</code> carries the <code>service-desc</code> relation</td></tr>
+    <tr><td><code>/auth.md</code></td><td>auth.md-format Markdown</td><td>The auth surface for agents that discover via auth.md: kiosk-pop presented as its anonymous-class registration with a proof-of-possession upgrade, the User-Claimed claim ceremony, the link flow (marked a Kiosk extension), and both revocation layers; ID-JAG is not supported (planned)</td></tr>
+  </table>
+  <p><code>kiosk.json</code> remains the canonical Kiosk contract; the standard surfaces are the envelopes around it — an agent may bootstrap from any of them and end up on the same wire.</p>
+
   <h2>Registration &amp; login (kiosk-pop)</h2>
   <p>Kiosk's auth scheme is <strong>kiosk-pop</strong> — a proof-of-possession challenge-response, advertised as <code>auth.kind: "kiosk-pop"</code> in the discovery document. It is <strong>not</strong> OAuth. A public key is not a credential — it is public. Before issuing a token, the provider requires <strong>proof of possession</strong> of the matching private key: it hands out a single-use challenge, the agent signs it as an RS256 JWS. This also separates two operations the naïve flow conflates — <strong>register</strong> (a key the provider has never seen) and <strong>login</strong> (refresh a token for a key it already knows).</p>
 
