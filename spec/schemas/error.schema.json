@@ -13,6 +13,7 @@
         "unauthenticated",
         "forbidden",
         "rls_denied",
+        "spending_cap_exceeded",
         "not_found",
         "conflict",
         "pow_required",

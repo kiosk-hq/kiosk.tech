@@ -390,6 +390,7 @@ stable vocabulary; `hint` is an optional remediation pointer; `challenges` appea
 | `unauthenticated` | 401 | Missing, invalid, expired, wrong-issuer, or revoked Bearer token. |
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
+| `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay` (§11.5); the human must raise the cap. |
 | `not_found` | 404 | Unknown query/action name or missing resource; `hint` carries known names. |
 | `conflict` | 409 | State conflict — e.g. registering an already-registered key. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (§10). |
@@ -476,6 +477,23 @@ answers `402` with `payment_setup_required` (no `challenges`) and
 `WWW-Authenticate: Payment realm="<issuer>", method="ap2"`. The agent **MUST NOT**
 automate the card form: it hands the returned `setup_url` to the human, who enters
 the card on the PSP's hosted page, then the agent retries pay (§15.7).
+
+### 11.5 Per-assistant spending cap (optional)
+
+A provider MAY cap what an individual bound assistant (§6) may settle — the
+natural governance control when one human has several assistants bound to their
+account. When a cap is configured for the acting `agent_id` and this `pay` would
+push the assistant's settled total (optionally within a rolling window) past the
+cap, the provider **MUST** reject it with `403 spending_cap_exceeded` **before**
+the irreversible capture — no charge, no settlement row. A cap of `0` disables the
+assistant's payments entirely. The agent cannot pay past the cap; it surfaces the
+condition to the human, who raises the cap out of band. Caps are provider policy
+and off by default; how a provider stores and edits them is out of scope for the
+wire.
+
+> *Reference note (non-normative).* The Ruby reference enforces this via the
+> `config.spending_cap` pay-hook seam and ships a column-backed default
+> (`agents.spending_cap_cents`) editable from the manage-assistants page.
 
 ---
 

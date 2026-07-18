@@ -3,6 +3,7 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-07-19: Both specs + the error JSON Schema document the optional per-assistant spending cap — a provider MAY cap what each bound assistant settles, rejecting with the new `spending_cap_exceeded` (403) before the charge; off by default. (ADR-0019, T-030)
 - 2026-07-19: Added a formal specification (spec/protocol.md, RFC-style, RFC 2119+8174, numbered sections, glossary, consolidated security + versioning + conformance) plus machine-readable JSON Schemas for every wire object (spec/schemas/, linted in CI) for adopters and porters; specification.html stays the narrative reader spec and links to it quietly. Two specifications, kept consistent — ADR-0018, K-323. (T-028)
 - 2026-07-18: sweep-012 corrections — protocol version 0.2 made consistent (title + examples), agent-configuration endpoints narrowed to the four kiosk-pop URLs (K-312/K-315/K-316); skill-v0.2.2 published — Step 2b derives the token-poll URL from the discovery endpoint and the backward-compatibility rule generalized to the MINOR-series / version-parity wording (K-317/K-318).
 - 2026-07-09: Adopted the Kiosk 0.1 convergence process: constitution in CLAUDE.md (five rules) — the spec is the normative root; landing and skill claims must trace to behavior demonstrated by the reference implementation. (PLAN.md at the workspace root)

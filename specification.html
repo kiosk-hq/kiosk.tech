@@ -164,6 +164,7 @@ sequenceDiagram
     <tr><td><code>unauthenticated</code></td><td>401</td><td>Missing, invalid, expired, or revoked Bearer token</td></tr>
     <tr><td><code>forbidden</code></td><td>403</td><td>Authenticated, but this identity may not do this</td></tr>
     <tr><td><code>rls_denied</code></td><td>403</td><td>A row-level-security policy denied the statement (providers running opt-in RLS)</td></tr>
+    <tr><td><code>spending_cap_exceeded</code></td><td>403</td><td>The acting assistant's per-assistant spending cap would be exceeded by this <code>pay</code>; the human raises the cap (optional, provider-configured — see <a href="#spending-cap">Payment</a>)</td></tr>
     <tr><td><code>not_found</code></td><td>404</td><td>Unknown query or action name, or a missing resource; <code>hint</code> carries the known names</td></tr>
     <tr><td><code>conflict</code></td><td>409</td><td>State conflict — e.g. registering a public key that is already registered (use <code>/auth/login</code>)</td></tr>
     <tr><td><code>pow_required</code></td><td>402</td><td>Proof-of-work gate; carries <code>challenges</code> and <code>WWW-Authenticate: Kiosk-PoW</code> (see Proof-of-work)</td></tr>
@@ -501,6 +502,8 @@ Authorization: Bearer &lt;jwt&gt;
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The agent hands the <code>setup_url</code> to the human. <strong>Never automate Stripe forms</strong> — the human enters their card once on Stripe's hosted page. The agent polls <code>payment_setup</code> until <code>status: "ready"</code>, then proceeds to <code>pay</code>. Subsequent payments use the saved card without human intervention.</p>
+
+  <p id="spending-cap"><strong>Per-assistant spending cap (optional).</strong> When a human has several assistants bound to one account, a provider MAY cap what each one may spend. If a cap is configured for the acting assistant and a <code>pay</code> would push its settled total past the cap, the provider rejects it with <code>403 spending_cap_exceeded</code> <strong>before</strong> charging — a cap of <code>0</code> disables that assistant's payments. The agent can't pay past the cap; it tells the human, who raises it. Caps are provider policy and off by default. The reference enforces this via a pay-hook seam and exposes it on the manage-assistants page.</p>
 
   <p><strong>The <code>payment_setup_required</code> 402.</strong> If the agent skips setup and calls <code>POST /kiosk/pay</code> with no card on file, the server answers <code>402</code> with error code <code>payment_setup_required</code> and <strong>no <code>challenges</code> field</strong> (this is the second of the two 402s — it is <em>not</em> proof-of-work). This response also carries <code>WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"</code> so a client can tell it apart from the PoW 402 at the header level. The agent then runs <code>payment_setup</code>, hands the <code>setup_url</code> to the human, waits for <code>status: "ready"</code>, and retries the pay call — re-signing the mandates first if their <code>exp</code> has passed.</p>
 
