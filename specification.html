@@ -324,11 +324,13 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
   <h3>Claim (agent-initiated)</h3>
   <p>The RFC 8628 device-authorization shape, carrying the agent's key:</p>
   <pre><code class="language-json">POST /kiosk/oauth/device_authorization
-{ "public_key": "-----BEGIN PUBLIC KEY-----\n…" }
+{ "client_id": "my-assistant",              // required (RFC 8628) — shown to the human
+  "public_key": "-----BEGIN PUBLIC KEY-----\n…" }
 
 → 200 OK
 { "device_code": "GmRhm…", "user_code": "WDJB-MJHT",
   "verification_uri": "https://getgroceries.com/kiosk/oauth/device/verify",
+  "verification_uri_complete": "https://getgroceries.com/kiosk/oauth/device/verify?user_code=WDJB-MJHT",
   "expires_in": 900, "interval": 5 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>The agent shows the human the <code>verification_uri</code> and <code>user_code</code>. The human opens the page <strong>in their own browser</strong>, authenticated by the provider's normal web session, sees exactly what is being bound (the key's fingerprint, when it was requested), and approves or denies. Meanwhile the agent polls the token endpoint. The poll MUST carry a <strong>possession proof</strong>: <code>signed</code> is the same challenge-response JWS over <code>{aud, nonce, jti}</code> as register/login — fetch a challenge for the same public key first.</p>
   <pre><code class="language-json">POST /kiosk/oauth/token
@@ -336,8 +338,10 @@ grant_type=urn:ietf:params:oauth:grant-type:device_code
 &amp;device_code=GmRhm…&amp;signed=eyJhbGciOiJSUzI1NiJ9…
 
 → while pending: 400 { "error": "authorization_pending" }   // keep polling at `interval`
+→ polled too fast: 400 { "error": "slow_down" }             // back off, then resume
 → on approval:   200 { "access_token": "…kiosk RS256 JWT…", "token_type": "Bearer",
-                       "agent_id": "b2e9…", "user_id": "a7f3…" }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+                       "expires_in": 3600 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p>The success response is OAuth-pure — the bound identity is not repeated in the body: it rides inside the kiosk JWT's claims (<code>sub</code> = the human's <code>user_id</code>, plus <code>agent_id</code>), exactly as a login-minted token would carry it.</p>
   <p><strong>The OAuth-shaped exception.</strong> The two <code>/kiosk/oauth/*</code> endpoints follow the OAuth/RFC 8628 wire — form-encoded requests are accepted and errors use the OAuth object (<code>authorization_pending</code>, <code>slow_down</code>, <code>expired_token</code>, <code>access_denied</code>, <code>invalid_grant</code>, and <code>invalid_client</code> for a failed possession proof) — a deliberate exception to the Kiosk envelope, so the ceremony stays recognizable to standard device-grant tooling. Every other endpoint on this page speaks the envelope.</p>
   <p><strong>What approval creates.</strong> A binding is created only after BOTH the human's approval AND a valid possession proof — a failed proof answers <code>invalid_client</code> and binds nothing (the row is not consumed; retry with a valid proof). A key the provider has never seen is registered as a <strong>linked assistant account</strong> under the human's <code>user_id</code>. A key that already has a self-standing account is <strong>rebound</strong>: its <code>agent_id</code> is stable, its <code>user_id</code> becomes the human's, and the identity's reputation carries over — claiming is <em>not</em> a reputation reset (no whitewashing) and grants no inherited trust. The old standalone account's provider-domain data is not moved; a provider MAY migrate it in its claim hook.</p>
 
@@ -353,7 +357,7 @@ grant_type=urn:ietf:params:oauth:grant-type:device_code
   <p>Fresh-vs-known key semantics are identical to the claim flow. The code-minting and unlink endpoints (<code>/kiosk/auth/link</code>, <code>/kiosk/auth/unlink</code>) authenticate with the provider's own web session — they are human-side surfaces, never agent calls.</p>
 
   <h3>Unbinding &amp; code hygiene</h3>
-  <p><strong>Unlink is registration-layer revocation</strong>, complementing the credential-layer <code>/auth/revoke</code> watermark: the human (or the provider) deactivates a key's binding — its tokens stop verifying and its <code>/auth/login</code> is denied. An unlinked key does not revert to a standalone account. Assistants are independently revocable; the human's own credentials are untouched.</p>
+  <p><strong>Unlink is registration-layer revocation</strong>, complementing the credential-layer <code>/auth/revoke</code> watermark: the human (or the provider) deactivates a key's binding — its tokens stop verifying, and <code>/auth/login</code> answers <code>404</code> (the provider no longer knows the key; re-register or re-claim is the remedy). An unlinked key does not revert to a standalone account. Assistants are independently revocable; the human's own credentials are untouched.</p>
   <p>Codes are stored <strong>hashed</strong>, are single-use, and expire on a short TTL; code entry and polling are attempt-capped (<code>slow_down</code>). The verify page MUST require an authenticated session and MUST display what is being bound. The discovery layer advertises the agent-callable binding endpoints (<code>auth.device_authorization_url</code>, <code>auth.claim_url</code> in <code>/.well-known/kiosk.json</code>), and the provider's <code>/auth.md</code> describes the full auth surface.</p>
   <div class="refnote"><strong>Reference note.</strong> The reference persists ceremonies in a durable <code>kiosk.device_authorizations</code> store (an in-memory adapter exists for tests), ships minimal overridable engine views for the verify and link pages, and exposes <code>assistant_claimed</code> / <code>assistant_unlinked</code> hooks for provider-side reactions such as domain-data migration.</div>
 
