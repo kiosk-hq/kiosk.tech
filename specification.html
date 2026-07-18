@@ -221,7 +221,7 @@ Authorization: Bearer &lt;jwt&gt;
       "device_authorization_url": "https://getgroceries.com/kiosk/oauth/device_authorization",
       "claim_url":     "https://getgroceries.com/kiosk/auth/claim"
     },
-    "skill": { "url": "https://kiosk.tech/skill-v0.2.1.md", "sha256": "…" }
+    "skill": { "url": "https://kiosk.tech/skill-v0.2.2.md", "sha256": "…" }
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -243,7 +243,7 @@ Authorization: Bearer &lt;jwt&gt;
   <h3>Skill versioning &amp; the dual-check</h3>
   <p>The universal skill is <strong>versioned and immutable</strong>. Each published version is a distinct file at <code>https://kiosk.tech/skill-vX.Y.Z.md</code> whose content <strong>never changes once published</strong>; a change ships a NEW version file rather than editing an existing one. <code>https://kiosk.tech/skill.md</code> is the <strong>"latest" alias</strong>, byte-identical to the newest version file. A file's own version lives in its frontmatter <code>version</code> field, matching the version in its URL.</p>
 
-  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.2.1.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When a provider pins a skill, the agent performs the <strong>dual-check</strong>:</p>
+  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.2.2.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When a provider pins a skill, the agent performs the <strong>dual-check</strong>:</p>
   <ol>
     <li>Read the pinned version from the URL (<code>skill-vX.Y.Z.md</code>).</li>
     <li>If it is newer than the agent's cached skill, fetch and adopt it before transacting — the provider may rely on newer protocol features.</li>
@@ -258,7 +258,7 @@ Authorization: Bearer &lt;jwt&gt;
     <tr><th>Path</th><th>Format</th><th>What it carries</th></tr>
     <tr><td><code>/agents.txt</code></td><td>agents.txt v1.0, <code>text/plain</code> + CORS <code>*</code></td><td>Directives: <code>Protocols: ap2</code> · <code>Payments: required</code> · <code>Authorization: agent-auth auth-md</code> · <code>Identity: required</code> · <code>Skills: &lt;the pinned skill URL&gt;</code></td></tr>
     <tr><td><code>/agents.json</code></td><td>agents.json v1.0</td><td><code>site</code>, <code>payments.ap2</code> (<code>required: true</code>), <code>authorization</code> (<code>protocols: ["agent-auth", "auth-md"]</code>, <code>discovery: /.well-known/agent-configuration</code>, <code>identity: required</code>), <code>skills[]</code>; the Kiosk wire rides the sanctioned <code>x-kiosk</code> extension (<code>wire.verbs</code>, <code>wire.schema</code>, <code>min_client</code>, <code>api_version</code>, <code>mount_path</code>, <code>api_catalog</code>)</td></tr>
-    <tr><td><code>/.well-known/agent-configuration</code></td><td>RFC 8414-style JSON</td><td>agent-auth discovery: <code>issuer</code>, <code>endpoints</code> (challenge / register / login / revoke + the binding URLs), <code>jwks_uri</code>, <code>auth_modes: ["kiosk-pop", "user-claimed", "link-code"]</code>, <code>auth_md</code> pointer</td></tr>
+    <tr><td><code>/.well-known/agent-configuration</code></td><td>RFC 8414-style JSON</td><td>agent-auth discovery: <code>issuer</code>, <code>endpoints</code> (challenge / register / login / revoke), <code>jwks_uri</code>, <code>auth_modes: ["kiosk-pop", "user-claimed", "link-code"]</code>, <code>auth_md</code> pointer</td></tr>
     <tr><td><code>/.well-known/api-catalog</code></td><td>RFC 9727, <code>application/linkset+json</code></td><td>Linkset of the live wire endpoints, filtered to the advertised <code>capabilities</code>; <code>schema</code> carries the <code>service-desc</code> relation</td></tr>
     <tr><td><code>/auth.md</code></td><td>auth.md-format Markdown</td><td>The auth surface for agents that discover via auth.md: kiosk-pop presented as its anonymous-class registration with a proof-of-possession upgrade, the User-Claimed claim ceremony, the link flow (marked a Kiosk extension), and both revocation layers; ID-JAG is not supported (planned)</td></tr>
   </table>
