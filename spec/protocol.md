@@ -400,6 +400,7 @@ stable vocabulary; `hint` is an optional remediation pointer; `challenges` appea
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
 | `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay` (§11.5); the human must raise the cap. |
+| `kyc_required` | 403 | An Action requires KYC attribute(s) the agent has not attested (§12.2); `hint` names what is needed. The agent submits a KYC attestation carrying the missing attributes, then retries. |
 | `not_found` | 404 | Unknown query/action name or missing resource; `hint` carries known names. |
 | `conflict` | 409 | State conflict — e.g. registering an already-registered key. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (§10). |
@@ -512,12 +513,36 @@ Schema: [`kyc.schema.json`](./schemas/kyc.schema.json).
 
 A provider MAY require a KYC attestation. The agent carries a signed
 **attestation** from a KYC provider — never raw documents. The attestation is an
-**RS256 JWS** with claims `{sub, level, iss, iat, exp}`: `sub` **MUST** equal the
-authenticated `user_id`, `iss` **MUST** equal the provider-configured KYC issuer,
-`exp` **MUST** be present and unexpired, and `level` **MUST** be exactly
-`"verified"` (binary; anything else is rejected). The agent submits it to
-`POST <endpoint>/agents/kyc` (Bearer) as `{kyc_jws}`; on a clean verify the
-provider records verification and returns `{kyc_verified: true}`.
+**RS256 JWS** with claims `{sub, level, iss, iat, exp}` and an OPTIONAL
+`attributes` object: `sub` **MUST** equal the authenticated `user_id`, `iss`
+**MUST** equal the provider-configured KYC issuer, `exp` **MUST** be present and
+unexpired, and `level` **MUST** be exactly `"verified"` (anything else is
+rejected). The agent submits it to `POST <endpoint>/agents/kyc` (Bearer) as
+`{kyc_jws}`; on a clean verify the provider records verification and returns
+`{kyc_verified: true, attributes: {…}}`.
+
+### 12.1 Named anonymized attributes
+
+The attestation MAY carry an **`attributes`** object of `{name: true}` booleans
+(e.g. `{"age_over_18": true, "licence_a": true}`). These are **anonymized**: the
+provider learns only the booleans the KYC issuer signed — it **MUST NOT** receive
+or store the underlying documents (date of birth, licence number, passport scan).
+A provider **MUST** honour only values that are literally `true`; any other value
+(`false`, string, number) is **NOT** a grant. The provider **MUST** record the
+granted attributes with the verification (the reference stores them in a
+`kyc_attributes` column) and **MUST NOT** log the underlying documents. The field
+is **additive**: a bare `level: "verified"` attestation with no `attributes` still
+verifies (the binary path), yielding an empty attribute set.
+
+### 12.2 Attribute-gated Actions
+
+An Action MAY be **gated** on a set of required attribute names. When the calling
+agent's recorded attributes do not include every required name as `true`, the
+provider **MUST** reject with `kyc_required` (HTTP **403**), carrying a hint
+naming what is needed (e.g. "complete KYC: age≥18 and category-A licence
+required"). The reference `kiosk-demo-skooti` gates `rent_motorcycle` (a
+combustion-engine motorcycle) on `age_over_18` **AND** `licence_a`, while the
+licence-free electric scooter needs neither — the gate is per-Action.
 
 ---
 

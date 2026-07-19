@@ -3,5 +3,9 @@
   "level": "verified",
   "iss": "https://kyc.example",
   "iat": 1751846340,
-  "exp": 1751849940
+  "exp": 1751849940,
+  "attributes": {
+    "age_over_18": true,
+    "licence_a": true
+  }
 }

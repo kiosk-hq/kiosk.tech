@@ -165,6 +165,7 @@ sequenceDiagram
     <tr><td><code>forbidden</code></td><td>403</td><td>Authenticated, but this identity may not do this</td></tr>
     <tr><td><code>rls_denied</code></td><td>403</td><td>A row-level-security policy denied the statement (providers running opt-in RLS)</td></tr>
     <tr><td><code>spending_cap_exceeded</code></td><td>403</td><td>The acting assistant's per-assistant spending cap would be exceeded by this <code>pay</code>; the human raises the cap (optional, provider-configured — see <a href="#spending-cap">Payment</a>)</td></tr>
+    <tr><td><code>kyc_required</code></td><td>403</td><td>An action requires a KYC attribute the agent has not attested; <code>hint</code> names what is needed. The agent submits a KYC attestation carrying the missing attributes, then retries (see <a href="#kyc">KYC</a>)</td></tr>
     <tr><td><code>not_found</code></td><td>404</td><td>Unknown query or action name, or a missing resource; <code>hint</code> carries the known names</td></tr>
     <tr><td><code>conflict</code></td><td>409</td><td>State conflict — e.g. registering a public key that is already registered (use <code>/auth/login</code>)</td></tr>
     <tr><td><code>pow_required</code></td><td>402</td><td>Proof-of-work gate; carries <code>challenges</code> and <code>WWW-Authenticate: Kiosk-PoW</code> (see Proof-of-work)</td></tr>
@@ -523,18 +524,24 @@ WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"
     <strong>TODO — refunds &amp; cancellations.</strong> The mandate chain covers authorization and settlement. Reversal currently rides on provider business logic — a provider could, for illustration, expose a <code>cancel_order</code> action (an ordinary provider-defined action, same mechanism as <code>create_order</code>; not a spec-defined verb and not shipped by the reference implementation), and money moves back through the PSP's normal refund flow. A first-class refund verb that references the settlement is under consideration; endpoint shape TBD.
   </div>
 
-  <h2>KYC</h2>
+  <h2 id="kyc">KYC</h2>
   <p>Kiosk supports KYC brokering through Persona, Sumsub, or any existing provider. The agent carries a signed <strong>attestation</strong> from the KYC provider, never raw identity documents — the merchant learns that identity was verified without ever seeing the passport scan.</p>
 
-  <p><strong>Implemented today — binary attestation.</strong> The verified attestation is a compact <strong>RS256 JWS</strong> with a binary <code>level</code> claim. The agent submits it to <code>POST /kiosk/agents/kyc</code> (Bearer); on a clean verify the provider stamps <code>kyc_verified_at</code> on the agent record, which provider business logic can then gate on.</p>
+  <p><strong>The attestation.</strong> The verified attestation is a compact <strong>RS256 JWS</strong> with a <code>level</code> claim. The agent submits it to <code>POST /kiosk/agents/kyc</code> (Bearer); on a clean verify the provider stamps <code>kyc_verified_at</code> on the agent record, which provider business logic can then gate on.</p>
+
+  <p><strong>Named anonymized attributes.</strong> The attestation MAY additionally carry an <code>attributes</code> object of <code>{name: true}</code> booleans — for example <code>age_over_18</code> or <code>licence_a</code>. These are <strong>anonymized</strong>: the provider learns only the booleans the KYC issuer signed, never the date of birth, licence number, or document behind them, and records only those booleans (never the documents). Only values that are literally <code>true</code> count as a grant. The field is additive — a bare <code>level: "verified"</code> attestation with no attributes still verifies (the binary path) and yields an empty attribute set.</p>
 
   <pre><code class="language-json">// KYC attestation JWS payload (signed by the KYC provider, verified with its public key)
 {
   "sub":   "a7f3…",                 // MUST equal the authenticated user_id
-  "level": "verified",              // binary; anything else is rejected
+  "level": "verified",              // anything else is rejected
   "iss":   "https://kyc.example",   // MUST equal the configured KYC issuer
   "iat":   1751846340,
-  "exp":   1751849940               // REQUIRED — an expired attestation is rejected
+  "exp":   1751849940,              // REQUIRED — an expired attestation is rejected
+  "attributes": {                   // OPTIONAL — named ANONYMIZED booleans
+    "age_over_18": true,            // provider learns the boolean, never the DOB
+    "licence_a":   true             //   …never the licence number
+  }
 }
 
 POST /kiosk/agents/kyc
@@ -542,12 +549,14 @@ Authorization: Bearer &lt;jwt&gt;
 { "kyc_jws": "eyJhbGciOiJSUzI1NiJ9…" }
 
 → 200 OK
-{ "kyc_verified": true }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+{ "kyc_verified": true, "attributes": { "age_over_18": true, "licence_a": true } }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The provider verifies the attestation signature against its configured KYC public key, checks the <code>iss</code>, checks that <code>sub</code> matches the authenticated identity, and rejects anything expired or whose <code>level</code> is not exactly <code>"verified"</code>.</p>
+  <p>The provider verifies the attestation signature against its configured KYC public key, checks the <code>iss</code>, checks that <code>sub</code> matches the authenticated identity, rejects anything expired or whose <code>level</code> is not exactly <code>"verified"</code>, and records the granted attributes alongside the verification.</p>
+
+  <p><strong>Attribute-gated actions.</strong> An action MAY be gated on a set of required attributes. If the calling agent's recorded attributes do not include every required one as <code>true</code>, the provider rejects with <code>403 kyc_required</code>, its <code>hint</code> naming what is needed. The reference <code>skooti</code> demo gates <code>rent_motorcycle</code> (a combustion-engine motorcycle) on <code>age_over_18</code> <strong>and</strong> <code>licence_a</code>, while the licence-free electric scooter needs neither — the gate is per-action.</p>
 
   <div class="todo">
-    <strong>ROADMAP — richer attribute schema.</strong> A future version broadens the single <code>level</code> flag into a structured attribute set the agent can carry selectively — e.g. <code>document: {type, country}</code>, <code>age_verified</code>, <code>age_at_least</code>, <code>verified_at</code> — so a merchant can require "has valid government ID from Germany" or "age ≥ 18" without receiving the underlying document. Not implemented today; the shipped surface is the binary <code>level: "verified"</code> attestation above.
+    <strong>ROADMAP — richer attribute values.</strong> Today an attribute is a bare boolean the issuer vouches for. A future version broadens this to selectively-disclosed structured values — e.g. <code>document: {type, country}</code> or <code>age_at_least: 21</code> — so a merchant can require "has valid government ID from Germany" without receiving the underlying document. The shipped surface is the named-boolean <code>attributes</code> object above.
   </div>
 
   <h2>Reputation</h2>
@@ -573,7 +582,7 @@ Authorization: Bearer &lt;jwt&gt;
     <li><strong>Module <code>pay</code></strong> (advertised via <code>capabilities</code>): AP2 mandate-chain verification — required claims, chain binding, cap/total/amount rules — plus the <code>payment_setup</code> convention and the <code>payment_setup_required</code> 402 with <code>WWW-Authenticate: Payment</code>.</li>
     <li><strong>Module proof-of-work</strong> (MAY): the Equihash 402 gate — stateless HMAC-signed challenges, all-proofs verification, single-use spent set, canonical index-order rejection, <code>WWW-Authenticate: Kiosk-PoW</code> — and the optional registration toll binding proofs to the registering key.</li>
     <li><strong>Module binding</strong> (MAY): the claim ceremony (device authorization + session-authenticated verify + possession-proof token poll) and/or the link-code redeem, the fresh/rebind semantics with reputation carry-over, and unlink (see <a href="#account-binding">Account binding</a>).</li>
-    <li><strong>Module KYC</strong> (MAY): the attestation endpoint with issuer, <code>sub</code>, <code>exp</code>, and <code>level</code> verification.</li>
+    <li><strong>Module KYC</strong> (MAY): the attestation endpoint with issuer, <code>sub</code>, <code>exp</code>, and <code>level</code> verification, plus the optional named anonymized <code>attributes</code> booleans and the <code>kyc_required</code> gate on attribute-restricted actions.</li>
   </ol>
 
   <h3>Agent profile</h3>
