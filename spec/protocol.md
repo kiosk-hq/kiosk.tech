@@ -183,6 +183,11 @@ surfaces — `agents.txt`, `agents.json`, `/.well-known/agent-configuration`
 (RFC 8414-style), `/.well-known/api-catalog` (RFC 9727), and `/auth.md` — as
 envelopes around `kiosk.json`; when present they are rendered from the same
 registry model and MUST NOT drift from `kiosk.json`, which remains canonical.
+The payment directives on these surfaces are **conditional on the `pay`
+capability**: `agents.txt` emits `Protocols: ap2` and `Payments: required`,
+and `agents.json` includes its `payments` block (`ap2`, `required: true`),
+**only** when the provider serves `pay` (§4.2); a provider that serves no
+`pay` omits them, so the surfaces stay consistent with `capabilities`.
 
 ---
 

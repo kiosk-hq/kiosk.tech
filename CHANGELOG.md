@@ -3,6 +3,7 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-07-19: Both specs mark the discovery payment directives as pay-conditional — agents.txt `Protocols: ap2`/`Payments: required` and the agents.json `payments` block are emitted only when the provider serves `pay`, so a payment-less provider advertises no payments. (K-334, ADR-0009)
 - 2026-07-19: Skill re-versioned to v0.2.3 (immutable, ADR-0012) — documents that `POST /pay` MAY be rejected with `403 spending_cap_exceeded` when a purchase would exceed the human's per-assistant spending cap, an unsolvable hard stop the agent must escalate to the human. (K-330, ADR-0019)
 - 2026-07-19: Both specs + the error JSON Schema document the optional per-assistant spending cap — a provider MAY cap what each bound assistant settles, rejecting with the new `spending_cap_exceeded` (403) before the charge; off by default. (ADR-0019, T-030)
 - 2026-07-19: Added a formal specification (spec/protocol.md, RFC-style, RFC 2119+8174, numbered sections, glossary, consolidated security + versioning + conformance) plus machine-readable JSON Schemas for every wire object (spec/schemas/, linted in CI) for adopters and porters; specification.html stays the narrative reader spec and links to it quietly. Two specifications, kept consistent — ADR-0018, K-323. (T-028)
