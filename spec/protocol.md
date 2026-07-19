@@ -248,7 +248,7 @@ Its claims:
 | `sub` | string | REQUIRED | The identity's `user_id`. |
 | `agent_id` | string | REQUIRED | The acting agent id. |
 | `actor` | string | REQUIRED | `"agent"`. |
-| `role` | string | OPTIONAL | Provider-assigned role; **omitted** (not null) when absent. Registration **MUST NOT** accept a client-requested role; roles are never sourced from an IdP in 0.2. |
+| `role` | string | OPTIONAL | Provider-assigned role; **omitted** (not null) when absent. Registration **MUST NOT** accept a client-requested role. A provider **MAY** source an agent's role from a configured IdP from 0.3, INDIRECTLY via the bound human's role: at the account-binding link ceremony (Section 6) the human's IdP role is captured and set as the bound agent's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
 | `iss` / `aud` | string | REQUIRED | The provider issuer. |
 | `iat` / `nbf` / `exp` | integer | REQUIRED | Validity window (default 1 hour). |
 | `jti` | string | REQUIRED | Unique token id. |

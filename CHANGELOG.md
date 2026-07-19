@@ -3,6 +3,7 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-07-19: Both specs (Section 5.4) now state that a provider MAY source an agent's role from a configured IdP from 0.3 — indirectly, via the bound human's role captured at the account-binding link ceremony — while registration still MUST NOT accept a client-requested role and direct agent-IdP (ID-JAG) role assertion stays planned. (T-014)
 - 2026-07-19: Both specs + the KYC JSON Schema document named anonymized KYC attributes — the attestation MAY carry an `attributes` object of `{name: true}` booleans (e.g. age_over_18, licence_a) the provider records but the underlying documents never reach; an action MAY gate on required attributes and reject with the new `kyc_required` (403). Additive over the binary `level`. (T-018)
 - 2026-07-19: Landing reframed for positioning — the "zero apps" advantage now names the app-proliferation pain (a different app per place in every city and country) rather than "local services", and a new "For users" bullet elevates the shipped multi-account assistants with a per-assistant spending cap the account holder sets and revokes. (POSITIONING-BATCH)
 - 2026-07-19: Both specs now state that a rebind (claim of a known key) stops the key's pre-link tokens from verifying — a principal change, watermark-revoked like unlink, so the agent re-logins for a token under the new holder (K-338).
