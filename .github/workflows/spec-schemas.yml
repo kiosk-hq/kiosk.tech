@@ -2,7 +2,7 @@ name: spec-schemas
 
 # Lints the formal-spec JSON Schemas and validates their example payloads
 # (kiosk.tech/spec/schemas) on every change. Keeps the machine-readable
-# contract honest; see ADR-0018 (two specifications) and the D8 cross-check.
+# contract honest and consistent with the narrative specification.html.
 
 on:
   push:
