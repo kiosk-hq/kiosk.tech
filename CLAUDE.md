@@ -4,12 +4,12 @@ This repo is everything published at https://kiosk.tech (GitHub Pages,
 `CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
 universal agent skill (the "latest" alias; the immutable published versions
 are `skill-vX.Y.Z.md`, current `skill-v0.2.2.md` (MAJOR.MINOR tracks the
-framework release from 0.2 on, per ADR-0012) — a published
+framework release from 0.2 on) — a published
 version file is never edited, every change ships a new one), `index.html` —
-landing, `onboarding.html`, `payment/return` (Stripe Checkout return page,
-ADR-0004), and `spec/` — the **formal** specification (`spec/protocol.md`,
+landing, `onboarding.html`, `payment/return` (Stripe Checkout return page),
+and `spec/` — the **formal** specification (`spec/protocol.md`,
 RFC-style) plus machine-readable JSON Schemas (`spec/schemas/`) for adopters and
-porters (ADR-0018: `specification.html` is the narrative spec, the formal spec is
+porters (`specification.html` is the narrative spec, the formal spec is
 its precise companion; both are kept consistent). Static files, no build step —
 the one CI workflow (`.github/workflows/spec-schemas.yml`) lints `spec/schemas/`
 and does not build the site.
