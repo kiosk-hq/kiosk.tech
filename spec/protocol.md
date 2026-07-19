@@ -305,10 +305,14 @@ The human, signed in on the provider's site, mints a single-use link code:
 A key the provider has never seen becomes a **linked assistant account** under the
 human's `user_id`. A key that already had a self-standing account is **rebound**:
 its `agent_id` is stable, its `user_id` becomes the human's, and its reputation
-carries over — claiming is **not** a reputation reset (§13). `POST
-<endpoint>/auth/unlink` (provider session, `{agent_id}`) is registration-layer
-revocation: the key's tokens stop verifying and `/auth/login` answers `404`
-(§15.4). Codes are stored hashed, single-use, short-TTL, and attempt-capped.
+carries over — claiming is **not** a reputation reset (§13). Because a rebind is a
+principal change, the key's **pre-link tokens** (still carrying the old `user_id`)
+**MUST** stop verifying, watermark-revoked exactly as unlink revokes (§15.4); the
+agent obtains a token under the new principal from the `access_token` the claim
+returns, or by re-running `/auth/login`. `POST <endpoint>/auth/unlink` (provider
+session, `{agent_id}`) is registration-layer revocation: the key's tokens stop
+verifying and `/auth/login` answers `404` (§15.4). Codes are stored hashed,
+single-use, short-TTL, and attempt-capped.
 
 ---
 

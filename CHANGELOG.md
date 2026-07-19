@@ -3,6 +3,7 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-07-19: Both specs now state that a rebind (claim of a known key) stops the key's pre-link tokens from verifying — a principal change, watermark-revoked like unlink, so the agent re-logins for a token under the new holder (K-338).
 - 2026-07-19: Both specs mark the discovery payment directives as pay-conditional — agents.txt `Protocols: ap2`/`Payments: required` and the agents.json `payments` block are emitted only when the provider serves `pay`, so a payment-less provider advertises no payments.
 - 2026-07-19: Skill re-versioned to v0.2.3 (immutable) — documents that `POST /pay` MAY be rejected with `403 spending_cap_exceeded` when a purchase would exceed the human's per-assistant spending cap, an unsolvable hard stop the agent must escalate to the human.
 - 2026-07-19: Both specs + the error JSON Schema document the optional per-assistant spending cap — a provider MAY cap what each bound assistant settles, rejecting with the new `spending_cap_exceeded` (403) before the charge; off by default.
