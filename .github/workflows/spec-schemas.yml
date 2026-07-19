@@ -19,6 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The formal spec (protocol.md + schemas + examples) MUST be pure ASCII —
+      # an RFC-style contract for adopters/porters, no encoding surprises.
+      - name: Formal spec is ASCII
+        run: |
+          if grep -rlP '[^\x00-\x7F]' spec/; then
+            echo "::error::Non-ASCII byte(s) found in spec/ — the formal spec must be pure ASCII (see the files above)."
+            exit 1
+          fi
+          echo "spec/ is pure ASCII."
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
