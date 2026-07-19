@@ -82,7 +82,7 @@ proof-of-work gate.
 ## 2. Terminology
 
 - **Provider** -- a server implementing the provider profile (Section 16.1); the party a
-  customer already has a relationship with (a shop, a hotel, a service).
+  customer has (or is forming) a relationship with (a shop, a hotel, a service).
 - **Agent** -- a consumer-side automated client acting on a person's behalf; holds
   a private key and makes the HTTP calls in this document.
 - **Identity** -- the `{user_id, agent_id}` pair minted for an agent's public key.
@@ -577,7 +577,7 @@ unique per origin (Section 5), so no cross-provider identifier exists.
    specifies.
 4. **Skill version.** Published skill files are immutable and versioned
    (`skill-vX.Y.Z.md`); a change ships a new file. A provider's optional `skill`
-   pin is a versioned URL plus its SHA-256 and cannot drift by construction (Section 4.4).
+   pin is a versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An agent performs the dual-check before transacting: read the pinned version
    from the URL, adopt it if newer than its cached skill, fetch it **from
    kiosk.tech** (never from the provider), and verify both the frontmatter
@@ -633,7 +633,7 @@ on PoW alone for abuse prevention.
 
 An agent **MUST NOT** load skill (executable) instructions from the provider; a
 `<link rel="kiosk">` tag is a discovery *signal*, not an instruction *source*
-(Section 4.4). Provider-served content (schema, prices, availability) is data, not
+(Section 4.5). Provider-served content (schema, prices, availability) is data, not
 instructions.
 
 ### 15.7 Card data
