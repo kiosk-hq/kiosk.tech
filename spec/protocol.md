@@ -19,27 +19,27 @@ version **0.3**.
 
 ### 1.1 Scope
 
-Kiosk is a thin HTTPS + JSON + JWS contract that lets a **provider** expose an
+Kiosk is a thin HTTPS + JSON + JWS contract that lets an **operator** expose an
 existing service API to a **customer's personal AI agent**: the agent discovers
-the provider, registers a self-generated identity by proof of possession, reads a
+the operator, registers a self-generated identity by proof of possession, reads a
 self-describing surface, calls read (`query`) and write (`run`) verbs scoped to
 its identity, and settles payment (`pay`) through a signed AP2 mandate chain. The
-provider MAY meter anonymous load with a memory-hard proof-of-work toll and MAY
+operator MAY meter anonymous load with a memory-hard proof-of-work toll and MAY
 bind an agent to an existing human account.
 
-This document specifies the **invariants** -- everything every conforming provider
-and every conforming agent must agree on. The concrete queries and actions a
-provider offers are provider-defined and discovered at runtime; they are not part
+This document specifies the **invariants** -- everything every conforming operator
+and every conforming agent must agree on. The concrete queries and actions an
+operator offers are operator-defined and discovered at runtime; they are not part
 of this specification.
 
 ### 1.2 Conformance targets
 
 Requirements bind two roles:
 
-- **Provider** -- the party serving the endpoints.
+- **Operator** -- the party serving the endpoints.
 - **Agent** -- the client calling them.
 
-A requirement with no role prefix binds both. Section 16 gives the provider and
+A requirement with no role prefix binds both. Section 16 gives the operator and
 agent conformance profiles.
 
 ### 1.3 Requirements notation
@@ -62,7 +62,7 @@ wire only where they do not:
 
 - Payment mandates follow **AP2** (Agent Payments Protocol) shapes (Section 11).
 - Access tokens are **JWT** ([RFC 7519](https://www.rfc-editor.org/rfc/rfc7519))
-  signed **JWS** ([RFC 7515](https://www.rfc-editor.org/rfc/rfc7515)); provider
+  signed **JWS** ([RFC 7515](https://www.rfc-editor.org/rfc/rfc7515)); operator
   signing keys are published as **JWKS** ([RFC 7517](https://www.rfc-editor.org/rfc/rfc7517)).
 - The account-binding claim ceremony reuses the **OAuth 2.0 Device Authorization
   Grant** ([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)) wire.
@@ -81,30 +81,31 @@ proof-of-work gate.
 
 ## 2. Terminology
 
-- **Provider** -- a server implementing the provider profile (Section 16.1); the party a
-  customer has (or is forming) a relationship with (a shop, a hotel, a service).
+- **Operator** -- a server implementing the operator profile (Section 16.1); the party a
+  customer has (or is forming) a relationship with (a shop, a hotel, a service). An
+  operator can be a service provider, an information steward, or a merchant/aggregator.
 - **Agent** -- a consumer-side automated client acting on a person's behalf; holds
   a private key and makes the HTTP calls in this document.
 - **Identity** -- the `{user_id, agent_id}` pair minted for an agent's public key.
   `user_id` is the unit of data ownership; `agent_id` names the acting agent.
 - **Assistant account** -- an account backing an identity. Self-standing when
-  created by registration; **linked** when bound to a human's provider account.
+  created by registration; **linked** when bound to a human's operator account.
 - **Discovery document** -- the JSON served at `/.well-known/kiosk.json` (Section 4).
 - **kiosk-pop** -- Kiosk's proof-of-possession challenge-response auth scheme (Section 5).
-- **Access token** -- a short-lived RS256 JWT the provider issues to an identity,
+- **Access token** -- a short-lived RS256 JWT the operator issues to an identity,
   presented as `Authorization: Bearer`.
 - **Possession proof** (`signed`) -- a compact RS256 JWS over a server-issued
   single-use challenge, proving control of a public key.
 - **Verb** -- one of the four fixed wire operations: `schema`, `query`, `run`,
   `pay`.
-- **Capability** -- a verb a given provider actually serves (Section 4.3).
+- **Capability** -- a verb a given operator actually serves (Section 4.3).
 - **Envelope** -- the uniform `{ok, kind, ...}` / `{ok:false, error}` wrapper on
   every verb response (Section 8).
 - **Mandate** -- one link of the signed AP2 payment chain: intent, cart, or
   payment (Section 11).
-- **Proof-of-work (PoW)** -- a memory-hard, request-bound challenge a provider MAY
+- **Proof-of-work (PoW)** -- a memory-hard, request-bound challenge an operator MAY
   require before serving a request (Section 10).
-- **Reputation** -- a provider-local signal on an identity that sets its PoW proof
+- **Reputation** -- an operator-local signal on an identity that sets its PoW proof
   count (Section 13).
 
 ---
@@ -134,7 +135,7 @@ Schema: [`discovery.schema.json`](./schemas/discovery.schema.json).
 
 ### 4.1 The discovery document
 
-Every provider **MUST** serve a discovery document at
+Every operator **MUST** serve a discovery document at
 `GET /.well-known/kiosk.json`, unauthenticated, so an agent can bootstrap from
 the origin alone. The document is a single object under a `kiosk` wrapper key.
 
@@ -145,17 +146,17 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 | `kiosk.endpoint` | string | REQUIRED | The wire-verb root (base URL + mount path). All verb and auth URLs derive from this. |
 | `kiosk.capabilities` | array | REQUIRED | The verbs this endpoint serves, from `["schema","query","run","pay"]`, in that canonical order (Section 4.2). |
 | `kiosk.min_client` | string | OPTIONAL | Advisory minimum client version. |
-| `kiosk.owner` | object | OPTIONAL | Provider contact info; SHOULD include at least an email. |
+| `kiosk.owner` | object | OPTIONAL | Operator contact info; SHOULD include at least an email. |
 | `kiosk.auth` | object | REQUIRED | The kiosk-pop auth block (Section 4.3). |
 | `kiosk.skill` | object | OPTIONAL | Pinned skill reference `{url, sha256}` (Section 14.4). Omitted entirely when absent. |
 
 ### 4.2 `capabilities`
 
-`capabilities` is the subset of the canonical verb set the provider actually
+`capabilities` is the subset of the canonical verb set the operator actually
 serves, derived from what it has registered: `schema` (present iff at least one
 query or action is registered), `query` (iff a query is registered), `run` (iff
 an action is registered), `pay` (iff payments are configured). HTTP methods are
-**not** encoded -- the method binding is fixed (Section 8.1). A provider **MUST** emit
+**not** encoded -- the method binding is fixed (Section 8.1). An operator **MUST** emit
 the canonical order and **MUST NOT** advertise a verb it does not serve.
 
 ### 4.3 The `auth` block
@@ -167,18 +168,18 @@ absolute URL derived from `endpoint`.
 
 ### 4.4 JWKS
 
-A provider **MUST** publish its token-signing public keys as a JWKS document
+An operator **MUST** publish its token-signing public keys as a JWKS document
 (RFC 7517) at `GET <endpoint>/.well-known/jwks.json`, unauthenticated, so any
 party can verify a Kiosk-issued token (Section 5.4). Each key carries `kty`,
 `use: "sig"`, `alg: "RS256"`, a `kid`, and the public parameters `n`/`e` only.
 
 ### 4.5 The "speaks Kiosk" signal and standard surfaces
 
-A provider MAY advertise Kiosk on its human-facing pages with a
+An operator MAY advertise Kiosk on its human-facing pages with a
 `<link rel="kiosk" href="...">` tag (or an equivalent HTTP `Link` header). The tag
 is a **signal, not a source**: its `href` points at the universal skill on
-kiosk.tech, and an agent **MUST NOT** load skill instructions from the provider
-(Section 15.6). A provider MAY additionally emit the standard agent-web discovery
+kiosk.tech, and an agent **MUST NOT** load skill instructions from the operator
+(Section 15.6). An operator MAY additionally emit the standard agent-web discovery
 surfaces -- `agents.txt`, `agents.json`, `/.well-known/agent-configuration`
 (RFC 8414-style), `/.well-known/api-catalog` (RFC 9727), and `/auth.md` -- as
 envelopes around `kiosk.json`; when present they are rendered from the same
@@ -186,7 +187,7 @@ registry model and MUST NOT drift from `kiosk.json`, which remains canonical.
 The payment directives on these surfaces are **conditional on the `pay`
 capability**: `agents.txt` emits `Protocols: ap2` and `Payments: required`,
 and `agents.json` includes its `payments` block (`ap2`, `required: true`),
-**only** when the provider serves `pay` (Section 4.2); a provider that serves no
+**only** when the operator serves `pay` (Section 4.2); an operator that serves no
 `pay` omits them, so the surfaces stay consistent with `capabilities`.
 
 ---
@@ -195,7 +196,7 @@ and `agents.json` includes its `payments` block (`ap2`, `required: true`),
 
 Kiosk's auth scheme is **kiosk-pop**: a proof-of-possession challenge-response.
 It is **not** OAuth. A public key is public, not a credential; before issuing a
-token the provider requires proof of possession of the matching private key.
+token the operator requires proof of possession of the matching private key.
 
 ### 5.1 Challenge
 
@@ -214,7 +215,7 @@ JWS** whose payload carries:
 
 | Claim | Type | Presence | Rule |
 |---|---|---|---|
-| `aud` | string | REQUIRED | MUST be the origin the agent dialed (Section 15.1); the provider rejects any other `aud`. |
+| `aud` | string | REQUIRED | MUST be the origin the agent dialed (Section 15.1); the operator rejects any other `aud`. |
 | `nonce` | string | REQUIRED | The `challenge` from Section 5.1; single-use, server-TTL-bounded. |
 | `jti` | string | REQUIRED | A unique id. |
 | `pub` | string | OPTIONAL | RFC 7638 thumbprint of the public key; verified only when present. |
@@ -232,14 +233,14 @@ Section 5.5):
   `{access_token}`. An unknown key **MUST** answer `404 not_found` (register
   first).
 
-A provider **MUST** verify the possession proof before issuing a token, and
+An operator **MUST** verify the possession proof before issuing a token, and
 **MUST** map a known key to the same `user_id` so a saved payment card survives
-across sessions. An agent **SHOULD** generate a fresh keypair per provider origin
+across sessions. An agent **SHOULD** generate a fresh keypair per operator origin
 (Section 15.3).
 
 ### 5.4 Access-token format
 
-The `access_token` is a 3-part **RS256 JWT** signed by the provider (verifiable
+The `access_token` is a 3-part **RS256 JWT** signed by the operator (verifiable
 statelessly against the JWKS of Section 4.4) and presented as `Authorization: Bearer`.
 Its claims:
 
@@ -248,8 +249,8 @@ Its claims:
 | `sub` | string | REQUIRED | The identity's `user_id`. |
 | `agent_id` | string | REQUIRED | The acting agent id. |
 | `actor` | string | REQUIRED | `"agent"`. |
-| `role` | string | OPTIONAL | Provider-assigned role; **omitted** (not null) when absent. Registration **MUST NOT** accept a client-requested role. A provider **MAY** source an agent's role from a configured IdP from 0.3, INDIRECTLY via the bound human's role: at the account-binding link ceremony (Section 6) the human's IdP role is captured and set as the bound agent's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
-| `iss` / `aud` | string | REQUIRED | The provider issuer. |
+| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. Registration **MUST NOT** accept a client-requested role. An operator **MAY** source an agent's role from a configured IdP from 0.3, INDIRECTLY via the bound human's role: at the account-binding link ceremony (Section 6) the human's IdP role is captured and set as the bound agent's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
+| `iss` / `aud` | string | REQUIRED | The operator issuer. |
 | `iat` / `nbf` / `exp` | integer | REQUIRED | Validity window (default 1 hour). |
 | `jti` | string | REQUIRED | Unique token id. |
 
@@ -258,8 +259,8 @@ Its claims:
 Access tokens are short-lived; the durable credential is the private key. Multiple
 concurrent tokens for one identity remain valid. `POST <endpoint>/auth/revoke`
 (Bearer) stamps a per-identity "revoked-before" watermark -- every token issued
-before that instant stops verifying -- and returns a fresh token (Section 15.4). A
-provider **MAY** price fresh-identity minting: `POST /auth/register` **MAY**
+before that instant stops verifying -- and returns a fresh token (Section 15.4). An
+operator **MAY** price fresh-identity minting: `POST /auth/register` **MAY**
 answer `402 pow_required` (Section 10) bound to the registering public key; the agent
 solves and resubmits the same `signed` with a `pow` field. Default is no toll.
 
@@ -268,7 +269,7 @@ solves and resubmits the same `signed` with a `pow` field. Default is no toll.
 ## 6. Account binding -- claim and link
 
 kiosk-pop registration creates a self-standing assistant account. When the human
-already has a provider account, Kiosk **binds** the agent to it via a one-time
+already has an operator account, Kiosk **binds** the agent to it via a one-time
 ceremony. Binding requires **BOTH** human approval **AND** a valid possession
 proof; a failed proof binds nothing (Section 15.8). After binding, the agent uses
 `/auth/login` like any identity.
@@ -280,7 +281,7 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the agent use
    Returns `{device_code, user_code, verification_uri, verification_uri_complete,
    expires_in, interval}`.
 2. The agent shows the human `verification_uri` + `user_code`; the human approves
-   on the provider's session-authenticated page (Section 15.8).
+   on the operator's session-authenticated page (Section 15.8).
 3. The agent polls `POST <endpoint>/oauth/token` (form-encoded) with
    `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, and
    -- once approved -- `signed` (the possession proof of Section 5.2). On success it
@@ -293,23 +294,23 @@ the OAuth wire, with errors `authorization_pending`, `slow_down`, `expired_token
 
 ### 6.2 Link (human-initiated -- Kiosk extension)
 
-The human, signed in on the provider's site, mints a single-use link code:
+The human, signed in on the operator's site, mints a single-use link code:
 
-- `POST <endpoint>/auth/link` (provider session) -> `{link_code, expires_in}`. The
+- `POST <endpoint>/auth/link` (operator session) -> `{link_code, expires_in}`. The
   code is a long opaque token (paste-grade).
 - The agent redeems it: `POST <endpoint>/auth/claim` with `{code, public_key,
   signed}` -> `201 {agent_id, user_id, access_token}`.
 
 ### 6.3 Fresh vs. rebind, and unlink
 
-A key the provider has never seen becomes a **linked assistant account** under the
+A key the operator has never seen becomes a **linked assistant account** under the
 human's `user_id`. A key that already had a self-standing account is **rebound**:
 its `agent_id` is stable, its `user_id` becomes the human's, and its reputation
 carries over -- claiming is **not** a reputation reset (Section 13). Because a rebind is a
 principal change, the key's **pre-link tokens** (still carrying the old `user_id`)
 **MUST** stop verifying, watermark-revoked exactly as unlink revokes (Section 15.4); the
 agent obtains a token under the new principal from the `access_token` the claim
-returns, or by re-running `/auth/login`. `POST <endpoint>/auth/unlink` (provider
+returns, or by re-running `/auth/login`. `POST <endpoint>/auth/unlink` (operator
 session, `{agent_id}`) is registration-layer revocation: the key's tokens stop
 verifying and `/auth/login` answers `404` (Section 15.4). Codes are stored hashed,
 single-use, short-TTL, and attempt-capped.
@@ -321,16 +322,16 @@ single-use, short-TTL, and attempt-capped.
 Every authenticated verb call executes **as** the identity carried by its Bearer
 token -- the `{user_id, agent_id}` pair.
 
-1. The provider **MUST** resolve the token to its identity on every authenticated
+1. The operator **MUST** resolve the token to its identity on every authenticated
    request, before the verb runs.
-2. The provider **MUST** scope every read a `query` performs and every write or
+2. The operator **MUST** scope every read a `query` performs and every write or
    side effect a `run` or `pay` performs to the authenticated `user_id`. Rows
    owned by another `user_id` **MUST NOT** be readable or affectable through this
    token.
-3. Provider-registered queries and actions **MUST NOT** execute with no identity
+3. Operator-registered queries and actions **MUST NOT** execute with no identity
    bound.
 
-How the provider enforces scoping (application-layer filtering, database
+How the operator enforces scoping (application-layer filtering, database
 row-level security, or both) is out of scope for the wire. The requirement is the
 observable behavior: cross-identity reads and writes fail (`403 forbidden` or
 `403 rls_denied`, Section 9).
@@ -358,7 +359,7 @@ The four verbs are bound to fixed methods and paths under `endpoint`:
 | `pay` | POST | `<endpoint>/pay` | Bearer |
 
 All POST bodies are JSON. The concrete query and action **names** are
-provider-defined and discovered via `schema`; they are not part of this
+operator-defined and discovered via `schema`; they are not part of this
 specification.
 
 ### 8.2 Response envelope
@@ -380,8 +381,8 @@ on the envelope and on `error.code`, never on the HTTP status alone.
 is `{verbs, queries, actions}`. `verbs` is the fixed wire surface actually served.
 `queries` and `actions` are arrays of `{name, description, params}` descriptors,
 sorted by name; `description` is a string or `null`, and `params` is a free-form
-provider-defined hint object or `null` -- documentation, not a validation contract
-(the provider validates arguments server-side).
+operator-defined hint object or `null` -- documentation, not a validation contract
+(the operator validates arguments server-side).
 
 ---
 
@@ -405,8 +406,8 @@ stable vocabulary; `hint` is an optional remediation pointer; `challenges` appea
 | `conflict` | 409 | State conflict -- e.g. registering an already-registered key. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
-| `quota_exceeded` | 429 | Reserved for the quotas companion; the core provider never emits it. |
-| `action_failed` | 500 | A provider-registered action raised. |
+| `quota_exceeded` | 429 | Reserved for the quotas companion; the core operator never emits it. |
+| `action_failed` | 500 | An operator-registered action raised. |
 | `internal_error` | 500 | Catch-all server error. |
 
 The auth endpoints speak the same envelope; the only exception on the wire is the
@@ -418,7 +419,7 @@ account-binding `/oauth/*` pair, which uses the OAuth error object (Section 6.1)
 
 Schema: [`pow.schema.json`](./schemas/pow.schema.json).
 
-A provider **MAY** require proof-of-work before serving a request. The gate
+An operator **MAY** require proof-of-work before serving a request. The gate
 responds `402` with `error.code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
 realm="<issuer>"` (Section 9), carrying a `challenges` array. Each challenge is
 `{id, alg, params, salt, exp, sig}`:
@@ -439,7 +440,7 @@ the **identical** request body with an added top-level `pow` field -- either
 `{challenge, nonce}`. The `pow` field is excluded from the request fingerprint so
 the retry matches the original. `nonce` is `{indices: [...]}`; the `indices` array
 **MUST** be in **Zcash canonical (subtree/tree) order** -- a globally-sorted array
-is rejected. A provider requests **N independent proofs** as a rate-limiting knob
+is rejected. An operator requests **N independent proofs** as a rate-limiting knob
 (reputation sets N, Section 13); PoW is a metered toll, not a hardware wall (Section 15.5).
 
 ---
@@ -482,7 +483,7 @@ returns a `kind: "value"` envelope whose `value` is
 ### 11.4 Card setup
 
 Payment uses the PSP's card-on-file (SetupIntent) model. An agent **SHOULD** call
-the provider's `payment_setup` action before paying. If no card is on file, `pay`
+the operator's `payment_setup` action before paying. If no card is on file, `pay`
 answers `402` with `payment_setup_required` (no `challenges`) and
 `WWW-Authenticate: Payment realm="<issuer>", method="ap2"`. The agent **MUST NOT**
 automate the card form: it hands the returned `setup_url` to the human, who enters
@@ -490,15 +491,15 @@ the card on the PSP's hosted page, then the agent retries pay (Section 15.7).
 
 ### 11.5 Per-assistant spending cap (optional)
 
-A provider MAY cap what an individual bound assistant (Section 6) may settle -- the
+An operator MAY cap what an individual bound assistant (Section 6) may settle -- the
 natural governance control when one human has several assistants bound to their
 account. When a cap is configured for the acting `agent_id` and this `pay` would
 push the assistant's settled total (optionally within a rolling window) past the
-cap, the provider **MUST** reject it with `403 spending_cap_exceeded` **before**
+cap, the operator **MUST** reject it with `403 spending_cap_exceeded` **before**
 the irreversible capture -- no charge, no settlement row. A cap of `0` disables the
 assistant's payments entirely. The agent cannot pay past the cap; it surfaces the
-condition to the human, who raises the cap out of band. Caps are provider policy
-and off by default; how a provider stores and edits them is out of scope for the
+condition to the human, who raises the cap out of band. Caps are operator policy
+and off by default; how an operator stores and edits them is out of scope for the
 wire.
 
 > *Reference note (non-normative).* The Ruby reference enforces this via the
@@ -511,24 +512,24 @@ wire.
 
 Schema: [`kyc.schema.json`](./schemas/kyc.schema.json).
 
-A provider MAY require a KYC attestation. The agent carries a signed
+An operator MAY require a KYC attestation. The agent carries a signed
 **attestation** from a KYC provider -- never raw documents. The attestation is an
 **RS256 JWS** with claims `{sub, level, iss, iat, exp}` and an OPTIONAL
 `attributes` object: `sub` **MUST** equal the authenticated `user_id`, `iss`
-**MUST** equal the provider-configured KYC issuer, `exp` **MUST** be present and
+**MUST** equal the operator-configured KYC issuer, `exp` **MUST** be present and
 unexpired, and `level` **MUST** be exactly `"verified"` (anything else is
 rejected). The agent submits it to `POST <endpoint>/agents/kyc` (Bearer) as
-`{kyc_jws}`; on a clean verify the provider records verification and returns
+`{kyc_jws}`; on a clean verify the operator records verification and returns
 `{kyc_verified: true, attributes: {...}}`.
 
 ### 12.1 Named anonymized attributes
 
 The attestation MAY carry an **`attributes`** object of `{name: true}` booleans
 (e.g. `{"age_over_18": true, "licence_a": true}`). These are **anonymized**: the
-provider learns only the booleans the KYC issuer signed -- it **MUST NOT** receive
+operator learns only the booleans the KYC issuer signed -- it **MUST NOT** receive
 or store the underlying documents (date of birth, licence number, passport scan).
-A provider **MUST** honour only values that are literally `true`; any other value
-(`false`, string, number) is **NOT** a grant. The provider **MUST** record the
+An operator **MUST** honour only values that are literally `true`; any other value
+(`false`, string, number) is **NOT** a grant. The operator **MUST** record the
 granted attributes with the verification (the reference stores them in a
 `kyc_attributes` column) and **MUST NOT** log the underlying documents. The field
 is **additive**: a bare `level: "verified"` attestation with no `attributes` still
@@ -538,7 +539,7 @@ verifies (the binary path), yielding an empty attribute set.
 
 An Action MAY be **gated** on a set of required attribute names. When the calling
 agent's recorded attributes do not include every required name as `true`, the
-provider **MUST** reject with `kyc_required` (HTTP **403**), carrying a hint
+operator **MUST** reject with `kyc_required` (HTTP **403**), carrying a hint
 naming what is needed (e.g. "complete KYC: age>=18 and category-A licence
 required"). The reference `kiosk-demo-skooti` gates `rent_motorcycle` (a
 combustion-engine motorcycle) on `age_over_18` **AND** `licence_a`, while the
@@ -548,11 +549,11 @@ licence-free electric scooter needs neither -- the gate is per-Action.
 
 ## 13. Reputation
 
-Reputation is a **provider-local** signal on an identity: successful transactions
-raise it, suspicious behavior lowers it. It is provider-local because a keypair is
-unique per origin (Section 5), so no cross-provider identifier exists.
+Reputation is an **operator-local** signal on an identity: successful transactions
+raise it, suspicious behavior lowers it. It is operator-local because a keypair is
+unique per origin (Section 5), so no cross-operator identifier exists.
 
-1. A provider **MAY** vary the PoW **proof count** (Section 10) as a function of
+1. An operator **MAY** vary the PoW **proof count** (Section 10) as a function of
    reputation rather than varying difficulty: an established identity solves 0-1
    proofs, an unknown one ~3, a flagged abuser ~10.
 2. Minting a fresh identity **MUST NOT** be blocked; it starts at the unknown tier
@@ -565,7 +566,7 @@ unique per origin (Section 5), so no cross-provider identifier exists.
 ## 14. Versioning
 
 1. **Version parity.** The protocol, the reference implementation, and the agent
-   skill share MAJOR.MINOR. A provider on Kiosk 0.3 pins a 0.3 skill against a 0.3
+   skill share MAJOR.MINOR. An operator on Kiosk 0.3 pins a 0.3 skill against a 0.3
    wire.
 2. **Additivity within a MINOR series.** A new MINOR (0.2 -> 0.3) is a feature
    milestone that bundles backward-compatible additions -- new endpoints and
@@ -578,11 +579,11 @@ unique per origin (Section 5), so no cross-provider identifier exists.
    (currently `"1.0"`), independent of the protocol version this document
    specifies.
 4. **Skill version.** Published skill files are immutable and versioned
-   (`skill-vX.Y.Z.md`); a change ships a new file. A provider's optional `skill`
+   (`skill-vX.Y.Z.md`); a change ships a new file. An operator's optional `skill`
    pin is a versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An agent performs the dual-check before transacting: read the pinned version
    from the URL, adopt it if newer than its cached skill, fetch it **from
-   kiosk.tech** (never from the provider), and verify both the frontmatter
+   kiosk.tech** (never from the operator), and verify both the frontmatter
    `version` and the `sha256`.
 
 ---
@@ -596,9 +597,9 @@ the document.
 
 The possession proof's `aud` claim (Section 5) **MUST** be the origin the agent actually
 connected to, filled in by the agent from the connection it dialed and never
-echoed from server-supplied data. A provider **MUST** reject any proof whose
+echoed from server-supplied data. An operator **MUST** reject any proof whose
 `aud` is not its own origin. This prevents a signature captured by a malicious
-endpoint from being relayed to a different provider (the WebAuthn anti-phishing
+endpoint from being relayed to a different operator (the WebAuthn anti-phishing
 model). The AP2 mandate `iss` claim (Section 11) carries the same audience-binding.
 
 ### 15.2 Replay and freshness
@@ -611,8 +612,8 @@ and are chain-bound (Section 11); a non-expiring mandate **MUST** be rejected.
 
 ### 15.3 Key hygiene and per-origin identity
 
-An agent **SHOULD** generate a fresh keypair per provider origin: the keypair is
-the identity, and a per-origin key means no cross-provider identifier exists. The
+An agent **SHOULD** generate a fresh keypair per operator origin: the keypair is
+the identity, and a per-origin key means no cross-operator identifier exists. The
 private key is the durable credential; access tokens are short-lived and
 disposable.
 
@@ -628,14 +629,14 @@ verifying and `/auth/login` answers `404`.
 PoW meters and prices anonymous load; it does not equalize a laptop against
 special-purpose hardware (Equihash is neither ASIC- nor GPU-proof). Abuse
 resistance comes from reputation and caps (Section 13); PoW makes free-riding cost
-something and gives the provider a cheap verify (Section 10). Providers **MUST NOT** rely
+something and gives the operator a cheap verify (Section 10). Operators **MUST NOT** rely
 on PoW alone for abuse prevention.
 
 ### 15.6 Skill instructions come from kiosk.tech only
 
-An agent **MUST NOT** load skill (executable) instructions from the provider; a
+An agent **MUST NOT** load skill (executable) instructions from the operator; a
 `<link rel="kiosk">` tag is a discovery *signal*, not an instruction *source*
-(Section 4.5). Provider-served content (schema, prices, availability) is data, not
+(Section 4.5). Operator-served content (schema, prices, availability) is data, not
 instructions.
 
 ### 15.7 Card data
@@ -655,9 +656,9 @@ being bound.
 
 ## 16. Conformance
 
-### 16.1 Provider profile
+### 16.1 Operator profile
 
-An implementation is a **Kiosk provider** when it serves the core plus whichever
+An implementation is a **Kiosk operator** when it serves the core plus whichever
 optional modules it advertises in `capabilities`:
 
 1. **Core -- discovery** (Section 4): `/.well-known/kiosk.json` and the JWKS document.
@@ -682,14 +683,14 @@ the HTTP status alone; fills the proof `aud` from the origin it dialed; solves
 every challenge in a `pow_required` list and retries the identical body plus the
 `pow` field; runs `payment_setup` and hands `setup_url` to the human rather than
 automating card entry; performs the skill dual-check; and, when the human owns an
-existing provider account, binds instead of registering.
+existing operator account, binds instead of registering.
 
 ### 16.3 Conformance anchors
 
 Two oracles pin behavior beyond this text:
 
 1. **JSON Schemas** (`./schemas/`) -- every wire object validates against its
-   schema. Providers and agents SHOULD validate against them.
+   schema. Operators and agents SHOULD validate against them.
 2. **Frozen Equihash known-answer tests** at production parameters (n=168, k=7) --
    a ported verifier MUST reproduce them.
 
