@@ -9,7 +9,7 @@ machine-readable [JSON Schemas](./schemas/) for every wire object. Where the two
 disagree on the wire, **this document governs** and the narrative page is
 corrected (audit dimension D8).
 
-The protocol, the reference implementation, and the agent skill share their
+The protocol, the reference implementation, and the AI assistant skill share their
 MAJOR.MINOR version (**version parity**). This document specifies protocol
 version **0.3**.
 
@@ -20,15 +20,15 @@ version **0.3**.
 ### 1.1 Scope
 
 Kiosk is a thin HTTPS + JSON + JWS contract that lets an **operator** expose an
-existing service API to a **customer's personal AI agent**: the agent discovers
+existing service API to a **customer's personal AI assistant**: the AI assistant discovers
 the operator, registers a self-generated identity by proof of possession, reads a
 self-describing surface, calls read (`query`) and write (`run`) verbs scoped to
 its identity, and settles payment (`pay`) through a signed AP2 mandate chain. The
 operator MAY meter anonymous load with a memory-hard proof-of-work toll and MAY
-bind an agent to an existing human account.
+bind an AI assistant to an existing human account.
 
 This document specifies the **invariants** -- everything every conforming operator
-and every conforming agent must agree on. The concrete queries and actions an
+and every conforming AI assistant must agree on. The concrete queries and actions an
 operator offers are operator-defined and discovered at runtime; they are not part
 of this specification.
 
@@ -37,10 +37,10 @@ of this specification.
 Requirements bind two roles:
 
 - **Operator** -- the party serving the endpoints.
-- **Agent** -- the client calling them.
+- **AI assistant** -- the client calling them.
 
 A requirement with no role prefix binds both. Section 16 gives the operator and
-agent conformance profiles.
+AI assistant conformance profiles.
 
 ### 1.3 Requirements notation
 
@@ -84,10 +84,10 @@ proof-of-work gate.
 - **Operator** -- a server implementing the operator profile (Section 16.1); the party a
   customer has (or is forming) a relationship with (a shop, a hotel, a service). An
   operator can be a service provider, an information steward, or a merchant/aggregator.
-- **Agent** -- a consumer-side automated client acting on a person's behalf; holds
+- **AI assistant** -- a consumer-side automated client acting on a person's behalf; holds
   a private key and makes the HTTP calls in this document.
-- **Identity** -- the `{user_id, agent_id}` pair minted for an agent's public key.
-  `user_id` is the unit of data ownership; `agent_id` names the acting agent.
+- **Identity** -- the `{user_id, agent_id}` pair minted for an AI assistant's public key.
+  `user_id` is the unit of data ownership; `agent_id` names the acting AI assistant.
 - **Assistant account** -- an account backing an identity. Self-standing when
   created by registration; **linked** when bound to a human's operator account.
 - **Discovery document** -- the JSON served at `/.well-known/kiosk.json` (Section 4).
@@ -121,7 +121,7 @@ proof-of-work gate.
    **RS256** (RSASSA-PKCS1-v1_5 with SHA-256) over 2048-bit RSA keys, encoded as
    compact JWS.
 4. Endpoint paths derive from the discovery document's `endpoint` value plus the
-   fixed verb-to-path binding in Section 8; an agent MUST derive URLs this way and MUST
+   fixed verb-to-path binding in Section 8; an AI assistant MUST derive URLs this way and MUST
    NOT hard-code a mount path.
 5. **Version parity and additivity.** Within a MINOR series (0.3.x) the wire is
    additive and backward-compatible: new endpoints and fields only, existing
@@ -136,7 +136,7 @@ Schema: [`discovery.schema.json`](./schemas/discovery.schema.json).
 ### 4.1 The discovery document
 
 Every operator **MUST** serve a discovery document at
-`GET /.well-known/kiosk.json`, unauthenticated, so an agent can bootstrap from
+`GET /.well-known/kiosk.json`, unauthenticated, so an AI assistant can bootstrap from
 the origin alone. The document is a single object under a `kiosk` wrapper key.
 
 | Field | Type | Presence | Meaning |
@@ -161,7 +161,7 @@ the canonical order and **MUST NOT** advertise a verb it does not serve.
 
 ### 4.3 The `auth` block
 
-`kiosk.auth` **MUST** carry `kind: "kiosk-pop"` and the six URLs an agent needs
+`kiosk.auth` **MUST** carry `kind: "kiosk-pop"` and the six URLs an AI assistant needs
 to authenticate and bind: `challenge_url`, `register_url`, `login_url`,
 `revoke_url` (Section 5), and `device_authorization_url`, `claim_url` (Section 6). Each is an
 absolute URL derived from `endpoint`.
@@ -178,7 +178,7 @@ party can verify a Kiosk-issued token (Section 5.4). Each key carries `kty`,
 An operator MAY advertise Kiosk on its human-facing pages with a
 `<link rel="kiosk" href="...">` tag (or an equivalent HTTP `Link` header). The tag
 is a **signal, not a source**: its `href` points at the universal skill on
-kiosk.tech, and an agent **MUST NOT** load skill instructions from the operator
+kiosk.tech, and an AI assistant **MUST NOT** load skill instructions from the operator
 (Section 15.6). An operator MAY additionally emit the standard agent-web discovery
 surfaces -- `agents.txt`, `agents.json`, `/.well-known/agent-configuration`
 (RFC 8414-style), `/.well-known/api-catalog` (RFC 9727), and `/auth.md` -- as
@@ -215,7 +215,7 @@ JWS** whose payload carries:
 
 | Claim | Type | Presence | Rule |
 |---|---|---|---|
-| `aud` | string | REQUIRED | MUST be the origin the agent dialed (Section 15.1); the operator rejects any other `aud`. |
+| `aud` | string | REQUIRED | MUST be the origin the AI assistant dialed (Section 15.1); the operator rejects any other `aud`. |
 | `nonce` | string | REQUIRED | The `challenge` from Section 5.1; single-use, server-TTL-bounded. |
 | `jti` | string | REQUIRED | A unique id. |
 | `pub` | string | OPTIONAL | RFC 7638 thumbprint of the public key; verified only when present. |
@@ -235,7 +235,7 @@ Section 5.5):
 
 An operator **MUST** verify the possession proof before issuing a token, and
 **MUST** map a known key to the same `user_id` so a saved payment card survives
-across sessions. An agent **SHOULD** generate a fresh keypair per operator origin
+across sessions. An AI assistant **SHOULD** generate a fresh keypair per operator origin
 (Section 15.3).
 
 ### 5.4 Access-token format
@@ -249,7 +249,7 @@ Its claims:
 | `sub` | string | REQUIRED | The identity's `user_id`. |
 | `agent_id` | string | REQUIRED | The acting agent id. |
 | `actor` | string | REQUIRED | `"agent"`. |
-| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. Registration **MUST NOT** accept a client-requested role. An operator **MAY** source an agent's role from a configured IdP from 0.3, INDIRECTLY via the bound human's role: at the account-binding link ceremony (Section 6) the human's IdP role is captured and set as the bound agent's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
+| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. Registration **MUST NOT** accept a client-requested role. An operator **MAY** source an AI assistant's role from a configured IdP from 0.3, INDIRECTLY via the bound human's role: at the account-binding link ceremony (Section 6) the human's IdP role is captured and set as the bound AI assistant's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
 | `iss` / `aud` | string | REQUIRED | The operator issuer. |
 | `iat` / `nbf` / `exp` | integer | REQUIRED | Validity window (default 1 hour). |
 | `jti` | string | REQUIRED | Unique token id. |
@@ -261,7 +261,7 @@ concurrent tokens for one identity remain valid. `POST <endpoint>/auth/revoke`
 (Bearer) stamps a per-identity "revoked-before" watermark -- every token issued
 before that instant stops verifying -- and returns a fresh token (Section 15.4). An
 operator **MAY** price fresh-identity minting: `POST /auth/register` **MAY**
-answer `402 pow_required` (Section 10) bound to the registering public key; the agent
+answer `402 pow_required` (Section 10) bound to the registering public key; the AI assistant
 solves and resubmits the same `signed` with a `pow` field. Default is no toll.
 
 ---
@@ -269,20 +269,20 @@ solves and resubmits the same `signed` with a `pow` field. Default is no toll.
 ## 6. Account binding -- claim and link
 
 kiosk-pop registration creates a self-standing assistant account. When the human
-already has an operator account, Kiosk **binds** the agent to it via a one-time
+already has an operator account, Kiosk **binds** the AI assistant to it via a one-time
 ceremony. Binding requires **BOTH** human approval **AND** a valid possession
-proof; a failed proof binds nothing (Section 15.8). After binding, the agent uses
+proof; a failed proof binds nothing (Section 15.8). After binding, the AI assistant uses
 `/auth/login` like any identity.
 
-### 6.1 Claim (agent-initiated, RFC 8628 device grant)
+### 6.1 Claim (AI-assistant-initiated, RFC 8628 device grant)
 
 1. `POST <endpoint>/oauth/device_authorization` (form-encoded) with
    `client_id` (REQUIRED), `public_key` (REQUIRED), and an optional `scope`/`role`.
    Returns `{device_code, user_code, verification_uri, verification_uri_complete,
    expires_in, interval}`.
-2. The agent shows the human `verification_uri` + `user_code`; the human approves
+2. The AI assistant shows the human `verification_uri` + `user_code`; the human approves
    on the operator's session-authenticated page (Section 15.8).
-3. The agent polls `POST <endpoint>/oauth/token` (form-encoded) with
+3. The AI assistant polls `POST <endpoint>/oauth/token` (form-encoded) with
    `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, and
    -- once approved -- `signed` (the possession proof of Section 5.2). On success it
    returns OAuth-shaped `{access_token, token_type: "Bearer", expires_in}` (the
@@ -298,7 +298,7 @@ The human, signed in on the operator's site, mints a single-use link code:
 
 - `POST <endpoint>/auth/link` (operator session) -> `{link_code, expires_in}`. The
   code is a long opaque token (paste-grade).
-- The agent redeems it: `POST <endpoint>/auth/claim` with `{code, public_key,
+- The AI assistant redeems it: `POST <endpoint>/auth/claim` with `{code, public_key,
   signed}` -> `201 {agent_id, user_id, access_token}`.
 
 ### 6.3 Fresh vs. rebind, and unlink
@@ -309,7 +309,7 @@ its `agent_id` is stable, its `user_id` becomes the human's, and its reputation
 carries over -- claiming is **not** a reputation reset (Section 13). Because a rebind is a
 principal change, the key's **pre-link tokens** (still carrying the old `user_id`)
 **MUST** stop verifying, watermark-revoked exactly as unlink revokes (Section 15.4); the
-agent obtains a token under the new principal from the `access_token` the claim
+AI assistant obtains a token under the new principal from the `access_token` the claim
 returns, or by re-running `/auth/login`. `POST <endpoint>/auth/unlink` (operator
 session, `{agent_id}`) is registration-layer revocation: the key's tokens stop
 verifying and `/auth/login` answers `404` (Section 15.4). Codes are stored hashed,
@@ -372,7 +372,7 @@ payload field:
 - `kind: "value"` -> payload under `value` (object; `schema`, actions, `pay`).
 - `kind: "events"` -> payload under `events` (reserved).
 
-An error carries `ok: false` and an `error` object (Section 9). An agent **MUST** branch
+An error carries `ok: false` and an `error` object (Section 9). An AI assistant **MUST** branch
 on the envelope and on `error.code`, never on the HTTP status alone.
 
 ### 8.3 The `schema` verb
@@ -401,7 +401,7 @@ stable vocabulary; `hint` is an optional remediation pointer; `challenges` appea
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
 | `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay` (Section 11.5); the human must raise the cap. |
-| `kyc_required` | 403 | An Action requires KYC attribute(s) the agent has not attested (Section 12.2); `hint` names what is needed. The agent submits a KYC attestation carrying the missing attributes, then retries. |
+| `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.2); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
 | `not_found` | 404 | Unknown query/action name or missing resource; `hint` carries known names. |
 | `conflict` | 409 | State conflict -- e.g. registering an already-registered key. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
@@ -434,7 +434,7 @@ realm="<issuer>"` (Section 9), carrying a `challenges` array. Each challenge is
 | `sig` | string | HMAC-SHA256 over the challenge fields plus a fingerprint of the exact request. |
 
 Each challenge is **stateless and request-bound** (the server stores nothing to
-trust it) and single-use. The agent **MUST** solve **every** challenge and retry
+trust it) and single-use. The AI assistant **MUST** solve **every** challenge and retry
 the **identical** request body with an added top-level `pow` field -- either
 `{proofs: [{challenge, nonce}, ...]}` or, for a single challenge, the shorthand
 `{challenge, nonce}`. The `pow` field is excluded from the request fingerprint so
@@ -451,9 +451,9 @@ Schema: [`mandates.schema.json`](./schemas/mandates.schema.json).
 
 ### 11.1 The three mandates
 
-Payment follows **AP2**: the agent authorizes a purchase through a chain of three
+Payment follows **AP2**: the AI assistant authorizes a purchase through a chain of three
 signed mandates rather than by handling card data. Each mandate is an **RS256
-JWS** signed with the agent's private key. Every mandate **MUST** carry the base
+JWS** signed with the AI assistant's private key. Every mandate **MUST** carry the base
 claims `id`, `user_id`, `agent_id`, `iss`, `iat`, `exp`; the server **MUST**
 reject a mandate whose `user_id`/`agent_id` do not match the authenticated
 identity, whose `iss` is not its own issuer (verbatim from `kiosk.json`), or whose
@@ -471,7 +471,7 @@ identity, whose `iss` is not its own issuer (verbatim from `kiosk.json`), or who
 NOT** exceed the intent cap; `cart.currency` **MUST** equal the intent currency.
 `payment.cart_mandate_id` **MUST** equal the cart's `id`; `payment.amount_cents`
 **MUST** equal the cart total in the same `currency`. The server verifies all
-three signatures against the agent's registered key -- providing non-repudiation.
+three signatures against the AI assistant's registered key -- providing non-repudiation.
 
 ### 11.3 The pay call
 
@@ -482,12 +482,12 @@ returns a `kind: "value"` envelope whose `value` is
 
 ### 11.4 Card setup
 
-Payment uses the PSP's card-on-file (SetupIntent) model. An agent **SHOULD** call
+Payment uses the PSP's card-on-file (SetupIntent) model. An AI assistant **SHOULD** call
 the operator's `payment_setup` action before paying. If no card is on file, `pay`
 answers `402` with `payment_setup_required` (no `challenges`) and
-`WWW-Authenticate: Payment realm="<issuer>", method="ap2"`. The agent **MUST NOT**
+`WWW-Authenticate: Payment realm="<issuer>", method="ap2"`. The AI assistant **MUST NOT**
 automate the card form: it hands the returned `setup_url` to the human, who enters
-the card on the PSP's hosted page, then the agent retries pay (Section 15.7).
+the card on the PSP's hosted page, then the AI assistant retries pay (Section 15.7).
 
 ### 11.5 Per-assistant spending cap (optional)
 
@@ -497,7 +497,7 @@ account. When a cap is configured for the acting `agent_id` and this `pay` would
 push the assistant's settled total (optionally within a rolling window) past the
 cap, the operator **MUST** reject it with `403 spending_cap_exceeded` **before**
 the irreversible capture -- no charge, no settlement row. A cap of `0` disables the
-assistant's payments entirely. The agent cannot pay past the cap; it surfaces the
+assistant's payments entirely. The AI assistant cannot pay past the cap; it surfaces the
 condition to the human, who raises the cap out of band. Caps are operator policy
 and off by default; how an operator stores and edits them is out of scope for the
 wire.
@@ -512,13 +512,13 @@ wire.
 
 Schema: [`kyc.schema.json`](./schemas/kyc.schema.json).
 
-An operator MAY require a KYC attestation. The agent carries a signed
+An operator MAY require a KYC attestation. The AI assistant carries a signed
 **attestation** from a KYC provider -- never raw documents. The attestation is an
 **RS256 JWS** with claims `{sub, level, iss, iat, exp}` and an OPTIONAL
 `attributes` object: `sub` **MUST** equal the authenticated `user_id`, `iss`
 **MUST** equal the operator-configured KYC issuer, `exp` **MUST** be present and
 unexpired, and `level` **MUST** be exactly `"verified"` (anything else is
-rejected). The agent submits it to `POST <endpoint>/agents/kyc` (Bearer) as
+rejected). The AI assistant submits it to `POST <endpoint>/agents/kyc` (Bearer) as
 `{kyc_jws}`; on a clean verify the operator records verification and returns
 `{kyc_verified: true, attributes: {...}}`.
 
@@ -538,7 +538,7 @@ verifies (the binary path), yielding an empty attribute set.
 ### 12.2 Attribute-gated Actions
 
 An Action MAY be **gated** on a set of required attribute names. When the calling
-agent's recorded attributes do not include every required name as `true`, the
+AI assistant's recorded attributes do not include every required name as `true`, the
 operator **MUST** reject with `kyc_required` (HTTP **403**), carrying a hint
 naming what is needed (e.g. "complete KYC: age>=18 and category-A licence
 required"). The reference `kiosk-demo-skooti` gates `rent_motorcycle` (a
@@ -565,14 +565,14 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 ## 14. Versioning
 
-1. **Version parity.** The protocol, the reference implementation, and the agent
+1. **Version parity.** The protocol, the reference implementation, and the AI assistant
    skill share MAJOR.MINOR. An operator on Kiosk 0.3 pins a 0.3 skill against a 0.3
    wire.
 2. **Additivity within a MINOR series.** A new MINOR (0.2 -> 0.3) is a feature
    milestone that bundles backward-compatible additions -- new endpoints and
    fields only. Within 0.3.x the wire stays backward-compatible and additive:
    patches add endpoints and fields only; existing request/response fields and
-   their meaning **MUST NOT** change or be removed. An agent **MUST** ignore
+   their meaning **MUST NOT** change or be removed. An AI assistant **MUST** ignore
    unknown response fields.
 3. **Discovery-document format version.** The `version` field inside
    `/.well-known/kiosk.json` is the **discovery-document format version**
@@ -581,7 +581,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 4. **Skill version.** Published skill files are immutable and versioned
    (`skill-vX.Y.Z.md`); a change ships a new file. An operator's optional `skill`
    pin is a versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
-   An agent performs the dual-check before transacting: read the pinned version
+   An AI assistant performs the dual-check before transacting: read the pinned version
    from the URL, adopt it if newer than its cached skill, fetch it **from
    kiosk.tech** (never from the operator), and verify both the frontmatter
    `version` and the `sha256`.
@@ -595,8 +595,8 @@ the document.
 
 ### 15.1 Origin binding (relay/phishing defense)
 
-The possession proof's `aud` claim (Section 5) **MUST** be the origin the agent actually
-connected to, filled in by the agent from the connection it dialed and never
+The possession proof's `aud` claim (Section 5) **MUST** be the origin the AI assistant actually
+connected to, filled in by the AI assistant from the connection it dialed and never
 echoed from server-supplied data. An operator **MUST** reject any proof whose
 `aud` is not its own origin. This prevents a signature captured by a malicious
 endpoint from being relayed to a different operator (the WebAuthn anti-phishing
@@ -612,7 +612,7 @@ and are chain-bound (Section 11); a non-expiring mandate **MUST** be rejected.
 
 ### 15.3 Key hygiene and per-origin identity
 
-An agent **SHOULD** generate a fresh keypair per operator origin: the keypair is
+An AI assistant **SHOULD** generate a fresh keypair per operator origin: the keypair is
 the identity, and a per-origin key means no cross-operator identifier exists. The
 private key is the durable credential; access tokens are short-lived and
 disposable.
@@ -634,15 +634,15 @@ on PoW alone for abuse prevention.
 
 ### 15.6 Skill instructions come from kiosk.tech only
 
-An agent **MUST NOT** load skill (executable) instructions from the operator; a
+An AI assistant **MUST NOT** load skill (executable) instructions from the operator; a
 `<link rel="kiosk">` tag is a discovery *signal*, not an instruction *source*
 (Section 4.5). Operator-served content (schema, prices, availability) is data, not
 instructions.
 
 ### 15.7 Card data
 
-An agent **MUST NOT** automate the card-entry form; card capture happens on the
-PSP's hosted page (Section 11). The agent only relays the setup URL to the human.
+An AI assistant **MUST NOT** automate the card-entry form; card capture happens on the
+PSP's hosted page (Section 11). The AI assistant only relays the setup URL to the human.
 
 ### 15.8 Binding ceremony integrity
 
@@ -676,9 +676,9 @@ optional modules it advertises in `capabilities`:
    fresh/rebind semantics and unlink.
 8. **Module KYC** (Section 12): the attestation endpoint.
 
-### 16.2 Agent profile
+### 16.2 AI assistant profile
 
-A client is a **Kiosk-compatible agent** when it: branches on `error.code`, never
+A client is a **Kiosk-compatible AI assistant** when it: branches on `error.code`, never
 the HTTP status alone; fills the proof `aud` from the origin it dialed; solves
 every challenge in a `pow_required` list and retries the identical body plus the
 `pow` field; runs `payment_setup` and hands `setup_url` to the human rather than
@@ -690,7 +690,7 @@ existing operator account, binds instead of registering.
 Two oracles pin behavior beyond this text:
 
 1. **JSON Schemas** (`./schemas/`) -- every wire object validates against its
-   schema. Operators and agents SHOULD validate against them.
+   schema. Operators and AI assistants SHOULD validate against them.
 2. **Frozen Equihash known-answer tests** at production parameters (n=168, k=7) --
    a ported verifier MUST reproduce them.
 
