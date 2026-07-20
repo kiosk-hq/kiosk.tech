@@ -8,7 +8,7 @@
   "properties": {
     "verbs": {
       "type": "array",
-      "description": "The fixed wire surface actually served, from the canonical set.",
+      "description": "The invariant four verbs (query, run, pay, schema), always all present -- the protocol surface itself, NOT the served subset. The served subset is `capabilities` in /.well-known/kiosk.json.",
       "items": { "enum": ["schema", "query", "run", "pay"] },
       "uniqueItems": true
     },

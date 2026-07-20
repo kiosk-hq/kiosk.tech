@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kiosk.tech/spec/schemas/discovery.schema.json",
   "title": "Kiosk discovery document",
-  "description": "The JSON served at GET /.well-known/kiosk.json (Kiosk protocol 0.2).",
+  "description": "The JSON served at GET /.well-known/kiosk.json (Kiosk protocol 0.3).",
   "type": "object",
   "required": ["kiosk"],
   "properties": {

@@ -378,7 +378,12 @@ on the envelope and on `error.code`, never on the HTTP status alone.
 ### 8.3 The `schema` verb
 
 `GET <endpoint>/schema` (Bearer) returns a `kind: "value"` envelope whose `value`
-is `{verbs, queries, actions}`. `verbs` is the fixed wire surface actually served.
+is `{verbs, queries, actions}`. `verbs` is the invariant four -- all of
+`query`, `run`, `pay`, `schema`, always (`events` is reserved) -- naming the
+protocol surface itself, NOT the served subset. The served subset is
+`capabilities` in `/.well-known/kiosk.json`, which is computed from what the
+operator actually registered (it drops `pay` when no payment provider is
+configured); do not treat these `verbs` as mirroring what the origin advertises.
 `queries` and `actions` are arrays of `{name, description, params}` descriptors,
 sorted by name; `description` is a string or `null`, and `params` is a free-form
 operator-defined hint object or `null` -- documentation, not a validation contract
