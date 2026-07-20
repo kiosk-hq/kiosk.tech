@@ -1,6 +1,6 @@
 # Kiosk Protocol -- Formal Specification
 
-**Version 0.2** (Draft; wire format stable) - Status: for implementers and porters
+**Version 0.3** (Draft; wire format stable) - Status: for implementers and porters
 
 This is the **formal** companion to the narrative specification at
 <https://kiosk.tech/specification.html>. The narrative page is the readable
@@ -11,7 +11,7 @@ corrected (audit dimension D8).
 
 The protocol, the reference implementation, and the agent skill share their
 MAJOR.MINOR version (**version parity**). This document specifies protocol
-version **0.2**.
+version **0.3**.
 
 ---
 
@@ -122,7 +122,7 @@ proof-of-work gate.
 4. Endpoint paths derive from the discovery document's `endpoint` value plus the
    fixed verb-to-path binding in Section 8; an agent MUST derive URLs this way and MUST
    NOT hard-code a mount path.
-5. **Version parity and additivity.** Within a MINOR series (0.2.x) the wire is
+5. **Version parity and additivity.** Within a MINOR series (0.3.x) the wire is
    additive and backward-compatible: new endpoints and fields only, existing
    flows never break (Section 14).
 
@@ -565,12 +565,14 @@ unique per origin (Section 5), so no cross-provider identifier exists.
 ## 14. Versioning
 
 1. **Version parity.** The protocol, the reference implementation, and the agent
-   skill share MAJOR.MINOR. A provider on Kiosk 0.2 pins a 0.2 skill against a 0.2
+   skill share MAJOR.MINOR. A provider on Kiosk 0.3 pins a 0.3 skill against a 0.3
    wire.
-2. **Additivity within a MINOR series.** Within 0.2.x the wire is
-   backward-compatible and additive: new endpoints and fields only; existing
-   request/response fields and their meaning **MUST NOT** change or be removed. An
-   agent **MUST** ignore unknown response fields.
+2. **Additivity within a MINOR series.** A new MINOR (0.2 -> 0.3) is a feature
+   milestone that bundles backward-compatible additions -- new endpoints and
+   fields only. Within 0.3.x the wire stays backward-compatible and additive:
+   patches add endpoints and fields only; existing request/response fields and
+   their meaning **MUST NOT** change or be removed. An agent **MUST** ignore
+   unknown response fields.
 3. **Discovery-document format version.** The `version` field inside
    `/.well-known/kiosk.json` is the **discovery-document format version**
    (currently `"1.0"`), independent of the protocol version this document

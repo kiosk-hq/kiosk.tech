@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kiosk Protocol Specification v0.2</title>
+  <title>Kiosk Protocol Specification v0.3</title>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
   <style>
@@ -37,13 +37,13 @@
 <a href="/" class="back">← kiosk.tech</a>
 <article>
   <h1>Kiosk Protocol Specification</h1>
-  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.2 — Draft (wire format stable)</p>
+  <p style="color:#888;font-size:14px;margin-bottom:24px">Version 0.3 — Draft (wire format stable)</p>
 
   <h2>What this specification answers</h2>
   <p>As a merchant developer or agent author, you want to understand how your software and an AI agent communicate through Kiosk. This document describes the protocol — the exact HTTP requests and responses, the authentication model, and the payment mandate chain — backed by a working reference implementation.</p>
   <p>The spec is intentionally small. It covers the <strong>invariants</strong> — the things every Kiosk provider and every compatible agent must agree on. Individual providers extend the surface with their own queries and actions (catalog, delivery slots, booking — whatever their vertical needs).</p>
   <p><strong>Normative language.</strong> The key words <strong>MUST</strong>, <strong>MUST NOT</strong>, <strong>SHOULD</strong>, and <strong>MAY</strong> are to be interpreted as described in <a href="https://www.rfc-editor.org/rfc/rfc2119">RFC 2119</a>. Requirements bind two conformance targets: the <strong>provider</strong> (the party serving the endpoints) and the <strong>agent</strong> (the client calling them). Boxes marked <em>Reference note</em> describe the Ruby reference implementation and are non-normative — one way to satisfy a requirement, not the requirement itself.</p>
-  <p><strong>Protocol version.</strong> This page specifies protocol version <strong>0.2</strong>. The protocol, the reference implementation, and the skill share their MAJOR.MINOR version (<strong>version parity</strong>: a provider on Kiosk 0.2 pins a 0.2 skill against a 0.2 wire). Within a MINOR series (0.2.x) the wire is <strong>additive and backward-compatible</strong> — new endpoints and fields only, existing flows never break (the same rule the skill files follow below).</p>
+  <p><strong>Protocol version.</strong> This page specifies protocol version <strong>0.3</strong>. The protocol, the reference implementation, and the skill share their MAJOR.MINOR version (<strong>version parity</strong>: a provider on Kiosk 0.3 pins a 0.3 skill against a 0.3 wire). A new MINOR (0.2 → 0.3) is a <strong>feature milestone</strong> that bundles backward-compatible additions — new endpoints and fields only. Within a MINOR series (0.3.x) the wire stays <strong>additive and backward-compatible</strong> — patches add endpoints and fields only, existing flows never break (the same rule the skill files follow below).</p>
 
   <h2>High-level flow</h2>
 
@@ -203,7 +203,7 @@ Authorization: Bearer &lt;jwt&gt;
   <div class="todo"><strong>ROADMAP — typed parameter schema.</strong> <code>params</code> is a free-form hint today; a structured parameter schema is under consideration. Treat descriptors as agent-facing documentation, not a validation contract.</div>
 
   <h2>Discovery</h2>
-  <p>Every provider serves a discovery document at <code>GET /.well-known/kiosk.json</code>, unauthenticated, so an agent can bootstrap from the origin alone. It carries the <code>issuer</code> (the AP2 mandate <code>iss</code> anchor), the API <code>endpoint</code>, the <code>auth</code> block, an optional pinned <code>skill</code> reference, and a top-level <strong><code>capabilities</code></strong> array. The document's own <code>version</code> field is the <strong>discovery-document format version</strong> (currently <code>"1.0"</code>) — independent of the protocol version (0.2) this page specifies. It may also carry optional <code>owner</code> (provider contact) and <code>min_client</code> fields; this page shows the common fields, and the <a href="/spec/protocol.md">formal spec</a> plus <a href="/spec/schemas/discovery.schema.json">JSON Schema</a> enumerate every field.</p>
+  <p>Every provider serves a discovery document at <code>GET /.well-known/kiosk.json</code>, unauthenticated, so an agent can bootstrap from the origin alone. It carries the <code>issuer</code> (the AP2 mandate <code>iss</code> anchor), the API <code>endpoint</code>, the <code>auth</code> block, an optional pinned <code>skill</code> reference, and a top-level <strong><code>capabilities</code></strong> array. The document's own <code>version</code> field is the <strong>discovery-document format version</strong> (currently <code>"1.0"</code>) — independent of the protocol version (0.3) this page specifies. It may also carry optional <code>owner</code> (provider contact) and <code>min_client</code> fields; this page shows the common fields, and the <a href="/spec/protocol.md">formal spec</a> plus <a href="/spec/schemas/discovery.schema.json">JSON Schema</a> enumerate every field.</p>
 
   <pre><code class="language-json">GET /.well-known/kiosk.json
 
@@ -223,7 +223,7 @@ Authorization: Bearer &lt;jwt&gt;
       "device_authorization_url": "https://getgroceries.com/kiosk/oauth/device_authorization",
       "claim_url":     "https://getgroceries.com/kiosk/auth/claim"
     },
-    "skill": { "url": "https://kiosk.tech/skill-v0.2.4.md", "sha256": "…" }
+    "skill": { "url": "https://kiosk.tech/skill-v0.3.0.md", "sha256": "…" }
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -245,14 +245,14 @@ Authorization: Bearer &lt;jwt&gt;
   <h3>Skill versioning &amp; the dual-check</h3>
   <p>The universal skill is <strong>versioned and immutable</strong>. Each published version is a distinct file at <code>https://kiosk.tech/skill-vX.Y.Z.md</code> whose content <strong>never changes once published</strong>; a change ships a NEW version file rather than editing an existing one. <code>https://kiosk.tech/skill.md</code> is the <strong>"latest" alias</strong>, byte-identical to the newest version file. A file's own version lives in its frontmatter <code>version</code> field, matching the version in its URL.</p>
 
-  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.2.4.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When a provider pins a skill, the agent performs the <strong>dual-check</strong>:</p>
+  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.3.0.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When a provider pins a skill, the agent performs the <strong>dual-check</strong>:</p>
   <ol>
     <li>Read the pinned version from the URL (<code>skill-vX.Y.Z.md</code>).</li>
     <li>If it is newer than the agent's cached skill, fetch and adopt it before transacting — the provider may rely on newer protocol features.</li>
     <li>Fetch the file <strong>from kiosk.tech</strong> (never from the provider) and verify both that its frontmatter <code>version</code> matches the URL and that the SHA-256 of its content equals the pinned <code>sha256</code>.</li>
     <li>If verification fails, fall back to the locally cached skill.</li>
   </ol>
-  <p>Within a <strong>MINOR series</strong> (0.1.x, 0.2.x, …), versions are <strong>backward-compatible and additive</strong> — new endpoints and fields only, existing flows never break — so an agent on a newer patch version can still transact with a provider pinning an older one, and must update before transacting with a provider pinning a newer one. The skill's MAJOR.MINOR tracks the protocol version (version parity).</p>
+  <p>Within a <strong>MINOR series</strong> (0.1.x, 0.2.x, 0.3.x, …), versions are <strong>backward-compatible and additive</strong> — new endpoints and fields only, existing flows never break — so an agent on a newer patch version can still transact with a provider pinning an older one, and must update before transacting with a provider pinning a newer one. The skill's MAJOR.MINOR tracks the protocol version (version parity).</p>
 
   <h3>Standard discovery surfaces</h3>
   <p>Alongside <code>kiosk.json</code> — the canonical structured contract — a provider serves the emerging agent-web discovery surfaces. All are rendered from the same registry model as <code>kiosk.json</code>, so they cannot drift from it:</p>
