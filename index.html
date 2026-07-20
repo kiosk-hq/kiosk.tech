@@ -304,7 +304,7 @@
       <ul class="why-list">
         <li>
           <strong>Why not MCP?</strong>
-          MCP assumes stateful sessions between agent and tool. Commerce is stateless — every purchase is a new transaction with its own mandates. REST endpoints are the right primitive. MCP was built for IDE integrations, not for autonomous agents that hold keys and sign payment mandates.
+          The gate to agent commerce is key custody, not transport: an agent that can hold a private key and sign mandates can make a dozen REST calls; one that can't, can't pay over any transport — MCP included. What MCP would add, Kiosk already serves on the wire (discovery, schema); what it wouldn't solve — holding keys, signing mandates, solving proof-of-work — is client-side either way. REST + JWS was enough. An MCP wrapper over the same wire is possible and welcome; a shipped package that holds keys and signs payments is the SDK we deliberately refuse to ship.
         </li>
         <li>
           <strong>What about MPP (Machine Payments Protocol)?</strong>
