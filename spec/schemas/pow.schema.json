@@ -40,6 +40,10 @@
               "type": "array",
               "description": "u64 indices in Zcash canonical (subtree/tree) order; NOT a global ascending sort.",
               "items": { "type": "integer" }
+            },
+            "header_nonce": {
+              "type": "integer",
+              "description": "OPTIONAL u32, default 0. Folded into the PoW seed after the salt bytes as a little-endian u32; an extensibility point (currently always 0). A verifier reconstructs the seed as salt-bytes || header_nonce(LE u32), so a proof solved for a non-zero header_nonce MUST carry it."
             }
           }
         }

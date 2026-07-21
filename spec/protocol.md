@@ -443,9 +443,11 @@ trust it) and single-use. The AI assistant **MUST** solve **every** challenge an
 the **identical** request body with an added top-level `pow` field -- either
 `{proofs: [{challenge, nonce}, ...]}` or, for a single challenge, the shorthand
 `{challenge, nonce}`. The `pow` field is excluded from the request fingerprint so
-the retry matches the original. `nonce` is `{indices: [...]}`; the `indices` array
+the retry matches the original. `nonce` is `{indices: [...], header_nonce?: u32}`; the `indices` array
 **MUST** be in **Zcash canonical (subtree/tree) order** -- a globally-sorted array
-is rejected. An operator requests **N independent proofs** as a rate-limiting knob
+is rejected. `header_nonce` is an OPTIONAL u32 (default 0) folded into the PoW seed after the
+salt bytes as a little-endian u32 -- an extensibility point (currently always 0); a proof solved
+for a non-zero `header_nonce` MUST carry it so the verifier reconstructs the same seed. An operator requests **N independent proofs** as a rate-limiting knob
 (reputation sets N, Section 13); PoW is a metered toll, not a hardware wall (Section 15.5).
 
 ---

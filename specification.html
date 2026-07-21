@@ -415,7 +415,7 @@ WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"
       {
         "challenge": { "id": "9b1c…", "alg": "equihash", "params": { "n": 168, "k": 7 },
                        "salt": "dGVzdC1zYWx0…", "exp": 1751846400, "sig": "hmac-sha256…" },
-        "nonce":     { "indices": [3, 42, 17, "…128 u64 integers in canonical tree order"] }
+        "nonce":     { "indices": [3, 42, 17, "…128 u64 integers in canonical tree order"], "header_nonce": 0 }
       }
     ]
   }
@@ -423,7 +423,7 @@ WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"
 
   <p>For a single challenge, the shorthand <code>"pow": {"challenge": {…}, "nonce": {…}}</code> is also accepted. The retried body must be identical to the original apart from the added <code>pow</code> field — the proof is bound to the request fingerprint (for the registration toll, to the AI assistant public key instead).</p>
 
-  <p><strong>Index ordering.</strong> The <code>nonce.indices</code> array MUST be in <strong>Zcash canonical (subtree/tree) order</strong> — the ordering a genuine Wagner solution produces, where at each collision level the left half's first index precedes the right half's. It is <strong>not</strong> a global ascending sort: the verifier explicitly <strong>rejects a globally-sorted array of indices</strong>, because that ordering is a trivial reshuffle that does not correspond to the algorithm-bound solution. Submit the indices exactly as the solver emits them.</p>
+  <p><strong>Index ordering.</strong> The <code>nonce.indices</code> array MUST be in <strong>Zcash canonical (subtree/tree) order</strong> — the ordering a genuine Wagner solution produces, where at each collision level the left half's first index precedes the right half's. It is <strong>not</strong> a global ascending sort: the verifier explicitly <strong>rejects a globally-sorted array of indices</strong>, because that ordering is a trivial reshuffle that does not correspond to the algorithm-bound solution. Submit the indices exactly as the solver emits them. The optional <code>nonce.header_nonce</code> (u32, default 0) is folded into the PoW seed after the salt bytes as a little-endian u32 — an extensibility point, currently always 0; a proof solved for a non-zero <code>header_nonce</code> must carry it.</p>
 
   <p><strong>Default algorithm:</strong> Equihash (n=168, k=7). Memory-hard. Verification is cheap by design (milliseconds, a few KB) while solving is expensive. Parameters are operator-tunable; an operator raises <code>n</code> for a heavier toll.</p>
   <div class="refnote"><strong>Reference note.</strong> The shipped reference solver (pure Python + numpy) clears the default in about 10&nbsp;s using ~1.3&nbsp;GiB; the pure-Ruby verifier takes ~17&nbsp;ms. The defaults came from a benchmark sweep as the largest parameters under a ~30&nbsp;s / 1–2&nbsp;GiB laptop budget. The reference ships frozen known-answer tests (KATs) at these production parameters — the oracle a ported verifier validates against.</div>
