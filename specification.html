@@ -223,7 +223,7 @@ Authorization: Bearer &lt;jwt&gt;
       "device_authorization_url": "https://getgroceries.com/kiosk/oauth/device_authorization",
       "claim_url":     "https://getgroceries.com/kiosk/auth/claim"
     },
-    "skill": { "url": "https://kiosk.tech/skill-v0.3.2.md", "sha256": "…" }
+    "skill": { "url": "https://kiosk.tech/skill-v0.3.3.md", "sha256": "…" }
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -245,7 +245,7 @@ Authorization: Bearer &lt;jwt&gt;
   <h3>Skill versioning &amp; the dual-check</h3>
   <p>The universal skill is <strong>versioned and immutable</strong>. Each published version is a distinct file at <code>https://kiosk.tech/skill-vX.Y.Z.md</code> whose content <strong>never changes once published</strong>; a change ships a NEW version file rather than editing an existing one. <code>https://kiosk.tech/skill.md</code> is the <strong>"latest" alias</strong>, byte-identical to the newest version file. A file's own version lives in its frontmatter <code>version</code> field, matching the version in its URL.</p>
 
-  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.3.2.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When an operator pins a skill, the AI assistant performs the <strong>dual-check</strong>:</p>
+  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.3.3.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When an operator pins a skill, the AI assistant performs the <strong>dual-check</strong>:</p>
   <ol>
     <li>Read the pinned version from the URL (<code>skill-vX.Y.Z.md</code>).</li>
     <li>If it is newer than the AI assistant's cached skill, fetch and adopt it before transacting — the operator may rely on newer protocol features.</li>
@@ -376,7 +376,7 @@ grant_type=urn:ietf:params:oauth:grant-type:device_code
   <div class="refnote"><strong>Reference note.</strong> The reference persists ceremonies in a durable <code>kiosk.device_authorizations</code> store (an in-memory adapter exists for tests), ships minimal overridable engine views for the verify and link pages, and exposes <code>assistant_claimed</code> / <code>assistant_unlinked</code> hooks for operator-side reactions such as domain-data migration.</div>
 
   <h2>Proof-of-work</h2>
-  <p>Operators MAY require proof-of-work before accepting queries or actions. When PoW is required, the server responds with HTTP <code>402</code>:</p>
+  <p>Operators MAY require proof-of-work before accepting queries or actions. There is <strong>no verb exemption</strong>: an operator MAY require PoW before <em>any</em> verb — <code>schema</code>, <code>query</code>, <code>run</code>, or <code>pay</code> — as well as <code>POST /auth/register</code>. The always-free entrypoint is the discovery layer (<code>/.well-known/kiosk.json</code>, <code>agents.json</code>/<code>agents.txt</code>), not the <code>/kiosk/schema</code> verb. When PoW is required, the server responds with HTTP <code>402</code>:</p>
 
   <pre><code class="language-json">HTTP 402 Payment Required / PoW Required
 WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"

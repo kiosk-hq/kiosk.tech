@@ -424,7 +424,11 @@ account-binding `/oauth/*` pair, which uses the OAuth error object (Section 6.1)
 
 Schema: [`pow.schema.json`](./schemas/pow.schema.json).
 
-An operator **MAY** require proof-of-work before serving a request. The gate
+An operator **MAY** require proof-of-work before serving a request. There is
+**no verb exemption**: the toll MAY gate *any* verb -- `schema`, `query`, `run`,
+or `pay` -- as well as `POST /auth/register`. The always-free entrypoint is the
+discovery layer (`/.well-known/kiosk.json`, `agents.json`/`agents.txt`), not the
+`schema` verb. The gate
 responds `402` with `error.code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
 realm="<issuer>"` (Section 9), carrying a `challenges` array. Each challenge is
 `{id, alg, params, salt, exp, sig}`:
