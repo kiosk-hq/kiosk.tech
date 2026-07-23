@@ -3,7 +3,7 @@
 This repo is everything published at https://kiosk.tech (GitHub Pages,
 `CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
 universal agent skill (the "latest" alias; the immutable published versions
-are `skill-vX.Y.Z.md`, current `skill-v0.3.4.md` (MAJOR.MINOR tracks the
+are `skill-vX.Y.Z.md`, current `skill-v0.3.5.md` (MAJOR.MINOR tracks the
 framework release from 0.2 on) — a published
 version file is never edited, every change ships a new one), `index.html` —
 landing, `onboarding.html`, `payment/return` (Stripe Checkout return page),

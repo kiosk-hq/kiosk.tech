@@ -116,9 +116,7 @@ proof-of-work gate.
    **JSON** unless a section states otherwise (the account-binding
    `/kiosk/oauth/*` endpoints use the OAuth wire, Section 6).
 2. All wire verb requests are authenticated with `Authorization: Bearer <jwt>`
-   except `schema`, which is anonymously readable (Section 8.3), and endpoints a
-   section marks unauthenticated. (An operator MAY still PoW-toll `schema`;
-   anonymous-readable is about the auth gate, not the PoW gate.)
+   except where a section marks an endpoint unauthenticated.
 3. Signatures -- access tokens, possession proofs, and payment mandates -- use
    **RS256** (RSASSA-PKCS1-v1_5 with SHA-256) over 2048-bit RSA keys, encoded as
    compact JWS.
@@ -355,7 +353,7 @@ The four verbs are bound to fixed methods and paths under `endpoint`:
 
 | Verb | Method | Path | Auth |
 |---|---|---|---|
-| `schema` | GET | `<endpoint>/schema` | Optional (anonymous) |
+| `schema` | GET | `<endpoint>/schema` | Bearer |
 | `query` | POST | `<endpoint>/query` | Bearer |
 | `run` | POST | `<endpoint>/run` | Bearer |
 | `pay` | POST | `<endpoint>/pay` | Bearer |
@@ -379,13 +377,8 @@ on the envelope and on `error.code`, never on the HTTP status alone.
 
 ### 8.3 The `schema` verb
 
-`GET <endpoint>/schema` returns a `kind: "value"` envelope whose `value`
-is `{verbs, queries, actions}`. Unlike `query`/`run`/`pay`, `schema` is
-**anonymously readable**: it is the machine-readable API description, so it does
-NOT require a resolved identity (a request that carries no token, or a token that
-resolves to nothing, is served rather than `401`ed). An AI assistant MAY still
-send its Bearer token, and an operator MAY still gate `schema` behind proof-of-work
-(Section 10) -- the anonymous property is about the auth gate only. `verbs` is the invariant four -- all of
+`GET <endpoint>/schema` (Bearer) returns a `kind: "value"` envelope whose `value`
+is `{verbs, queries, actions}`. `verbs` is the invariant four -- all of
 `query`, `run`, `pay`, `schema`, always (`events` is reserved) -- naming the
 protocol surface itself, NOT the served subset. The served subset is
 `capabilities` in `/.well-known/kiosk.json`, which is computed from what the
