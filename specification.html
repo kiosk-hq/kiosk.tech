@@ -64,7 +64,7 @@ sequenceDiagram
     P-->>A: 201 {agent_id, user_id, access_token (RS256 JWT)}
     Note over A,P: Returning key → POST /kiosk/auth/login<br/>{public_key, signed} → 200 {access_token}
 
-    A->>P: GET /kiosk/schema<br/>Authorization: Bearer {token}
+    A->>P: GET /kiosk/schema<br/>(Bearer optional — anonymously readable)
     P-->>A: {verbs: [...], queries: [...], actions: [...]}
   </div>
 
@@ -129,7 +129,7 @@ sequenceDiagram
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/link</code></td><td>Operator session</td><td>Account binding: the human mints a single-use link code (human-side)</td></tr>
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/claim</code></td><td>PoP (<code>signed</code>)</td><td>Account binding: redeem a link code with <code>{code, public_key, signed}</code> → linked assistant account + token</td></tr>
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/unlink</code></td><td>Operator session</td><td>Account binding: deactivate a key's binding (registration-layer revocation, human-side)</td></tr>
-    <tr><td><code>schema</code></td><td><code>GET</code></td><td><code>/kiosk/schema</code></td><td>Bearer</td><td>Machine-readable surface: queries + actions</td></tr>
+    <tr><td><code>schema</code></td><td><code>GET</code></td><td><code>/kiosk/schema</code></td><td>Optional (anonymous)</td><td>Machine-readable surface: queries + actions — readable without a token (an operator MAY still PoW-toll it)</td></tr>
     <tr><td><code>query</code></td><td><code>POST</code></td><td><code>/kiosk/query</code></td><td>Bearer</td><td>Read data (catalog, slots, orders)</td></tr>
     <tr><td><code>run</code></td><td><code>POST</code></td><td><code>/kiosk/run</code></td><td>Bearer</td><td>Perform action (create_order, schedule_delivery, payment_setup)</td></tr>
     <tr><td><code>pay</code></td><td><code>POST</code></td><td><code>/kiosk/pay</code></td><td>Bearer</td><td>Settle payment with signed AP2 mandates</td></tr>
@@ -177,9 +177,9 @@ sequenceDiagram
   <p>The auth endpoints speak the same envelope: registering an already-known key is <code>conflict</code>/409, logging in an unknown key is <code>not_found</code>/404 (register first). The one exception on this page is the account-binding <code>/kiosk/oauth/*</code> pair, which follows the OAuth wire (see <a href="#account-binding">Account binding</a>).</p>
 
   <h2>The <code>schema</code> verb — self-description</h2>
-  <p><code>GET /kiosk/schema</code> (Bearer) returns a <code>kind: "value"</code> envelope whose <code>value</code> is exactly <code>{verbs, queries, actions}</code>:</p>
+  <p><code>GET /kiosk/schema</code> is <strong>anonymously readable</strong> — it is the machine-readable API description, so no Bearer token is required (an AI assistant MAY send its token, and an operator MAY still PoW-toll the verb anti-scrape, but registration is not a precondition for reading it). It returns a <code>kind: "value"</code> envelope whose <code>value</code> is exactly <code>{verbs, queries, actions}</code>:</p>
   <pre><code class="language-json">GET /kiosk/schema
-Authorization: Bearer &lt;jwt&gt;
+(no Authorization header required — Bearer optional)
 
 → 200 OK
 {
@@ -223,7 +223,7 @@ Authorization: Bearer &lt;jwt&gt;
       "device_authorization_url": "https://getgroceries.com/kiosk/oauth/device_authorization",
       "claim_url":     "https://getgroceries.com/kiosk/auth/claim"
     },
-    "skill": { "url": "https://kiosk.tech/skill-v0.3.3.md", "sha256": "…" }
+    "skill": { "url": "https://kiosk.tech/skill-v0.3.4.md", "sha256": "…" }
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -245,7 +245,7 @@ Authorization: Bearer &lt;jwt&gt;
   <h3>Skill versioning &amp; the dual-check</h3>
   <p>The universal skill is <strong>versioned and immutable</strong>. Each published version is a distinct file at <code>https://kiosk.tech/skill-vX.Y.Z.md</code> whose content <strong>never changes once published</strong>; a change ships a NEW version file rather than editing an existing one. <code>https://kiosk.tech/skill.md</code> is the <strong>"latest" alias</strong>, byte-identical to the newest version file. A file's own version lives in its frontmatter <code>version</code> field, matching the version in its URL.</p>
 
-  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.3.3.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When an operator pins a skill, the AI assistant performs the <strong>dual-check</strong>:</p>
+  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.3.4.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When an operator pins a skill, the AI assistant performs the <strong>dual-check</strong>:</p>
   <ol>
     <li>Read the pinned version from the URL (<code>skill-vX.Y.Z.md</code>).</li>
     <li>If it is newer than the AI assistant's cached skill, fetch and adopt it before transacting — the operator may rely on newer protocol features.</li>
@@ -303,7 +303,7 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
   <p><strong>Identity ↔ card.</strong> A key the operator already knows maps to the same <code>user_id</code>, so a saved payment card survives across sessions — but that mapping is served by <code>/auth/login</code>, not by re-registering (registering a known key is a <code>409 Conflict</code>). An AI assistant SHOULD generate a fresh keypair per operator origin — the keypair is the identity, and a per-origin key means no cross-operator identifier exists.</p>
   <div class="refnote"><strong>Reference note.</strong> The reference AI assistant scripts store the RSA-2048 private key at <code>~/.kiosk/&lt;domain&gt;/key.pem</code> and the issued identity at <code>~/.kiosk/&lt;domain&gt;/identity.json</code>.</div>
 
-  <p><strong>AI assistants use kiosk-pop; an operator's own session is an additional channel.</strong> <code>kiosk-pop</code> is the default and the scheme every AI assistant uses: an AI assistant always authenticates the wire verbs (<code>schema</code>, <code>query</code>, <code>run</code>, <code>pay</code>) with the <code>Authorization: Bearer</code> access token above. An operator MAY <em>additionally</em> let its <strong>own</strong> already-authenticated principal — a signed-in web or mobile session on the operator's frontend — call those same wire endpoints, so the operator can build its human UI on the identical surface. When both are configured, each request is resolved <strong>agent-IdP first</strong> (verify the Bearer token); only when that yields no identity does the operator fall back to its session channel. This session channel is an operator-side integration seam, not something an AI assistant selects: an AI assistant never sees it and always presents kiosk-pop.</p>
+  <p><strong>AI assistants use kiosk-pop; an operator's own session is an additional channel.</strong> <code>kiosk-pop</code> is the default and the scheme every AI assistant uses: an AI assistant authenticates the transacting wire verbs (<code>query</code>, <code>run</code>, <code>pay</code>) with the <code>Authorization: Bearer</code> access token above; <code>schema</code> is anonymously readable, so it MAY be read before registration (an AI assistant MAY still send its token, but need not). An operator MAY <em>additionally</em> let its <strong>own</strong> already-authenticated principal — a signed-in web or mobile session on the operator's frontend — call those same wire endpoints, so the operator can build its human UI on the identical surface. When both are configured, each request is resolved <strong>agent-IdP first</strong> (verify the Bearer token); only when that yields no identity does the operator fall back to its session channel. This session channel is an operator-side integration seam, not something an AI assistant selects: an AI assistant never sees it and always presents kiosk-pop.</p>
 
   <p><strong>Optional registration toll.</strong> An operator MAY price fresh-identity minting: <code>POST /auth/register</code> can answer <code>402 pow_required</code> with the same Equihash challenge wire as the Proof-of-work section below. The registration toll <strong>binds to the AI assistant's public key</strong> being registered (not to a request fingerprint), so a proof solved for one key cannot be reused to mint another. The AI assistant solves every challenge and resubmits the same signed body with the <code>pow</code> field. The proof-of-possession signature is not consumed on the 402, so the same <code>signed</code> is reused. Default is no registration toll.</p>
 
