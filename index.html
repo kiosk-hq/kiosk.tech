@@ -405,7 +405,7 @@
         </li>
         <li>
           <strong>Why not an SDK?</strong>
-          A Python package that handles RSA keys and payment mandates is a high-value supply-chain attack target. A markdown spec is inert — no code execution risk. Versioned by kiosk.tech, reviewable by every operator before deployment. AI assistants generate their own integration from the spec at runtime.
+          An SDK that holds your customers' keys and signs their payment mandates would be a high-value supply-chain target — one compromised release reaches every operator. Kiosk ships a versioned, operator-reviewable markdown spec instead: the AI assistant generates its own integration and makes its own HTTP calls, holding its own keys. The only code we point it at is the proof-of-work solver — a small, optional, key-less script pinned by content hash (verify-before-execute), or one it writes itself from the spec.
         </li>
       </ul>
     </div>
