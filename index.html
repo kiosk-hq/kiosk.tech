@@ -201,7 +201,8 @@
     <a href="https://github.com/kiosk-hq/kiosk" class="header-gh"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3E%3Cpath d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z'/%3E%3C/svg%3E" width="32" height="32" style="vertical-align:middle;margin-right:4px;border-radius:2px" alt="GitHub"></a>
     <img src="/logo.png" alt="Kiosk" class="logo">
     <p class="ref-badge">The AI assistants' interface to your service</p>
-    <p class="hero-line">Let them in — to book, order, reserve, rent, or just ask. On your premises, or in your cloud.</p>
+    <p class="hero-line">Kiosk is an open protocol and Apache-2.0 reference implementation that gives your customers' AI assistants a sanctioned way to register, browse, book, order, and pay on your service — instead of scraping it.</p>
+    <p class="hero-line" style="color:#777;font-size:clamp(14px,2.6vw,16px);margin-top:10px">Let them in — to book, order, reserve, rent, or just ask. On your premises, or in your cloud.</p>
   </header>
 
   <section>
@@ -225,6 +226,7 @@
         <a href="https://www.perplexity.ai/comet" style="color:#e0e0e0;text-decoration:none;margin:0 14px">Comet</a>
         <a href="https://openclaw.ai/" style="color:#e0e0e0;text-decoration:none;margin:0 14px">OpenClaw</a>
       </p>
+      <p style="text-align:center;font-size:12px;color:#666;margin-bottom:14px;max-width:520px;margin-left:auto;margin-right:auto">Hermes is verified against these demos today; Comet and OpenClaw meet the same requirements and are expected-compatible, not yet verified.</p>
       <p class="agents-note" style="margin-bottom:16px">
         <a href="https://github.com/kiosk-hq/kiosk.tech">Add a compatible AI assistant →</a> — submit a PR.
       </p>
@@ -284,6 +286,45 @@
       </div>
     </div>
 
+    <div class="demo-box" id="how">
+      <h2>How it works</h2>
+      <p class="time">Six moving parts, on the wire.</p>
+      <ol class="demo-steps">
+        <li><strong>Discovery.</strong> Your domain announces the gateway — agents.txt and the standard well-known surfaces. No registry, no marketplace: nobody needs our permission to join either side.</li>
+        <li><strong>Identity.</strong> The assistant generates a keypair for your domain and registers by proving possession. No email, no OTP, no password reset. The proof is origin-bound, so it can't be replayed against a look-alike site.</li>
+        <li><strong>Data plane.</strong> You register named queries and actions ("availability", "place_order"). Assistants never send SQL and never see HTML.</li>
+        <li><strong>Abuse control.</strong> CAPTCHA asks "are you human" — the wrong question when your customer deliberately sent a robot. Kiosk asks two better ones: did you pay compute for this request, and have you been a good customer here before. Suspicious requests get a memory-hard proof-of-work challenge; your server verifies it in under 20&nbsp;ms with a few KB of memory.</li>
+        <li><strong>Reputation.</strong> Difficulty is a proof count, per operator: an established customer solves 0–1, a fresh key ~3, a flagged one climbs to the reference policy's cap of 10. Burning a key and re-registering just restarts you at the expensive tier — whitewashing is priced, not blocked.</li>
+        <li><strong>Payments (optional).</strong> The assistant signs three chained mandates — intent with a spending cap, cart with exact line items, payment. You verify the chain and charge through your own payment account. Every cent has a signed audit trail.</li>
+      </ol>
+    </div>
+
+    <section style="margin-bottom:48px">
+      <h2 style="text-align:center;font-size:20px;margin-bottom:8px">Standing on standards — and finishing the job</h2>
+      <p style="text-align:center;font-size:14px;color:#888;max-width:600px;margin:0 auto 24px">Kiosk implements the emerging agent-web standards rather than replacing them. The split is explicit.</p>
+      <div class="benefits" style="margin-top:0">
+        <div>
+          <h3 style="color:#aaa">Thanks to the open standards <span style="font-size:11px;color:#666;font-weight:400;display:block;margin-top:2px">anyone implementing them gets this</span></h3>
+          <ul>
+            <li><strong>Discoverable</strong> — assistants find you via agents.txt / agents.json / api-catalog (RFC&nbsp;9727).</li>
+            <li><strong>Readable</strong> — a versioned skill file teaches any assistant the flow.</li>
+            <li><strong>No sign-up form</strong> — auth.md-shaped registration: keypair, challenge, signature, done.</li>
+            <li><strong>Signed payments</strong> — every charge rides an AP2 mandate chain (intent → cart → payment).</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="color:#8bc49a">Thanks to Kiosk specifically <span style="font-size:11px;color:#666;font-weight:400;display:block;margin-top:2px">shipped and demo-backed today</span></h3>
+          <ul>
+            <li><strong>The wire itself</strong> — four fixed verbs (schema, query, run, pay), one request/response envelope, one retriable 402 gate, one identity-scoping rule: the runtime contract the disclosure standards leave undefined, identical at every Kiosk operator.</li>
+            <li><strong>A price on abuse</strong> — the memory-hard proof-of-work toll plus per-operator reputation, in the wire, not bolted on.</li>
+            <li><strong>Accounts that bind and answer</strong> — human↔assistant linking (the ceremony auth.md doesn't have), per-assistant revocation and spending caps on one page, roles inherited from your IdP via the human who linked.</li>
+            <li><strong>KYC as attributes</strong> — gate actions on "18+, licence A" attestations, never documents.</li>
+            <li><strong>The working whole</strong> — engine, adapters, skill, demos: assembled, tested, Apache-2.0. An afternoon, not a quarter.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
     <section class="audience" style="margin-bottom:48px;text-align:center">
       <p class="ref-badge" style="margin-bottom:6px">For operators &amp; integrators</p>
       <h2 style="font-size:22px;font-weight:800;margin-bottom:10px">Add Kiosk to your service</h2>
@@ -298,7 +339,7 @@
 
     <div class="demo-box">
       <h2>Why now</h2>
-      <p style="font-size:14px;color:#bbb;line-height:1.7;margin-bottom:0">About half of web traffic is bots, and operators pay Cloudflare and DataDome to fight it — while their own customers' AI assistants burn context windows scraping HTML that changes weekly. Cloudflare blocks AI crawlers by default since July 2025. Amazon and Perplexity are in court over whether an AI assistant may use a customer's own login. OpenAI walked back Instant Checkout after operators refused to cede their checkout. The arms race has no finish line. Kiosk is the sanctioned exit: a gateway AI assistants don't have to fight through, run by the operator.</p>
+      <p style="font-size:14px;color:#bbb;line-height:1.7;margin-bottom:0">About half of web traffic is bots, and operators pay Cloudflare and DataDome to fight it — while their own customers' AI assistants burn context windows scraping HTML that changes weekly. Cloudflare blocks AI crawlers by default since July 2025. Amazon and Perplexity are in court over whether an AI assistant may use a customer's own login. OpenAI walked back Instant Checkout after operators refused to cede their checkout. The arms race has no finish line. Kiosk is the sanctioned exit: a gateway AI assistants don't have to fight through, run by the operator. A site that greets its customers' assistants with a CAPTCHA is donating those customers to the site next door that doesn't.</p>
     </div>
 
     <section style="margin-top:48px">
@@ -322,6 +363,7 @@
           <li><strong>No cross-operator tracking.</strong> A new RSA key is generated for every domain. Your identity at one domain is cryptographically separate from your identity at another. No shared identifier, no tracking profile.</li>
           <li><strong>No personal data shared.</strong> The KYC model shares <em>attributes</em> — "valid government ID exists", "age ≥ 18" — never the underlying documents. The operator never sees your passport.</li>
           <li><strong>Your AI assistant works for you.</strong> Not the operator. Not the platform. The AI assistant holds <em>your</em> keys, signs <em>your</em> mandates, and acts in <em>your</em> interest.</li>
+          <li><strong>Your card never touches the chat.</strong> On first purchase the operator's own Stripe opens a hosted checkout page in setup mode; the assistant only relays the link, and you type the card into Stripe — never into the chat. The protocol forbids assistants from automating that form. After that, purchases run off-session within a spending cap you signed. The second order is zero taps.</li>
           <li><strong>Separate assistants, each answerable to you.</strong> Give each person in your life their own assistant account with an operator — a partner, a kid — all bound to one account. Each is <em>independently revocable</em>, and each has a <em>spending cap you set and change</em> from one page. No shared login, no shared card, no shared risk.</li>
           <li><strong>Zero apps to install — anywhere.</strong> One app for the restaurant, another for the venue, another for the taxi — and a whole new set in the next city and the next country. When an operator speaks Kiosk, your assistant just talks to it directly — no download, no account form, no password resets.</li>
         </ul>
@@ -330,7 +372,7 @@
     </section>
 
     <div class="cant-do">
-      <h3>None of these can do this</h3>
+      <h3>None of these can do this — nor the chat widget on the site itself</h3>
       <p style="font-size:11px;color:#555;margin-bottom:12px">As of July 2026.</p>
       <ul class="cant-list">
         <li><strong>Manus</strong> — hands you a payment link after 20 minutes of screen scraping</li>
@@ -339,12 +381,6 @@
         <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment, no persistence</li>
         <li><strong>Gemini</strong> — navigates app, then hands back for final payment tap</li>
         <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints. Can't book, can't reserve, can't pay</li>
-      </ul>
-    </div>
-
-    <div class="cant-do">
-      <h3>Not the "AI assistant" widget on every website</h3>
-      <ul class="cant-list">
         <li><strong>Operator chatbots</strong> — can search the catalog. Cannot register, cannot book, cannot pay. Lose context between visits.</li>
         <li><strong>"Powered by AI" popups</strong> — a template with your logo. Same three questions. Zero integration with the actual ordering system.</li>
         <li><strong>Voice assistants on speaker</strong> — "turn on the lights" works. "Book a haircut for Thursday" — silence.</li>
@@ -354,6 +390,10 @@
     <div class="why-not">
       <h3>Why not X?</h3>
       <ul class="why-list">
+        <li>
+          <strong>Why not just agents.txt + auth.md + AP2, assembled by hand?</strong>
+          That is what Kiosk is — those standards, embraced where they reach, plus the one layer none of them defines: the wire the assistant actually calls. agents.txt says where you are; auth.md-shaped registration says how an assistant introduces itself; AP2 says how a payment is signed. None of them says what a request, response, or error looks like, how a proof-of-work or payment-setup gate is signalled and retried, or how the acting identity scopes what a call may touch. Assemble them yourself and you've built one more bespoke dialect — every assistant learns your service from scratch, and every service drifts in exactly the hard places (replay, origin-binding, 402 retry, mandate chaining). Kiosk pins that layer — four fixed verbs, one envelope, one retriable gate, one identity-scoping rule, identical at every Kiosk operator — and ships the whole thing assembled and tested: engine, proof-of-work toll, reputation, account linking, spending caps, payments adapter, skill, seven live demos. The standards are the vocabulary; Kiosk is the working sentence.
+        </li>
         <li>
           <strong>Why not MCP?</strong>
           The gate is key custody, not transport: an AI assistant that can hold a private key and sign mandates can make a dozen REST calls; one that can't, can't pay over any transport — MCP included. What MCP would add, Kiosk already serves on the wire (discovery, schema); what it wouldn't solve — holding keys, signing mandates, solving proof-of-work — is client-side either way. REST + JWS was enough. An MCP wrapper over the same wire is welcome.
@@ -367,6 +407,10 @@
           A Python package that handles RSA keys and payment mandates is a high-value supply-chain attack target. A markdown spec is inert — no code execution risk. Versioned by kiosk.tech, reviewable by every operator before deployment. AI assistants generate their own integration from the spec at runtime.
         </li>
       </ul>
+    </div>
+
+    <div style="margin-top:48px;padding:18px 20px;background:#141414;border:1px solid #242424;border-radius:10px;font-size:12px;color:#777;line-height:1.7">
+      <strong style="color:#8bc49a">Status: v0.3</strong> — wire format stable. Seven live demos above, on the real stack. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
     </div>
   </section>
 
