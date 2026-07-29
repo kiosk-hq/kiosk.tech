@@ -375,15 +375,13 @@
       <h3>None of these can do this</h3>
       <p style="font-size:11px;color:#555;margin-bottom:12px">As of July 2026.</p>
       <ul class="cant-list">
-        <li><strong>Manus</strong> — hands you a payment link after 20 minutes of screen scraping</li>
-        <li><strong>ChatGPT AI assistant</strong> — redirects to operator's app for booking or payment</li>
-        <li><strong>Claude Connectors</strong> — search only. "Book on booking.com" → deep link out</li>
-        <li><strong>OpenAI Operator</strong> — drives human GUIs. No registration, no payment, no persistence</li>
-        <li><strong>Gemini</strong> — navigates app, then hands back for final payment tap</li>
-        <li><strong>Alexa+ / Siri</strong> — zero commerce endpoints. Can't book, can't reserve, can't pay</li>
-        <li><strong>Operator chatbots</strong> — can search the catalog. Cannot register, cannot book, cannot pay. Lose context between visits.</li>
-        <li><strong>"Powered by AI" fake personal assistant popups</strong> — a template with your logo. Same three questions. Zero integration with the actual ordering system.</li>
-        <li><strong>Voice assistants on speaker</strong> — "turn on the lights" works. "Book a haircut for Thursday" — silence.</li>
+        <li><strong>Manus</strong> — its "handover" page makes you mouse-click your card number in through the agent's own screen — no typing, no link to the merchant's Stripe — so the card passes through the agent, with no custody and no revocation.</li>
+        <li><strong>ChatGPT</strong> — its Apps surface a merchant inside the chat, then hand you to that merchant's own app to actually book or pay; Instant Checkout was walked back. Discovery, not completion.</li>
+        <li><strong>Claude Connectors</strong> — search only: it finds the hotel or the restaurant, but "book it" just returns a link out to the merchant's site, where you finish by hand (checked live on Uber Eats and Booking).</li>
+        <li><strong>OpenAI Operator</strong> — drives human GUIs click-by-click. No registration, no payment, no persistence.</li>
+        <li><strong>Gemini</strong> — completes retail-goods buys via Universal Cart (Google Pay), but for a service it just drives the app on your screen and hands back for the final tap.</li>
+        <li><strong>Voice assistants (Alexa+, Siri)</strong> — "turn on the lights" works; "book a haircut Thursday" is silence. Alexa+ announces redirect-to-partner services (live status unclear); Siri, no commerce (2026).</li>
+        <li><strong>In-app or on-website chatbots</strong> — the "fake personal assistant" widget bolted onto a site or app: a scripted Q&A over your catalog with your logo on it, no integration with the actual ordering system. Can't register, book, or pay, and forgets you between visits.</li>
       </ul>
     </div>
 
