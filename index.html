@@ -204,6 +204,10 @@
     <p class="hero-line">Kiosk gives AI assistants a sanctioned way to use online services — browse, book, order, pay, or just ask — instead of scraping web pages and imitating a real browser.</p>
   </header>
 
+  <div style="max-width:720px;margin:0 auto 40px;padding:18px 20px;background:#141414;border:1px solid #242424;border-radius:10px;font-size:12px;color:#777;line-height:1.7">
+    <strong style="color:#8bc49a">Status: v0.3</strong> — wire format stable. Seven live demos below, on the real stack. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
+  </div>
+
   <section>
     <div class="demo-box" id="demo">
       <h2>What AI assistants can do today</h2>
@@ -248,7 +252,7 @@
       </p>
       <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary"><strong>Get the source code</strong></a>
       <span style="font-size:12px;color:#555;margin-left:12px">Apache 2.0, self-hosted, free</span>
-      <p style="font-size:12px;color:#555;margin-top:14px"><a href="/onboarding.html" style="color:#8bc49a">Step-by-step onboarding →</a> &nbsp;·&nbsp; Or write your own using <a href="/specification.html" style="color:#8bc49a">the specification</a>.</p>
+      <p style="font-size:12px;color:#555;margin-top:14px">Add the gem, initializer, and migrations — <a href="/onboarding.html" style="color:#8bc49a">about 20 minutes to agent-ready</a>. Or write your own using <a href="/specification.html" style="color:#8bc49a">the specification</a>.</p>
     </section>
 
     <div class="demo-box" id="try">
@@ -300,12 +304,12 @@
       <h2>How it works</h2>
       <p class="time">Six moving parts, on the wire.</p>
       <ol class="demo-steps">
-        <li><strong>Discovery.</strong> Your domain announces the gateway — agents.txt and the standard well-known surfaces. No registry, no marketplace: nobody needs our permission to join either side.</li>
-        <li><strong>Identity.</strong> The assistant generates a keypair for your domain and registers by proving possession. No email, no OTP, no password reset. The proof is origin-bound, so it can't be replayed against a look-alike site.</li>
-        <li><strong>Data plane.</strong> You register named queries and actions ("availability", "place_order"). Assistants never send SQL and never see HTML.</li>
-        <li><strong>Abuse control.</strong> CAPTCHA asks "are you human" — the wrong question when your customer deliberately sent a robot. Kiosk asks two better ones: did you pay compute for this request, and have you been a good customer here before. Suspicious requests get a memory-hard proof-of-work challenge; your server verifies it in under 20&nbsp;ms with a few KB of memory.</li>
-        <li><strong>Reputation.</strong> Difficulty is a proof count, per operator: an established customer solves 0–1, a fresh key ~3, a flagged one climbs to the reference policy's cap of 10. Burning a key and re-registering just restarts you at the expensive tier — whitewashing is priced, not blocked.</li>
-        <li><strong>Payments (optional).</strong> The assistant signs three chained mandates — intent with a spending cap, cart with exact line items, payment. You verify the chain and charge through your own payment account. Every cent has a signed audit trail.</li>
+        <li><strong>Discovery.</strong> The domain announces the gateway — agents.txt and the standard well-known surfaces. No registry, no marketplace: nobody needs permission to join either side.</li>
+        <li><strong>Identity.</strong> The assistant generates a keypair for that domain and registers by proving possession. No email, no OTP, no password reset. The proof is origin-bound, so it can't be replayed against a look-alike site.</li>
+        <li><strong>Data plane.</strong> The service operator registers named queries and actions ("availability", "place_order"); assistants call those by name, never scraping HTML.</li>
+        <li><strong>Abuse control.</strong> CAPTCHA asks "are you human" — the wrong question when the consumer deliberately sent a robot. Kiosk asks two better ones: did you pay compute for this request, and have you been a good customer here before. Suspicious requests get a memory-hard proof-of-work challenge; the operator verifies it in under 20&nbsp;ms with a few KB of memory.</li>
+        <li><strong>Reputation.</strong> Difficulty is a proof count, per operator: an established customer solves 0–1, a fresh key ~3, a flagged one climbs to the reference policy's cap of 10. Burning a key and re-registering just restarts at the expensive tier — whitewashing is priced, not blocked.</li>
+        <li><strong>Payments (optional).</strong> The assistant signs three chained mandates — intent with a spending cap, cart with exact line items, payment. The operator verifies the chain and charges through its own payment account. Every cent has a signed audit trail.</li>
       </ol>
     </div>
 
@@ -314,12 +318,13 @@
       <p style="text-align:center;font-size:14px;color:#888;max-width:600px;margin:0 auto 24px">Kiosk implements the emerging agent-web standards rather than replacing them. The split is explicit.</p>
       <div class="benefits" style="margin-top:0">
         <div>
-          <h3 style="color:#aaa">Thanks to the open standards <span style="font-size:11px;color:#666;font-weight:400;display:block;margin-top:2px">anyone implementing them gets this</span></h3>
+          <h3 style="color:#aaa">Thanks to the open standards <span style="font-size:11px;color:#666;font-weight:400;display:block;margin-top:2px">you'd get these from the standards alone</span></h3>
           <ul>
-            <li><strong>Discoverable</strong> — assistants find you via agents.txt / agents.json / api-catalog (RFC&nbsp;9727).</li>
-            <li><strong>Readable</strong> — a versioned skill file teaches any assistant the flow.</li>
-            <li><strong>No sign-up form</strong> — auth.md-shaped registration: keypair, challenge, signature, done.</li>
-            <li><strong>Signed payments</strong> — every charge rides an AP2 mandate chain (intent → cart → payment).</li>
+            <li><strong>Discoverable</strong> — assistants find you via <a href="https://agents-txt.com" style="color:#8bc49a">agents.txt</a> and its <a href="https://agents-txt.com" style="color:#8bc49a">agents.json</a> companion at your domain root.</li>
+            <li><strong>Catalog-listed</strong> — and reachable through the standard <code>/.well-known/api-catalog</code> (<a href="https://www.rfc-editor.org/info/rfc9727" style="color:#8bc49a">RFC&nbsp;9727</a>).</li>
+            <li><strong>Readable</strong> — a versioned <a href="https://agentskills.io" style="color:#8bc49a">skill file</a> teaches any assistant the flow.</li>
+            <li><strong>No sign-up form</strong> — <a href="https://workos.com/auth-md" style="color:#8bc49a">auth.md</a>-shaped registration: keypair, challenge, signature, done.</li>
+            <li><strong>Signed payments</strong> — every charge rides an <a href="https://ap2-protocol.org" style="color:#8bc49a">AP2</a> mandate chain (intent → cart → payment).</li>
           </ul>
         </div>
         <div>
@@ -329,7 +334,7 @@
             <li><strong>A price on abuse</strong> — the memory-hard proof-of-work toll plus per-operator reputation, in the wire, not bolted on.</li>
             <li><strong>Accounts that bind and answer</strong> — human↔assistant linking (the ceremony auth.md doesn't have), per-assistant revocation and spending caps on one page, roles inherited from your IdP via the human who linked.</li>
             <li><strong>KYC as attributes</strong> — gate actions on "18+, licence A" attestations, never documents.</li>
-            <li><strong>The working whole</strong> — engine, adapters, skill, demos: assembled, tested, Apache-2.0. An afternoon, not a quarter.</li>
+            <li><strong>The working whole</strong> — engine, adapters, skill, demos: assembled, tested, Apache-2.0.</li>
           </ul>
         </div>
       </div>
@@ -404,10 +409,6 @@
           An SDK that holds your customers' keys and signs their payment mandates would be a high-value supply-chain target — one compromised release reaches every operator. Kiosk ships a versioned, operator-reviewable markdown spec instead: the AI assistant generates its own integration and makes its own HTTP calls, holding its own keys. The only code we point it at is the proof-of-work solver — a small, optional, key-less script pinned by content hash (verify-before-execute), or one it writes itself from the spec.
         </li>
       </ul>
-    </div>
-
-    <div style="margin-top:48px;padding:18px 20px;background:#141414;border:1px solid #242424;border-radius:10px;font-size:12px;color:#777;line-height:1.7">
-      <strong style="color:#8bc49a">Status: v0.3</strong> — wire format stable. Seven live demos above, on the real stack. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
     </div>
   </section>
 
