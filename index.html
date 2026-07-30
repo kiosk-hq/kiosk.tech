@@ -200,13 +200,10 @@
   <header>
     <a href="https://github.com/kiosk-hq/kiosk" class="header-gh"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3E%3Cpath d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z'/%3E%3C/svg%3E" width="32" height="32" style="vertical-align:middle;margin-right:4px;border-radius:2px" alt="GitHub"></a>
     <img src="/logo.png" alt="Kiosk" class="logo">
+    <p style="text-align:center;font-size:11px;color:#666;letter-spacing:0.08em;margin:-6px 0 10px">v0.3</p>
     <p class="ref-badge">The AI assistants' interface to online services</p>
     <p class="hero-line">Kiosk gives AI assistants a sanctioned way to use online services — browse, book, order, pay, or just ask — instead of scraping web pages and imitating a real browser.</p>
   </header>
-
-  <div style="max-width:720px;margin:0 auto 40px;padding:18px 20px;background:#141414;border:1px solid #242424;border-radius:10px;font-size:12px;color:#777;line-height:1.7">
-    <strong style="color:#8bc49a">Status: v0.3</strong> — wire format stable. Seven live demos below, on the real stack. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
-  </div>
 
   <section>
     <div class="demo-box" id="demo">
@@ -409,6 +406,10 @@
           An SDK that holds your customers' keys and signs their payment mandates would be a high-value supply-chain target — one compromised release reaches every operator. Kiosk ships a versioned, operator-reviewable markdown spec instead: the AI assistant generates its own integration and makes its own HTTP calls, holding its own keys. The only code we point it at is the proof-of-work solver — a small, optional, key-less script pinned by content hash (verify-before-execute), or one it writes itself from the spec.
         </li>
       </ul>
+    </div>
+
+    <div style="margin-top:48px;padding:18px 20px;background:#141414;border:1px solid #242424;border-radius:10px;font-size:12px;color:#777;line-height:1.7">
+      <strong style="color:#8bc49a">Status: v0.3</strong> — wire format stable. Seven live demos above, on the real stack. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
     </div>
   </section>
 
