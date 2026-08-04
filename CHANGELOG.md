@@ -3,6 +3,8 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-08-04: Published skill-v0.3.7 (immutable): freezes the working skill's six live-agent-run hardenings — verb params go FLAT (not nested as the schema shows), login returns only the access token with un-enveloped auth responses, the sign-the-nonce auth challenge is distinguished from the solve-it PoW challenge, a KYC-initiation pattern (`request_kyc` → human-approve `verification_url` → poll `kyc_status` → submit `/agents/kyc`), the `next`-cursor pagination on `rows` results, and summarize-don't-dump for large result sets — and re-pins the latest alias to match (ADR-0012).
+
 - 2026-08-04: Spec — the KYC attestation now carries a REQUIRED operator-binding `aud` claim (T-043/PROVE-MY-BUILD-FORKS/ADR-0020): it MUST equal the verifying operator's configured audience, and the operator rejects any other `aud` at the attestation endpoint, so a claim minted for one operator cannot be replayed to another. Added to both specs (narrative KYC section + formal §12.1) and `kyc.schema.json` + example (D8).
 
 - 2026-08-04: Landing — the "Compatible AI assistants" row is now a proper flex-wrap of nowrap items, so on narrow viewports each assistant's icon and name stay together on one line (they previously split across lines); desktop layout unchanged.
