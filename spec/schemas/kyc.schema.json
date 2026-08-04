@@ -7,11 +7,12 @@
     "attestation": {
       "type": "object",
       "description": "Signed by the KYC provider, verified with its configured public key.",
-      "required": ["sub", "level", "iss", "exp"],
+      "required": ["sub", "level", "iss", "aud", "exp"],
       "properties": {
         "sub": { "type": "string", "description": "MUST equal the authenticated user_id." },
         "level": { "const": "verified", "description": "Binary; anything other than \"verified\" is rejected." },
         "iss": { "type": "string", "description": "MUST equal the provider-configured KYC issuer." },
+        "aud": { "type": "string", "description": "OPERATOR-BINDING. The operator the attestation was minted for. MUST equal the operator's configured kyc_audience (its origin, or a stable handle it declares); the operator rejects any other aud. This stops a claim minted for operator A being replayed to operator B." },
         "iat": { "type": "integer", "description": "Optional; issued-at timestamp. Not enforced by the verifier." },
         "exp": { "type": "integer", "description": "REQUIRED; an expired attestation is rejected." },
         "attributes": { "$ref": "#/$defs/attributes" }

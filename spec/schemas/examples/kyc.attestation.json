@@ -2,6 +2,7 @@
   "sub": "a7f3",
   "level": "verified",
   "iss": "https://kyc.example",
+  "aud": "https://operator.example",
   "iat": 1751846340,
   "exp": 1751849940,
   "attributes": {

@@ -460,7 +460,7 @@ stable vocabulary; `hint` is an optional remediation pointer; `challenges` appea
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
 | `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay` (Section 11.5); the human must raise the cap. |
-| `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.2); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
+| `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.3); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
 | `not_found` | 404 | Unknown query/action name or missing resource; `hint` carries known names. |
 | `conflict` | 409 | State conflict -- e.g. registering an already-registered key. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
@@ -579,15 +579,28 @@ Schema: [`kyc.schema.json`](./schemas/kyc.schema.json).
 
 An operator MAY require a KYC attestation. The AI assistant carries a signed
 **attestation** from a KYC provider -- never raw documents. The attestation is an
-**RS256 JWS** with claims `{sub, level, iss, iat, exp}` and an OPTIONAL
+**RS256 JWS** with claims `{sub, level, iss, aud, iat, exp}` and an OPTIONAL
 `attributes` object: `sub` **MUST** equal the authenticated `user_id`, `iss`
-**MUST** equal the operator-configured KYC issuer, `exp` **MUST** be present and
+**MUST** equal the operator-configured KYC issuer, `aud` **MUST** equal this
+operator's configured audience (see 12.1), `exp` **MUST** be present and
 unexpired, and `level` **MUST** be exactly `"verified"` (anything else is
 rejected). The AI assistant submits it to `POST <endpoint>/agents/kyc` (Bearer) as
 `{kyc_jws}`; on a clean verify the operator records verification and returns
 `{kyc_verified: true, attributes: {...}}`.
 
-### 12.1 Named anonymized attributes
+### 12.1 Operator binding (`aud`)
+
+The attestation is minted **for a specific operator**. Its `aud` claim **MUST**
+equal the operator's configured audience -- its origin, or a stable handle the
+operator declares to the KYC provider. On `POST <endpoint>/agents/kyc` the
+operator **MUST** reject any attestation whose `aud` does not equal its audience.
+This is enforced at the **wire** (the attestation endpoint on every operator), so
+a claim the KYC provider minted for operator A **cannot** be replayed to operator
+B even if a downstream broker-callback check is absent. The KYC provider learns
+each operator's audience when the operator requests the attestation and stamps it
+as `aud`.
+
+### 12.2 Named anonymized attributes
 
 The attestation MAY carry an **`attributes`** object of `{name: true}` booleans
 (e.g. `{"age_over_18": true, "licence_a": true}`). These are **anonymized**: the
@@ -600,7 +613,7 @@ granted attributes with the verification (the reference stores them in a
 is **additive**: a bare `level: "verified"` attestation with no `attributes` still
 verifies (the binary path), yielding an empty attribute set.
 
-### 12.2 Attribute-gated Actions
+### 12.3 Attribute-gated Actions
 
 An Action MAY be **gated** on a set of required attribute names. When the calling
 AI assistant's recorded attributes do not include every required name as `true`, the

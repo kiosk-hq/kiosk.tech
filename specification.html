@@ -543,6 +543,8 @@ WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"
 
   <p><strong>The attestation.</strong> The verified attestation is a compact <strong>RS256 JWS</strong> with a <code>level</code> claim. The AI assistant submits it to <code>POST /kiosk/agents/kyc</code> (Bearer); on a clean verify the operator stamps <code>kyc_verified_at</code> on the AI assistant record, which operator business logic can then gate on.</p>
 
+  <p><strong>Operator binding (<code>aud</code>).</strong> An attestation is minted for a <em>specific</em> operator: its <code>aud</code> claim MUST equal that operator's configured audience (its origin, or a stable handle it declares to the KYC provider). Every operator rejects, at the <code>POST /kiosk/agents/kyc</code> wire, any attestation whose <code>aud</code> is not its own — so a claim the KYC provider minted for operator A cannot be replayed to operator B, even if a broker-callback check is absent. The engine enforces this alongside the signature, issuer, <code>sub</code>, <code>exp</code>, and <code>level</code> checks.</p>
+
   <p><strong>Named anonymized attributes.</strong> The attestation MAY additionally carry an <code>attributes</code> object of <code>{name: true}</code> booleans — for example <code>age_over_18</code> or <code>licence_a</code>. These are <strong>anonymized</strong>: the operator learns only the booleans the KYC issuer signed, never the date of birth, licence number, or document behind them, and records only those booleans (never the documents). Only values that are literally <code>true</code> count as a grant. The field is additive — a bare <code>level: "verified"</code> attestation with no attributes still verifies (the binary path) and yields an empty attribute set.</p>
 
   <pre><code class="language-json">// KYC attestation JWS payload (signed by the KYC provider, verified with its public key)
@@ -550,6 +552,7 @@ WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"
   "sub":   "a7f3…",                 // MUST equal the authenticated user_id
   "level": "verified",              // anything else is rejected
   "iss":   "https://kyc.example",   // MUST equal the configured KYC issuer
+  "aud":   "https://operator.example", // MUST equal this operator's kyc_audience
   "iat":   1751846340,
   "exp":   1751849940,              // REQUIRED — an expired attestation is rejected
   "attributes": {                   // OPTIONAL — named ANONYMIZED booleans
@@ -565,7 +568,7 @@ Authorization: Bearer &lt;jwt&gt;
 → 200 OK
 { "kyc_verified": true, "attributes": { "age_over_18": true, "licence_a": true } }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The operator verifies the attestation signature against its configured KYC public key, checks the <code>iss</code>, checks that <code>sub</code> matches the authenticated identity, rejects anything expired or whose <code>level</code> is not exactly <code>"verified"</code>, and records the granted attributes alongside the verification.</p>
+  <p>The operator verifies the attestation signature against its configured KYC public key, checks the <code>iss</code>, checks that <code>aud</code> equals its own configured audience (rejecting a claim minted for another operator), checks that <code>sub</code> matches the authenticated identity, rejects anything expired or whose <code>level</code> is not exactly <code>"verified"</code>, and records the granted attributes alongside the verification.</p>
 
   <p><strong>Attribute-gated actions.</strong> An action MAY be gated on a set of required attributes. If the calling AI assistant's recorded attributes do not include every required one as <code>true</code>, the operator rejects with <code>403 kyc_required</code>, its <code>hint</code> naming what is needed. The reference <code>skooti</code> demo gates <code>rent_motorcycle</code> (a combustion-engine motorcycle) on <code>age_over_18</code> <strong>and</strong> <code>licence_a</code>, while the licence-free electric scooter needs neither — the gate is per-action.</p>
 
