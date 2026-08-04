@@ -412,6 +412,11 @@ Semantics remain PROSE in `description`; `input_schema` constrains only the
 input *shape*, never the meaning. A future `describe <verb>` progressive-disclosure
 mechanism for very large catalogs is anticipated but not specified here.
 
+For guidance on WRITING these fields consistently (how to phrase a
+`description`, what an `input_schema` should constrain, how to pick
+`example_params`/`example_row`), see the non-normative
+[Descriptor House Style](./descriptor-house-style.md).
+
 ### 8.4 Cursor pagination
 
 A `query` that returns a list MAY paginate. The response is a normal
