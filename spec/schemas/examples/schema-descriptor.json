@@ -1,10 +1,37 @@
 {
   "verbs": ["schema", "query", "run", "pay"],
   "queries": [
-    { "name": "catalog", "description": "Browse the product catalog", "params": null }
+    { "name": "catalog", "description": "Browse the product catalog", "params": null },
+    {
+      "name": "search_hotels",
+      "description": "Search hotels by city, sorted by price. Paginated: pass `limit` (1-50) and echo the `next` cursor from the previous page back as `cursor`. `next` present in the response means more results exist.",
+      "params": { "city": "string, required", "limit": "integer 1-50, optional (default 20)", "cursor": "opaque string, optional -- echo the previous page's `next`" },
+      "input_schema": {
+        "type": "object",
+        "required": ["city"],
+        "properties": {
+          "city":   { "type": "string" },
+          "limit":  { "type": "integer", "minimum": 1, "maximum": 50 },
+          "cursor": { "type": "string" }
+        }
+      },
+      "example_params": { "city": "Lisbon", "limit": 20 },
+      "example_row": { "id": 41, "name": "Grand Aljube", "city": "Lisbon", "nightly_price_cents": 14900, "currency": "eur" }
+    }
   ],
   "actions": [
-    { "name": "create_order", "description": "Create an order from items", "params": { "items": "array" } },
+    {
+      "name": "create_order",
+      "description": "Create an order from items",
+      "params": { "items": "array" },
+      "input_schema": {
+        "type": "object",
+        "required": ["items"],
+        "properties": { "items": { "type": "array", "items": { "type": "string" }, "minItems": 1 } }
+      },
+      "example_params": { "items": ["milk-1l", "eggs-12"] },
+      "example_row": { "order_id": "a1b2c3", "status": "placed", "total_cents": 648, "currency": "eur" }
+    },
     { "name": "payment_setup", "description": null, "params": null }
   ]
 }

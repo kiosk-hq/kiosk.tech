@@ -156,6 +156,13 @@ sequenceDiagram
              "challenges": [ … ] } }  // pow_required only</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>The examples below show only the payload field for brevity; the full response always carries the <code>ok</code>/<code>kind</code> envelope shown here.</p>
 
+  <h3>Pagination — the <code>next</code> cursor</h3>
+  <p>A <code>query</code> that returns a list MAY paginate. Its <code>kind: "rows"</code> success then carries an optional top-level <code>next</code> string. <strong>Present</strong> <code>next</code> means the result was truncated (more rows exist); <strong>absent</strong> means it is complete. To fetch the next page the AI assistant repeats the same query with <code>next</code>'s value echoed back verbatim as the <code>cursor</code> request param (an optional <code>limit</code> param caps page size). The cursor is <strong>opaque</strong> — echo it back unchanged, never parse it. This is opt-in per query and only ever appears on list results; single-object, action, and <code>pay</code> results never carry <code>next</code>.</p>
+  <pre><code class="language-json">// paginated query success — more rows exist
+{ "ok": true, "kind": "rows",
+  "rows": [ … ],
+  "next": "b2Zmc2V0OjQy" }   // opaque — resend as { "cursor": "b2Zmc2V0OjQy" }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
   <h3>Error vocabulary</h3>
   <p>The <code>error.code</code> values are a closed, stable vocabulary — an AI assistant branches on <code>code</code>, never on the HTTP status alone. The error object is <code>{code, message, hint?, challenges?}</code>: <code>hint</code> is an optional remediation pointer (for example the known query names on a <code>not_found</code>), and <code>challenges</code> appears only on <code>pow_required</code>.</p>
   <table>
@@ -188,7 +195,14 @@ Authorization: Bearer &lt;jwt&gt;
   "value": {
     "verbs":   ["query", "run", "pay", "schema"],
     "queries": [
-      { "name": "catalog", "description": "Browse the product catalog", "params": null }
+      { "name": "catalog", "description": "Browse the product catalog", "params": null },
+      { "name": "search_hotels",
+        "description": "Search hotels by city, sorted by price. Paginated: pass limit and echo the response's next as cursor.",
+        "params": { "city": "string, required", "limit": "integer 1-50", "cursor": "opaque string" },
+        "input_schema": { "type": "object", "required": ["city"],
+                          "properties": { "city": {"type":"string"}, "limit": {"type":"integer","minimum":1,"maximum":50} } },
+        "example_params": { "city": "Lisbon", "limit": 20 },
+        "example_row": { "id": 41, "name": "Grand Aljube", "city": "Lisbon", "nightly_price_cents": 14900, "currency": "eur" } }
     ],
     "actions": [
       { "name": "create_order",  "description": "Create an order from items", "params": { "items": "array" } },
@@ -198,9 +212,9 @@ Authorization: Bearer &lt;jwt&gt;
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <ul>
     <li><code>verbs</code> — the full fixed wire surface: all four verb names, always (array order is not significant here, unlike the canonical ordering of <code>capabilities</code>). This is <strong>not</strong> the advertised capability set: <code>capabilities</code> in <code>/.well-known/kiosk.json</code> is computed from what the operator actually registered (it drops <code>pay</code> when no payment provider is configured), while <code>verbs</code> names the protocol surface itself.</li>
-    <li><code>queries</code> / <code>actions</code> — arrays of descriptors, sorted by name. A descriptor is <code>{name, description, params}</code>: <code>description</code> is a string or <code>null</code>; <code>params</code> is a <strong>free-form operator-defined hint object</strong> (by convention a map of parameter name → type-hint string) or <code>null</code>. It is documentation for the AI assistant, not a typed schema language — the operator validates arguments server-side.</li>
+    <li><code>queries</code> / <code>actions</code> — arrays of descriptors, sorted by name. A descriptor is <code>{name, description, params}</code>: <code>description</code> is a string or <code>null</code>; <code>params</code> is a <strong>free-form operator-defined hint object</strong> (by convention a map of parameter name → type-hint string) or <code>null</code>. Semantics live in <code>description</code> as prose — the AI assistant reads it.</li>
+    <li>A descriptor MAY additionally carry three <strong>optional machine-readable fields</strong> (absent by default): <code>input_schema</code> — a JSON Schema (draft 2020-12) for that verb's inputs (required/optional, types, enums, ranges) that supersedes the free-text <code>params</code> hint for machine validation while <code>params</code> stays for prose; <code>example_params</code> — an example params object to copy as a starting call; and <code>example_row</code> — an example of one result element, so an assistant learns the result shape without a call-and-observe probe. Publishing them lets a cold assistant go schema → goal without hardcoded knowledge.</li>
   </ul>
-  <div class="todo"><strong>ROADMAP — typed parameter schema.</strong> <code>params</code> is a free-form hint today; a structured parameter schema is under consideration. Treat descriptors as AI-assistant-facing documentation, not a validation contract.</div>
 
   <h2>Discovery</h2>
   <p>Every operator serves a discovery document at <code>GET /.well-known/kiosk.json</code>, unauthenticated, so an AI assistant can bootstrap from the origin alone. It carries the <code>issuer</code> (the AP2 mandate <code>iss</code> anchor), the API <code>endpoint</code>, the <code>auth</code> block, an optional pinned <code>skill</code> reference, and a top-level <strong><code>capabilities</code></strong> array. The document's own <code>version</code> field is the <strong>discovery-document format version</strong> (currently <code>"1.0"</code>) — independent of the protocol version (0.3) this page specifies. It may also carry optional <code>owner</code> (operator contact) and <code>min_client</code> fields; this page shows the common fields, and the <a href="/spec/protocol.md">formal spec</a> plus <a href="/spec/schemas/discovery.schema.json">JSON Schema</a> enumerate every field.</p>

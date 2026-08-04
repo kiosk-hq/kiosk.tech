@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "kind": "rows",
+  "rows": [
+    { "id": 41, "name": "Grand Aljube", "city": "Lisbon", "nightly_price_cents": 14900, "currency": "eur" },
+    { "id": 42, "name": "Chiado Rooms", "city": "Lisbon", "nightly_price_cents": 9900, "currency": "eur" }
+  ],
+  "next": "b2Zmc2V0OjQy"
+}

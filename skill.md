@@ -40,6 +40,8 @@ Every `schema`/`query`/`run`/`pay` response is wrapped in a uniform envelope -- 
 
 So `query` results are under `rows` (an array); `schema`, `run`, and `pay` results are under `value` (an object). The payload snippets shown below (e.g. `{status:"ready"}`) are the *contents* of that `value`/`rows` field, not the whole response.
 
+**Pagination — the `next` cursor.** A `rows` response MAY carry a top-level `next` string. Its **presence means the list was truncated** (more rows exist); its **absence means you have the complete list**. To get the next page, repeat the *same* `query` with `next`'s value echoed back verbatim as a `cursor` param (`{name:"search_hotels", city:"Lisbon", cursor:"<the next value>"}`); an optional `limit` param caps page size. Treat `next` as **opaque** -- copy it back unchanged, never parse it. Only `rows` results paginate; `value` results never carry `next`. If you need the whole list, keep paging until `next` is absent.
+
 ## Flow (every operator, every visit)
 
 ### Step 1: Discover
@@ -69,6 +71,8 @@ Both directions require the possession proof (`signed`). Binding works with a fr
 
 ### Step 3: Learn surface
 `GET <endpoint>/schema` with the Bearer header -> the operator's queries and actions, each with params and a free-text `description`. Read the descriptions -- they tell you what this operator actually does; do not assume names.
+
+A descriptor MAY also carry optional machine-readable fields: `input_schema` (a JSON Schema for that verb's inputs -- required/optional, types, enums, ranges; use it to build a well-formed call), `example_params` (an inputs object you can copy as a starting call), and `example_row` (a sample of one result element, so you know the shape without a probe call). When present they save you a call-and-observe round trip; when absent, fall back to reading `description`/`params`. Semantics always live in the prose `description`.
 
 ```python
 req = urllib.request.Request(f"{endpoint}/schema",

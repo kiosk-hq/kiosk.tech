@@ -31,11 +31,21 @@
         "name": { "type": "string" },
         "description": {
           "type": ["string", "null"],
-          "description": "Human-facing description or null."
+          "description": "Human-facing description or null. Semantics live here in prose -- the AI assistant reads it."
         },
         "params": {
           "type": ["object", "null"],
           "description": "Free-form provider-defined hint object (by convention name -> type-hint string), or null. Documentation, not a validation contract."
+        },
+        "input_schema": {
+          "type": "object",
+          "description": "OPTIONAL JSON Schema (draft 2020-12) for THIS verb's inputs: required/optional, types, enums, ranges. Supersedes the free-text `params` hint for machine validation; `params` is kept alongside for prose/back-compat. Absent = no machine input contract published for this verb."
+        },
+        "example_params": {
+          "description": "OPTIONAL example params object an AI assistant can copy verbatim as a starting call for this verb."
+        },
+        "example_row": {
+          "description": "OPTIONAL example of one result element -- a representative row for a query, or the example return value for an action -- so an assistant learns the result shape without a call-and-observe probe."
         }
       }
     }

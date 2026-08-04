@@ -372,6 +372,10 @@ payload field:
 - `kind: "value"` -> payload under `value` (object; `schema`, actions, `pay`).
 - `kind: "events"` -> payload under `events` (reserved).
 
+A `kind: "rows"` success MAY additionally carry an OPTIONAL top-level `next`
+string -- the pagination cursor (Section 8.4). No other `kind` ever carries
+`next`.
+
 An error carries `ok: false` and an `error` object (Section 9). An AI assistant **MUST** branch
 on the envelope and on `error.code`, never on the HTTP status alone.
 
@@ -388,6 +392,51 @@ configured); do not treat these `verbs` as mirroring what the origin advertises.
 sorted by name; `description` is a string or `null`, and `params` is a free-form
 operator-defined hint object or `null` -- documentation, not a validation contract
 (the operator validates arguments server-side).
+
+A descriptor MAY additionally carry three OPTIONAL machine-readable fields
+(absent by default; a descriptor with none of them is exactly the shape above):
+
+- `input_schema` -- a JSON Schema (draft 2020-12) for that verb's INPUTS
+  (required/optional, types, enums, ranges). When present it supersedes the
+  free-text `params` hint for machine validation; `params` is retained
+  alongside it for prose. An operator MAY validate arguments against
+  `input_schema` server-side, but is not required to; an AI assistant SHOULD
+  use it to shape a well-formed call.
+- `example_params` -- an example params object an assistant may copy as a
+  starting call.
+- `example_row` -- an example of one result element (a representative row for a
+  query, or the example return value for an action), so an assistant learns the
+  result shape without a call-and-observe probe.
+
+Semantics remain PROSE in `description`; `input_schema` constrains only the
+input *shape*, never the meaning. A future `describe <verb>` progressive-disclosure
+mechanism for very large catalogs is anticipated but not specified here.
+
+### 8.4 Cursor pagination
+
+A `query` that returns a list MAY paginate. The response is a normal
+`kind: "rows"` envelope with an OPTIONAL top-level `next` string:
+
+- `next` **PRESENT** -> the result was TRUNCATED; more rows exist. To fetch the
+  following page, the AI assistant repeats the *same* query with `next`'s value
+  echoed back verbatim as the `cursor` request param.
+- `next` **ABSENT** -> the result is COMPLETE (this is the last, or only, page).
+
+The cursor is **OPAQUE**: the assistant MUST treat `next` as an opaque token,
+echo it back unmodified, and MUST NOT parse or construct it. An operator MAY
+encode an offset, a keyset token, or any scheme behind it.
+
+Two OPTIONAL request params drive pagination, both read by the operator's query
+handler (they are ordinary query params, not a separate envelope):
+
+- `limit` -- integer, the maximum rows the assistant wants in one page. The
+  operator MAY clamp it to a maximum.
+- `cursor` -- the opaque string from the previous page's `next`.
+
+Pagination applies to LIST (`kind: "rows"`) results ONLY. Single-object,
+action, and `pay` results (`kind: "value"`) never carry `next`. A query handler
+that ignores `limit`/`cursor` and never emits `next` is a valid non-paginating
+query -- pagination is opt-in per query.
 
 ---
 
@@ -584,7 +633,10 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    fields only. Within 0.3.x the wire stays backward-compatible and additive:
    patches add endpoints and fields only; existing request/response fields and
    their meaning **MUST NOT** change or be removed. An AI assistant **MUST** ignore
-   unknown response fields.
+   unknown response fields. The optional envelope `next` cursor (Section 8.4)
+   and the optional descriptor `input_schema`/`example_params`/`example_row`
+   fields (Section 8.3) are exactly this kind of additive extension: absent on
+   responses that predate them, they never alter an existing shape.
 3. **Discovery-document format version.** The `version` field inside
    `/.well-known/kiosk.json` is the **discovery-document format version**
    (currently `"1.0"`), independent of the protocol version this document
