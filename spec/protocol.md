@@ -643,9 +643,12 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 ## 14. Versioning
 
-1. **Version parity.** The protocol, the reference implementation, and the AI assistant
-   skill share MAJOR.MINOR. An operator on Kiosk 0.3 pins a 0.3 skill against a 0.3
-   wire.
+1. **Version parity (MAJOR.MINOR only).** The protocol, the reference implementation,
+   and the AI assistant skill share their **MAJOR.MINOR** version -- currently **0.3**.
+   An operator on Kiosk 0.3 pins a 0.3 skill against a 0.3 wire. Parity binds MAJOR.MINOR;
+   the skill's PATCH is independent (see point 4), and the discovery-document format
+   version is a separate line entirely (point 3). These are **three distinct version
+   lines** -- do not expect all three numbers to match.
 2. **Additivity within a MINOR series.** A new MINOR (0.2 -> 0.3) is a feature
    milestone that bundles backward-compatible additions -- new endpoints and
    fields only. Within 0.3.x the wire stays backward-compatible and additive:
@@ -659,9 +662,13 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    `/.well-known/kiosk.json` is the **discovery-document format version**
    (currently `"1.0"`), independent of the protocol version this document
    specifies.
-4. **Skill version.** Published skill files are immutable and versioned
-   (`skill-vX.Y.Z.md`); a change ships a new file. An operator's optional `skill`
-   pin is a versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
+4. **Skill version.** The skill is published as `skill-vMAJOR.MINOR.PATCH.md`, where
+   **MAJOR.MINOR tracks the protocol release** (currently 0.3, so version parity holds)
+   and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
+   protocol, cut without a protocol change. The current skill is **0.3.7**: still
+   protocol 0.3, seven skill-only patches in. Published skill files are immutable and
+   versioned; a change ships a new file. An operator's optional `skill` pin is a
+   versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
    from the URL, adopt it if newer than its cached skill, fetch it **from
    kiosk.tech** (never from the operator), and verify both the frontmatter
