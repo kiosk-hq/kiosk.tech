@@ -92,6 +92,15 @@ carry a `currency: "eur"` field; ids are the real seeded ids (integer property
 ids, uuid booking ids). An example that disagrees with the live rows teaches
 the assistant the wrong shape.
 
+**A summary row's id field MUST use the SAME name as the detail/action verb's
+id param** (canonical `<thing>_id`, e.g. `property_id`, `order_id`,
+`reservation_id`). A `search`/list query that returns a bare `id` while its
+`detail` verb takes `property_id` forces the assistant to GUESS that they are
+the same key -- so a `search_hotels` row carries `property_id` (SQL
+`SELECT p.id AS property_id`) and `hotel_detail` takes `property_id`; the
+assistant copies the key straight through with no remapping. Never expose a row
+`id` that no verb consumes (a dead field invites the same guessing).
+
 ---
 
 ## Worked example -- hoteling `search_hotels`
@@ -114,7 +123,7 @@ Kiosk::Server::Queries.register("search_hotels",
                "echo it back verbatim as `cursor` to fetch the following page, " \
                "and keep paging until `next` is absent. from_price_cents is EUR " \
                "cents (carts are signed in eur). Call hotel_detail with a " \
-               "returned id for the full property (rooms, amenities, address).",
+               "returned property_id for the full property (rooms, amenities, address).",
   params: {
     neighbourhood:   "string, optional -- exact area, e.g. \"Kadikoy\"",
     max_price_cents: "integer, optional -- cheapest room's nightly rate <= this (EUR cents)",
@@ -141,7 +150,7 @@ Kiosk::Server::Queries.register("search_hotels",
   },
   example_params: { neighbourhood: "Besiktas", min_stars: 4, max_price_cents: 20000, limit: 20 },
   example_row: {
-    id: 4, name: "Bosphorus Palace", neighbourhood: "Besiktas", stars: 5,
+    property_id: 4, name: "Bosphorus Palace", neighbourhood: "Besiktas", stars: 5,
     from_price_cents: 15000, currency: "eur", room_type_count: 2,
   }) do |params|
   # ... handler returns Kiosk::Server::Page.new(rows:, next_cursor:) ...
@@ -158,8 +167,9 @@ What each field is doing for the cold assistant:
   `min_stars` to 1..5 and `limit` to 50, and marks everything optional
   (`required: []`) -- a bare `search_hotels` is a valid whole-catalogue page 1.
 - `example_params` shows three filters set together (they AND) with real values.
-- `example_row` shows the `id` the assistant will pass to `hotel_detail`, the
-  `currency` field, and the summary shape -- learned without a probe.
+- `example_row` shows the `property_id` the assistant will pass straight to
+  `hotel_detail` (SAME key name -- no remapping), the `currency` field, and the
+  summary shape -- learned without a probe.
 
 The paired detail query, `hotel_detail`, is the other half of the pattern:
 `required: ["property_id"]`, an `example_params` of `{ property_id: 4 }`, and an
@@ -181,6 +191,7 @@ Before shipping a primary read query or primary action, confirm:
 - [ ] Every param has a `type`; closed sets use `enum`, ranges use min/max.
 - [ ] `required` is accurate (empty for all-optional search; the id for fetch-by-id).
 - [ ] `params` keys and `input_schema.properties` keys match exactly.
+- [ ] A summary row's id field name == the detail/action verb's id param name (canonical `<thing>_id`); no dead row id that no verb consumes.
 - [ ] `example_params` uses real, valid values (a seeded id, an enum member).
 - [ ] `example_row` carries every field the real row has, including `currency`.
 - [ ] A cold assistant reaching this verb from `schema` alone would call it right.
