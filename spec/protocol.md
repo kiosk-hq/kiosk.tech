@@ -223,8 +223,8 @@ JWS** whose payload carries:
 
 ### 5.3 Register and login
 
-Both take `{public_key, signed}` (register also accepts an optional `pow` field,
-Section 5.5):
+Both take `{public_key, signed}` (register also accepts an optional `Kiosk-PoW`
+proof header, Sections 5.5 and 10.1):
 
 - `POST <endpoint>/auth/register` -- a **new** key. Returns `201` with
   `{agent_id, user_id, access_token}`. Registering an already-known key **MUST**
@@ -262,7 +262,8 @@ concurrent tokens for one identity remain valid. `POST <endpoint>/auth/revoke`
 before that instant stops verifying -- and returns a fresh token (Section 15.4). An
 operator **MAY** price fresh-identity minting: `POST /auth/register` **MAY**
 answer `402 pow_required` (Section 10) bound to the registering public key; the AI assistant
-solves and resubmits the same `signed` with a `pow` field. Default is no toll.
+solves and resubmits the same `signed`, sending the proof(s) in the `Kiosk-PoW`
+request header (Section 10.1). Default is no toll.
 
 ---
 
@@ -498,15 +499,45 @@ realm="<issuer>"` (Section 9), carrying a `challenges` array. Each challenge is
 
 Each challenge is **stateless and request-bound** (the server stores nothing to
 trust it) and single-use. The AI assistant **MUST** solve **every** challenge and retry
-the **identical** request body with an added top-level `pow` field -- either
-`{proofs: [{challenge, nonce}, ...]}` or, for a single challenge, the shorthand
-`{challenge, nonce}`. The `pow` field is excluded from the request fingerprint so
-the retry matches the original. `nonce` is `{indices: [...], header_nonce?: u32}`; the `indices` array
+the request with the **identical** body plus a `Kiosk-PoW` request header
+carrying the proof(s) as **raw JSON** (Section 10.1). The proof travels in the
+header, not the body, so the body -- and hence the request fingerprint the
+challenge binds to -- is unchanged on retry, and a GET verb (`schema`) can carry
+its proof too. `nonce` is `{indices: [...], header_nonce?: u32}`; the `indices` array
 **MUST** be in **Zcash canonical (subtree/tree) order** -- a globally-sorted array
 is rejected. `header_nonce` is an OPTIONAL u32 (default 0) folded into the PoW seed after the
 salt bytes as a little-endian u32 -- an extensibility point (currently always 0); a proof solved
 for a non-zero `header_nonce` MUST carry it so the verifier reconstructs the same seed. An operator requests **N independent proofs** as a rate-limiting knob
 (reputation sets N, Section 13); PoW is a metered toll, not a hardware wall (Section 15.5).
+
+### 10.1 The `Kiosk-PoW` header (proof transport)
+
+The proof(s) travel in a `Kiosk-PoW` **request header** whose value is **raw
+minified JSON** -- no base64, since a minified proof is all-VCHAR and
+newline-free, a valid HTTP header value. This completes the RFC 7235
+challenge/response begun by the `WWW-Authenticate: Kiosk-PoW` response header
+(Section 9): the server names the scheme on the 402, the client answers in the
+matching request header. Because the proof is a header (not a body field), the
+`schema` **GET** verb -- which has no body-proof channel -- can be tolled like
+any other (there is no verb exemption).
+
+A server **MUST** accept, and treat identically, all of these presentations,
+flattening them into one proofs list:
+
+- a **single proof** object: `Kiosk-PoW: {"challenge":…,"nonce":…}`;
+- a **JSON array** of proofs: `Kiosk-PoW: [{…},{…}]` (the N-proof case);
+- **repeated `Kiosk-PoW` header lines**, one proof each (a server reads the
+  values joined per its stack -- e.g. Rack joins duplicates with `\n` -- and
+  splits them);
+- a **proxy comma-combined** value `Kiosk-PoW: {A},{B}` (RFC 7230 permits a proxy
+  to comma-join duplicate headers) -- wrapping a non-`[` value in `[` … `]`
+  normalises both the single-proof and comma-combined forms into an array.
+
+This robustness lets N proofs (N up to 10+ at high difficulty) exceed the
+~8&nbsp;KB single-header-line limit by spreading across repeated lines. A
+`Kiosk-PoW` header that is not valid JSON is a `bad_request` (Section 8) naming
+the header and the expected proof shape. Schema:
+[`pow.schema.json`](./schemas/pow.schema.json) (`powHeader`).
 
 ---
 
@@ -768,8 +799,8 @@ optional modules it advertises in `capabilities`:
 
 A client is a **Kiosk-compatible AI assistant** when it: branches on `error.code`, never
 the HTTP status alone; fills the proof `aud` from the origin it dialed; solves
-every challenge in a `pow_required` list and retries the identical body plus the
-`pow` field; runs `payment_setup` and hands `setup_url` to the human rather than
+every challenge in a `pow_required` list and retries the identical body with the
+proof(s) in the `Kiosk-PoW` request header; runs `payment_setup` and hands `setup_url` to the human rather than
 automating card entry; performs the skill dual-check; and, when the human owns an
 existing operator account, binds instead of registering.
 
