@@ -260,45 +260,99 @@
       <h2>Try one of the demos</h2>
       <p class="time">Seven live operators, each showing a different Kiosk capability.</p>
       <p style="font-size:14px;color:#bbb;line-height:1.7;margin:0 0 20px">
-        These run the real reference stack — real memory-hard proof-of-work, and real Stripe test-mode payments where a demo takes money (some settle through a stub processor). Point your own AI assistant at one: it has to hold your keys, sign your mandates, and solve the proof-of-work — a general chatbot won't complete the flow. Each page shows the one-line prompt, or click through to see the storefront and its "Try it" section.
+        These run the real reference stack — real memory-hard proof-of-work, and real Stripe test-mode payments where a demo takes money (some settle through a stub processor). Point your own AI assistant at one: it has to hold your keys, sign your mandates, and solve the proof-of-work — a general chatbot won't complete the flow. Copy a prompt below straight into your assistant, or click a card to see its storefront and "Try it" section.
       </p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
-        <a href="https://getgrocery.demo.kiosk.tech" style="display:block;background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;text-decoration:none">
-          <span style="color:#8bc49a;font-weight:700;font-size:15px">getgrocery</span>
-          <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">💳 Real Stripe payments</span>
-          <span style="display:block;color:#777;font-size:12px;margin-top:4px">Grocery delivery — card-on-file, off_session</span>
-        </a>
-        <a href="https://atablefor.demo.kiosk.tech" style="display:block;background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;text-decoration:none">
-          <span style="color:#8bc49a;font-weight:700;font-size:15px">atablefor</span>
-          <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🔗 Human-account linking</span>
-          <span style="display:block;color:#777;font-size:12px;margin-top:4px">Restaurant booking — link your assistant to your profile</span>
-        </a>
-        <a href="https://skooti.demo.kiosk.tech" style="display:block;background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;text-decoration:none">
-          <span style="color:#8bc49a;font-weight:700;font-size:15px">skooti</span>
-          <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🛵 KYC gate + offline unlock</span>
-          <span style="display:block;color:#777;font-size:12px;margin-top:4px">Scooter rental — KYC-gated motorcycle, Ed25519 token</span>
-        </a>
-        <a href="https://stylish.demo.kiosk.tech" style="display:block;background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;text-decoration:none">
-          <span style="color:#8bc49a;font-weight:700;font-size:15px">stylish</span>
-          <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🪪 Roles from an IdP</span>
-          <span style="display:block;color:#777;font-size:12px;margin-top:4px">Salon booking — staff RBAC inherited by the assistant</span>
-        </a>
-        <a href="https://hoteling.demo.kiosk.tech" style="display:block;background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;text-decoration:none">
-          <span style="color:#8bc49a;font-weight:700;font-size:15px">hoteling</span>
-          <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🏨 Payment-gated booking</span>
-          <span style="display:block;color:#777;font-size:12px;margin-top:4px">Hotel rooms — confirmed only once paid (stub PSP)</span>
-        </a>
-        <a href="https://philslist.demo.kiosk.tech" style="display:block;background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;text-decoration:none">
-          <span style="color:#8bc49a;font-weight:700;font-size:15px">philslist</span>
-          <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🆓 Non-commerce</span>
-          <span style="display:block;color:#777;font-size:12px;margin-top:4px">Classifieds — no pay verb, no money on the wire</span>
-        </a>
-        <a href="https://tudu.demo.kiosk.tech" style="display:block;background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;text-decoration:none">
-          <span style="color:#8bc49a;font-weight:700;font-size:15px">tudu</span>
-          <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">👥 Multi-user collaboration</span>
-          <span style="display:block;color:#777;font-size:12px;margin-top:4px">Shared todos — membership access, assistant↔assistant</span>
-        </a>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;display:flex;flex-direction:column;gap:11px">
+          <a href="https://getgrocery.demo.kiosk.tech" style="text-decoration:none;display:block">
+            <span style="color:#8bc49a;font-weight:700;font-size:15px">getgrocery</span>
+            <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">💳 Real Stripe payments</span>
+            <span style="display:block;color:#777;font-size:12px;margin-top:4px">Grocery delivery — card-on-file, off_session</span>
+          </a>
+          <div style="background:#131313;border:1px solid #222;border-radius:8px;padding:10px 11px;margin-top:auto">
+            <span class="demo-prompt" style="display:block;color:#cfcfcf;font-size:12px;line-height:1.55">Order a week of groceries for a family of three from getgrocery.demo.kiosk.tech — milk, eggs, bread, cheese, and red wine. Delivery address: 85 South Great George's Street, Dublin 2.</span>
+            <button onclick="copyPrompt(this)" style="margin-top:8px;background:none;border:1px solid #2f5f3f;color:#8bc49a;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">Copy prompt</button>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;display:flex;flex-direction:column;gap:11px">
+          <a href="https://atablefor.demo.kiosk.tech" style="text-decoration:none;display:block">
+            <span style="color:#8bc49a;font-weight:700;font-size:15px">atablefor</span>
+            <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🔗 Human-account linking</span>
+            <span style="display:block;color:#777;font-size:12px;margin-top:4px">Restaurant booking — link your assistant to your profile</span>
+          </a>
+          <div style="background:#131313;border:1px solid #222;border-radius:8px;padding:10px 11px;margin-top:auto">
+            <span class="demo-prompt" style="display:block;color:#cfcfcf;font-size:12px;line-height:1.55">I'm in Alfama, Lisbon. Book a table for two at Tasca do Tejo on atablefor.demo.kiosk.tech tomorrow at 8.</span>
+            <button onclick="copyPrompt(this)" style="margin-top:8px;background:none;border:1px solid #2f5f3f;color:#8bc49a;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">Copy prompt</button>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;display:flex;flex-direction:column;gap:11px">
+          <a href="https://skooti.demo.kiosk.tech" style="text-decoration:none;display:block">
+            <span style="color:#8bc49a;font-weight:700;font-size:15px">skooti</span>
+            <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🛵 KYC gate + offline unlock</span>
+            <span style="display:block;color:#777;font-size:12px;margin-top:4px">Scooter rental — KYC-gated motorcycle, Ed25519 token</span>
+          </a>
+          <div style="background:#131313;border:1px solid #222;border-radius:8px;padding:10px 11px;margin-top:auto">
+            <span class="demo-prompt" style="display:block;color:#cfcfcf;font-size:12px;line-height:1.55">Rent an electric scooter near the Jordaan on skooti.demo.kiosk.tech.</span>
+            <button onclick="copyPrompt(this)" style="margin-top:8px;background:none;border:1px solid #2f5f3f;color:#8bc49a;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">Copy prompt</button>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;display:flex;flex-direction:column;gap:11px">
+          <a href="https://stylish.demo.kiosk.tech" style="text-decoration:none;display:block">
+            <span style="color:#8bc49a;font-weight:700;font-size:15px">stylish</span>
+            <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🪪 Roles from an IdP</span>
+            <span style="display:block;color:#777;font-size:12px;margin-top:4px">Salon booking — staff RBAC inherited by the assistant</span>
+          </a>
+          <div style="background:#131313;border:1px solid #222;border-radius:8px;padding:10px 11px;margin-top:auto">
+            <span class="demo-prompt" style="display:block;color:#cfcfcf;font-size:12px;line-height:1.55">Book a haircut at stylish.demo.kiosk.tech.</span>
+            <button onclick="copyPrompt(this)" style="margin-top:8px;background:none;border:1px solid #2f5f3f;color:#8bc49a;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">Copy prompt</button>
+            <span style="display:block;color:#777;font-size:11px;margin-top:7px;font-style:italic">Or sign in on the site and link your assistant to the staff side — to see the owner's live revenue forecast.</span>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;display:flex;flex-direction:column;gap:11px">
+          <a href="https://hoteling.demo.kiosk.tech" style="text-decoration:none;display:block">
+            <span style="color:#8bc49a;font-weight:700;font-size:15px">hoteling</span>
+            <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🏨 Payment-gated booking</span>
+            <span style="display:block;color:#777;font-size:12px;margin-top:4px">Hotel rooms — confirmed only once paid (stub PSP)</span>
+          </a>
+          <div style="background:#131313;border:1px solid #222;border-radius:8px;padding:10px 11px;margin-top:auto">
+            <span class="demo-prompt" style="display:block;color:#cfcfcf;font-size:12px;line-height:1.55">Book me a room in Istanbul at hoteling.demo.kiosk.tech for 2 nights this weekend.</span>
+            <button onclick="copyPrompt(this)" style="margin-top:8px;background:none;border:1px solid #2f5f3f;color:#8bc49a;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">Copy prompt</button>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;display:flex;flex-direction:column;gap:11px">
+          <a href="https://philslist.demo.kiosk.tech" style="text-decoration:none;display:block">
+            <span style="color:#8bc49a;font-weight:700;font-size:15px">philslist</span>
+            <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">🆓 Non-commerce</span>
+            <span style="display:block;color:#777;font-size:12px;margin-top:4px">Classifieds — no pay verb, no money on the wire</span>
+          </a>
+          <div style="background:#131313;border:1px solid #222;border-radius:8px;padding:10px 11px;margin-top:auto">
+            <span class="demo-prompt" style="display:block;color:#cfcfcf;font-size:12px;line-height:1.55">On philslist.demo.kiosk.tech, post my carbon road bike for €300 with my phone number 555-123-4567 as the contact.</span>
+            <button onclick="copyPrompt(this)" style="margin-top:8px;background:none;border:1px solid #2f5f3f;color:#8bc49a;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">Copy prompt</button>
+            <span style="display:block;color:#777;font-size:11px;margin-top:7px;font-style:italic">Attach a photo of the bike when your assistant asks.</span>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:10px;padding:15px 17px;display:flex;flex-direction:column;gap:11px">
+          <a href="https://tudu.demo.kiosk.tech" style="text-decoration:none;display:block">
+            <span style="color:#8bc49a;font-weight:700;font-size:15px">tudu</span>
+            <span style="display:block;color:#e0e0e0;font-size:13px;margin-top:5px">👥 Multi-user collaboration</span>
+            <span style="display:block;color:#777;font-size:12px;margin-top:4px">Shared todos — membership access, assistant↔assistant</span>
+          </a>
+          <div style="background:#131313;border:1px solid #222;border-radius:8px;padding:10px 11px;margin-top:auto">
+            <span class="demo-prompt" style="display:block;color:#cfcfcf;font-size:12px;line-height:1.55">Create a shared to-do list called 'Roommate errands' on tudu.demo.kiosk.tech, add 'take out the recycling', and share it with my housemate.</span>
+            <button onclick="copyPrompt(this)" style="margin-top:8px;background:none;border:1px solid #2f5f3f;color:#8bc49a;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">Copy prompt</button>
+          </div>
+        </div>
       </div>
+      <script>
+        function copyPrompt(btn){
+          var text = btn.parentNode.querySelector('.demo-prompt').textContent.trim();
+          navigator.clipboard.writeText(text).then(function(){
+            var original = btn.textContent;
+            btn.textContent = 'Copied ✓';
+            setTimeout(function(){ btn.textContent = original; }, 1500);
+          });
+        }
+      </script>
     </div>
 
     <div class="demo-box" id="how">
