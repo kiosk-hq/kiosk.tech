@@ -1,0 +1,3 @@
+# kiosk.tech — the Kiosk specification, skill and landing. Crawling welcome.
+User-agent: *
+Disallow:
