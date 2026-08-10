@@ -3,6 +3,8 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-08-10: Onboarding — two claims corrected to match the shipped code. The discovery step now routes `/.well-known/kiosk.json` (and its sibling discovery docs) to kiosk-server's `DiscoveryController`, the real shipped path the demos use, instead of teaching a hand-written Rack lambda for a controller that already exists; and the unmeasured timing figures ("agent-ready in an afternoon", per-step minute badges) are replaced with honest non-numeric scope wording, since no timed onboarding run exists. (K-556, K-557)
+
 - 2026-08-10: Onboarding — the page no longer loads anything from a third-party CDN: syntax highlighting is gone and the code blocks are styled by the page's own CSS, so reading the operator guide costs a visitor no request to, and no script execution from, anyone but kiosk.tech. Brings onboarding to the landing's zero-external-subresource property. (K-519)
 
 - 2026-08-10: Onboarding — dropped the "Seed some data" step (a getgrocery product catalog): the guide is for wrapping an app you already run, so its data is the premise, not a setup step, and seeding padded the advertised timings by 2 minutes of work no operator has to do. The verify step (now Step 6) instead says point a query at a table you already have, and flags the example query names as getgrocery's. (K-501)

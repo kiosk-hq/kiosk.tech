@@ -49,16 +49,16 @@
 <body>
 <a href="/" class="back">← kiosk.tech</a>
 <article>
-  <h1>Operator onboarding — agent-ready in an afternoon</h1>
+  <h1>Operator onboarding — from install to agent-ready</h1>
   <p class="intro">A step-by-step guide for adding Kiosk to an existing Rails app, based on the <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a> demo provider.</p>
-  <p>Two honest estimates, assuming a working Rails + Postgres app you already know:</p>
+  <p>Two scopes, assuming a working Rails + Postgres app you already know:</p>
   <ul>
-    <li><strong>Read-only, no payments (~20–40 min).</strong> Add the gem, run the install generator, mount the routes, register a couple of read-only queries by adapting the examples below, and verify discovery + one query. That's the minimal agent-ready surface.</li>
-    <li><strong>Full transacting integration with payments (a few hours to a day).</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> table/model and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the nine kiosk migrations, and testing the mandate→pay→settlement flow end to end. First time through, budget an afternoon, more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
+    <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, mount the routes, register a couple of read-only queries by adapting the examples below, and verify discovery + one query. That's the minimal agent-ready surface.</li>
+    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> table/model and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the nine kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
   </ul>
-  <p>The step timings below are the hands-on-keyboard minutes for the payments walkthrough <em>once you have the accounts and keys in hand</em>; they don't count Stripe signup, reading, or debugging your own catalog's queries.</p>
+  <p>The steps below walk the full payments integration <em>assuming you already have the accounts and keys in hand</em>; they don't cover Stripe signup, or debugging your own catalog's queries.</p>
 
-  <h2>Step 1: Add the gems <span style="font-weight:400;font-size:14px;color:#666">(2 min)</span></h2>
+  <h2>Step 1: Add the gems</h2>
   <pre><code class="language-ruby"># Gemfile
 gem "kiosk-all",        github: "kiosk-hq/kiosk"   # meta-gem: kiosk-core + kiosk-server
 gem "kiosk-pay-stripe", github: "kiosk-hq/kiosk"   # Stripe card-on-file payment adapter (this walkthrough uses it)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
@@ -66,7 +66,7 @@ gem "kiosk-pay-stripe", github: "kiosk-hq/kiosk"   # Stripe card-on-file payment
 rails generate kiosk:install                # migration + initializer
 rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <h2>Step 2: Configure Kiosk <span style="font-weight:400;font-size:14px;color:#666">(3 min)</span></h2>
+  <h2>Step 2: Configure Kiosk</h2>
 
   <p>First, generate a signing key. Kiosk signs the JWTs it issues with an RSA key; without it the server raises on the first registration. Generate one and put it in your environment (do <strong>not</strong> regenerate per boot — a fresh key invalidates every issued token, forcing agents to re-register and losing their saved-card associations):</p>
   <pre><code class="language-bash"># base64 so it fits on one line in .env / mise.toml / your secrets manager
@@ -134,11 +134,9 @@ add_index :stripe_customers, :user_id, unique: true</code><button class="copy-bt
 class StripeCustomer &lt; ApplicationRecord
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <h2>Step 3: Mount the routes <span style="font-weight:400;font-size:14px;color:#666">(1 min)</span></h2>
+  <h2>Step 3: Mount the routes</h2>
   <p><code>config/routes.rb</code>:</p>
-  <pre><code class="language-ruby">require "json"
-
-Rails.application.routes.draw do
+  <pre><code class="language-ruby">Rails.application.routes.draw do
   # Kiosk wire surface — controllers shipped by kiosk-server (WireController).
   get  "/kiosk/schema",           to: "kiosk/server/wire#schema"
   post "/kiosk/query",            to: "kiosk/server/wire#query"
@@ -154,17 +152,21 @@ Rails.application.routes.draw do
   # JWKS — public keys agents use to verify Kiosk-issued JWTs.
   get  "/kiosk/.well-known/jwks.json", to: "kiosk/server/jwks#show"
 
-  # Discovery document, built on the fly from Kiosk.configuration.
-  # kiosk-server doesn't ship a controller for it yet, so mount a small
-  # Rack lambda (this is exactly what the demos do).
-  get "/.well-known/kiosk.json", to: ->(env) {
-    base_url = "#{env['rack.url_scheme']}://#{env['HTTP_HOST']}"
-    [200, { "content-type" => "application/json" },
-     [Kiosk::Server::WellKnown.build_json(base_url: base_url)]]
-  }
+  # Discovery surface — served by kiosk-server's DiscoveryController, which
+  # renders every document from Kiosk::Server::WellKnown (the single generator
+  # seam). They're built on the fly from Kiosk.configuration and the live
+  # registry, so discovery can't drift from what you actually serve.
+  # /.well-known/kiosk.json is the machine-readable handshake; the rest are
+  # optional standards-compat surfaces the same controller serves for free.
+  # agents.txt / agents.json are ROOT-served per the agents.txt v1.0 standard.
+  get "/agents.txt",                       to: "kiosk/server/discovery#agents_txt"
+  get "/agents.json",                      to: "kiosk/server/discovery#agents_json"
+  get "/.well-known/agent-configuration",  to: "kiosk/server/discovery#agent_configuration"
+  get "/.well-known/kiosk.json",           to: "kiosk/server/discovery#kiosk_json"
+  get "/.well-known/api-catalog",          to: "kiosk/server/discovery#api_catalog"
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <h2>Step 4: Register your queries <span style="font-weight:400;font-size:14px;color:#666">(5 min)</span></h2>
+  <h2>Step 4: Register your queries</h2>
   <p>Queries are read-only data access. Agents use them to browse your catalog.</p>
   <p><code>config/initializers/kiosk_queries.rb</code>:</p>
   <pre><code class="language-ruby"># What can the agent browse?
@@ -192,7 +194,7 @@ Kiosk::Server::Queries.register("my_orders",
   ).first["uid"]).order(created_at: :desc).map(&:attributes)
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <h2>Step 5: Register your actions <span style="font-weight:400;font-size:14px;color:#666">(5 min)</span></h2>
+  <h2>Step 5: Register your actions</h2>
   <p>Actions mutate state — create orders, schedule delivery, set up payment.</p>
   <p><code>config/initializers/kiosk_actions.rb</code>:</p>
   <pre><code class="language-ruby"># Check/setup saved payment card
@@ -277,7 +279,7 @@ def current_user_id
   ).first["uid"]
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <h2>Step 6: Start the server and verify <span style="font-weight:400;font-size:14px;color:#666">(2 min)</span></h2>
+  <h2>Step 6: Start the server and verify</h2>
   <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it's the AP2 <code>iss</code> anchor) — it is <em>not</em> derived from the request host, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
   <pre><code class="language-bash">export KIOSK_ISSUER="http://localhost:3000"
 export KIOSK_SIGNING_KEY_B64="$(openssl genrsa 2048 | base64)"   # or KIOSK_SIGNING_KEY_PEM
