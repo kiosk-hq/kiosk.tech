@@ -3,6 +3,7 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-08-10: Landing — two unmeasured figures dropped to honest qualitative phrasing: the onboarding-effort line no longer quotes "~20-40 min / an afternoon" (no timed integration run backs it) and the "Why now" opener no longer puts a percentage on bot traffic (methodologies disagree and the launch fact-check deliberately cites none). Claims now trace only to what we can defend. (K-559, K-560)
 - 2026-08-10: Onboarding — two claims corrected to match the shipped code. The discovery step now routes `/.well-known/kiosk.json` (and its sibling discovery docs) to kiosk-server's `DiscoveryController`, the real shipped path the demos use, instead of teaching a hand-written Rack lambda for a controller that already exists; and the unmeasured timing figures ("agent-ready in an afternoon", per-step minute badges) are replaced with honest non-numeric scope wording, since no timed onboarding run exists. (K-556, K-557)
 
 - 2026-08-10: Onboarding — the page no longer loads anything from a third-party CDN: syntax highlighting is gone and the code blocks are styled by the page's own CSS, so reading the operator guide costs a visitor no request to, and no script execution from, anyone but kiosk.tech. Brings onboarding to the landing's zero-external-subresource property. (K-519)
