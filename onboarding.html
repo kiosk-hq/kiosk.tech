@@ -272,17 +272,7 @@ def current_user_id
   ).first["uid"]
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <h2>Step 6: Seed some data <span style="font-weight:400;font-size:14px;color:#666">(2 min)</span></h2>
-  <pre><code class="language-ruby"># db/seeds.rb
-Product.create!(sku: "milk-1l",     name: "Whole Milk 1L",   price_cents: 199, stock: 50)
-Product.create!(sku: "bread-ww",    name: "Whole Wheat Bread", price_cents: 299, stock: 30)
-Product.create!(sku: "eggs-12",     name: "Free-Range Eggs 12-pack", price_cents: 449, stock: 20)
-Product.create!(sku: "butter-250g", name: "Salted Butter 250g", price_cents: 349, stock: 15)
-# … your actual product catalog
-
-rails db:seed</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-
-  <h2>Step 7: Start the server and verify <span style="font-weight:400;font-size:14px;color:#666">(2 min)</span></h2>
+  <h2>Step 6: Start the server and verify <span style="font-weight:400;font-size:14px;color:#666">(2 min)</span></h2>
   <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it's the AP2 <code>iss</code> anchor) — it is <em>not</em> derived from the request host, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
   <pre><code class="language-bash">export KIOSK_ISSUER="http://localhost:3000"
 export KIOSK_SIGNING_KEY_B64="$(openssl genrsa 2048 | base64)"   # or KIOSK_SIGNING_KEY_PEM
@@ -318,7 +308,7 @@ puts res.code                                   # => 201
 puts JSON.parse(res.body)["access_token"]       # export this as $TOKEN
 # (Returning key? Challenges are single-use — fetch a FRESH one, sign {aud, nonce, jti},
 #  POST to /kiosk/auth/login → 200 { access_token }. No new user_id: login just refreshes the token.)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and browse the catalog — nothing but <code>curl</code> + <code>jq</code>:</p>
+  <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and read data back — nothing but <code>curl</code> + <code>jq</code>. There is nothing to seed: point a query at a table your app already has and expect your own rows. The names below are this walkthrough's getgrocery example — substitute the queries you registered in Step 4:</p>
   <pre><code class="language-bash"># Inspect the machine-readable surface (your registered queries + actions):
 curl -s http://localhost:3000/kiosk/schema \
   -H "Authorization: Bearer $TOKEN" | jq '.value.queries | map(.name)'

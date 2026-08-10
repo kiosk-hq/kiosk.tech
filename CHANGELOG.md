@@ -3,6 +3,8 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-08-10: Onboarding — dropped the "Seed some data" step (a getgrocery product catalog): the guide is for wrapping an app you already run, so its data is the premise, not a setup step, and seeding padded the advertised timings by 2 minutes of work no operator has to do. The verify step (now Step 6) instead says point a query at a table you already have, and flags the example query names as getgrocery's. (K-501)
+
 - 2026-08-10: Landing — the "How it works" reputation ladder now states only what the shipped reference policy produces: a fresh key pays 2 proofs (base 1 + unproven bonus 1), not the rounded "~3" carried over from the HN draft; the 0–1 established tier and the cap of 10 already matched `RateAndReputation`'s defaults. (K-430)
 
 - 2026-08-08: landing overhaul — a compact top-of-page ToC + a "#" anchor on all ten sections; each section gets its own near-black tint so the long page reads as a delineated stack; the demo cards drop to two lines (globe-marked codename + duller description, then the one distinctive line) with the prompt frame removed and a monochrome ⧉ copy icon ("try it with your personal AI assistant"); honesty/clarity copy fixes (skooti drops the unproven Ed25519/offline-unlock and leads with the anonymized KYC gate; getgrocery notes 18+ KYC for alcohol + "Stripe test mode"; atablefor "your existing account"); "Standing on standards…"→"Built on standards", "None of these can do this"→"Not the same category", the two comparison sections unified to the shared section style.
