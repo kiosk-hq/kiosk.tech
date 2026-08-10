@@ -119,6 +119,10 @@
     }
     .cta-primary:hover{background:#3a854f}
 
+    /* The one .audience h2: its declarations used to be inline, which made this
+       rule a matched-but-dead no-op. The live values now live here (K-576). */
+    .audience h2{font-size:22px;font-weight:800;margin-bottom:10px}
+
     footer{
       text-align:center;
       padding:40px 24px;
@@ -227,8 +231,8 @@
       </details>
     </section>
 
-    <section class="band" id="add-kiosk" style="background:#020414">
-      <h2 style="font-size:22px;font-weight:800;margin-bottom:10px">Add Kiosk to your service<a href="#add-kiosk" class="anchor-link">#</a></h2>
+    <section class="audience band" id="add-kiosk" style="background:#020414">
+      <h2>Add Kiosk to your service<a href="#add-kiosk" class="anchor-link">#</a></h2>
       <p style="font-size:15px;color:#999;margin-bottom:6px">One gateway, and your customers' AI assistants discover, browse, book, order, and pay. On your premises, or in your cloud.</p>
       <p style="font-size:14px;color:#888;line-height:1.7;margin-bottom:18px;max-width:560px">
         Your customer points their assistant at your front page; it finds your Kiosk, <a href="/skill.md" class="accent">learns the skill</a>, and registers itself — no SDK to ship, no scraping.
