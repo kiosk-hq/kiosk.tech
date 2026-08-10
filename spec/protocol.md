@@ -524,13 +524,13 @@ any other (there is no verb exemption).
 A server **MUST** accept, and treat identically, all of these presentations,
 flattening them into one proofs list:
 
-- a **single proof** object: `Kiosk-PoW: {"challenge":…,"nonce":…}`;
-- a **JSON array** of proofs: `Kiosk-PoW: [{…},{…}]` (the N-proof case);
+- a **single proof** object: `Kiosk-PoW: {"challenge":...,"nonce":...}`;
+- a **JSON array** of proofs: `Kiosk-PoW: [{...},{...}]` (the N-proof case);
 - **repeated `Kiosk-PoW` header lines**, one proof each (a server reads the
   values joined per its stack -- e.g. Rack joins duplicates with `\n` -- and
   splits them);
 - a **proxy comma-combined** value `Kiosk-PoW: {A},{B}` (RFC 7230 permits a proxy
-  to comma-join duplicate headers) -- wrapping a non-`[` value in `[` … `]`
+  to comma-join duplicate headers) -- wrapping a non-`[` value in `[` ... `]`
   normalises both the single-proof and comma-combined forms into an array.
 
 This robustness lets N proofs (N up to 10+ at high difficulty) exceed the
