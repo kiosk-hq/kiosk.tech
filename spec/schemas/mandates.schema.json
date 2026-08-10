@@ -22,7 +22,7 @@
       "type": "object",
       "required": ["cap_amount_cents", "currency"],
       "properties": {
-        "cap_amount_cents": { "type": "integer", "description": "Spending cap; REQUIRED (a nil cap is rejected)." },
+        "cap_amount_cents": { "type": "integer", "minimum": 1, "description": "Spending cap; REQUIRED (a nil cap is rejected). MUST be positive; a non-positive amount is rejected." },
         "currency": { "type": "string", "description": "ISO 4217 code; REQUIRED." },
         "scope": { "type": "string", "description": "Optional provider-defined scope." }
       }
@@ -33,7 +33,7 @@
       "required": ["intent_mandate_id", "total_amount_cents", "currency"],
       "properties": {
         "intent_mandate_id": { "type": "string", "description": "MUST equal the intent mandate id; cart total MUST NOT exceed the intent cap." },
-        "total_amount_cents": { "type": "integer", "description": "REQUIRED." },
+        "total_amount_cents": { "type": "integer", "minimum": 1, "description": "REQUIRED. MUST be positive; a non-positive amount is rejected." },
         "currency": { "type": "string", "description": "MUST equal the intent currency." },
         "line_items": { "type": "array", "description": "Optional provider-defined line items." }
       }
@@ -44,7 +44,7 @@
       "required": ["cart_mandate_id", "amount_cents", "currency"],
       "properties": {
         "cart_mandate_id": { "type": "string", "description": "MUST equal the cart mandate id." },
-        "amount_cents": { "type": "integer", "description": "MUST equal the cart total, same currency." },
+        "amount_cents": { "type": "integer", "minimum": 1, "description": "MUST equal the cart total, same currency. MUST be positive; a non-positive amount is rejected." },
         "currency": { "type": "string" },
         "payment_method": { "type": "string", "description": "Optional PSP method identifier (e.g. \"on_file\")." }
       }

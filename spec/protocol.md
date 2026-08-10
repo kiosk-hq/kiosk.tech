@@ -608,7 +608,9 @@ the irreversible capture -- no charge, no settlement row. A cap of `0` disables 
 assistant's payments entirely. The AI assistant cannot pay past the cap; it surfaces the
 condition to the human, who raises the cap out of band. Caps are operator policy
 and off by default; how an operator stores and edits them is out of scope for the
-wire.
+wire. Enforcement is per-`pay` and best-effort: under concurrent captures an
+assistant's settled total can overshoot the cap, and a stronger atomic guarantee
+is deferred.
 
 > *Reference note (non-normative).* The Ruby reference enforces this via the
 > `config.spending_cap` pay-hook seam and ships a column-backed default
