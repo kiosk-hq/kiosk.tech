@@ -222,6 +222,8 @@ Authorization: Bearer &lt;jwt&gt;
   <h2>Discovery</h2>
   <p>Every operator serves a discovery document at <code>GET /.well-known/kiosk.json</code>, unauthenticated, so an AI assistant can bootstrap from the origin alone. It carries the <code>issuer</code> (the AP2 mandate <code>iss</code> anchor), the API <code>endpoint</code>, the <code>auth</code> block, an optional pinned <code>skill</code> reference, and a top-level <strong><code>capabilities</code></strong> array. The document's own <code>version</code> field is the <strong>discovery-document format version</strong> (currently <code>"1.0"</code>) — independent of the protocol version (0.3) this page specifies. It may also carry optional <code>owner</code> (operator contact) and <code>min_client</code> fields; this page shows the common fields, and the <a href="/spec/protocol.md">formal spec</a> plus <a href="/spec/schemas/discovery.schema.json">JSON Schema</a> enumerate every field.</p>
 
+  <p><strong>One origin per instance (current constraint).</strong> A Kiosk instance serves exactly one origin: the possession proof's <code>aud</code> is verified by strict equality against the single configured <code>issuer</code>, so an operator that serves several hostnames MUST run one instance per origin. A request arriving on any other hostname is still verified against that one <code>issuer</code>, so a proof carrying the hostname the AI assistant actually dialed is rejected — and the AI assistant MUST NOT paper over that by signing the advertised issuer instead (see Origin binding below).</p>
+
   <pre><code class="language-json">GET /.well-known/kiosk.json
 
 → 200 OK

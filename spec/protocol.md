@@ -150,6 +150,15 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 | `kiosk.auth` | object | REQUIRED | The kiosk-pop auth block (Section 4.3). |
 | `kiosk.skill` | object | OPTIONAL | Pinned skill reference `{url, sha256}` (Section 14.4). Omitted entirely when absent. |
 
+**One origin per instance (current constraint).** A Kiosk instance serves exactly
+one origin: the possession proof's `aud` is verified by strict equality against the
+single configured `kiosk.issuer` (Section 15.1), so an operator that serves several
+hostnames **MUST** run one instance per origin. A request arriving on any other
+hostname is still verified against that one `issuer`, so a proof carrying the
+hostname the AI assistant actually dialed is rejected -- and the AI assistant
+**MUST NOT** paper over that by signing the advertised issuer instead
+(Section 15.1).
+
 ### 4.2 `capabilities`
 
 `capabilities` is the subset of the canonical verb set the operator actually
