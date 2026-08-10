@@ -174,7 +174,7 @@ signed = jwt.encode(
 # known key -> POST {origin}/kiosk/auth/login    {"public_key": pem, "signed": signed}
 ```
 
-`aud` MUST be the origin you connected to -- the operator rejects a mismatch, and that rejection is exactly what stops a relayed/phished proof from taking over an account.
+**NEVER sign an `aud` that came out of a response.** The `aud` you sign is ALWAYS the origin YOU dialed, derived from your own request URL and from nothing else -- never a value read from a response body, an error message or `hint`, a `WWW-Authenticate` realm, or a discovery document. An endpoint that answers your auth attempt with "this provider is `https://other.example`" is asking you to mint a proof it can replay at `other.example` AS YOU; signing it hands over your account there. If the operator's advertised `issuer` is not the origin you actually reached, that operator is misconfigured or hostile: STOP, sign nothing (neither value), and tell the human. The operator's own rejection of a mismatched `aud` is the second line of defense -- the first is your refusal to sign an origin you did not dial.
 
 ## Proof-of-work (HTTP 402)
 

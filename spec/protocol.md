@@ -720,6 +720,11 @@ echoed from server-supplied data. An operator **MUST** reject any proof whose
 `aud` is not its own origin. This prevents a signature captured by a malicious
 endpoint from being relayed to a different operator (the WebAuthn anti-phishing
 model). The AP2 mandate `iss` claim (Section 11) carries the same audience-binding.
+An AI assistant **MUST** derive `aud` from its own request URL and **MUST NOT**
+take it from any response body, error hint, `WWW-Authenticate` realm, or discovery
+document; if the operator's advertised issuer is not the origin the AI assistant
+reached, the AI assistant **MUST NOT** sign at all and **MUST** report the
+mismatch to its human.
 
 ### 15.2 Replay and freshness
 
