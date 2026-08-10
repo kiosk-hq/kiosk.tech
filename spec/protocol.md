@@ -543,7 +543,7 @@ flattening them into one proofs list:
   normalises both the single-proof and comma-combined forms into an array.
 
 This robustness lets N proofs (N up to 10+ at high difficulty) exceed the
-~8&nbsp;KB single-header-line limit by spreading across repeated lines. A
+~8 KB single-header-line limit by spreading across repeated lines. A
 `Kiosk-PoW` header that is not valid JSON is a `bad_request` (Section 8) naming
 the header and the expected proof shape. Schema:
 [`pow.schema.json`](./schemas/pow.schema.json) (`powHeader`).
@@ -705,7 +705,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 4. **Skill version.** The skill is published as `skill-vMAJOR.MINOR.PATCH.md`, where
    **MAJOR.MINOR tracks the protocol release** (currently 0.3, so version parity holds)
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
-   protocol, cut without a protocol change. The current skill is **0.3.7**: still
+   protocol, cut without a protocol change. The current skill is **0.3.10**: still
    protocol 0.3, seven skill-only patches in. Published skill files are immutable and
    versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
