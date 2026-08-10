@@ -494,7 +494,10 @@ or `pay` -- as well as `POST /auth/register`. The always-free entrypoint is the
 discovery layer (`/.well-known/kiosk.json`, `agents.json`/`agents.txt`), not the
 `schema` verb. The gate
 responds `402` with `error.code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
-realm="<issuer>"` (Section 9), carrying a `challenges` array. Each challenge is
+realm="<issuer>"` (Section 9), carrying a `challenges` array. The `realm` is an
+RFC 7235 protection-space label and nothing more: an AI assistant **MUST NOT**
+treat it as an origin, and in particular **MUST NOT** derive the possession
+proof's `aud` from it (Section 15.1). Each challenge is
 `{id, alg, params, salt, exp, sig}`:
 
 | Field | Type | Rule |
