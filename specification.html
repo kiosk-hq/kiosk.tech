@@ -187,17 +187,17 @@ Authorization: Bearer &lt;jwt&gt;
 {
   "kiosk": {
     "version":      "1.0",
-    "issuer":       "https://getgroceries.com",
-    "endpoint":     "https://getgroceries.com/kiosk",
+    "issuer":       "https://getgrocery.demo.kiosk.tech",
+    "endpoint":     "https://getgrocery.demo.kiosk.tech/kiosk",
     "capabilities": ["schema", "query", "run", "pay"],
     "auth": {
       "kind":          "kiosk-pop",
-      "challenge_url": "https://getgroceries.com/kiosk/auth/challenge",
-      "register_url":  "https://getgroceries.com/kiosk/auth/register",
-      "login_url":     "https://getgroceries.com/kiosk/auth/login",
-      "revoke_url":    "https://getgroceries.com/kiosk/auth/revoke",
-      "device_authorization_url": "https://getgroceries.com/kiosk/oauth/device_authorization",
-      "claim_url":     "https://getgroceries.com/kiosk/auth/claim"
+      "challenge_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/challenge",
+      "register_url":  "https://getgrocery.demo.kiosk.tech/kiosk/auth/register",
+      "login_url":     "https://getgrocery.demo.kiosk.tech/kiosk/auth/login",
+      "revoke_url":    "https://getgrocery.demo.kiosk.tech/kiosk/auth/revoke",
+      "device_authorization_url": "https://getgrocery.demo.kiosk.tech/kiosk/oauth/device_authorization",
+      "claim_url":     "https://getgrocery.demo.kiosk.tech/kiosk/auth/claim"
     },
     "skill": { "url": "https://kiosk.tech/skill-v0.3.10.md", "sha256": "…" }
   }
@@ -254,8 +254,8 @@ Authorization: Bearer &lt;jwt&gt;
   <p><strong>Step 2 — sign the challenge</strong> as a compact RS256 JWS with your private key, then <code>register</code> (new key) or <code>login</code> (known key).</p>
   <pre><code class="language-json">// JWS payload signed with your RSA private key
 {
-  "aud":   "https://getgroceries.com",   // the origin you connected to
-  "nonce": "S6f2yq…",                     // the challenge from step 1
+  "aud":   "https://getgrocery.demo.kiosk.tech",  // the origin you connected to
+  "nonce": "S6f2yq…",                             // the challenge from step 1
   "jti":   "0f1c…"
   // "iat": 1751846340                    — OPTIONAL: informational only (see below).
   // "pub": "&lt;RFC 7638 thumbprint&gt;"  — OPTIONAL: the server verifies it
@@ -319,8 +319,8 @@ POST /kiosk/auth/login           // KNOWN key — 404 if unknown (register first
 
 → 200 OK
 { "device_code": "GmRhm…", "user_code": "WDJB-MJHT",
-  "verification_uri": "https://getgroceries.com/kiosk/oauth/device/verify",
-  "verification_uri_complete": "https://getgroceries.com/kiosk/oauth/device/verify?user_code=WDJB-MJHT",
+  "verification_uri": "https://getgrocery.demo.kiosk.tech/kiosk/oauth/device/verify",
+  "verification_uri_complete": "https://getgrocery.demo.kiosk.tech/kiosk/oauth/device/verify?user_code=WDJB-MJHT",
   "expires_in": 900, "interval": 5 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>The AI assistant shows the human the <code>verification_uri</code> and <code>user_code</code>. The human opens the page <strong>in their own browser</strong>, authenticated by the operator's normal web session, sees exactly what is being bound (the key's fingerprint, when it was requested), and approves or denies. Meanwhile the AI assistant polls the token endpoint. The poll MUST carry a <strong>possession proof</strong>: <code>signed</code> is the same challenge-response JWS over <code>{aud, nonce, jti}</code> as register/login — fetch a challenge for the same public key first.</p>
   <pre><code class="language-json">POST /kiosk/oauth/token

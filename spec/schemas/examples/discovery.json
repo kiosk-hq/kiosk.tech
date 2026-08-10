@@ -1,19 +1,19 @@
 {
   "kiosk": {
     "version": "1.0",
-    "issuer": "https://getgroceries.example",
-    "endpoint": "https://getgroceries.example/kiosk",
+    "issuer": "https://getgrocery.demo.kiosk.tech",
+    "endpoint": "https://getgrocery.demo.kiosk.tech/kiosk",
     "capabilities": ["schema", "query", "run", "pay"],
     "min_client": "0.2.0",
-    "owner": { "email": "ops@getgroceries.example" },
+    "owner": { "email": "ops@getgrocery.demo.kiosk.tech" },
     "auth": {
       "kind": "kiosk-pop",
-      "challenge_url": "https://getgroceries.example/kiosk/auth/challenge",
-      "register_url": "https://getgroceries.example/kiosk/auth/register",
-      "login_url": "https://getgroceries.example/kiosk/auth/login",
-      "revoke_url": "https://getgroceries.example/kiosk/auth/revoke",
-      "device_authorization_url": "https://getgroceries.example/kiosk/oauth/device_authorization",
-      "claim_url": "https://getgroceries.example/kiosk/auth/claim"
+      "challenge_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/challenge",
+      "register_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/register",
+      "login_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/login",
+      "revoke_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/revoke",
+      "device_authorization_url": "https://getgrocery.demo.kiosk.tech/kiosk/oauth/device_authorization",
+      "claim_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/claim"
     },
     "skill": {
       "url": "https://kiosk.tech/skill-v0.3.3.md",

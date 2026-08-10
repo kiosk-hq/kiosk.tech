@@ -2,7 +2,7 @@
   "id": "cart-001",
   "user_id": "a7f3",
   "agent_id": "b2e9",
-  "iss": "https://getgroceries.example",
+  "iss": "https://getgrocery.demo.kiosk.tech",
   "iat": 1751846345,
   "exp": 1751846945,
   "intent_mandate_id": "int-001",
