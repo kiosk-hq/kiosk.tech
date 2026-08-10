@@ -673,7 +673,9 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. An operator **MAY** vary the PoW **proof count** (Section 10) as a function of
    reputation rather than varying difficulty: an established identity solves 0-1
-   proofs, an unknown one ~3, a flagged abuser ~10.
+   proofs, an unknown one 2 (3 if it is also over the rate
+   threshold), a flagged abuser 10 -- the reference policy's cap, which the
+   operator sets.
 2. Minting a fresh identity **MUST NOT** be blocked; it starts at the unknown tier
    and pays the corresponding toll. Shedding a reputation therefore costs at least
    as much work as complying and forfeits accrued standing -- whitewashing is
