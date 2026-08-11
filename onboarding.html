@@ -254,7 +254,18 @@ Kiosk::Server::Queries.register("delivery_slots",
   example_params: { date: "2026-08-12" },
   example_row: { delivery_slot_id: 3, date: "2026-08-12",
                  slot_at: "2026-08-12T12:00:00+01:00", label: "12:00-14:00" }) do |params|
-  date = Date.parse(params[:date])
+  # Params are agent-supplied wire input, and the input_schema above is
+  # published, not enforced — guarding it is the handler's job. Raise
+  # Kiosk::Server::Errors::BadRequest and the wire answers a typed 400
+  # (`bad_request`) the assistant can correct; let Date::Error escape instead
+  # and the assistant gets a 500 (`action_failed`) that just points at your
+  # server logs.
+  raw_date = params.fetch(:date) { raise Kiosk::Server::Errors::BadRequest.new("missing param: date") }
+  date = begin
+    Date.parse(raw_date.to_s)
+  rescue ArgumentError
+    raise Kiosk::Server::Errors::BadRequest.new("invalid date: #{raw_date} — use YYYY-MM-DD")
+  end
   DeliverySlots.bookable_ids(date).map do |slot_id|
     { delivery_slot_id: slot_id,
       date:    date.iso8601,
