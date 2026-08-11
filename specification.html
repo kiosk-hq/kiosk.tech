@@ -157,23 +157,29 @@ Authorization: Bearer &lt;jwt&gt;
     "queries": [
       { "name": "catalog", "description": "Browse the product catalog", "params": null },
       { "name": "search_hotels",
-        "description": "Search hotels by city, sorted by price. Paginated: pass limit and echo the response's next as cursor.",
-        "params": { "city": "string, required", "limit": "integer 1-50", "cursor": "opaque string" },
-        "input_schema": { "type": "object", "required": ["city"],
-                          "properties": { "city": {"type":"string"}, "limit": {"type":"integer","minimum":1,"maximum":50} } },
+        "description": "Find hotels matching what the human asked for. A row is a SUMMARY of one property, priced at its cheapest nightly rate rather than a total for the stay; the result is one PAGE of the matching set, and stopping at the first page answers from a partial list.",
+        "params": null,
+        "input_schema": { "type": "object", "additionalProperties": false, "required": ["city"],
+                          "properties": { "city":   {"type":"string", "description":"City to search in."},
+                                          "limit":  {"type":"integer","minimum":1,"maximum":50,"default":20,"description":"Page size."},
+                                          "cursor": {"type":"string", "description":"Opaque `next` cursor from a prior page."} } },
         "example_params": { "city": "Lisbon", "limit": 20 },
         "example_row": { "id": 41, "name": "Grand Aljube", "city": "Lisbon", "nightly_price_cents": 14900, "currency": "eur" } }
     ],
     "actions": [
-      { "name": "create_order",  "description": "Create an order from items", "params": { "items": "array" } },
+      { "name": "create_order",  "description": "Place an order for what the human chose. Reserves the goods and returns the order to settle; `pay` takes the money.",
+        "input_schema": { "type": "object", "additionalProperties": false, "required": ["items"],
+                          "properties": { "items": {"type":"array","minItems":1,"items":{"type":"string"},"description":"Catalog SKUs to order."} } } },
       { "name": "payment_setup", "description": "Check or begin card setup",  "params": null }
     ]
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <ul>
     <li><code>verbs</code> — the full fixed wire surface: all four verb names, always (array order is not significant here, unlike the canonical ordering of <code>capabilities</code>). This is <strong>not</strong> the advertised capability set: <code>capabilities</code> in <code>/.well-known/kiosk.json</code> is computed from what the operator actually registered (it drops <code>pay</code> when no payment provider is configured), while <code>verbs</code> names the protocol surface itself.</li>
-    <li><code>queries</code> / <code>actions</code> — arrays of descriptors, sorted by name. A descriptor is <code>{name, description, params}</code>: <code>description</code> is a string or <code>null</code>; <code>params</code> is a <strong>free-form operator-defined hint object</strong> (by convention a map of parameter name → type-hint string) or <code>null</code>. Semantics live in <code>description</code> as prose — the AI assistant reads it.</li>
-    <li>A descriptor MAY additionally carry three <strong>optional machine-readable fields</strong> (absent by default): <code>input_schema</code> — a JSON Schema (draft 2020-12) for that verb's inputs (required/optional, types, enums, ranges) that supersedes the free-text <code>params</code> hint for machine validation while <code>params</code> stays for prose; <code>example_params</code> — an example params object to copy as a starting call; and <code>example_row</code> — an example of one result element, so an assistant learns the result shape without a call-and-observe probe. Publishing them lets a cold assistant go schema → goal without hardcoded knowledge.</li>
+    <li><code>queries</code> / <code>actions</code> — arrays of descriptors, sorted by name. Every descriptor carries a <code>name</code> and a <code>description</code> (a string or <code>null</code>). <strong>Semantics live in <code>description</code> as prose</strong> — what the verb does, when to reach for it, what the result means; the AI assistant reads it. Shape does not: a parameter name, type, unit, format or default belongs to <code>input_schema</code>, the one place it can be checked against the handler that consumes it.</li>
+    <li><code>params</code> — a free-form operator-defined hint object (by convention a map of parameter name → type-hint string) or <code>null</code> — is <strong>retired</strong>. It was never a validation contract and it is no longer the input contract; a descriptor should publish <code>null</code> or omit the key, and the slot survives on the wire only so descriptors written before the retirement stay valid. An assistant prefers <code>input_schema</code> wherever one is published, and falls back to a non-null <code>params</code> as a hint only for a verb that publishes none.</li>
+    <li>A descriptor MAY additionally carry three <strong>machine-readable fields</strong>: <code>input_schema</code> — a JSON Schema (draft 2020-12) for that verb's inputs (names, required/optional, types, enums, ranges), which where present is the <strong>authoritative input contract</strong> for that verb and wins over any hint or sentence that disagrees with it; <code>example_params</code> — an example params object to copy as a starting call; and <code>example_row</code> — an example of one result element, so an assistant learns the result shape without a call-and-observe probe. The examples illustrate the contract; they are not it. Publishing them lets a cold assistant go schema → goal without hardcoded knowledge.</li>
+    <li><strong>Two limits of this version.</strong> <code>input_schema</code> is optional here for one reason — the reference implementation does not yet publish one on every verb it registers — and a verb that publishes none declares nothing machine-readable about its inputs. The <a href="/spec/descriptor-house-style.md">descriptor house style</a> already requires one on every query and action, and a later version of this specification is expected to make it required once that coverage is complete. And there is no <em>result</em> schema yet: <code>example_row</code> is a sample, not a declaration, so an assistant still cannot know what a call returns without making it. A machine-readable counterpart to <code>input_schema</code> for the return value is anticipated, not specified.</li>
   </ul>
 
   <h2>Discovery</h2>

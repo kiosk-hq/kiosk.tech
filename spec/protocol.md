@@ -398,18 +398,29 @@ protocol surface itself, NOT the served subset. The served subset is
 `capabilities` in `/.well-known/kiosk.json`, which is computed from what the
 operator actually registered (it drops `pay` when no payment provider is
 configured); do not treat these `verbs` as mirroring what the origin advertises.
-`queries` and `actions` are arrays of `{name, description, params}` descriptors,
-sorted by name; `description` is a string or `null`, and `params` is a free-form
-operator-defined hint object or `null` -- documentation, not a validation contract
-(the operator validates arguments server-side).
+`queries` and `actions` are arrays of descriptors, sorted by name. `name` is
+REQUIRED; `description` is REQUIRED and is a string or `null`, and carries the
+verb's SEMANTICS in prose -- what it does, when to reach for it, what the result
+means. It does not carry shape: a parameter name, type, unit, format or default
+belongs to `input_schema`, which is where it can be checked against the handler
+that consumes it.
 
-A descriptor MAY additionally carry three OPTIONAL machine-readable fields
-(absent by default; a descriptor with none of them is exactly the shape above):
+`params` -- a free-form operator-defined hint object (by convention a map of
+parameter name -> type-hint string) or `null` -- is **RETIRED**. It was never a
+validation contract (the operator validates arguments server-side), and it is no
+longer the input contract either. A descriptor SHOULD publish `params: null` and
+MAY omit the key; the slot stays on the wire so descriptors written before the
+retirement remain valid. An AI assistant MUST prefer `input_schema` wherever one
+is published, and MAY fall back to reading a non-null `params` as a prose hint
+only for a verb that publishes none.
 
-- `input_schema` -- a JSON Schema (draft 2020-12) for that verb's INPUTS
-  (required/optional, types, enums, ranges). When present it supersedes the
-  free-text `params` hint for machine validation; `params` is retained
-  alongside it for prose. An operator MAY validate arguments against
+A descriptor MAY additionally carry three OPTIONAL machine-readable fields:
+
+- `input_schema` -- a JSON Schema (draft 2020-12) for that verb's INPUTS (names,
+  required/optional, types, enums, ranges). Where present it is the
+  AUTHORITATIVE input contract for the verb: it is the one place a parameter
+  name is declared, and it wins over a `params` hint or a `description` sentence
+  that disagrees with it. An operator MAY validate arguments against
   `input_schema` server-side, but is not required to; an AI assistant SHOULD
   use it to shape a well-formed call.
 - `example_params` -- an example params object an assistant may copy as a
@@ -417,6 +428,20 @@ A descriptor MAY additionally carry three OPTIONAL machine-readable fields
 - `example_row` -- an example of one result element (a representative row for a
   query, or the example return value for an action), so an assistant learns the
   result shape without a call-and-observe probe.
+
+Examples ILLUSTRATE the contract and are not the contract: where an example and
+`input_schema` disagree, the schema is right.
+
+Two limits of this version, stated so an implementer is not surprised by them.
+`input_schema` is OPTIONAL here for one reason -- the reference implementation
+does not yet publish one on every registered verb -- and a verb that publishes
+none declares nothing machine-readable about its inputs; the house style below
+already requires one on every query and action, and a later version of this
+document is expected to make it REQUIRED once that coverage is complete. And
+there is no RESULT schema: `example_row` is a sample, not a declaration, so an
+assistant cannot know what a call returns without making it. A machine-readable
+counterpart to `input_schema` for the return value is anticipated but not
+specified here.
 
 Semantics remain PROSE in `description`; `input_schema` constrains only the
 input *shape*, never the meaning. A future `describe <verb>` progressive-disclosure
