@@ -95,7 +95,8 @@ place to state a name is exactly what drifts away from the handler.
 
 The wire slot still exists for descriptors written before this rule: a
 descriptor you register without a `params:` hash publishes `"params": null`,
-which is what the current descriptor schema expects. Leave it null.
+which the descriptor schema accepts -- it no longer requires the field at all,
+so a descriptor that omits the key entirely is equally valid. Leave it null.
 
 ### 4. `example_params` -- a copyable starting call
 

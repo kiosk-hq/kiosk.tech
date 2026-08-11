@@ -70,9 +70,9 @@ Both directions require the possession proof (`signed`). Binding works with a fr
 **Your role may come from the human's IdP (indirectly).** An operator MAY source your role from a configured identity provider -- not by asking you, but through the human: when the human links you (this binding ceremony), the role their IdP reports for them becomes your role. You never pick your own role, and there's nothing extra to send. As always, branch on what the schema and the error responses tell you: a role-gated query or action you lack the role for is denied; role-less or single-role operators behave exactly as before.
 
 ### Step 3: Learn surface
-`GET <endpoint>/schema` with the Bearer header -> the operator's queries and actions, each with params and a free-text `description`. Read the descriptions -- they tell you what this operator actually does; do not assume names.
+`GET <endpoint>/schema` with the Bearer header -> the operator's queries and actions, each with a free-text `description` and, where the operator publishes one, an `input_schema`. Read the descriptions -- they tell you what this operator actually does; do not assume names.
 
-A descriptor MAY also carry optional machine-readable fields: `input_schema` (a JSON Schema for that verb's inputs -- required/optional, types, enums, ranges; use it to build a well-formed call), `example_params` (an inputs object you can copy as a starting call), and `example_row` (a sample of one result element, so you know the shape without a probe call). When present they save you a call-and-observe round trip; when absent, fall back to reading `description`/`params`. Semantics always live in the prose `description`.
+A descriptor MAY also carry optional machine-readable fields: `input_schema` (a JSON Schema for that verb's inputs -- names, required/optional, types, enums, ranges; where published it is the authoritative input contract, so build the call from it), `example_params` (an inputs object you can copy as a starting call), and `example_row` (a sample of one result element, so you know the shape without a probe call). When present they save you a call-and-observe round trip; when absent, fall back to reading `description` and the retired `params` hint. Semantics always live in the prose `description`.
 
 ```python
 req = urllib.request.Request(f"{endpoint}/schema",
