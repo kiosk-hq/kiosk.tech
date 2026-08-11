@@ -168,39 +168,145 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 4: Register your queries</h2>
   <p>Queries are read-only data access. Agents use them to browse your catalog.</p>
+
+  <p>Every registration is also a <strong>descriptor</strong> — what <code>GET /kiosk/schema</code> publishes, and the only thing a cold assistant reads before it calls you. Two fields carry it, and they split the work strictly:</p>
+  <ul>
+    <li><code>description</code> is prose and carries <strong>meaning</strong> — what the verb is for, what its result means, what happens next, and which verb comes after.</li>
+    <li><code>input_schema</code> is a JSON Schema (draft 2020-12) and carries <strong>shape</strong> — every parameter name, type, range, enum and required/optional marker, declared once.</li>
+  </ul>
+  <p>A parameter name written in prose is checked by nobody: it drifts away from the handler that consumes it, an assistant sends exactly what your sentence told it to send, and the call 400s. In the schema it is stated in the one place that can be checked. (The free-text <code>params:</code> hint hash older examples used is retired for the same reason — a hint is either a constraint, which belongs in the schema, or a meaning, which belongs in the description.) The protocol does not force this on you: <code>input_schema</code> is optional, and a verb registered without <code>params:</code> just publishes <code>"params": null</code> — nothing breaks. Write the schema anyway; every example below does. The full rules are the <a href="/spec/descriptor-house-style.md">descriptor house style</a>.</p>
+
+  <p>Delivery slots come up in both a query and an action below, so the arithmetic that says what a slot id <em>means</em> lives in one place — <code>lib/delivery_slots.rb</code>:</p>
+  <pre><code class="language-ruby"># The query that OFFERS a window and the action that BOOKS it must derive the
+# time from the same (date, slot_id) pair. When they each did their own
+# arithmetic, getgrocery booked deliveries for a day the assistant was never
+# shown. Keep it here and call it from both.
+module DeliverySlots
+  FIRST_HOUR   = 8               # slot 1 opens at 08:00
+  WINDOW_HOURS = 2               # each window is two hours
+  COUNT        = 6               # so slot 6 (18:00-20:00) is the last
+  ZONE_NAME    = "Europe/Dublin" # YOUR locale, a real IANA zone so DST is handled
+
+  module_function
+
+  def zone
+    Time.find_zone!(ZONE_NAME)
+  end
+
+  def slot_at(date, slot_id)
+    hour = FIRST_HOUR + (slot_id.to_i - 1) * WINDOW_HOURS
+    zone.local(date.year, date.month, date.day, hour, 0)
+  end
+
+  def label(slot_id)
+    hour = FIRST_HOUR + (slot_id.to_i - 1) * WINDOW_HOURS
+    format("%02d:00-%02d:00", hour, hour + WINDOW_HOURS)
+  end
+
+  # Still-bookable windows for a date: all of them on a later day; on TODAY only
+  # the ones that have not started, so an assistant is never offered a window it
+  # cannot actually have.
+  def bookable_ids(date)
+    (1..COUNT).reject { |slot_id| slot_at(date, slot_id) &lt;= zone.now }
+  end
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
   <p><code>config/initializers/kiosk_queries.rb</code>:</p>
-  <pre><code class="language-ruby"># What can the agent browse?
+  <pre><code class="language-ruby">require Rails.root.join("lib/delivery_slots")
+
+# What can the agent browse?
 Kiosk::Server::Queries.register("catalog",
-  description: "Browse in-stock products") do |_params|
-  Product.where("stock > 0").select(:sku, :name, :price_cents).map(&:attributes)
+  description: "Browse everything currently in stock. Out-of-stock products are hidden, " \
+               "so anything visible here is something that can actually be ordered. The " \
+               "whole in-stock catalogue comes back in one call — this is the complete " \
+               "set, not a page of a larger one. The prices here are the prices a cart " \
+               "is charged: create_order re-prices every line against this catalogue.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {},
+    required: [],
+  },
+  example_params: {},
+  example_row: { sku: "sourdough-bread", name: "Sourdough Bread",
+                 price_cents: 449, currency: "eur" }) do |_params|
+  Product.where("stock > 0").select(:sku, :name, :price_cents)
+         .map { |p| p.attributes.merge("currency" => "eur") }
 end
 
-# Delivery time slots
+# Delivery time slots. Each row carries the id create_order books, under the
+# SAME name that action takes — so the assistant copies it straight through
+# instead of guessing that your `id` is its `delivery_slot_id`.
 Kiosk::Server::Queries.register("delivery_slots",
-  description: "Available delivery time slots for a given date",
-  params: { date: "YYYY-MM-DD" }) do |params|
+  description: "Offer the delivery windows still bookable on a day. Whichever window the " \
+               "human picks is booked as part of the order itself, so get their choice " \
+               "before ordering, not after. A window that has already started today is " \
+               "not offered — if a day comes back empty the earliest delivery is later.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      date: { type: "string", format: "date",
+              description: "The delivery day, YYYY-MM-DD." },
+    },
+    required: ["date"],
+  },
+  example_params: { date: "2026-08-12" },
+  example_row: { delivery_slot_id: 3, date: "2026-08-12",
+                 slot_at: "2026-08-12T12:00:00+01:00", label: "12:00-14:00" }) do |params|
   date = Date.parse(params[:date])
-  (8..20).step(2).map do |hour|
-    { slot_at: Time.utc(date.year, date.month, date.day, hour, 0).iso8601,
-      label: "#{hour}:00–#{hour + 2}:00" }
+  DeliverySlots.bookable_ids(date).map do |slot_id|
+    { delivery_slot_id: slot_id,
+      date:    date.iso8601,
+      slot_at: DeliverySlots.slot_at(date, slot_id).iso8601,
+      label:   DeliverySlots.label(slot_id) }
   end
 end
 
 # The agent can check its own orders
 Kiosk::Server::Queries.register("my_orders",
-  description: "List this customer's orders") do |_params|
+  description: "List this principal's own orders, newest first — the operator scopes them " \
+               "to the authenticated assistant account, so an assistant only ever sees its " \
+               "own. Use it to find the order reschedule_delivery should move, and as the " \
+               "settlement check after a pay whose response never arrived: if the order " \
+               "already reads as paid, do NOT retry the charge.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {},
+    required: [],
+  }) do |_params|
   Order.where(user_id: ActiveRecord::Base.connection.execute(
     "SELECT kiosk.current_user_id() AS uid"
   ).first["uid"]).order(created_at: :desc).map(&:attributes)
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 5: Register your actions</h2>
-  <p>Actions mutate state — create orders, schedule delivery, set up payment.</p>
+  <p>Actions mutate state — create orders, move a paid delivery, set up payment.</p>
   <p><code>config/initializers/kiosk_actions.rb</code>:</p>
-  <pre><code class="language-ruby"># Check/setup saved payment card
+  <pre><code class="language-ruby">require Rails.root.join("lib/delivery_slots")
+
+# Check/setup saved payment card. A verb that takes nothing still declares the
+# empty closed object — "this verb takes no arguments" then becomes a published
+# fact instead of an absence the assistant has to interpret.
 Kiosk::Server::Actions.register("payment_setup",
-  description: "Check if the customer has a saved card on file",
-  params: {}) do |_args|
+  description: "Say whether this principal already has a card on file, or hand back a " \
+               "Stripe-hosted link for the human to add one. Nothing is charged and no " \
+               "card data touches your app. Call it before every pay on a new device or " \
+               "session, and again once the human says they are done. While one setup is " \
+               "outstanding this returns the SAME link, so relay that one rather than a " \
+               "fresh link per check. Poll on a bounded schedule — every ~5 seconds for " \
+               "the first minute, then every ~15 seconds, and give up after about 5 " \
+               "minutes: tell the human it is unfinished rather than polling forever.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {},
+    required: [],
+  },
+  example_params: {},
+  example_row: { status: "setup_required",
+                 setup_url: "https://checkout.stripe.com/c/pay/cs_test_..." }) do |_args|
   uid = current_user_id
   provider = Kiosk.configuration.payment_provider
   if provider.setup_required?(user_id: uid)
@@ -210,10 +316,49 @@ Kiosk::Server::Actions.register("payment_setup",
   end
 end
 
-# Create an order
+# Create an order. Delivery is PART of the order — the window and the address
+# are inputs here, not a later step (getgrocery's shape: an assistant that
+# cannot deliver has not finished shopping).
 Kiosk::Server::Actions.register("create_order",
-  description: "Create a new order",
-  params: { items: "array of {sku, qty}" }) do |args|
+  description: "Place an order for the authenticated principal and book its delivery in " \
+               "the same call — an order with nowhere and no time to go is not something " \
+               "this operator can fulfil, so get both from the human first. The order " \
+               "comes back UNPAID and nothing is charged here: pay it with a cart mandate " \
+               "that mirrors the order, and the operator re-prices every line against the " \
+               "catalog before it accepts the charge. Once it is paid, reschedule_delivery " \
+               "moves the delivery without a second payment.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      items: {
+        type: "array", minItems: 1,
+        description: "The complete cart, one entry per product.",
+        items: {
+          type: "object", additionalProperties: false,
+          properties: {
+            sku: { type: "string", description: "A sku from the catalog query." },
+            qty: { type: "integer", minimum: 1, description: "How many of it." },
+          },
+          required: ["sku", "qty"],
+        },
+      },
+      delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
+                          description: "The delivery_slot_id of a row delivery_slots returned." },
+      delivery_date:    { type: "string", format: "date",
+                          description: "The date of that same delivery_slots row, YYYY-MM-DD." },
+      delivery_address: { type: "string",
+                          description: "Where to deliver it." },
+    },
+    required: ["items", "delivery_slot_id", "delivery_date", "delivery_address"],
+  },
+  example_params: {
+    items: [{ sku: "sourdough-bread", qty: 2 }, { sku: "greek-yogurt", qty: 1 }],
+    delivery_slot_id: 3, delivery_date: "2026-08-12",
+    delivery_address: "42 Camden Street, Dublin 2",
+  },
+  example_row: { order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e", total_cents: 1287,
+                 currency: "eur", slot_at: "2026-08-12T12:00:00+01:00" }) do |args|
   uid = current_user_id
   items = args[:items].map { |i| { sku: i[:sku], qty: i[:qty].to_i } }
 
@@ -221,34 +366,61 @@ Kiosk::Server::Actions.register("create_order",
     Product.find_by!(sku: item[:sku]).price_cents * item[:qty]
   end
 
-  order = Order.create!(user_id: uid, status: "created", total_cents: total_cents)
+  slot_at = DeliverySlots.slot_at(Date.parse(args[:delivery_date].to_s),
+                                  args[:delivery_slot_id])
+
+  order = Order.create!(user_id: uid, status: "created", total_cents: total_cents,
+                        slot_at: slot_at, address: args[:delivery_address])
   items.each do |item|
     product = Product.find_by!(sku: item[:sku])
     order.order_items.create!(product: product, qty: item[:qty])
   end
 
-  { order_id: order.id, total_cents: total_cents }
+  { order_id: order.id, total_cents: total_cents, currency: "eur",
+    slot_at: slot_at.iso8601 }
 end
 
-# Schedule delivery — gated on the order being PAID.
+# Move a paid order's delivery — gated on the order being PAID.
 # There is no `payment_gated:` option. You gate inside the block by checking
 # for a settlement: after a successful /pay, Kiosk records the capture in
 # kiosk.settlements (linked to the signed cart mandate). Look it up and refuse
-# if it's absent — exactly how the getgrocery demo gates schedule_delivery.
-Kiosk::Server::Actions.register("schedule_delivery",
-  description: "Schedule delivery for a paid order",
-  params: { order_id: "uuid", delivery_slot_id: "integer", delivery_address: "string" }) do |args|
+# if it's absent — exactly how the getgrocery demo gates reschedule_delivery.
+Kiosk::Server::Actions.register("reschedule_delivery",
+  description: "Move an ALREADY-PAID order to a different delivery window, and optionally " \
+               "to a new address. The existing payment is reused: there is nothing new to " \
+               "sign and paying a second time is refused. An unpaid order cannot be moved " \
+               "this way — change it in place with create_order instead. One move per " \
+               "order; after that the human has to talk to the operator.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      order_id:         { type: "string", format: "uuid",
+                          description: "The order_id create_order returned (my_orders lists them too)." },
+      delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
+                          description: "The delivery_slot_id of the new window." },
+      delivery_date:    { type: "string", format: "date",
+                          description: "The date of that new window, YYYY-MM-DD." },
+      delivery_address: { type: "string",
+                          description: "A new address; the order keeps its current one when omitted." },
+    },
+    required: ["order_id", "delivery_slot_id", "delivery_date"],
+  },
+  example_params: { order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e",
+                    delivery_slot_id: 5, delivery_date: "2026-08-13" },
+  example_row: { order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e",
+                 rescheduled_at: "2026-08-13T16:00:00+01:00" }) do |args|
   conn     = ActiveRecord::Base.connection
   order_id = args[:order_id].to_s
 
-  # Gate 1: order exists, belongs to this principal, not already scheduled.
+  # Gate 1: order exists, belongs to this principal, not already moved.
   order = conn.execute(
     "SELECT id FROM orders " \
     "WHERE id = #{conn.quote(order_id)}::uuid " \
     "AND user_id = kiosk.current_user_id() " \
-    "AND status <> 'scheduled' LIMIT 1"
+    "AND status &lt;> 'rescheduled' LIMIT 1"
   ).first
-  raise Kiosk::Server::Errors::Forbidden.new("order not found, not yours, or already scheduled") if order.nil?
+  raise Kiosk::Server::Errors::Forbidden.new("order not found, not yours, or already rescheduled") if order.nil?
 
   # Gate 2: a settlement (capture receipt) referencing this order must exist.
   order_filter = [{ order_id: order_id }].to_json
@@ -260,17 +432,17 @@ Kiosk::Server::Actions.register("schedule_delivery",
   ).first
   raise Kiosk::Server::Errors::Forbidden.new("no settlement for this order — pay first") if paid.nil?
 
-  slot_id = args[:delivery_slot_id].to_i
-  hour    = 8 + (slot_id - 1) * 2
-  slot_at = Time.utc(Date.today.year, Date.today.month, Date.today.day + 1, hour, 0)
+  slot_at = DeliverySlots.slot_at(Date.parse(args[:delivery_date].to_s),
+                                  args[:delivery_slot_id])
 
   conn.execute(
-    "UPDATE orders SET status = 'scheduled', " \
+    "UPDATE orders SET status = 'rescheduled', " \
     "slot_at = #{conn.quote(slot_at.iso8601)}::timestamptz, " \
-    "address = #{conn.quote(args[:delivery_address].to_s)}, updated_at = now() " \
+    "address = COALESCE(NULLIF(#{conn.quote(args[:delivery_address].to_s)}, ''), address), " \
+    "updated_at = now() " \
     "WHERE id = #{conn.quote(order_id)}::uuid AND user_id = kiosk.current_user_id()"
   )
-  { order_id: order_id, scheduled_at: slot_at.iso8601 }
+  { order_id: order_id, rescheduled_at: slot_at.iso8601 }
 end
 
 def current_user_id
