@@ -1,18 +1,24 @@
 {
   "verbs": ["schema", "query", "run", "pay"],
   "queries": [
-    { "name": "catalog", "description": "Browse the product catalog", "params": null },
+    {
+      "name": "catalog",
+      "description": "Browse everything on offer. The whole catalogue comes back in one call, so this is the cheap way to see what exists before narrowing.",
+      "params": null,
+      "input_schema": { "type": "object", "additionalProperties": false, "properties": {}, "required": [] }
+    },
     {
       "name": "search_hotels",
-      "description": "Search hotels by city, sorted by price. Paginated: pass `limit` (1-50) and echo the `next` cursor from the previous page back as `cursor`. `next` present in the response means more results exist.",
-      "params": { "city": "string, required", "limit": "integer 1-50, optional (default 20)", "cursor": "opaque string, optional -- echo the previous page's `next`" },
+      "description": "Find hotels matching what the human actually asked for; narrow with the filters this verb declares rather than pulling the whole catalogue. A row is a SUMMARY of one property, priced at its cheapest nightly rate and not at a total for the stay. The result is one PAGE of the matching set: when more hotels match, the response says so, and stopping at the first page answers from a partial list.",
+      "params": null,
       "input_schema": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["city"],
         "properties": {
-          "city":   { "type": "string" },
-          "limit":  { "type": "integer", "minimum": 1, "maximum": 50 },
-          "cursor": { "type": "string" }
+          "city":   { "type": "string", "description": "City to search in." },
+          "limit":  { "type": "integer", "minimum": 1, "maximum": 50, "default": 20, "description": "Page size." },
+          "cursor": { "type": "string", "description": "Opaque `next` cursor from a prior page." }
         }
       },
       "example_params": { "city": "Lisbon", "limit": 20 },
@@ -22,12 +28,14 @@
   "actions": [
     {
       "name": "create_order",
-      "description": "Create an order from items",
-      "params": { "items": "array" },
+      "description": "Place an order for what the human has chosen. This RESERVES the goods and returns the order to settle; it does not take money -- the `pay` verb does that.",
       "input_schema": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["items"],
-        "properties": { "items": { "type": "array", "items": { "type": "string" }, "minItems": 1 } }
+        "properties": {
+          "items": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "Catalogue SKUs to order." }
+        }
       },
       "example_params": { "items": ["milk-1l", "eggs-12"] },
       "example_row": { "order_id": "a1b2c3", "status": "placed", "total_cents": 648, "currency": "eur" }

@@ -26,23 +26,23 @@
   "$defs": {
     "descriptor": {
       "type": "object",
-      "required": ["name", "description", "params"],
+      "required": ["name", "description"],
       "properties": {
         "name": { "type": "string" },
         "description": {
           "type": ["string", "null"],
-          "description": "Human-facing description or null. Semantics live here in prose -- the AI assistant reads it."
+          "description": "Human-facing description or null. SEMANTICS live here in prose -- what the verb does, when to reach for it, what the result means. Names, types and constraints do not: they live in input_schema."
         },
         "params": {
           "type": ["object", "null"],
-          "description": "Free-form provider-defined hint object (by convention name -> type-hint string), or null. Documentation, not a validation contract."
+          "description": "RETIRED free-form provider-defined hint object (by convention name -> type-hint string), or null. Never a validation contract, and no longer the input contract: publish null, or omit the key. Retained on the wire so descriptors written before the retirement still validate -- an AI assistant MAY read a non-null value as a prose hint for a verb that publishes no input_schema, and MUST prefer input_schema wherever one is published."
         },
         "input_schema": {
           "type": "object",
-          "description": "OPTIONAL JSON Schema (draft 2020-12) for THIS verb's inputs: required/optional, types, enums, ranges. Supersedes the free-text `params` hint for machine validation; `params` is kept alongside for prose/back-compat. Absent = no machine input contract published for this verb."
+          "description": "JSON Schema (draft 2020-12) for THIS verb's inputs: names, required/optional, types, enums, ranges. Where present it is the AUTHORITATIVE input contract for the verb -- the only place a parameter name is declared -- and it wins over any `params` hint that disagrees. OPTIONAL in this version of the descriptor only because the reference implementation does not yet publish one on every registered verb; the descriptor house style already requires one on every query and action, and a later version is expected to make it REQUIRED. Absent = no machine input contract published for this verb."
         },
         "example_params": {
-          "description": "OPTIONAL example params object an AI assistant can copy verbatim as a starting call for this verb."
+          "description": "OPTIONAL example params object an AI assistant can copy verbatim as a starting call for this verb. It ILLUSTRATES input_schema and is not the contract: where the two disagree, the schema is right."
         },
         "example_row": {
           "description": "OPTIONAL example of one result element -- a representative row for a query, or the example return value for an action -- so an assistant learns the result shape without a call-and-observe probe."
