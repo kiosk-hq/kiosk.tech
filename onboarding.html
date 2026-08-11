@@ -370,17 +370,36 @@ Kiosk::Server::Actions.register("create_order",
   example_row: { order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e", total_cents: 1287,
                  currency: "eur", slot_at: "2026-08-12T12:00:00+01:00" }) do |args|
   uid = current_user_id
-  items = args[:items].map { |i| { sku: i[:sku], qty: i[:qty].to_i } }
+
+  # Wire input again — guard before use (see the delivery_slots note): typed
+  # 400s the assistant can correct, never a NoMethodError/Date::Error 500.
+  items = args[:items]
+  raise Kiosk::Server::Errors::BadRequest.new("items must be a non-empty array") if !items.is_a?(Array) || items.empty?
+  items = items.map do |i|
+    sku = i[:sku].to_s
+    raise Kiosk::Server::Errors::BadRequest.new("each item needs a sku") if sku.empty?
+    qty = i[:qty].to_i
+    raise Kiosk::Server::Errors::BadRequest.new("qty must be >= 1") if qty &lt; 1
+    { sku: sku, qty: qty }
+  end
+  delivery_address = args[:delivery_address].to_s
+  raise Kiosk::Server::Errors::BadRequest.new("missing param: delivery_address") if delivery_address.strip.empty?
+  slot_id = args[:delivery_slot_id].to_i
+  raise Kiosk::Server::Errors::BadRequest.new("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
+  delivery_date = begin
+    Date.parse(args[:delivery_date].to_s)
+  rescue ArgumentError
+    raise Kiosk::Server::Errors::BadRequest.new("invalid delivery_date: #{args[:delivery_date]} — use YYYY-MM-DD from the delivery_slots row you chose")
+  end
 
   total_cents = items.sum do |item|
     Product.find_by!(sku: item[:sku]).price_cents * item[:qty]
   end
 
-  slot_at = DeliverySlots.slot_at(Date.parse(args[:delivery_date].to_s),
-                                  args[:delivery_slot_id])
+  slot_at = DeliverySlots.slot_at(delivery_date, slot_id)
 
   order = Order.create!(user_id: uid, status: "created", total_cents: total_cents,
-                        slot_at: slot_at, address: args[:delivery_address])
+                        slot_at: slot_at, address: delivery_address)
   items.each do |item|
     product = Product.find_by!(sku: item[:sku])
     order.order_items.create!(product: product, qty: item[:qty])
@@ -443,8 +462,15 @@ Kiosk::Server::Actions.register("reschedule_delivery",
   ).first
   raise Kiosk::Server::Errors::Forbidden.new("no settlement for this order — pay first") if paid.nil?
 
-  slot_at = DeliverySlots.slot_at(Date.parse(args[:delivery_date].to_s),
-                                  args[:delivery_slot_id])
+  # Same wire-input guards as create_order: a bad window is a typed 400.
+  slot_id = args[:delivery_slot_id].to_i
+  raise Kiosk::Server::Errors::BadRequest.new("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
+  new_date = begin
+    Date.parse(args[:delivery_date].to_s)
+  rescue ArgumentError
+    raise Kiosk::Server::Errors::BadRequest.new("invalid delivery_date: #{args[:delivery_date]} — use YYYY-MM-DD")
+  end
+  slot_at = DeliverySlots.slot_at(new_date, slot_id)
 
   conn.execute(
     "UPDATE orders SET status = 'rescheduled', " \
