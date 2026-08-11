@@ -219,8 +219,8 @@ Kiosk::Server::Queries.register("catalog",
   description: "Browse everything currently in stock. Out-of-stock products are hidden, " \
                "so anything visible here is something that can actually be ordered. The " \
                "whole in-stock catalogue comes back in one call — this is the complete " \
-               "set, not a page of a larger one. The prices here are the prices a cart " \
-               "is charged: create_order re-prices every line against this catalogue.",
+               "set, not a page of a larger one. create_order prices every line from " \
+               "these rows, so a cart built here totals to what it will actually cost.",
   input_schema: {
     type: "object",
     additionalProperties: false,
@@ -267,9 +267,9 @@ end
 Kiosk::Server::Queries.register("my_orders",
   description: "List this principal's own orders, newest first — the operator scopes them " \
                "to the authenticated assistant account, so an assistant only ever sees its " \
-               "own. Use it to find the order reschedule_delivery should move, and as the " \
-               "settlement check after a pay whose response never arrived: if the order " \
-               "already reads as paid, do NOT retry the charge.",
+               "own. It is how an assistant finds the order reschedule_delivery should " \
+               "move, and how it re-reads where an order actually got to after a call whose " \
+               "response never arrived, instead of retrying blind.",
   input_schema: {
     type: "object",
     additionalProperties: false,
@@ -323,10 +323,9 @@ Kiosk::Server::Actions.register("create_order",
   description: "Place an order for the authenticated principal and book its delivery in " \
                "the same call — an order with nowhere and no time to go is not something " \
                "this operator can fulfil, so get both from the human first. The order " \
-               "comes back UNPAID and nothing is charged here: pay it with a cart mandate " \
-               "that mirrors the order, and the operator re-prices every line against the " \
-               "catalog before it accepts the charge. Once it is paid, reschedule_delivery " \
-               "moves the delivery without a second payment.",
+               "comes back UNPAID and nothing is charged here: paying is a separate step, " \
+               "with a cart mandate that mirrors this order. Once it is paid, " \
+               "reschedule_delivery moves the delivery without a second payment.",
   input_schema: {
     type: "object",
     additionalProperties: false,
@@ -387,10 +386,11 @@ end
 # if it's absent — exactly how the getgrocery demo gates reschedule_delivery.
 Kiosk::Server::Actions.register("reschedule_delivery",
   description: "Move an ALREADY-PAID order to a different delivery window, and optionally " \
-               "to a new address. The existing payment is reused: there is nothing new to " \
-               "sign and paying a second time is refused. An unpaid order cannot be moved " \
-               "this way — change it in place with create_order instead. One move per " \
-               "order; after that the human has to talk to the operator.",
+               "to a new address. The existing payment carries over: there is nothing new " \
+               "to sign and this does not charge again. An unpaid order cannot be moved " \
+               "this way — there is no payment to carry over, so place the order you " \
+               "wanted instead. One move per order; after that the human has to talk " \
+               "to the operator.",
   input_schema: {
     type: "object",
     additionalProperties: false,
