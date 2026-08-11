@@ -497,7 +497,7 @@ curl -s http://localhost:3000/kiosk/schema \
 curl -s -X POST http://localhost:3000/kiosk/query \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"catalog"}' | jq '.rows'</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <blockquote>The full register → order → <strong>pay</strong> → schedule flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow scripted end-to-end, run <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>'s <code>bin/demo</code> (<code>rake demo</code>). The <code>pay</code> leg additionally needs a real <code>sk_test_…</code> Stripe key and a saved card on file.</blockquote>
+  <blockquote>The full register → order → <strong>pay</strong> flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow scripted end-to-end, run <code>rake demo</code> in <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>. The <code>pay</code> leg additionally needs a real <code>sk_test_…</code> Stripe key and a saved card on file.</blockquote>
 
   <h2>How agents find you <span style="font-weight:400;font-size:14px;color:#666">(add 3 hooks, invisible to humans)</span></h2>
   <p>Agents need to discover that your site speaks Kiosk. Three hooks — two machine-readable, one visual cue for the curious. None interfere with your existing site.</p>
@@ -530,15 +530,15 @@ curl -s -X POST http://localhost:3000/kiosk/query \
   <hr>
 
   <h2>What the agent experience looks like</h2>
-  <p>From the agent's perspective, after these 7 steps:</p>
+  <p>From the agent's perspective, once the steps above are done:</p>
   <ol class="steps">
     <li><strong>Discovery:</strong> <code>GET /.well-known/kiosk.json</code> → finds your endpoint</li>
     <li><strong>Registration:</strong> generates RSA key, proves possession (<code>GET /auth/challenge</code> → sign → <code>POST /auth/register</code>) → gets <code>access_token</code>; returning keys refresh via <code>/auth/login</code></li>
-    <li><strong>Browse:</strong> <code>POST /query {name:"catalog"}</code> → sees your products</li>
-    <li><strong>Order:</strong> <code>POST /run {name:"create_order", …}</code> → order created</li>
+    <li><strong>Browse:</strong> <code>POST /query {name:"catalog"}</code> and <code>{name:"delivery_slots"}</code> → sees your products and when you can deliver</li>
+    <li><strong>Order:</strong> <code>POST /run {name:"create_order", …}</code> → order created, delivery window booked with it</li>
     <li><strong>Card setup:</strong> <code>POST /run {name:"payment_setup"}</code> → human enters card once on Stripe</li>
     <li><strong>Pay:</strong> agent signs 3 JWS mandates, <code>POST /pay</code> → payment settled</li>
-    <li><strong>Schedule:</strong> <code>POST /run {name:"schedule_delivery", …}</code> → delivery booked</li>
+    <li><strong>Move it, if the human changes their mind:</strong> <code>POST /run {name:"reschedule_delivery", …}</code> → the paid order's window moves, with no second charge</li>
   </ol>
   <p>The agent never sees your UI. It never creates an account for the user. It transacts entirely through the REST surface you just added.</p>
 
@@ -556,8 +556,9 @@ curl -s -X POST http://localhost:3000/kiosk/query \
   <ul>
     <li><a href="https://kiosk.tech">kiosk.tech</a> — landing page + agent skill</li>
     <li><a href="https://kiosk.tech/skill.md">kiosk.tech/skill.md</a> — the universal agent skill</li>
+    <li><a href="/spec/descriptor-house-style.md">descriptor house style</a> — how to write the <code>description</code> + <code>input_schema</code> pair well, with a worked search verb and a checklist</li>
     <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation</li>
-    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>getgrocery_flow.rb</code> and <code>bin/demo</code> (<code>rake demo</code>) drive the entire register → order → pay → schedule flow end-to-end with curl output</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end with curl output</li>
   </ul>
 </article>
 
