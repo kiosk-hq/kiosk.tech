@@ -2,16 +2,25 @@
 
 **Companion to** the formal specification's Section 8.3 (the `schema` verb) --
 <https://kiosk.tech/spec/protocol.md>. Non-normative: this is a WRITING GUIDE,
-not a wire contract. The protocol permits a descriptor to carry `description`,
-`input_schema`, `example_params`, `example_row` and a free-text `params` hint;
-this document says how to write them WELL -- and tells you not to write the last
-one -- so a cold AI assistant can drive your origin from the `schema` catalog
-alone, with no hardcoded knowledge and no call-and-observe probing.
+not a wire contract. A descriptor carries `description`, `input_schema`,
+`output_schema`, `example_params` and `example_row` (plus, on descriptors
+written before its retirement, a free-text `params` hint); this document says
+how to write them WELL -- and tells you not to write the last one -- so a cold
+AI assistant can drive your origin from the `schema` catalog alone, with no
+hardcoded knowledge and no call-and-observe probing.
 
-**The one rule: prose carries MEANING, the schema carries SHAPE.** Every name,
-type, unit, format, default, bound and required/optional marker belongs to
-`input_schema`. `description` says what the verb does, when to call it, and what
-the caller gets back *in meaning* -- never the fields it arrives in.
+In the reference implementation these fields are the class-level macros of
+`Kiosk::Query` / `Kiosk::Action`, written in a controller the operator owns and
+claimed by the next `def` (the kiosk-server README, "Declaring queries and
+actions", has the mechanics). This guide is about what the fields SAY, not
+where they are typed: the rules are identical however a descriptor reaches the
+registry.
+
+**The one rule: prose carries MEANING, the schemas carry SHAPE.** Every name,
+type, unit, format, default, bound and required/optional marker belongs to a
+schema -- `input_schema` for what the verb accepts, `output_schema` for what it
+returns. `description` says what the verb does, when to call it, and what the
+caller gets back *in meaning* -- never the fields it arrives in.
 
 The consumer is an LLM, and it reads a JSON Schema as fluently as it reads a
 sentence. What it cannot do is notice that your sentence and your handler
@@ -29,10 +38,10 @@ format, or whether a list is complete, the descriptor is under-written.
 
 ## The fields
 
-Write `description` + `input_schema` on **every** query and action. Add
-`example_params` + `example_row` at least on the PRIMARY read query and PRIMARY
-action of an origin (the ones an assistant hits first); they are cheap enough to
-be worth writing everywhere.
+Write `description` + `input_schema` + `output_schema` on **every** query and
+action. Add `example_params` + `example_row` at least on the PRIMARY read query
+and PRIMARY action of an origin (the ones an assistant hits first); they are
+cheap enough to be worth writing everywhere.
 
 ### 1. `description` -- prose semantics (REQUIRED)
 
@@ -86,19 +95,36 @@ place a parameter name appears anywhere in the descriptor. Rules of house style:
   "This verb takes no arguments" is then a published fact instead of an absence
   the assistant has to interpret.
 
-### 3. `params` -- do not write one
+### 3. `output_schema` -- the result contract (REQUIRED)
+
+A JSON Schema for what the verb RETURNS, so the result shape is a declaration
+rather than something the assistant infers from one sample or a probe call.
+For a QUERY, describe the rows it renders -- an array schema whose `items` is
+the row object; for an ACTION, describe the returned object. The input rules
+apply unchanged: every field with its `type`, and the per-property one-line
+`description` carrying the unit or format ("EUR cents", nightly not per-stay)
+on the field it belongs to.
+
+The reference implementation publishes `output_schema` in the catalog wherever
+one is declared. The formal descriptor schema does not yet name the field --
+the descriptor object is open, so a descriptor carrying it validates today and
+the declaration is expected to follow.
+
+### 4. `params` -- do not write one
 
 The free-text `params` name-to-hint hash is **retired by house style**. What a
 hint used to say is either a constraint -- it belongs in `input_schema` -- or a
 meaning -- it belongs in `description`; there is no third thing, and a second
-place to state a name is exactly what drifts away from the handler.
+place to state a name is exactly what drifts away from the handler. The
+controller mixin ships no macro for it, so in the declared shape there is
+nothing you could write.
 
 The wire slot still exists for descriptors written before this rule: a
-descriptor you register without a `params:` hash publishes `"params": null`,
-which the descriptor schema accepts -- it no longer requires the field at all,
-so a descriptor that omits the key entirely is equally valid. Leave it null.
+descriptor declared without a `params` hint publishes `"params": null`, which
+the descriptor schema accepts -- it no longer requires the field at all, so a
+descriptor that omits the key entirely is equally valid. Leave it null.
 
-### 4. `example_params` -- a copyable starting call
+### 5. `example_params` -- a copyable starting call
 
 One concrete inputs object the assistant can copy verbatim and adjust. Use
 REAL, valid values (a seeded id, a real neighbourhood from the enum, a
@@ -106,19 +132,19 @@ plausible EUR-cents price) -- not `"string"` or `0`. For a filter search,
 show two or three filters set together so the assistant sees they AND. For a
 fetch-by-id, show the id shape (integer vs uuid) it will paste from a prior row.
 
-### 5. `example_row` -- one result element
+### 6. `example_row` -- one result element
 
 For a QUERY: one representative element of the result list (or the single
 object a detail query returns), with EVERY field the real row carries -- so the
 assistant learns the field names, the currency field, and the id it will feed
-to the next call, without a probe. For an ACTION: the example RETURN value
+to the next call, at a glance. For an ACTION: the example RETURN value
 (what `run` hands back -- e.g. `{booking_id, total_cents, currency, pay_hint}`),
 which documents the follow-on the assistant must act on.
 
-Examples ILLUSTRATE the contract, they are not the contract. If an example and
-`input_schema` disagree, the schema is right and the example is a bug.
+Examples ILLUSTRATE the contracts, they are not the contracts. If an example
+and a schema disagree, the schema is right and the example is a bug.
 
-### 6. Example currency and ids
+### 7. Example currency and ids
 
 Match the origin's real conventions EXACTLY: the demos price in EUR cents and
 carry a `currency: "eur"` field; ids are the real seeded ids (integer property
@@ -134,13 +160,6 @@ the same key -- so a `search_hotels` row carries `property_id` (SQL
 assistant copies the key straight through with no remapping. Never expose a row
 `id` that no verb consumes (a dead field invites the same guessing).
 
-> **Planned -- a result schema.** Inputs have a machine-readable contract;
-> results do not. `example_row` is a sample, and a sample is not a declaration:
-> an assistant still cannot know what a call returns without making it. A result
-> schema, the counterpart of `input_schema`, is planned so the return value is
-> declared rather than merely illustrated. Until it ships, `example_row` carries
-> that weight alone -- which is why it must show EVERY field the real row has.
-
 ---
 
 ## Worked example -- a hotel search
@@ -149,42 +168,59 @@ A paginated, multi-parameter search over ~100 hotels, written to the rules above
 (ASCII-rendered here; the live origin serves the real Unicode area names):
 
 ```
-Kiosk::Server::Queries.register("search_hotels",
-  description: "Find Istanbul hotels matching what the human actually asked " \
-               "for. Narrow with the filters this verb declares rather than " \
-               "pulling the whole catalogue; filters combine, so several " \
-               "constraints are one search, not several. A row is a SUMMARY " \
-               "of one property -- enough to shortlist on, priced at the " \
-               "cheapest room's nightly rate, not a total for the stay. The " \
-               "result is a PAGE of the matching set, not the set: when more " \
-               "hotels match, the response says so, and an assistant that " \
-               "stops at the first page is answering from a partial list. " \
-               "Once the human picks one, hotel_detail returns everything a " \
-               "summary leaves out -- rooms, amenities, address.",
-  input_schema: {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-      neighbourhood:   { type: "string", enum: ["Sultanahmet", "Beyoglu", "Kadikoy", "..."],
-                         description: "Exact Istanbul area name." },
-      max_price_cents: { type: "integer", minimum: 0,
-                         description: "Cheapest room at or below this, EUR cents." },
-      min_stars:       { type: "integer", minimum: 1, maximum: 5,
-                         description: "Star-rating floor." },
-      amenity:         { type: "string", enum: ["wifi", "breakfast", "pool", "..."],
-                         description: "Property must offer this amenity." },
-      limit:           { type: "integer", minimum: 1, maximum: 50, default: 20,
-                         description: "Page size." },
-      cursor:          { type: "string", description: "Opaque `next` cursor from a prior page." },
-    },
-    required: [],
-  },
-  example_params: { neighbourhood: "Besiktas", min_stars: 4, max_price_cents: 20000, limit: 20 },
-  example_row: {
+# app/controllers/kiosk/hotel_search_controller.rb
+class Kiosk::HotelSearchController < ApplicationController   # your base class, your call
+  include Kiosk::Query
+
+  description "Find Istanbul hotels matching what the human actually asked " \
+              "for. Narrow with the filters this verb declares rather than " \
+              "pulling the whole catalogue; filters combine, so several " \
+              "constraints are one search, not several. A row is a SUMMARY " \
+              "of one property -- enough to shortlist on, priced at the " \
+              "cheapest room's nightly rate, not a total for the stay. The " \
+              "result is a PAGE of the matching set, not the set: when more " \
+              "hotels match, the response says so, and an assistant that " \
+              "stops at the first page is answering from a partial list. " \
+              "Once the human picks one, hotel_detail returns everything a " \
+              "summary leaves out -- rooms, amenities, address."
+  input_schema type: "object",
+               additionalProperties: false,
+               properties: {
+                 neighbourhood:   { type: "string", enum: ["Sultanahmet", "Beyoglu", "Kadikoy", "..."],
+                                    description: "Exact Istanbul area name." },
+                 max_price_cents: { type: "integer", minimum: 0,
+                                    description: "Cheapest room at or below this, EUR cents." },
+                 min_stars:       { type: "integer", minimum: 1, maximum: 5,
+                                    description: "Star-rating floor." },
+                 amenity:         { type: "string", enum: ["wifi", "breakfast", "pool", "..."],
+                                    description: "Property must offer this amenity." },
+                 limit:           { type: "integer", minimum: 1, maximum: 50, default: 20,
+                                    description: "Page size." },
+                 cursor:          { type: "string", description: "Opaque `next` cursor from a prior page." },
+               },
+               required: []
+  output_schema type: "array",
+                items: { type: "object",
+                         properties: {
+                           property_id:      { type: "integer",
+                                               description: "The id hotel_detail takes, same key name." },
+                           name:             { type: "string" },
+                           neighbourhood:    { type: "string" },
+                           stars:            { type: "integer" },
+                           from_price_cents: { type: "integer",
+                                               description: "Cheapest room, nightly, EUR cents." },
+                           currency:         { type: "string" },
+                           room_type_count:  { type: "integer" },
+                         } }
+  example_params({ neighbourhood: "Besiktas", min_stars: 4, max_price_cents: 20000, limit: 20 })
+  example_row({
     property_id: 4, name: "Bosphorus Palace", neighbourhood: "Besiktas", stars: 5,
     from_price_cents: 15000, currency: "eur", room_type_count: 2,
-  }) do |params|
-  # ... handler returns Kiosk::Server::Page.new(rows:, next_cursor:) ...
+  })
+  def search_hotels
+    # ... build one page of summary rows from your models, then:
+    # render_kiosk_page(rows, next_cursor: cursor)
+  end
 end
 ```
 
@@ -200,10 +236,13 @@ What each field is doing for the cold assistant:
   50, carries the EUR-cents unit on the field it belongs to, and marks
   everything optional (`required: []`) -- a bare `search_hotels` is a valid
   whole-catalogue page 1.
+- `output_schema` declares the summary row -- every field, with the
+  nightly-EUR-cents unit on `from_price_cents` -- so the return shape is
+  machine-read from the catalog instead of inferred from one sample.
 - `example_params` shows three filters set together (they AND) with real values.
 - `example_row` shows the `property_id` the assistant will pass straight to
   `hotel_detail` (SAME key name -- no remapping), the `currency` field, and the
-  summary shape -- learned without a probe.
+  summary shape -- one concrete row of what `output_schema` declares.
 
 The paired detail query, `hotel_detail`, is the other half of the pattern:
 `required: ["property_id"]`, an `example_params` of `{ property_id: 4 }`, and an
@@ -230,13 +269,16 @@ Before shipping a query or an action, confirm:
 - [ ] A WRITE action's `description` names the follow-on verb (pay/confirm).
 - [ ] `input_schema` is present, `type: "object"`, `additionalProperties: false`
       (empty `properties` for a verb that takes nothing).
-- [ ] Every param has a `type`; closed sets use `enum`, ranges use min/max,
-      and each property's own one-line `description` carries its unit/format.
+- [ ] `output_schema` is present and declares the FULL result -- an array of
+      the row object for a query, the return object for an action.
+- [ ] Every field, in and out, has a `type`; closed sets use `enum`, ranges use
+      min/max, and each property's own one-line `description` carries its
+      unit/format.
 - [ ] `required` is accurate (empty for all-optional search; the id for fetch-by-id).
 - [ ] No `params` hint hash -- every param name appears in `input_schema` and
       nowhere else.
 - [ ] A summary row's id field name == the detail/action verb's id param name (canonical `<thing>_id`); no dead row id that no verb consumes.
 - [ ] `example_params` uses real, valid values (a seeded id, an enum member).
 - [ ] `example_row` carries every field the real row has, including `currency`.
-- [ ] The examples agree with `input_schema`.
+- [ ] The examples agree with the schemas.
 - [ ] A cold assistant reaching this verb from `schema` alone would call it right.
