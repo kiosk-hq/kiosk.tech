@@ -54,7 +54,7 @@
   <p>Two scopes, assuming a working Rails + Postgres app you already know:</p>
   <ul>
     <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, mount the routes, declare a couple of read-only queries in a controller by adapting the examples below, and verify discovery + one query. That's the minimal agent-ready surface.</li>
-    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> table/model and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the nine kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
+    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> table/model and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the ten kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
   </ul>
   <p>The steps below walk the full payments integration <em>assuming you already have the accounts and keys in hand</em>; they don't cover Stripe signup, or debugging your own catalog's queries.</p>
 
@@ -118,7 +118,7 @@ openssl genrsa 2048 | base64
   )
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code> and emits nine kiosk migrations, baking <code>uuid</code> into every one that touches a user id (the <code>kiosk.agents.user_id</code> FK and the mandate tables that reference it), and the <code>stripe_customers</code> table below uses <code>t.uuid :user_id</code>. If your <code>users.id</code> is a Rails-default <code>bigint</code>, don't just edit the <code>stripe_customers</code> column — <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches), set <code>c.user_id_type = :bigint</code>, and make the <code>stripe_customers.user_id</code> column <code>t.bigint</code> to match — otherwise migrations fail with a datatype mismatch.</blockquote>
+  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code> and emits ten kiosk migrations, baking <code>uuid</code> into every one that touches a user id (the <code>kiosk.agents.user_id</code> FK and the mandate tables that reference it), and the <code>stripe_customers</code> table below uses <code>t.uuid :user_id</code>. If your <code>users.id</code> is a Rails-default <code>bigint</code>, don't just edit the <code>stripe_customers</code> column — <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches), set <code>c.user_id_type = :bigint</code>, and make the <code>stripe_customers.user_id</code> column <code>t.bigint</code> to match — otherwise migrations fail with a datatype mismatch.</blockquote>
 
   <p>You need a <code>stripe_customers</code> table (referenced by the resolver/saver above):</p>
   <pre><code class="language-ruby"># db/migrate/…_create_stripe_customers.rb
