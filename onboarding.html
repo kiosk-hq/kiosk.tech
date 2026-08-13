@@ -135,36 +135,30 @@ class StripeCustomer &lt; ApplicationRecord
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 3: Mount the routes</h2>
-  <p><code>config/routes.rb</code>:</p>
-  <pre><code class="language-ruby">Rails.application.routes.draw do
-  # Kiosk wire surface — controllers shipped by kiosk-server (WireController).
-  get  "/kiosk/schema",           to: "kiosk/server/wire#schema"
-  post "/kiosk/query",            to: "kiosk/server/wire#query"
-  post "/kiosk/run",              to: "kiosk/server/wire#run"
-  post "/kiosk/pay",              to: "kiosk/server/wire#pay"
-
-  # Proof-of-possession auth surface.
-  get  "/kiosk/auth/challenge",   to: "kiosk/server/auth#challenge"
-  post "/kiosk/auth/register",    to: "kiosk/server/auth#register"
-  post "/kiosk/auth/login",       to: "kiosk/server/auth#login"
-  post "/kiosk/auth/revoke",      to: "kiosk/server/auth#revoke"
-
-  # JWKS — public keys agents use to verify Kiosk-issued JWTs.
-  get  "/kiosk/.well-known/jwks.json", to: "kiosk/server/jwks#show"
-
-  # Discovery surface — served by kiosk-server's DiscoveryController, which
-  # renders every document from Kiosk::Server::WellKnown (the single generator
-  # seam). They're built on the fly from Kiosk.configuration and the live
-  # registry, so discovery can't drift from what you actually serve.
-  # /.well-known/kiosk.json is the machine-readable handshake; the rest are
-  # optional standards-compat surfaces the same controller serves for free.
-  # agents.txt / agents.json are ROOT-served per the agents.txt v1.0 standard.
-  get "/agents.txt",                       to: "kiosk/server/discovery#agents_txt"
-  get "/agents.json",                      to: "kiosk/server/discovery#agents_json"
-  get "/.well-known/agent-configuration",  to: "kiosk/server/discovery#agent_configuration"
-  get "/.well-known/kiosk.json",           to: "kiosk/server/discovery#kiosk_json"
-  get "/.well-known/api-catalog",          to: "kiosk/server/discovery#api_catalog"
+  <p>One line. kiosk-server ships a Rails engine, and mounting it draws the entire surface — you write no route of your own:</p>
+  <pre><code class="language-ruby"># config/routes.rb
+Rails.application.routes.draw do
+  mount Kiosk::Server::Engine => Kiosk.configuration.mount_path
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The prefix is the <code>mount_path</code> from Step 2's initializer — <code>/kiosk</code> unless you set another. Under it the engine draws:</p>
+  <ul>
+    <li><strong>The wire</strong> — <code>GET /kiosk/schema</code>, <code>POST /kiosk/query</code>, <code>POST /kiosk/run</code>, <code>POST /kiosk/pay</code>. <code>pay</code> is drawn whether or not you configured a payment provider: without one it answers the wire's own 403 envelope, and discovery leaves <code>pay</code> out of the capabilities it advertises, so nothing invites an agent to call it.</li>
+    <li><strong>The proof-of-possession auth plane</strong> — <code>GET /kiosk/auth/challenge</code> plus <code>POST /kiosk/auth/register</code>, <code>/kiosk/auth/login</code> and <code>/kiosk/auth/revoke</code>: the handshake the <code>register.rb</code> script in Step 6 performs.</li>
+    <li><strong>JWKS</strong> — <code>GET /kiosk/.well-known/jwks.json</code>, the public keys agents verify Kiosk-issued JWTs against. It sits under the mount rather than at the origin root, and that is the URL discovery publishes as <code>jwks_uri</code>.</li>
+    <li><strong>KYC attestation</strong> — <code>POST /kiosk/agents/kyc</code>, where an agent presents a broker-signed identity fact. Drawn unconditionally for the same reason as <code>pay</code>: with no KYC key configured the verifier rejects with a 403 envelope, and a provider that never advertises KYC loses nothing.</li>
+    <li><strong>The account-binding ceremony</strong> — how an assistant gets attached to a human's <em>existing</em> account instead of a fresh assistant account. That is the RFC 8628 claim wire (<code>POST /kiosk/oauth/device_authorization</code>, <code>POST /kiosk/oauth/token</code>), the link/claim/unlink endpoints (<code>POST /kiosk/auth/link</code>, <code>/kiosk/auth/claim</code>, <code>/kiosk/auth/unlink</code>), and two human-facing HTML pages: the consent page at <code>/kiosk/oauth/device/verify</code>, which shows the key's fingerprint and when it asked, and «Link an assistant» at <code>/kiosk/auth/assistants</code> with its link/update/unlink form posts. Both pages are session-authenticated through your own <code>user_idp</code> — approving a binding is the human channel's job, not the agent's — and both render minimal engine views you override by shipping same-named templates under <code>app/views/kiosk/server/</code>.</li>
+  </ul>
+
+  <p>The same line also installs the <strong>discovery documents</strong>, which live at the <em>origin root</em> rather than under the prefix — the agents.txt v1.0 standard and RFC 8615 put them there, outside any mount:</p>
+  <ul>
+    <li><code>/agents.txt</code> and <code>/agents.json</code> — the agents.txt envelope and its structured companion.</li>
+    <li><code>/auth.md</code> — the agent-auth handbook: which auth methods you accept and how each ceremony runs. <code>/.well-known/agent-configuration</code> links to it by URL, and <code>/agents.txt</code> names <code>auth-md</code> among the authorization methods you support.</li>
+    <li><code>/.well-known/kiosk.json</code> — the machine-readable handshake — plus <code>/.well-known/agent-configuration</code> and <code>/.well-known/api-catalog</code>.</li>
+  </ul>
+  <p>All six come from kiosk-server's <code>DiscoveryController</code>, which renders every document from <code>Kiosk::Server::WellKnown</code> — the single generator seam. They're built on the fly from <code>Kiosk.configuration</code> and the live registry, so discovery can't drift from what you actually serve. The engine appends them to <em>your</em> app's route set, and only when it is mounted: bundling the gem without the line above adds no routes at all.</p>
+
+  <blockquote><strong>Escape hatch.</strong> Hand-drawing these routes yourself still works — for a deliberately partial surface, or mid-migration. Hand-drawn lines win (Rails dispatches the first matching route) and either path reaches the same shipped controllers, so an app that both mounts and hand-draws keeps working. What a hand-written list costs you is everything it forgets: draw only the wire, auth and discovery routes and you serve no <code>/auth.md</code> and no binding ceremony at all, with nothing to tell you. Mount unless you have a reason not to.</blockquote>
 
   <h2>Step 4: Declare your queries</h2>
   <p>Queries are read-only data access. Agents use them to browse your catalog.</p>
@@ -645,8 +639,9 @@ curl -s -X POST http://localhost:3000/kiosk/query \
     <li><a href="https://kiosk.tech/skill.md">kiosk.tech/skill.md</a> — the universal agent skill</li>
     <li><a href="/spec/descriptor-house-style.md">descriptor house style</a> — how to write the <code>description</code> + <code>input_schema</code> pair well, with a worked search verb and a checklist</li>
     <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#mount-the-routes">kiosk-server — mount the routes</a> — the engine behind Step 3's one line: everything it draws under the mount, the root-relative discovery documents it installs, and the hand-drawing escape hatch</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Query</code>/<code>Kiosk::Action</code> mixin this page's controllers use: the full macro list, the dispatch mechanics, and the error seam</li>
-    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end with curl output. (Its handlers are still moving from a registration initializer onto the controller shape this page shows — the wire the flow drives is identical either way.)</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end with curl output. (Its routes are still hand-drawn and its handlers are still moving from a registration initializer onto the controller shape this page shows; both migrations are in flight, and the wire the flow drives is identical either way.)</li>
   </ul>
 </article>
 
