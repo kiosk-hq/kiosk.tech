@@ -1,0 +1,237 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Published-skill immutability guard (K-744).
+#
+# WHAT THIS ENFORCES
+# ------------------
+# `skill-vMAJOR.MINOR.PATCH.md` files at the root of this repo are PUBLISHED
+# ARTEFACTS, and this repo publishes, in normative text, that they never
+# change:
+#
+#   specification.html  "Because a version file is immutable, this pin cannot
+#                        drift by construction."
+#   spec/protocol.md    §14.4 "Published skill files are immutable and
+#                        versioned; a change ships a new file."
+#   CLAUDE.md           "a published version file is never edited, every change
+#                        ships a new one"  (ADR-0012)
+#
+# An operator's `/.well-known/kiosk.json` may carry a `skill` pin: the versioned
+# URL plus the SHA-256 of its bytes. An AI assistant fetches the URL FROM HERE
+# and refuses the skill on a hash mismatch — fail-closed, by design. So editing
+# a file that is already published does not "update" anything: it silently
+# invalidates every pin taken against the previous bytes, and the only symptom
+# is assistants declining to transact against operators who did exactly what the
+# spec told them to do. The sentence above stops being true the moment it
+# happens, and it is a sentence about a supply-chain control.
+#
+# WHY IT IS A CHECK AND NOT A CONVENTION
+# --------------------------------------
+# Because the convention already failed once. Commit 5a9fbf5 (2026-08-10) —
+# whose stated purpose was to make a frozen skill's pin un-rottable — achieved
+# it by rewriting two bullets inside the already-published skill-v0.3.10.md.
+# The effect happened to be nil (no demo held the pre-edit hash), which is
+# exactly why nothing caught it and why nothing would catch the next one. The
+# reference repo's `bin/check-*` guards exist for the same reason; this is the
+# same shape, in the repo that owns the files.
+#
+# WHAT IS ALLOWED AND WHAT IS NOT
+# -------------------------------
+#   ADDING skill-v0.3.12.md          allowed — that IS the prescribed mechanism
+#   editing skill.md (the alias)     allowed — the working alias is mutable by
+#                                    design; only the `skill-v*.md` cuts freeze
+#   editing skill-v0.3.11.md         FAILS
+#   deleting skill-v0.3.4.md         FAILS — unpublishing breaks live pins just
+#                                    as thoroughly as rewriting
+#   renaming a cut                   FAILS (seen as delete + add)
+#
+# HOW IT DECIDES
+# --------------
+# Two independent passes, because the useful moment to be stopped is before the
+# commit and the authoritative moment is in CI:
+#
+#   1. WORKING TREE — `git status` for tracked, modified or deleted cuts. Stops
+#      an edit locally. A no-op in CI, where the tree is clean.
+#   2. RANGE — `git diff --name-status --no-renames <merge-base> <head>`, i.e.
+#      what this push / pull request does to the base branch. Only status `A`
+#      passes. `--no-renames` on purpose: a rename decomposes into D + A, and
+#      the D is a failure we want to see rather than a status letter to special-
+#      case.
+#
+# BASE RESOLUTION, in order: `--base <ref>`, then `$BASE_SHA` (what CI sets from
+# `github.event.before` for a push and `pull_request.base.sha` for a PR), then
+# `origin/main`. If none of them resolves to a commit this EXITS NON-ZERO and
+# says so: a guard that cannot see its base must not report success. The
+# all-zeros SHA GitHub sends when a branch is created is treated as "unset".
+#
+# Stdlib only, no network, no build. ~0.1 s. Requires unshallowed history
+# (`actions/checkout` with `fetch-depth: 0`).
+#
+# Usage:
+#   bin/check-skill-immutability                 # working tree + origin/main..HEAD
+#   bin/check-skill-immutability --base <ref>    # explicit base
+#   bin/check-skill-immutability --head <ref>    # explicit head (default HEAD)
+#   bin/check-skill-immutability --list          # every published cut + its sha256
+
+require "digest"
+require "open3"
+
+ROOT = File.expand_path("..", __dir__)
+Dir.chdir(ROOT)
+
+# A published cut: `skill-v<anything>.md` at the repo root. Deliberately looser
+# than `\d+\.\d+\.\d+` — anything named like a published version file is
+# protected, so a future naming shape is covered rather than silently exempt.
+CUT = %r{\Askill-v[^/]+\.md\z}
+
+# `-c log.follow=false` is not decoration. With `log.follow=true` in a user's
+# global config (it is, on the machine this repo is maintained from), `git log
+# -- skill-v0.3.11.md` follows the path back through the copy from skill.md and
+# reports the repo's INITIAL commit as the one that added it. A guard that
+# reads git must not inherit the reader's preferences.
+def git(*args)
+  out, err, status = Open3.capture3("git", "-c", "log.follow=false", *args)
+  [out, err, status.success?]
+end
+
+def rev_parse(ref)
+  return nil if ref.nil? || ref.empty?
+  return nil if ref =~ /\A0{7,40}\z/ # GitHub's "no previous commit" sentinel
+
+  out, _err, ok = git("rev-parse", "--verify", "--quiet", "#{ref}^{commit}")
+  ok ? out.strip : nil
+end
+
+# ── argv ─────────────────────────────────────────────────────────────────────
+base_arg = nil
+head_arg = "HEAD"
+list     = false
+argv     = ARGV.dup
+until argv.empty?
+  case (arg = argv.shift)
+  when "--base" then base_arg = argv.shift
+  when "--head" then head_arg = argv.shift
+  when "--list" then list = true
+  else
+    warn "usage: #{$PROGRAM_NAME} [--base <ref>] [--head <ref>] [--list]"
+    exit 2
+  end
+end
+
+# ── --list: the immutability ledger ──────────────────────────────────────────
+if list
+  cuts = Dir["skill-v*.md"].select { CUT.match?(_1) }.sort_by { |f| f.scan(/\d+/).map(&:to_i) }
+  puts format("%-22s %-10s %-12s %s", "PUBLISHED CUT", "ADDED", "COMMIT", "SHA-256")
+  cuts.each do |cut|
+    log, _err, _ok = git("log", "--diff-filter=A", "--format=%h %ad", "--date=short", "--", cut)
+    commit, date = log.lines.last.to_s.split(" ", 2).then { |h, d| [h.to_s, d.to_s.strip] }
+    puts format("%-22s %-10s %-12s %s", cut, date, commit, Digest::SHA256.hexdigest(File.binread(cut)))
+  end
+  puts
+  puts "#{cuts.size} published cuts. Every one of them is frozen: a change ships a NEW file."
+  puts
+end
+
+failures = []
+notes    = []
+
+# ── Pass 1: the working tree ─────────────────────────────────────────────────
+#
+# `git status --porcelain` XY codes: an untracked file is `??` (a new cut being
+# written — allowed), `A` is staged-add (allowed). Anything else on a path that
+# matches CUT is a modification or a deletion of something already tracked.
+status_out, status_err, status_ok = git("status", "--porcelain", "--untracked-files=all")
+if status_ok
+  status_out.each_line do |line|
+    code = line[0, 2].to_s
+    path = line[3..].to_s.strip.delete_prefix('"').delete_suffix('"')
+    # Rename entries read `R  old -> new`; the old path is the one at risk.
+    path = path.split(" -> ").first.to_s
+    next unless CUT.match?(path)
+    next if code == "??"            # a brand-new cut, not yet tracked
+    next if code.start_with?("A")   # staged add of a brand-new cut
+
+    verb = code.include?("D") ? "DELETED" : "MODIFIED"
+    failures << "working tree: #{path} is #{verb} (git status `#{code.strip}`) — that file is " \
+                "already published and every pin taken against it verifies its CURRENT bytes. " \
+                "Revert it (`git checkout -- #{path}`) and ship the change as a NEW cut."
+  end
+else
+  failures << "could not read `git status` (#{status_err.strip}) — this guard must not pass " \
+              "without having looked."
+end
+
+# ── Pass 2: the range this push / PR introduces ──────────────────────────────
+env_base = ENV["BASE_SHA"] || ENV["GITHUB_BASE_SHA"]
+base_src, base =
+  if base_arg then ["--base #{base_arg}", rev_parse(base_arg)]
+  elsif rev_parse(env_base) then ["$BASE_SHA (#{env_base[0, 12]})", rev_parse(env_base)]
+  else ["origin/main", rev_parse("origin/main")]
+  end
+
+head = rev_parse(head_arg)
+
+if head.nil?
+  failures << "could not resolve head ref `#{head_arg}` to a commit."
+elsif base.nil?
+  failures << "could not resolve a base commit (tried #{base_src}). This guard compares what a " \
+              "push or pull request DOES to the base branch, so with no base it can see nothing " \
+              "and must not report success. Pass one explicitly: " \
+              "`bin/check-skill-immutability --base <ref>`. In CI, set BASE_SHA (and check out " \
+              "with fetch-depth: 0 so the base commit is present)."
+else
+  # merge-base, not the raw base: correct for a fast-forward push (base itself),
+  # for a PR merge commit (the base tip), and for a diverged or force-pushed
+  # branch, where a raw two-dot diff would report the base branch's own commits
+  # as if this branch had made them.
+  mb_out, _err, mb_ok = git("merge-base", base, head)
+  from = mb_ok ? mb_out.strip : base
+  notes << "no merge-base between #{base[0, 12]} and #{head[0, 12]} — diffing from the base " \
+           "directly" unless mb_ok
+
+  diff_out, diff_err, diff_ok = git("diff", "--name-status", "--no-renames", from, head)
+  if diff_ok
+    changed = diff_out.lines.filter_map do |line|
+      code, path = line.chomp.split("\t", 2)
+      next unless path && CUT.match?(path)
+
+      [code.to_s[0], path]
+    end
+
+    changed.each do |code, path|
+      next if code == "A" # publishing a NEW cut is the prescribed mechanism
+
+      verb = case code
+             when "D" then "DELETES"
+             when "M" then "MODIFIES"
+             else "changes (git status `#{code}`)"
+             end
+      failures << "#{from[0, 12]}..#{head[0, 12]} #{verb} the already-published #{path}. " \
+                  "Published skill cuts are immutable (protocol.md §14.4, specification.html: " \
+                  "\"this pin cannot drift by construction\"): an operator's `skill` pin verifies " \
+                  "that file's SHA-256, so changing or removing it breaks every assistant holding " \
+                  "the old hash — fail-closed and invisible from the operator's side. Ship the " \
+                  "change as a NEW skill-v*.md and re-pin, exactly as ADR-0012 prescribes."
+    end
+
+    added = changed.count { |code, _| code == "A" }
+    notes << "range #{from[0, 12]}..#{head[0, 12]}: #{added} new cut(s) published, " \
+             "#{changed.size - added} existing cut(s) touched"
+  else
+    failures << "could not diff #{from}..#{head} (#{diff_err.strip}) — if this is CI, check out " \
+                "with `fetch-depth: 0`; a shallow clone does not contain the base commit."
+  end
+end
+
+notes.each { puts "  note: #{_1}" }
+
+if failures.empty?
+  puts "check-skill-immutability: OK — no published skill-v*.md was modified or removed."
+  exit 0
+end
+
+warn "\ncheck-skill-immutability FAILED:\n"
+failures.each { warn "  x #{_1}" }
+warn "\nA published version file is never edited. Every change ships a NEW skill-vX.Y.Z.md " \
+     "(ADR-0012). That is what makes the spec's \"this pin cannot drift by construction\" true."
+exit 1

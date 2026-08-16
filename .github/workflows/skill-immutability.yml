@@ -1,0 +1,56 @@
+name: skill-immutability
+
+# Published skill cuts are frozen (K-744).
+#
+# `skill-vX.Y.Z.md` files are immutable published artefacts — this repo says so
+# normatively (specification.html "this pin cannot drift by construction",
+# spec/protocol.md §14.4, ADR-0012). An operator's `/.well-known/kiosk.json`
+# pin carries the SHA-256 of one of these files and an AI assistant refuses the
+# skill on a mismatch, so editing a published cut does not update anything: it
+# silently invalidates every pin taken against the old bytes, fail-closed and
+# invisible from the operator's side.
+#
+# It has already happened once (5a9fbf5, 2026-08-10, two bullets rewritten
+# inside skill-v0.3.10.md — in a commit whose stated purpose was to make frozen
+# pins un-rottable). The effect was nil only by luck, which is precisely why
+# nothing caught it. This job is the replacement for remembering.
+#
+# NO PATH FILTER, on purpose. The one class of change this job exists to catch
+# is a change to `skill-v*.md`; a `paths:` filter that got the glob subtly
+# wrong would silently skip exactly that. It costs ~5 s.
+#
+# Its own workflow rather than a job in spec-schemas.yml: that workflow is
+# path-filtered on `spec/**` (skill cuts live at the repo root, so it would
+# never fire), it installs Node and ajv, and one invariant deserves one exit
+# code and one name in the checks list — the shape the reference repo's
+# bin/check-* jobs use.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  immutability:
+    name: published skill cuts are frozen (bin/check-skill-immutability)
+    runs-on: ubuntu-latest
+
+    steps:
+      # fetch-depth: 0 is required, not tidiness — the check diffs this push /
+      # PR against the base commit, and a shallow clone does not contain it.
+      # The script fails loudly rather than passing if the base is missing.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The runner's preinstalled Ruby. The script is stdlib-only (digest,
+      # open3) and shells out to git; there is no Gemfile, no bundle and no
+      # Ruby toolchain anywhere else in this repo, so pinning a version here
+      # would be a version to maintain for no gain.
+      - name: No published skill-v*.md was modified or removed
+        env:
+          # push: the commit the branch was at before this push.
+          # pull_request: the base branch tip the PR is measured against.
+          # A branch-creation push sends the all-zeros sentinel; the script
+          # treats that as unset and falls back to origin/main.
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: ruby bin/check-skill-immutability
