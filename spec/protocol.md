@@ -790,8 +790,8 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 4. **Skill version.** The skill is published as `skill-vMAJOR.MINOR.PATCH.md`, where
    **MAJOR.MINOR tracks the protocol release** (currently 0.3, so version parity holds)
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
-   protocol, cut without a protocol change. The current skill is **0.3.10**: still
-   protocol 0.3, ten skill-only patches in. Published skill files are immutable and
+   protocol, cut without a protocol change. The current skill is **0.3.11**: still
+   protocol 0.3, eleven skill-only patches in. Published skill files are immutable and
    versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
