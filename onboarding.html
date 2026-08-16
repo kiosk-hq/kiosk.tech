@@ -53,7 +53,7 @@
   <p class="intro">A step-by-step guide for adding Kiosk to an existing Rails app, based on the <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a> demo provider.</p>
   <p>Two scopes, assuming a working Rails + Postgres app you already know:</p>
   <ul>
-    <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, mount the routes, declare a couple of read-only queries in a controller by adapting the examples below, and verify discovery + one query. That's the minimal agent-ready surface.</li>
+    <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, mount the routes, declare a couple of read-only queries in a controller by adapting the examples below, name that controller in the initializer, and verify discovery + one query. That's the minimal agent-ready surface.</li>
     <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> table/model and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the ten kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
   </ul>
   <p>The steps below walk the full payments integration <em>assuming you already have the accounts and keys in hand</em>; they don't cover Stripe signup, or debugging your own catalog's queries.</p>
@@ -78,6 +78,17 @@ openssl genrsa 2048 | base64
   c.user_model     = "User"          # your existing account model
   c.user_id_type   = :uuid           # MUST match your PK type — :uuid, :bigint, :integer, or :text
   c.user_id_column = :id
+
+  # The handler controllers that carry your wire verbs. You write them in
+  # Steps 4 and 5 below — this line comes first because it belongs in the
+  # initializer, and it is repeated at the end of Step 5 once both classes
+  # exist. It is not optional: a verb registers when its controller's class
+  # body is read, and nothing in your app ever references a handler controller
+  # (the wire reaches it THROUGH the registry), so an origin that names none of
+  # them serves no verbs at all in development. Name them and the engine loads
+  # and registers them — once at boot in production, again after every code
+  # reload in development. Strings, not constants.
+  c.handlers = %w[Kiosk::CatalogController Kiosk::OrdersController]
 
   c.issuer = ENV.fetch("KIOSK_ISSUER", "https://your-domain.com")
   c.roles  = %i[customer]
@@ -160,12 +171,12 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <blockquote><strong>Escape hatch.</strong> Hand-drawing these routes yourself still works — for a deliberately partial surface, or mid-migration. Hand-drawn lines win (Rails dispatches the first matching route) and either path reaches the same shipped controllers, so an app that both mounts and hand-draws keeps working. What a hand-written list costs you is everything it forgets: draw only the wire, auth and discovery routes and you serve no <code>/auth.md</code> and no binding ceremony at all, with nothing to tell you. Mount unless you have a reason not to.</blockquote>
 
-  <h2>Step 4: Declare your queries</h2>
-  <p>Queries are read-only data access. Agents use them to browse your catalog.</p>
+  <h2>Step 4: Declare your queries — write the controller, then name it</h2>
+  <p>Queries are read-only data access. Agents use them to browse your catalog. Two moves, both required: write the controller here, and name it in <code>c.handlers</code> (Step 2's line, repeated at the end of Step 5) — that second line is what puts the verbs on the wire.</p>
 
-  <p>They live in <strong>controllers you own</strong>. Kiosk ships a mixin, not a base class — <code>include Kiosk::Query</code> (or <code>Kiosk::Action</code>) into a controller with whatever superclass you use, and the include is the whole contract. Each class-level macro records a declaration; the <strong>next <code>def</code></strong> claims all pending ones and becomes a wire verb. A method with no declarations above it is not a verb, so private helpers stay invisible to agents — and one controller declares queries <em>or</em> actions, never both. Inside a handler you are in an ordinary Rails action: <code>params</code>, <code>before_action</code> and <code>rescue_from</code> all apply, <code>kiosk_identity</code> is the principal the wire resolved (its <code>user_id</code> is your own model's PK), and whatever you <code>render json:</code> is the verb's result. The handler runs inside the wire's scoped transaction, so per-principal SQL scoping (and RLS, where you opted in) applies without you wiring anything.</p>
+  <p>They live in <strong>controllers you own</strong>. Kiosk ships a mixin, not a base class — <code>include Kiosk::Query</code> (or <code>Kiosk::Action</code>) into a controller with whatever superclass you use, and that include is the whole of the contract on the class side. Each class-level macro records a declaration; the <strong>next <code>def</code></strong> claims all pending ones and becomes a wire verb. A method with no declarations above it is not a verb, so private helpers stay invisible to agents — and one controller declares queries <em>or</em> actions, never both. Inside a handler you are in an ordinary Rails action: <code>params</code>, <code>before_action</code> and <code>rescue_from</code> all apply, <code>kiosk_identity</code> is the principal the wire resolved (its <code>user_id</code> is your own model's PK), and whatever you <code>render json:</code> is the verb's result. The handler runs inside the wire's scoped transaction, so per-principal SQL scoping (and RLS, where you opted in) applies without you wiring anything.</p>
 
-  <blockquote><strong>Two things to know.</strong> Handler controllers are <em>not routable</em> — do not draw a route at one. They are reached only through the Kiosk wire, which is where authentication, the PoW gate and the transaction live; a direct request answers 404. And declaration happens at <em>class load</em>: production eager-loads <code>app/controllers</code>, so the schema catalog is complete at boot; in development a handler registers when Rails first autoloads it, and edits are picked up without a restart.</blockquote>
+  <blockquote><strong>Two things to know.</strong> Handler controllers are <em>not routable</em> — do not draw a route at one. They are reached only through the Kiosk wire, which is where authentication, the PoW gate and the transaction live; a direct request answers 404. And <strong>a handler you have not named is not there at all.</strong> Declaration happens when the class body is read; production eager-loads <code>app/controllers</code>, but development (<code>config.eager_load = false</code>) autoloads on first reference and nothing ever references a handler controller — the wire reaches it <em>through</em> the registry, which is the thing that would be missing. An origin that names none of them serves no verbs: <code>GET /kiosk/schema</code> answers with an empty catalog, every <code>query</code>/<code>run</code> answers 404, and <code>/.well-known/kiosk.json</code> advertises <code>"capabilities": []</code> — those are computed from the live registry. Step 2's <code>c.handlers</code> line is what closes it: the engine registers the classes you name in both load modes and <em>rebuilds</em> them after every code reload, so an edited, added <em>or removed</em> verb lands without restarting the server. You never write reload plumbing, and the catalog is identical in every environment.</blockquote>
 
   <p>Every declaration is also a <strong>descriptor</strong> — what <code>GET /kiosk/schema</code> publishes, and the only thing a cold assistant reads before it calls you. Three macros carry it, and they split the work strictly:</p>
   <ul>
@@ -532,6 +543,14 @@ class Kiosk::OrdersController &lt; ApplicationController
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
+  <h3>Now put them on the wire</h3>
+  <p>Both classes exist, so Step 2's <code>c.handlers</code> line finally has something to name. If you skipped it there, add it now — it is the line that turns two controllers into a served surface:</p>
+  <pre><code class="language-ruby"># config/initializers/kiosk.rb — the line from Step 2, now that both classes exist
+Kiosk.configure do |c|
+  c.handlers = %w[Kiosk::CatalogController Kiosk::OrdersController]
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p>Name them as <strong>strings</strong>, not constants: the list is re-resolved by name on every reload, and a constant written here is the boot generation of the class — stale the moment Rails reloads it. A name that does not resolve, or a class that includes neither mixin, fails the boot loudly rather than serving a silent half-catalog.</p>
+
   <h2>Step 6: Start the server and verify</h2>
   <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it's the AP2 <code>iss</code> anchor) — it is <em>not</em> derived from the request host, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
   <pre><code class="language-bash">export KIOSK_ISSUER="http://localhost:3000"
@@ -539,7 +558,7 @@ export KIOSK_SIGNING_KEY_B64="$(openssl genrsa 2048 | base64)"   # or KIOSK_SIGN
 export STRIPE_SECRET_KEY=sk_test_…
 rails s</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>Verify discovery works and reports the issuer you configured, plus the capability list (the verbs your endpoint serves — <code>schema</code>, <code>query</code>, <code>run</code>, <code>pay</code>):</p>
+  <p>Verify discovery works and reports the issuer you configured, plus the capability list (the verbs your endpoint serves — <code>schema</code>, <code>query</code>, <code>run</code>, <code>pay</code>). It is computed from the live registry, so a list that comes back short of these four is telling you a verb you meant to serve is not registered — see the note under the <code>/kiosk/schema</code> call below:</p>
   <pre><code class="language-bash">curl -s http://localhost:3000/.well-known/kiosk.json | jq '.kiosk | {issuer, capabilities}'
 # => { "issuer": "http://localhost:3000", "capabilities": ["schema","query","run","pay"] }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -568,7 +587,7 @@ puts res.code                                   # => 201
 puts JSON.parse(res.body)["access_token"]       # export this as $TOKEN
 # (Returning key? Challenges are single-use — fetch a FRESH one, sign {aud, nonce, jti},
 #  POST to /kiosk/auth/login → 200 { access_token }. No new user_id: login just refreshes the token.)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and read data back — nothing but <code>curl</code> + <code>jq</code>. There is nothing to seed: point a query at a table your app already has and expect your own rows. The names below are this walkthrough's getgrocery example — substitute the queries you registered in Step 4:</p>
+  <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and read data back — nothing but <code>curl</code> + <code>jq</code>. There is nothing to seed: point a query at a table your app already has and expect your own rows. The names below are this walkthrough's getgrocery example — substitute the queries you declared in Step 4:</p>
   <pre><code class="language-bash"># Inspect the machine-readable surface (your registered queries + actions):
 curl -s http://localhost:3000/kiosk/schema \
   -H "Authorization: Bearer $TOKEN" | jq '.value.queries | map(.name)'
@@ -578,6 +597,7 @@ curl -s http://localhost:3000/kiosk/schema \
 curl -s -X POST http://localhost:3000/kiosk/query \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"catalog"}' | jq '.rows'</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <blockquote><strong>Got <code>[]</code> back?</strong> Your controllers are not named in <code>c.handlers</code> — Step 2's line, repeated at the end of Step 5. That is the state where a booted app serves no verbs: every <code>query</code>/<code>run</code> then answers 404 with the hint <code>No queries are registered.</code>, and the <code>capabilities</code> you checked above come back short of <code>schema</code>, <code>query</code> and <code>run</code>. kiosk-server says the same thing on the log at boot when nothing at all is registered.</blockquote>
   <blockquote>The full register → order → <strong>pay</strong> flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow scripted end-to-end, run <code>rake demo</code> in <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>. The <code>pay</code> leg additionally needs a real <code>sk_test_…</code> Stripe key and a saved card on file.</blockquote>
 
   <h2>How agents find you <span style="font-weight:400;font-size:14px;color:#666">(add 3 hooks, invisible to humans)</span></h2>
@@ -626,7 +646,7 @@ curl -s -X POST http://localhost:3000/kiosk/query \
   <h2>What to do next</h2>
   <ul>
     <li><strong>Test with your own agent.</strong> Point Hermes (or any Kiosk-compatible agent) at your local server and say "order groceries."</li>
-    <li><strong>Add more queries.</strong> Expose anything an agent might need — store locations, nutritional info, allergy filters.</li>
+    <li><strong>Add more queries.</strong> Expose anything an agent might need — store locations, nutritional info, allergy filters. A new verb in a controller you already named needs nothing else; a new <em>controller</em> goes in <code>c.handlers</code>.</li>
     <li><strong>Add more actions.</strong> Reservations, cancellations, loyalty points — anything your app does today.</li>
     <li><strong>Go to production.</strong> Swap <code>STRIPE_SECRET_KEY</code> for a live key, add your domain to <code>KIOSK_ISSUER</code>, and deploy.</li>
   </ul>
@@ -640,7 +660,7 @@ curl -s -X POST http://localhost:3000/kiosk/query \
     <li><a href="/spec/descriptor-house-style.md">descriptor house style</a> — how to write the <code>description</code> + <code>input_schema</code> pair well, with a worked search verb and a checklist</li>
     <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#mount-the-routes">kiosk-server — mount the routes</a> — the engine behind Step 3's one line: everything it draws under the mount, the root-relative discovery documents it installs, and the hand-drawing escape hatch</li>
-    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Query</code>/<code>Kiosk::Action</code> mixin this page's controllers use: the full macro list, the dispatch mechanics, and the error seam</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Query</code>/<code>Kiosk::Action</code> mixin this page's controllers use: the full macro list, the <code>c.handlers</code> line that puts them on the wire, the dispatch mechanics, and the error seam</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end with curl output. (Its routes are still hand-drawn and its handlers are still moving from a registration initializer onto the controller shape this page shows; both migrations are in flight, and the wire the flow drives is identical either way.)</li>
   </ul>
 </article>
