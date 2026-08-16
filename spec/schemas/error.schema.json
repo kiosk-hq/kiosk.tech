@@ -19,6 +19,7 @@
         "conflict",
         "pow_required",
         "payment_setup_required",
+        "payment_failed",
         "quota_exceeded",
         "action_failed",
         "internal_error"

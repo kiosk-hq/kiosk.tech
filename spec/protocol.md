@@ -126,6 +126,35 @@ proof-of-work gate.
 5. **Version parity and additivity.** Within a MINOR series (0.3.x) the wire is
    additive and backward-compatible: new endpoints and fields only, existing
    flows never break (Section 14).
+6. **Version-handshake response headers.** Every response served under the
+   operator's mount path -- the discovery document's `endpoint`, and everything
+   below it: the four wire verbs, the auth endpoints, the account-binding
+   endpoints, the KYC endpoint, and the mount-relative JWKS -- carries three
+   response headers, on success and on error alike. An operator **MUST** emit
+   all three; an AI assistant **MAY** ignore them entirely. They are a
+   handshake, not a contract: no flow in this specification depends on reading
+   one, and none of them changes how a response is parsed.
+
+   | Header | Example | Meaning |
+   |---|---|---|
+   | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
+   | `Kiosk-API-Version` | `0.3.0` | The protocol version the operator speaks -- the version this document specifies, at MAJOR.MINOR.PATCH. |
+   | `Kiosk-Min-Client` | `0.3.0` | Advisory: the oldest AI-assistant version the operator expects to interoperate with that API version. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. |
+
+   Header names are case-insensitive per HTTP; the names above are the canonical
+   spelling. The root-served discovery surfaces (Section 4.5) sit outside the
+   mount path and do **not** carry these headers -- the discovery document
+   states its own advisory `kiosk.min_client` (Section 4.1) and its own
+   format `version` instead.
+
+   These are **not** the "three version lines" of Section 14. Those are the
+   protocol/implementation/skill MAJOR.MINOR parity line, the skill's
+   independent PATCH, and the discovery-document format version. Of the three
+   headers only `Kiosk-API-Version` carries a line Section 14 governs; the other
+   two are an implementation build stamp and a client floor. Reading three
+   numbers off a response tells an AI assistant nothing about which skill
+   version to load -- that comes from the discovery document's `skill` pin
+   (Section 4.1) and the dual-check (Section 14).
 
 ---
 
@@ -500,9 +529,27 @@ stable vocabulary; `hint` is an optional remediation pointer; `challenges` appea
 | `conflict` | 409 | State conflict -- e.g. registering an already-registered key. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
+| `payment_failed` | 402 | The charge did not settle: declined, authentication required, insufficient funds, or a processor timeout (Section 11.3). Not a gate -- there is nothing to solve and nothing to set up; no `challenges`, and **no `WWW-Authenticate`** (see below). `hint` says whether the outcome was definitive or unknown. |
 | `quota_exceeded` | 429 | Reserved for the quotas companion; the core operator never emits it. |
 | `action_failed` | 500 | An operator-registered action raised. |
 | `internal_error` | 500 | Catch-all server error. |
+
+**Three codes share HTTP 402, and only two of them are gates.** `pow_required` and
+`payment_setup_required` name a gate the caller can clear, and each carries the
+`WWW-Authenticate` challenge that names it (Section 10.1, Section 11.4).
+`payment_failed` is the third 402 and carries **no `WWW-Authenticate` header at
+all**: no scheme names a charge that simply failed, so there is no protection
+space to challenge into. An operator **MUST NOT** emit a `WWW-Authenticate`
+header on `payment_failed`, and an AI assistant **MUST** branch on `code` -- a
+client that reads the status, or the presence of a challenge header, cannot tell
+these three apart.
+
+On `payment_failed` the `hint` distinguishes two outcomes an AI assistant must
+handle differently: a **definitive** failure (no money moved -- the human can fix
+the payment method via `payment_setup` and the call may be retried) and an
+**unknown** outcome (the processor did not confirm -- the AI assistant verifies
+the order's paid state through the operator's own queries before retrying, so a
+lost response cannot double-charge).
 
 The auth endpoints speak the same envelope; the only exception on the wire is the
 account-binding `/oauth/*` pair, which uses the OAuth error object (Section 6.1).
@@ -611,7 +658,11 @@ three signatures against the AI assistant's registered key -- providing non-repu
 `POST <endpoint>/pay` (Bearer) with
 `{intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}`. On success it
 returns a `kind: "value"` envelope whose `value` is
-`{settlement_id, psp_reference, settled_amount_cents, currency}`.
+`{settlement_id, psp_reference, settled_amount_cents, currency}`. If the mandates
+verify but the charge itself does not settle -- declined, authentication
+required, insufficient funds, or a processor timeout -- `pay` answers `402` with
+`error.code: "payment_failed"` (Section 9), carrying a message the operator has
+already made safe to show a human: it **MUST NOT** relay raw PSP internals.
 
 ### 11.4 Card setup
 
@@ -831,7 +882,8 @@ optional modules it advertises in `capabilities`:
    proof-of-possession verification, origin-bound `aud` rejection, single-use
    server-held nonces, RS256 JWT access tokens, and the revoked-before watermark.
 3. **Core -- wire** (Section 8, Section 9): `schema` (GET), `query`/`run` (POST), the response
-   envelope, and the error vocabulary.
+   envelope, the error vocabulary, and the three version-handshake response
+   headers on every mount-path response (Section 3, point 6).
 4. **Core -- identity binding** (Section 7): every verb scoped to the authenticated
    identity.
 5. **Module `pay`** (Section 11): AP2 mandate-chain verification and the
