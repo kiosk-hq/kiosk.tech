@@ -582,7 +582,9 @@ proof's `aud` from it (Section 15.1). Each challenge is
 | `sig` | string | HMAC-SHA256 over the challenge fields plus a fingerprint of the exact request. |
 
 Each challenge is **stateless and request-bound** (the server stores nothing to
-trust it) and single-use. The AI assistant **MUST** solve **every** challenge and retry
+trust it) and single-use -- the spent-id set that enforces it is the operator's,
+and Section 15.2 states what a multi-process operator owes that set.
+The AI assistant **MUST** solve **every** challenge and retry
 the request with the **identical** body plus a `Kiosk-PoW` request header
 carrying the proof(s) as **raw JSON** (Section 10.1). The proof travels in the
 header, not the body, so the body -- and hence the request fingerprint the
@@ -826,6 +828,14 @@ request-bound (their HMAC `sig` covers a fingerprint of the exact request) and
 single-use (a spent-id set). Payment mandates carry their own `iat`/`exp` window
 and are chain-bound (Section 11); a non-expiring mandate **MUST** be rejected.
 
+Single-use is a property of the operator as a whole, not of one process: an
+operator running multiple processes **MUST** share one spent-id store across all
+of them. A per-process store is not conforming -- it accepts the same proof once
+per process, which is a replay by any other name, and the AI assistant cannot
+observe the difference. The server-held auth nonces of Section 5.1 carry the
+same sharing requirement, though a per-process store there fails closed -- the
+challenge is simply not found -- rather than admitting a replay.
+
 ### 15.3 Key hygiene and per-origin identity
 
 An AI assistant **SHOULD** generate a fresh keypair per operator origin: the keypair is
@@ -888,7 +898,8 @@ optional modules it advertises in `capabilities`:
    identity.
 5. **Module `pay`** (Section 11): AP2 mandate-chain verification and the
    `payment_setup_required` 402 with `WWW-Authenticate: Payment`.
-6. **Module proof-of-work** (Section 10): the Equihash 402 gate.
+6. **Module proof-of-work** (Section 10): the Equihash 402 gate, with a spent-id
+   set shared across every process the operator runs (Section 15.2).
 7. **Module binding** (Section 6): the claim ceremony and/or link-code redeem, with
    fresh/rebind semantics and unlink.
 8. **Module KYC** (Section 12): the attestation endpoint.
