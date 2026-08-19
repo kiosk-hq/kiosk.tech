@@ -154,10 +154,10 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The prefix is the <code>mount_path</code> from Step 2's initializer — <code>/kiosk</code> unless you set another. Under it the engine draws:</p>
   <ul>
-    <li><strong>The wire</strong> — <code>GET /kiosk/schema</code>, <code>POST /kiosk/query</code>, <code>POST /kiosk/run</code>, <code>POST /kiosk/pay</code>. <code>pay</code> is drawn whether or not you configured a payment provider: without one it answers the wire's own 403 envelope, and discovery leaves <code>pay</code> out of the capabilities it advertises, so nothing invites an agent to call it.</li>
+    <li><strong>The wire</strong> — <strong>one endpoint per verb</strong>. Each query you declare is served at <code>GET /kiosk/&lt;query-name&gt;</code> and each action at <code>POST /kiosk/&lt;action-name&gt;</code>, resolved against the live registry at request time, so a verb you add lands without a routes-file edit. Two endpoints are fixed and reserved: <code>GET /kiosk/schema</code> (the catalog — public, no token) and <code>POST /kiosk/pay</code>. <code>pay</code> is drawn whether or not you configured a payment provider: without one it refuses with a <code>403</code> problem document, and discovery leaves <code>pay</code> out of the capabilities it advertises, so nothing invites an agent to call it. There is also <code>GET /kiosk/openapi.json</code> — the same catalog rendered as OpenAPI 3.1, also public.</li>
     <li><strong>The proof-of-possession auth plane</strong> — <code>GET /kiosk/auth/challenge</code> plus <code>POST /kiosk/auth/register</code>, <code>/kiosk/auth/login</code> and <code>/kiosk/auth/revoke</code>: the handshake the <code>register.rb</code> script in Step 6 performs.</li>
     <li><strong>JWKS</strong> — <code>GET /kiosk/.well-known/jwks.json</code>, the public keys agents verify Kiosk-issued JWTs against. It sits under the mount rather than at the origin root, and that is the URL discovery publishes as <code>jwks_uri</code>.</li>
-    <li><strong>KYC attestation</strong> — <code>POST /kiosk/agents/kyc</code>, where an agent presents a broker-signed identity fact. Drawn unconditionally for the same reason as <code>pay</code>: with no KYC key configured the verifier rejects with a 403 envelope, and a provider that never advertises KYC loses nothing.</li>
+    <li><strong>KYC attestation</strong> — <code>POST /kiosk/agents/kyc</code>, where an agent presents a broker-signed identity fact. Drawn unconditionally for the same reason as <code>pay</code>: with no KYC key configured the verifier rejects with a <code>403</code> problem document, and a provider that never advertises KYC loses nothing.</li>
     <li><strong>The account-binding ceremony</strong> — how an assistant gets attached to a human's <em>existing</em> account instead of a fresh assistant account. That is the RFC 8628 claim wire (<code>POST /kiosk/oauth/device_authorization</code>, <code>POST /kiosk/oauth/token</code>), the link/claim/unlink endpoints (<code>POST /kiosk/auth/link</code>, <code>/kiosk/auth/claim</code>, <code>/kiosk/auth/unlink</code>), and two human-facing HTML pages: the consent page at <code>/kiosk/oauth/device/verify</code>, which shows the key's fingerprint and when it asked, and «Link an assistant» at <code>/kiosk/auth/assistants</code> with its link/update/unlink form posts. Both pages are session-authenticated through your own <code>user_idp</code> — approving a binding is the human channel's job, not the agent's — and both render minimal engine views you override by shipping same-named templates under <code>app/views/kiosk/server/</code>.</li>
   </ul>
 
@@ -176,7 +176,7 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>They live in <strong>controllers you own</strong>. Kiosk ships a mixin, not a base class — <code>include Kiosk::Query</code> (or <code>Kiosk::Action</code>) into a controller with whatever superclass you use, and that include is the whole of the contract on the class side. Each class-level macro records a declaration; the <strong>next <code>def</code></strong> claims all pending ones and becomes a wire verb. A method with no declarations above it is not a verb, so private helpers stay invisible to agents — and one controller declares queries <em>or</em> actions, never both. Inside a handler you are in an ordinary Rails action: <code>params</code>, <code>before_action</code> and <code>rescue_from</code> all apply, <code>kiosk_identity</code> is the principal the wire resolved (its <code>user_id</code> is your own model's PK), and whatever you <code>render json:</code> is the verb's result. The handler runs inside the wire's scoped transaction, so per-principal SQL scoping (and RLS, where you opted in) applies without you wiring anything.</p>
 
-  <blockquote><strong>Two things to know.</strong> Handler controllers are <em>not routable</em> — do not draw a route at one. They are reached only through the Kiosk wire, which is where authentication, the PoW gate and the transaction live; a direct request answers 404. And <strong>a handler you have not named is not there at all.</strong> Declaration happens when the class body is read; production eager-loads <code>app/controllers</code>, but development (<code>config.eager_load = false</code>) autoloads on first reference and nothing ever references a handler controller — the wire reaches it <em>through</em> the registry, which is the thing that would be missing. An origin that names none of them serves no verbs: <code>GET /kiosk/schema</code> answers with an empty catalog, every <code>query</code>/<code>run</code> answers 404, and <code>/.well-known/kiosk.json</code> advertises <code>"capabilities": []</code> — those are computed from the live registry. Step 2's <code>c.handlers</code> line is what closes it: the engine registers the classes you name in both load modes and <em>rebuilds</em> them after every code reload, so an edited, added <em>or removed</em> verb lands without restarting the server. You never write reload plumbing, and the catalog is identical in every environment.</blockquote>
+  <blockquote><strong>Two things to know.</strong> Handler controllers are <em>not routable</em> — do not draw a route at one. They are reached only through the Kiosk wire, which is where authentication, the PoW gate and the transaction live; a direct request answers 404. And <strong>a handler you have not named is not there at all.</strong> Declaration happens when the class body is read; production eager-loads <code>app/controllers</code>, but development (<code>config.eager_load = false</code>) autoloads on first reference and nothing ever references a handler controller — the wire reaches it <em>through</em> the registry, which is the thing that would be missing. An origin that names none of them serves no verbs: <code>GET /kiosk/schema</code> answers with an empty catalog, every <code>/kiosk/&lt;name&gt;</code> answers a <code>404</code> problem document, and <code>/.well-known/kiosk.json</code> advertises <code>"capabilities": []</code> — those are computed from the live registry. Step 2's <code>c.handlers</code> line is what closes it: the engine registers the classes you name in both load modes and <em>rebuilds</em> them after every code reload, so an edited, added <em>or removed</em> verb lands without restarting the server. You never write reload plumbing, and the catalog is identical in every environment.</blockquote>
 
   <p>Every declaration is also a <strong>descriptor</strong> — what <code>GET /kiosk/schema</code> publishes, and the only thing a cold assistant reads before it calls you. Three macros carry it, and they split the work strictly:</p>
   <ul>
@@ -184,9 +184,15 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
     <li><code>input_schema</code> is a JSON Schema (draft 2020-12) and carries <strong>shape</strong> — every parameter name, type, range, enum and required/optional marker, declared once.</li>
     <li><code>output_schema</code> declares the <strong>result</strong> the same way — what comes back, as a schema — so the assistant knows the return shape without a call-and-observe probe. <code>example_params</code> and <code>example_row</code> then illustrate the two contracts with copyable values.</li>
   </ul>
-  <p>A parameter name written in prose is checked by nobody: it drifts away from the handler that consumes it, an assistant sends exactly what your sentence told it to send, and the call 400s. In the schema it is stated in the one place that can be checked. (The free-text <code>params:</code> hint hash older examples used is retired for the same reason — a hint is either a constraint, which belongs in the schema, or a meaning, which belongs in the description — and the mixin ships no macro for it.) The protocol does not force this on you: the schemas are optional, and a verb declared without them publishes no machine contract — nothing breaks. Write them anyway; every example below does. The full rules are the <a href="/spec/descriptor-house-style.md">descriptor house style</a>.</p>
+  <p>A parameter name written in prose is checked by nobody: it drifts away from the handler that consumes it, an assistant sends exactly what your sentence told it to send, and the call 400s. In the schema it is stated in the one place that can be checked. (The free-text <code>params:</code> hint hash older examples used is retired for the same reason — a hint is either a constraint, which belongs in the schema, or a meaning, which belongs in the description — and the mixin ships no macro for it.)</p>
+  <blockquote><strong>Both schemas are REQUIRED, and the input one is enforced.</strong> Since 0.4 <code>input_schema</code> and <code>output_schema</code> are protocol requirements, not house style: a verb declared without either fails the boot, naming the verb and the missing macro. And <code>input_schema</code> is no longer merely published — the wire <strong>validates every request against it before your handler runs</strong>, unconditionally. A parameter you did not declare is refused with a typed <code>400 bad_request</code> naming it (<code>object property at `/user_id` is a disallowed additional property</code>), which is why <code>additionalProperties: false</code> below is load-bearing rather than tidy. The full rules are the <a href="/spec/descriptor-house-style.md">descriptor house style</a>.</blockquote>
 
-  <p>Errors are Rails' idiom, end to end. The wire's <code>error.code</code> vocabulary is a closed table, not a class hierarchy, and three Rails-native moves cover it: <strong>render the code</strong> — <code>render json: { error: { code: "bad_request", message: "…" } }, status: :bad_request</code> — a body naming an in-vocabulary code that agrees with the rendered status travels to the assistant verbatim; <strong>raise what you would raise anyway</strong> — <code>params.require</code>, <code>ActiveRecord::RecordNotFound</code>, a failed <code>create!</code> — and the one <code>rescue_from</code> the include installs maps it by the status Rails already knows for it (a missing param answers <code>bad_request</code>, a lookup miss <code>not_found</code>, a validation failure <code>bad_request</code>); and only a code a bare status cannot name (<code>rls_denied</code>, a <em>specific</em> 402) needs the explicit envelope. No Kiosk error classes in handler code.</p>
+  <p>Errors are Rails' idiom, end to end. The wire's error <code>code</code> vocabulary is a closed table of fifteen, not a class hierarchy, and three Rails-native moves cover it: <strong>render the code</strong> — <code>render json: { error: { code: "bad_request", message: "…" } }, status: :bad_request</code> — a body naming an in-vocabulary code that agrees with the rendered status travels to the assistant verbatim; <strong>raise what you would raise anyway</strong> — <code>params.require</code>, <code>ActiveRecord::RecordNotFound</code>, a failed <code>create!</code> — and the one <code>rescue_from</code> the include installs maps it by the status Rails already knows for it (a missing param answers <code>bad_request</code>, a lookup miss <code>not_found</code>, a validation failure <code>bad_request</code>); and only a code a bare status cannot name (<code>rls_denied</code>, a <em>specific</em> 402) needs the explicit <code>{ error: { code: … } }</code> body. No Kiosk error classes in handler code.</p>
+  <blockquote><strong>What the assistant actually receives is not that hash.</strong> <code>{ error: { code: … } }</code> is the <em>handler-side</em> spelling; the wire renders every refusal as an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document, served as <code>application/problem+json</code>, with the code as a <strong>flat</strong> member — so the two are never confused:
+  <pre><code class="language-json">{"type":"https://kiosk.tech/problems/bad_request",
+ "title":"Malformed request","status":400,
+ "detail":"unknown sku(s): nope","code":"bad_request"}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  Your <code>message</code> becomes <code>detail</code>, your <code>code</code> stays <code>code</code>, and <code>type</code> is <code>https://kiosk.tech/problems/&lt;code&gt;</code> — an identifier, not a page to fetch. An assistant branches on <code>code</code>.</blockquote>
 
   <p>Delivery slots come up in both a query and an action below, so the arithmetic that says what a slot id <em>means</em> lives in one place — <code>app/models/delivery_slots.rb</code>, a plain Ruby module Rails autoloads; nothing to <code>require</code>:</p>
   <pre><code class="language-ruby"># app/models/delivery_slots.rb
@@ -278,11 +284,14 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
   example_row({ delivery_slot_id: 3, date: "2026-08-12",
                 slot_at: "2026-08-12T12:00:00+01:00", label: "12:00-14:00" })
   def delivery_slots
-    # Params are agent-supplied wire input, and the schemas above are
-    # published, not enforced — guarding is the handler's job. `params.require`
-    # raises the ParameterMissing Rails already knows a 400 for, and the
-    # rescue seam the include installs answers a typed `bad_request` the
-    # assistant can correct.
+    # The wire has ALREADY validated these params against `input_schema`
+    # above — `date` is present and is a `format: "date"` string, or the call
+    # never reached this method. What a schema cannot say is that the string
+    # names a real calendar day (2026-02-31 passes `format: "date"` under
+    # draft 2020-12), so the SEMANTIC check stays the handler's job.
+    # `params.require` raises the ParameterMissing Rails already knows a 400
+    # for, and the rescue seam the include installs answers a typed
+    # `bad_request` the assistant can correct.
     raw_date = params.require(:date)
     date = begin
       Date.parse(raw_date.to_s)
@@ -310,9 +319,26 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
               "response never arrived, instead of retrying blind."
   input_schema type: "object", additionalProperties: false,
                properties: {}, required: []
+  output_schema type: "array",
+                items: { type: "object",
+                         properties: { order_id:    { type: "string", format: "uuid" },
+                                       status:      { type: "string" },
+                                       total_cents: { type: "integer",
+                                                      description: "EUR cents." },
+                                       slot_at:     { type: "string", format: "date-time" } } }
+  example_params({})
+  example_row({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e", status: "created",
+                total_cents: 1287, slot_at: "2026-08-12T12:00:00+01:00" })
   def my_orders
+    # Name the fields rather than `map(&amp;:attributes)`: what the wire publishes
+    # is a decision this handler makes, and `output_schema` above is the
+    # published statement of it. A blanket dump would put every future column
+    # on the wire the day it is added.
     render json: Order.where(user_id: kiosk_identity.user_id)
-                      .order(created_at: :desc).map(&amp;:attributes)
+                      .order(created_at: :desc)
+                      .map { |o| { order_id: o.id, status: o.status,
+                                   total_cents: o.total_cents,
+                                   slot_at: o.slot_at.iso8601 } }
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -535,8 +561,8 @@ class Kiosk::OrdersController &lt; ApplicationController
   # One guard idiom for the whole controller — helpers are something a handler
   # in an initializer block could never share. The body names an in-vocabulary
   # code that agrees with the status, so it reaches the assistant verbatim; the
-  # dispatch seam rebuilds the standard {ok:false, error:{…}} wire envelope
-  # around it.
+  # dispatch seam renders it as the RFC 9457 problem document the wire speaks
+  # ({"type", "title", "status", "detail", "code"}, code flat).
   def reject_bad_request(message)
     render json: { error: { code: "bad_request", message: message } },
            status: :bad_request
@@ -558,11 +584,11 @@ export KIOSK_SIGNING_KEY_B64="$(openssl genrsa 2048 | base64)"   # or KIOSK_SIGN
 export STRIPE_SECRET_KEY=sk_test_…
 rails s</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>Verify discovery works and reports the issuer you configured, plus the capability list (the verbs your endpoint serves — <code>schema</code>, <code>query</code>, <code>run</code>, <code>pay</code>). It is computed from the live registry, so a list that comes back short of these four is telling you a verb you meant to serve is not registered — see the note under the <code>/kiosk/schema</code> call below:</p>
+  <p>Verify discovery works and reports the issuer you configured, plus the capability list. <code>capabilities</code> names the <strong>modules</strong> your endpoint serves — <code>schema</code>, <code>queries</code>, <code>actions</code>, <code>pay</code> — never the verb names themselves. It is computed from the live registry, so a list that comes back short is telling you something you meant to serve is not registered: no <code>queries</code> means no query is registered, no <code>actions</code> means no action, no <code>pay</code> means no payment provider configured. See the note under the <code>/kiosk/schema</code> call below:</p>
   <pre><code class="language-bash">curl -s http://localhost:3000/.well-known/kiosk.json | jq '.kiosk | {issuer, capabilities}'
-# => { "issuer": "http://localhost:3000", "capabilities": ["schema","query","run","pay"] }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+# => { "issuer": "http://localhost:3000", "capabilities": ["schema","queries","actions","pay"] }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>Every wire verb — including <code>schema</code> — is authenticated, so first obtain a token by registering. Registration is a proof-of-possession handshake: fetch a challenge for your public key, sign it as an RS256 JWS whose payload is <code>{aud, nonce, jti}</code> (<code>aud</code> = the origin you dialed, <code>nonce</code> = the challenge), then POST the public key + signature. A Kiosk-compatible agent does this for you, but here it is as a self-contained script (Ruby stdlib + the <code>jwt</code> gem — the same gem kiosk-server uses) so registration is followable without any external CLI:</p>
+  <p>The catalog is public — <code>GET /kiosk/schema</code> takes no token and pays no toll, so you can read it before you have one. <em>Every other</em> endpoint under the mount is authenticated, so to call a verb first obtain a token by registering. Registration is a proof-of-possession handshake: fetch a challenge for your public key, sign it as an RS256 JWS whose payload is <code>{aud, nonce, jti}</code> (<code>aud</code> = the origin you dialed, <code>nonce</code> = the challenge), then POST the public key + signature. A Kiosk-compatible agent does this for you, but here it is as a self-contained script (Ruby stdlib + the <code>jwt</code> gem — the same gem kiosk-server uses) so registration is followable without any external CLI:</p>
   <pre><code class="language-ruby"># register.rb — PoP handshake against a local Kiosk provider. `gem install jwt`
 require "openssl"; require "json"; require "net/http"; require "uri"
 require "securerandom"; require "jwt"
@@ -588,16 +614,31 @@ puts JSON.parse(res.body)["access_token"]       # export this as $TOKEN
 # (Returning key? Challenges are single-use — fetch a FRESH one, sign {aud, nonce, jti},
 #  POST to /kiosk/auth/login → 200 { access_token }. No new user_id: login just refreshes the token.)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and read data back — nothing but <code>curl</code> + <code>jq</code>. There is nothing to seed: point a query at a table your app already has and expect your own rows. The names below are this walkthrough's getgrocery example — substitute the queries you declared in Step 4:</p>
-  <pre><code class="language-bash"># Inspect the machine-readable surface (your registered queries + actions):
-curl -s http://localhost:3000/kiosk/schema \
-  -H "Authorization: Bearer $TOKEN" | jq '.value.queries | map(.name)'
+  <pre><code class="language-bash"># Inspect the machine-readable surface (your registered queries + actions).
+# No token: the catalog is public.
+curl -s http://localhost:3000/kiosk/schema | jq '.queries | map(.name)'
 # => ["catalog","delivery_slots","my_orders"]
 
-# Browse the catalog:
-curl -s -X POST http://localhost:3000/kiosk/query \
+# Browse the catalog. One endpoint per verb: a query is a GET at its own name,
+# and a query ALWAYS answers a bare JSON array — no envelope to unwrap.
+curl -s http://localhost:3000/kiosk/catalog \
+  -H "Authorization: Bearer $TOKEN" | jq '.[0]'
+# => { "sku": "sourdough-bread", "name": "Sourdough Bread",
+#      "price_cents": 449, "currency": "eur" }
+
+# Arguments travel in the QUERY STRING, checked against the input_schema
+# before your handler runs:
+curl -s "http://localhost:3000/kiosk/delivery_slots?date=2026-08-25" \
+  -H "Authorization: Bearer $TOKEN" | jq 'length'
+
+# An action is a POST at its own name, with a JSON body:
+curl -s -X POST http://localhost:3000/kiosk/create_order \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"catalog"}' | jq '.rows'</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <blockquote><strong>Got <code>[]</code> back?</strong> Your controllers are not named in <code>c.handlers</code> — Step 2's line, repeated at the end of Step 5. That is the state where a booted app serves no verbs: every <code>query</code>/<code>run</code> then answers 404 with the hint <code>No queries are registered.</code>, and the <code>capabilities</code> you checked above come back short of <code>schema</code>, <code>query</code> and <code>run</code>. kiosk-server says the same thing on the log at boot when nothing at all is registered.</blockquote>
+  -d '{"items":[{"sku":"sourdough-bread","qty":2}],
+       "delivery_slot_id":3,"delivery_date":"2026-08-25",
+       "delivery_address":"42 Camden Street, Dublin 2"}'</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <blockquote><strong>Got an empty catalog back?</strong> Your controllers are not named in <code>c.handlers</code> — Step 2's line, repeated at the end of Step 5. That is the state where a booted app serves no verbs: every <code>/kiosk/&lt;name&gt;</code> answers a <code>404</code> problem document whose <code>hint</code> lists what IS registered, and the <code>capabilities</code> you checked above come back without <code>schema</code>, <code>queries</code> or <code>actions</code>. kiosk-server says the same thing on the log at boot when nothing at all is registered.</blockquote>
+  <blockquote><strong>Two shapes worth seeing once.</strong> A <strong>long list</strong> paginates by <a href="https://www.rfc-editor.org/rfc/rfc8288">RFC 8288</a>: the body is still a bare array, the total is in <code>X-Total-Count</code>, and a truncated page carries <code>Link: &lt;…&gt;; rel="next"</code>. <em>The absence of that link is the only signal there is no more</em> — there is no <code>next</code> field in the body. And a <strong>GET at an action's name</strong> (or a POST at a query's) is a <code>405 method_not_allowed</code> that tells you which method to use — a different fact from "no such verb", which is a <code>404</code>. Add <code>-i</code> to any call above to see both.</blockquote>
   <blockquote>The full register → order → <strong>pay</strong> flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow scripted end-to-end, run <code>rake demo</code> in <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>. The <code>pay</code> leg additionally needs a real <code>sk_test_…</code> Stripe key and a saved card on file.</blockquote>
 
   <h2>How agents find you <span style="font-weight:400;font-size:14px;color:#666">(add 3 hooks, invisible to humans)</span></h2>
@@ -635,11 +676,12 @@ curl -s -X POST http://localhost:3000/kiosk/query \
   <ol class="steps">
     <li><strong>Discovery:</strong> <code>GET /.well-known/kiosk.json</code> → finds your endpoint</li>
     <li><strong>Registration:</strong> generates RSA key, proves possession (<code>GET /auth/challenge</code> → sign → <code>POST /auth/register</code>) → gets <code>access_token</code>; returning keys refresh via <code>/auth/login</code></li>
-    <li><strong>Browse:</strong> <code>POST /query {name:"catalog"}</code> and <code>{name:"delivery_slots"}</code> → sees your products and when you can deliver</li>
-    <li><strong>Order:</strong> <code>POST /run {name:"create_order", …}</code> → order created, delivery window booked with it</li>
-    <li><strong>Card setup:</strong> <code>POST /run {name:"payment_setup"}</code> → human enters card once on Stripe</li>
-    <li><strong>Pay:</strong> agent signs 3 JWS mandates, <code>POST /pay</code> → payment settled</li>
-    <li><strong>Move it, if the human changes their mind:</strong> <code>POST /run {name:"reschedule_delivery", …}</code> → the paid order's window moves, with no second charge</li>
+    <li><strong>Read the contract:</strong> <code>GET /kiosk/schema</code> (no token) → learns every verb's name, prose and both schemas before it spends anything</li>
+    <li><strong>Browse:</strong> <code>GET /kiosk/catalog</code> and <code>GET /kiosk/delivery_slots?date=…</code> → sees your products and when you can deliver</li>
+    <li><strong>Order:</strong> <code>POST /kiosk/create_order</code> → order created, delivery window booked with it</li>
+    <li><strong>Card setup:</strong> <code>POST /kiosk/payment_setup</code> → human enters card once on Stripe</li>
+    <li><strong>Pay:</strong> agent signs 3 JWS mandates, <code>POST /kiosk/pay</code> → payment settled</li>
+    <li><strong>Move it, if the human changes their mind:</strong> <code>POST /kiosk/reschedule_delivery</code> → the paid order's window moves, with no second charge</li>
   </ol>
   <p>The agent never sees your UI. It never creates an account for the user. It transacts entirely through the REST surface you just added.</p>
 
@@ -661,7 +703,7 @@ curl -s -X POST http://localhost:3000/kiosk/query \
     <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#mount-the-routes">kiosk-server — mount the routes</a> — the engine behind Step 3's one line: everything it draws under the mount, the root-relative discovery documents it installs, and the hand-drawing escape hatch</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Query</code>/<code>Kiosk::Action</code> mixin this page's controllers use: the full macro list, the <code>c.handlers</code> line that puts them on the wire, the dispatch mechanics, and the error seam</li>
-    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end with curl output. (Its routes are still hand-drawn and its handlers are still moving from a registration initializer onto the controller shape this page shows; both migrations are in flight, and the wire the flow drives is identical either way.)</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end with curl output. Its handlers are the controller shape this page shows.</li>
   </ul>
 </article>
 
