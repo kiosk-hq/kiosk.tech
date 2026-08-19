@@ -14,16 +14,21 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.4.2.md` | **0.4** | The same wire as 0.4.1. The change is what it TELLS you about compatibility: before protocol 1.0 a PATCH may change the wire, so the operator's pin — not the version arithmetic — is what you rely on. |
 | `skill-v0.4.1.md` | **0.4** | As 0.4.0, plus RFC 8288 pagination: EVERY query answers a bare array, and a truncated page says so in a `Link: <…>; rel="next"` response header (`X-Total-Count` carries the total). The `{rows, next}` body of 0.4.0 is gone. |
 | `skill-v0.4.0.md` | **0.4** | One endpoint per verb (`GET <endpoint>/<query>`, `POST <endpoint>/<action>`); a success body is the result with no envelope; errors are RFC 9457 problem documents with the code at top-level `code`. |
 | `skill-v0.3.0.md` … `skill-v0.3.11.md` | 0.3 | Multiplexed `POST <endpoint>/{query,run}` with a `name` field; `{ok, kind, rows/value}` success envelope; `{ok:false, error:{code,…}}` errors. |
 | `skill-v0.2.0.md` … `skill-v0.2.4.md` | 0.2 | As 0.3, before that series' additions. |
 | `skill-v0.1.1.md` … `skill-v0.1.3.md` | 0.1 | The first published series. |
 
-**0.4.0 and 0.4.1 differ on the wire, which a PATCH normally does not.** 0.4.1
-moved the pagination cursor out of the body and into a `Link` header, so an
-assistant holding 0.4.0 will look for a `next` field that no 0.4.1 operator
-sends. Adopt the cut the operator pins — that is what the dual-check is for.
+**0.4.0 and 0.4.1 differ on the wire, which a PATCH normally does not — and
+before 1.0 that is allowed rather than accidental.** 0.4.1 moved the pagination
+cursor out of the body and into a `Link` header, so an assistant holding 0.4.0
+will look for a `next` field that no 0.4.1 operator sends. The formal spec
+§14.2 now scopes its additivity promise to 1.0 and later, for the reason this
+table already made visible: the compatibility mechanism on this protocol is the
+operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
+operator pins — that is what the dual-check is for.
 
 **0.3 and 0.4 are not interoperable.** 0.4 removed the multiplexed endpoints and
 the response envelope outright, with no tombstones and no compatibility mode. An
