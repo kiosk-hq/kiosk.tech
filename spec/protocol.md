@@ -276,6 +276,34 @@ and `agents.json` includes its `payments` block (`ap2`, `required: true`),
 **only** when the operator serves `pay` (Section 4.2); an operator that serves no
 `pay` omits them, so the surfaces stay consistent with `capabilities`.
 
+### 4.6 An optional OpenAPI description (tooling only)
+
+An operator **MAY** additionally serve an **OpenAPI 3.1** document at
+`GET <endpoint>/openapi.json` describing the per-verb endpoints of Section 8.1,
+and link it from `/.well-known/api-catalog` with a second `service-desc`
+relation. It exists for TOOLING -- a mock server, a request validator, a
+generated client -- not for an AI assistant.
+
+It is **DERIVED**, and the constraints follow from that:
+
+- It **MUST** be rendered from the same registry the `schema` verb
+  (Section 8.3) is rendered from, and it **MUST NOT** state anything about a
+  verb that the verb's `description`, `input_schema` and `output_schema` do not
+  already state. An operator that hand-writes one has published a second
+  contract, which this section does not permit.
+- `schema` remains THE catalog. Where the two could disagree, `schema` is
+  right.
+- An AI assistant **MUST NOT** depend on this document: it is optional, an
+  operator may withdraw it, and everything it can carry is already in `schema`.
+
+Where an operator serves it, two encoding rules matter, because leaving them to
+the defaults makes the document disagree with Section 8.1 in common tooling:
+every query parameter **SHOULD** carry `style` and `explode` written
+explicitly, and the reserved `limit`/`cursor` of Section 8.4 **SHOULD** be
+declared on every query operation even though no `input_schema` declares them
+(Section 8.1 item 6) -- a strict request validator otherwise refuses the very
+pagination this specification invites.
+
 ---
 
 ## 5. Registration and login (kiosk-pop)
