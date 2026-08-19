@@ -125,9 +125,11 @@ proof-of-work gate.
 4. Endpoint paths derive from the discovery document's `endpoint` value plus the
    fixed verb-to-path binding in Section 8; an AI assistant MUST derive URLs this way and MUST
    NOT hard-code a mount path.
-5. **Version parity and additivity.** Within a MINOR series (0.4.x) the wire is
-   additive and backward-compatible: new endpoints and fields only, existing
-   flows never break (Section 14).
+5. **Version parity and additivity, from 1.0 onward.** From 1.0 the wire is
+   additive and backward-compatible within a MINOR series: new endpoints and
+   fields only, existing flows never break. **Before 1.0 -- which includes the
+   0.4 series this document specifies -- any release MAY change the wire, a
+   PATCH included** (Section 14).
 6. **Version-handshake response headers.** Every response served under the
    operator's mount path -- the discovery document's `endpoint`, and everything
    below it: the four wire verbs, the auth endpoints, the account-binding
@@ -176,14 +178,17 @@ proof-of-work gate.
       configuration rather than relying on the default in
       [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) Section 3.5.
 
-      **`GET <endpoint>/schema` is the one exception to rules 1 and 3, and it
-      takes both at once.** It resolves no identity, is never tolled and
-      answers the same bytes to every caller (Section 8.3), so it **SHOULD** be
-      `public` and **MUST NOT** carry `Vary: Authorization` -- a public
-      document that varies on a header it does not read is one no shared cache
-      will ever reuse, which would quietly undo the `public`. An operator that
-      takes only half of this exception has made the endpoint slower than it
-      was before.
+      **The two SELF-DESCRIPTION endpoints are the exception to rules 1 and 3,
+      and each takes both at once.** `GET <endpoint>/schema` (Section 8.3) and,
+      where served, `GET <endpoint>/openapi.json` (Section 4.6) resolve no
+      identity, are never tolled and answer the same bytes to every caller, so
+      each **SHOULD** be `public` and **MUST NOT** carry `Vary: Authorization`
+      -- a public document that varies on a header it does not read is one no
+      shared cache will ever reuse, which would quietly undo the `public`. An
+      operator that takes only half of this exception has made the endpoint
+      slower than it was before. The same applies to the unauthenticated
+      discovery surfaces of Section 4.5: they read no request header either,
+      so they **MUST NOT** carry a `Vary` naming one.
    4. The default for a `200` is `Cache-Control: private, no-store`. An
       operator **MAY** relax it to `private, max-age=N` for a payload that is
       genuinely identity-independent -- a public catalogue, say -- and doing so
@@ -219,13 +224,17 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 
 **Caching, and why `schema_url` is a separate field.** This document is
 **unauthenticated** and identical for every caller, so an operator SHOULD serve
-it `Cache-Control: public` with a **short** freshness lifetime -- minutes. The
-catalog it points at is also unauthenticated and identical for every caller,
-and is far larger, so an operator will want to cache that one for much longer.
-Those two wishes conflict at a FIXED url: `<endpoint>/schema` never changes,
-so a long freshness lifetime there means a shared cache serving a catalog from
-before the operator's last deploy, invisibly, to an AI assistant that then
-calls verbs which no longer exist.
+it `Cache-Control: public` with a **short** freshness lifetime -- around a
+minute, and the number is chosen from the operator's own side of the trade: it
+is how long a deploy takes to become visible to a client holding the previous
+copy, not a cache-efficiency knob. The traffic a long lifetime here would save
+is saved by the versioned url below instead. The catalog this document points
+at is also unauthenticated and identical for every caller, and is far larger,
+so an operator will want to cache that one for much longer. Those two wishes
+conflict at a FIXED url: `<endpoint>/schema` never changes, so a long freshness
+lifetime there means a shared cache serving a catalog from before the
+operator's last deploy, invisibly, to an AI assistant that then calls verbs
+which no longer exist.
 
 `schema_url` resolves the conflict the way an asset pipeline does. An operator
 **MAY** publish it with a cache-busting version parameter -- for example
@@ -243,6 +252,15 @@ An operator that publishes no version parameter **MUST NOT** serve
 `<endpoint>/schema` with a freshness lifetime longer than this document's.
 Either way an AI assistant fetches `schema_url` and needs to know nothing about
 which choice was made.
+
+The same pattern is available to every other unauthenticated document an
+operator derives from the same state -- the API Catalog of Section 4.5 and the
+optional OpenAPI description of Section 4.6 -- and an operator that versions
+more than one of them **MAY** use ONE version value for all of them, provided
+it changes whenever ANY of those documents changes. A pointer document that
+links a versioned url **SHOULD** link the versioned form rather than the bare
+path: the bare path is the one url that may not be cached, so handing it to a
+reader gives away the whole benefit.
 
 **One origin per instance (current constraint).** A Kiosk instance serves exactly
 one origin: the possession proof's `aud` is verified by strict equality against the
@@ -267,10 +285,13 @@ is a modelling rule, not a security one, and it used to be the other way
 round.** Through protocol 0.3 and the first 0.4 drafts the rule was justified
 by three defences that kept the verb list behind a credential -- a Bearer gate
 on the catalog, identity resolved before a name on the per-verb endpoints, and
-a gated OpenAPI description. The first of those is retired: `GET
-<endpoint>/schema` is **unauthenticated** (Section 8.3), and Section 4.5's
-API Catalog hyperlinks every verb an origin serves, also unauthenticated. A
-verb name is not a secret, and this specification no longer pretends otherwise.
+a gated OpenAPI description. Two of the three are retired: `GET
+<endpoint>/schema` and `GET <endpoint>/openapi.json` are both
+**unauthenticated** (Sections 8.3 and 4.6), and Section 4.5's API Catalog
+hyperlinks every verb an origin serves, also unauthenticated. The third
+survives as ordinary gate order rather than as a defence -- there is nothing
+left for it to withhold. A verb name is not a secret, and this specification no
+longer pretends otherwise.
 
 What survives is the reason the two documents say different things: this one is
 a **pointer**, the catalog is the **contract**. An operator **MUST NOT**
@@ -335,10 +356,13 @@ an operator that serves it **SHOULD** include one linkset member per registered
 verb, `anchor`ed with the rest, at the verb's own endpoint (Section 8.1), with
 the HTTP method that reaches it -- a `GET` for a query, a `POST` for an action.
 The `service-desc` members pointing at `<endpoint>/schema` and, where served,
-`<endpoint>/openapi.json` are kept alongside them, not replaced by them. This
-does not require a credential and does not need one: the document is rendered
-from the same in-process registry the catalog is rendered from, so it is cheap
-to compose and cacheable, and the verb names it publishes are already public at
+`<endpoint>/openapi.json` are kept alongside them, not replaced by them, and
+each **SHOULD** carry the version parameter of Section 4.1 where the operator
+publishes one -- this document is itself a short-lived pointer, so linking the
+bare path would hand a reader the one url that cannot be cached. This does not
+require a credential and does not need one: the document is rendered from the
+same in-process registry the catalog is rendered from, so it is cheap to
+compose and cacheable, and the verb names it publishes are already public at
 `<endpoint>/schema`. An operator whose catalog would need per-request work to
 compose is outside what this paragraph contemplates.
 
@@ -348,10 +372,14 @@ An operator **MAY** additionally serve an **OpenAPI 3.1** document at
 `GET <endpoint>/openapi.json` describing the per-verb endpoints of Section 8.1,
 and link it from `/.well-known/api-catalog` with a second `service-desc`
 relation. It exists for TOOLING -- a mock server, a request validator, a
-generated client -- not for an AI assistant. Unlike the `schema` verb it
-describes, this document is **Bearer-gated** in the reference implementation;
-this specification neither requires nor forbids that, because nothing in it
-depends on the document at all.
+generated client -- not for an AI assistant.
+
+Where an operator serves it, it is **UNAUTHENTICATED and never tolled**, on
+exactly the terms the `schema` verb is (Section 8.3): it is the same registry
+in another dress, so gating one while the other stands open would withhold
+nothing and cost an explanation. The caching rules follow from that and are the
+same: `public`, a strong `ETag`, no `Vary`, and Section 4.1's version parameter
+where the operator publishes one.
 
 It is **DERIVED**, and the constraints follow from that:
 
@@ -1149,17 +1177,48 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    the skill's PATCH is independent (see point 4), and the discovery-document format
    version is a separate line entirely (point 3). These are **three distinct version
    lines** -- do not expect all three numbers to match.
-2. **Additivity within a MINOR series.** A new MINOR (0.3 -> 0.4) is a feature
-   milestone that MAY break compatibility with the previous one -- 0.4 replaced
-   0.3's multiplexed `POST <endpoint>/{query,run}` and its response envelope
-   outright, with no tombstones. Within 0.4.x the wire stays backward-compatible
-   and additive:
-   patches add endpoints and fields only; existing request/response fields and
-   their meaning **MUST NOT** change or be removed. An AI assistant **MUST** ignore
-   unknown response fields (including unrecognised problem-document members).
+2. **Additivity within a MINOR series -- a promise that binds from 1.0.** A new
+   MINOR (0.3 -> 0.4) is a feature milestone that MAY break compatibility with
+   the previous one -- 0.4 replaced 0.3's multiplexed
+   `POST <endpoint>/{query,run}` and its response envelope outright, with no
+   tombstones. **From 1.0 onward**, within a MINOR series the wire stays
+   backward-compatible and additive: patches add endpoints and fields only;
+   existing request/response fields and their meaning **MUST NOT** change or be
+   removed. An AI assistant **MUST** ignore unknown response fields (including
+   unrecognised problem-document members) in every series, before and after 1.0.
    The optional descriptor `example_params`/`example_row` fields (Section 8.3)
    are exactly this kind of additive extension: absent on responses that
    predate them, they never alter an existing shape.
+
+   **Before 1.0 -- which is every series published so far, 0.4.x included --
+   any release MAY change the wire, a PATCH included, and that includes
+   removing a response field.** 0.4.1 did exactly that: it removed a paginating
+   query's `next` body field and moved the cursor into an RFC 8288 `Link`
+   response header (Section 8.4). This is a deliberate pre-1.0 stance, not an
+   escape hatch, and it rests on three facts rather than on convenience:
+
+   - **The pin, not the version number, is what an AI assistant relies on.** An
+     operator advertises an exact immutable `skill-vX.Y.Z.md` plus its SHA-256
+     (Section 4.1), and an AI assistant adopts that cut before it transacts
+     (point 4 below). "The MINOR did not change, so the wire did not change" was
+     never the mechanism protecting anyone here; it is a promise borrowed from
+     semver that this protocol's own discovery already makes unnecessary.
+   - **`Kiosk-Min-Client` and `kiosk.min_client` say when a client is behind.**
+     Both are advisory -- no endpoint refuses a request on their basis
+     (Section 3, item 6) -- so they are a signal to upgrade, not a gate. Read with the
+     pin, they are how an operator states which client versions it expects.
+   - **There is nobody on the other side of the promise yet.** This protocol has
+     no third-party adopters at 0.4, so a compatibility guarantee across pre-1.0
+     patches would be a guarantee to no one, purchased with tombstones and
+     dual-shaped responses that every future reader would then have to
+     understand.
+
+   What this is NOT is a claim that compatibility does not matter. The promise
+   above is deferred, not withdrawn: at 1.0 it binds, and a wire change after
+   that is a MINOR bump. Until then an operator and an AI assistant that both
+   honour the pin are interoperable release by release, and one that ignores it
+   is not -- which is the true statement the previous wording replaced with a
+   comfortable one.
 3. **Discovery-document format version.** The `version` field inside
    `/.well-known/kiosk.json` is the **discovery-document format version**
    (currently `"1.0"`), independent of the protocol version this document
@@ -1167,11 +1226,14 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 4. **Skill version.** The skill is published as `skill-vMAJOR.MINOR.PATCH.md`, where
    **MAJOR.MINOR tracks the protocol release** (currently 0.4, so version parity holds)
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
-   protocol, cut without a protocol change. The current skill is **0.4.0**: the
-   first cut against protocol 0.4. The twenty published cuts before it (0.1.1
-   through 0.3.11) describe protocol 0.1-0.3 and stay published, immutable and
-   unedited; an assistant holding one of them cannot transact with a 0.4 origin. Published skill files are immutable and
-   versioned; a change ships a new file. An operator's optional `skill` pin is a
+   protocol, cut without a protocol change -- with the pre-1.0 exception of
+   point 2: before 1.0 a skill PATCH may also carry a wire change, because the
+   wire itself may change in a PATCH. The current skill is **0.4.2**. Every cut
+   before it stays published, immutable and unedited, because live pins
+   reference its bytes: the 0.1.1-0.3.11 cuts describe protocol 0.1-0.3 and
+   cannot transact with a 0.4 origin at all, and 0.4.0 and 0.4.1 describe
+   earlier 0.4 wires that a 0.4.2 operator no longer serves. Published skill
+   files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
    from the URL, adopt it if newer than its cached skill, fetch it **from
