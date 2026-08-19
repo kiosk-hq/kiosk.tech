@@ -1,5 +1,4 @@
 {
-  "verbs": ["schema", "queries", "actions", "pay"],
   "queries": [
     {
       "name": "catalog",

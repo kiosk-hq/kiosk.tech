@@ -10,6 +10,7 @@
       "run",
       "pay"
     ],
+    "schema_url": "https://getgrocery.demo.kiosk.tech/kiosk/schema?v=1f0c7a3e9b5d24618af03c9d7e2b5a04",
     "min_client": "0.2.0",
     "owner": {
       "email": "ops@getgrocery.demo.kiosk.tech"

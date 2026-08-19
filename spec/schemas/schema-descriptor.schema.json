@@ -2,16 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kiosk.tech/spec/schemas/schema-descriptor.schema.json",
   "title": "Kiosk schema descriptor",
-  "description": "The body returned by GET <endpoint>/schema.",
+  "description": "The body returned by GET <endpoint>/schema. UNAUTHENTICATED: the catalog is public. It carries the origin's verbs and their contracts and nothing else -- the MODULE set it once duplicated as `verbs` lives in `capabilities` in /.well-known/kiosk.json, which is where an AI assistant reads it. The root is CLOSED: a document carrying `verbs`, or any other key this schema does not declare, is not a conformant catalog.",
   "type": "object",
-  "required": ["verbs", "queries", "actions"],
+  "required": ["queries", "actions"],
+  "additionalProperties": false,
   "properties": {
-    "verbs": {
-      "type": "array",
-      "description": "The MODULES this origin serves -- byte-identical to `capabilities` in /.well-known/kiosk.json, which is the point: one origin, one self-description. Which VERBS it serves is `queries` and `actions` below.",
-      "items": { "enum": ["schema", "queries", "actions", "pay"] },
-      "uniqueItems": true
-    },
     "queries": {
       "type": "array",
       "description": "Query descriptors, sorted by name.",

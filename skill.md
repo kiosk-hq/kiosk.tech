@@ -15,7 +15,7 @@ A site speaks Kiosk if it advertises the signal -- either a `<link rel="kiosk">`
 
 | What | Method | Path | Arguments go |
 |------|--------|------|--------------|
-| `schema` -- the machine-readable surface | `GET` | `<endpoint>/schema` | -- |
+| `schema` -- the machine-readable surface (**no token needed**) | `GET` | `schema_url`, or `<endpoint>/schema` | -- |
 | a **query** (a read, e.g. `catalog`) | `GET` | `<endpoint>/catalog` | in the **query string** |
 | an **action** (a write, e.g. `create_order`) | `POST` | `<endpoint>/create_order` | in a **JSON body** |
 | `pay` -- settle an AP2 cart | `POST` | `<endpoint>/pay` | in a JSON body |
@@ -24,7 +24,7 @@ The concrete query and action names are the operator's own; you learn them from 
 
 **Method mismatch is its own answer.** `GET` at an action's path (or `POST` at a query's) is `405` with code `method_not_allowed` and an `Allow` header naming the method that verb accepts -- distinct from `404 not_found`, which means no verb by that name exists. Read `hint`, switch method, retry; do not treat a 405 as "this operator does not have it".
 
-**Everything under `<endpoint>` requires auth:** send the access token from Step 2 as `Authorization: Bearer <access_token>` on every call -- the operator answers `401` without it. `POST /auth/revoke` also requires the Bearer header (it identifies the session to keep); `challenge`/`register`/`login` do not (you have no token yet).
+**Everything under `<endpoint>` requires auth, with ONE exception:** send the access token from Step 2 as `Authorization: Bearer <access_token>` on every call -- the operator answers `401` without it. The exception is **`schema`**, which is public: you may read the whole catalogue before you register, and sending a token there changes nothing. `POST /auth/revoke` also requires the Bearer header (it identifies the session to keep); `challenge`/`register`/`login` do not (you have no token yet).
 
 **Query arguments are query-string encoded**, and the encoding is exact:
 
@@ -43,7 +43,7 @@ The concrete query and action names are the operator's own; you learn them from 
 [ {...}, {...} ]                       {"rows": [ {...} ], "next": "<opaque cursor>"}
 
 // an action, and `pay`                // `schema`
-{ ... }                                {"verbs": [...], "queries": [...], "actions": [...]}
+{ ... }                                {"queries": [...], "actions": [...]}
 ```
 
 **An error body is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem document**, served as `Content-Type: application/problem+json`:
@@ -64,11 +64,11 @@ The concrete query and action names are the operator's own; you learn them from 
 ## Flow (every operator, every visit)
 
 ### Step 1: Discover
-`GET <origin>/.well-known/kiosk.json` -- the document nests **everything under a top-level `kiosk` key**: read `doc["kiosk"]["endpoint"]`, `doc["kiosk"]["issuer"]`, `doc["kiosk"]["capabilities"]` (a top-level subscript is a `KeyError`). `capabilities` lists which **modules** the endpoint serves -- a subset of `schema`, `queries`, `actions`, `pay`. They are module names, not verb names: `queries` means "this operator publishes at least one query", and WHICH queries is what `GET <endpoint>/schema` tells you. An origin with no payment provider simply omits `pay`. The unauthenticated discovery document deliberately does not enumerate the operator's verbs; `schema` does, behind your Bearer token.
+`GET <origin>/.well-known/kiosk.json` -- the document nests **everything under a top-level `kiosk` key**: read `doc["kiosk"]["endpoint"]`, `doc["kiosk"]["issuer"]`, `doc["kiosk"]["capabilities"]` (a top-level subscript is a `KeyError`). `capabilities` lists which **modules** the endpoint serves -- a subset of `schema`, `queries`, `actions`, `pay`. They are module names, not verb names: `queries` means "this operator publishes at least one query", and WHICH queries is what the catalogue tells you. An origin with no payment provider simply omits `pay`. **This document is the ONLY place the module set is published** -- the catalogue does not repeat it, so read `capabilities` here and do not go looking for it in `schema`'s answer. Also read `doc["kiosk"]["schema_url"]`: that is where the catalogue lives, and it is the URL to fetch (it may carry a `?v=` the operator changes on every deploy, which is what makes it safe for you to cache). Falling back to `<endpoint>/schema` works and returns the same document, but do not cache that one for long.
 
 Also read the **auth block**, `doc["kiosk"]["auth"]`: `kind` names the scheme (`"kiosk-pop"`), and `challenge_url`/`register_url`/`login_url`/`revoke_url` are the absolute auth URLs -- plus, when the operator supports account binding, `device_authorization_url` and `claim_url` (see Step 2b). Use those URLs verbatim for the handshake -- do not hardcode endpoint-relative paths; the handshake examples below show the default layout (`<endpoint>/auth/*`), but the discovery document is authoritative.
 
-Two terms, don't conflate them: **`origin`** is the operator's bare base URL (e.g. `http://host` or `https://getgrocery.demo.kiosk.tech`) -- where the well-known document lives (`<origin>/.well-known/kiosk.json`) and the value you sign as `aud` in the auth proof. **`endpoint`** is the mounted wire surface, read from the document; by default `endpoint = origin + /kiosk`, so the wire and auth calls hang off it: `schema` is `<endpoint>/schema` = `<origin>/kiosk/schema`, and the handshake is `<endpoint>/auth/challenge` = `<origin>/kiosk/auth/challenge`. Take `endpoint` from the document rather than assuming the `/kiosk` suffix.
+Two terms, don't conflate them: **`origin`** is the operator's bare base URL (e.g. `http://host` or `https://getgrocery.demo.kiosk.tech`) -- where the well-known document lives (`<origin>/.well-known/kiosk.json`) and the value you sign as `aud` in the auth proof. **`endpoint`** is the mounted wire surface, read from the document; by default `endpoint = origin + /kiosk`, so the wire and auth calls hang off it: `schema` is `<endpoint>/schema` = `<origin>/kiosk/schema` (fetch it via `schema_url`), and the handshake is `<endpoint>/auth/challenge` = `<origin>/kiosk/auth/challenge`. Take `endpoint` from the document rather than assuming the `/kiosk` suffix.
 
 ### Step 2: Identity (REUSE if possible)
 **Check `~/.kiosk/<domain>/identity.json` first.** A public key is not a credential -- every token is issued only after you prove possession of the matching PRIVATE key. Both register and login are two steps: (1) `GET <endpoint>/auth/challenge?public_key=<url-encoded PEM>` -> `{challenge}`; (2) sign a compact RS256 JWS `{aud, nonce, jti, iat}` with your private key and POST it. **`aud` MUST be the origin you actually connected to** -- that's the relay defense (a proof for one operator can't be replayed at another). See "Auth handshake" below. The `challenge` here is a nonce you **sign** (it becomes the JWS `nonce`) -- it is NOT proof-of-work; never feed it into the equihash solver. PoW is a separate gate that only ever arrives as a `402 pow_required` carrying an `equihash` challenge to *solve* (see "Proof of work").
@@ -89,14 +89,16 @@ Both directions require the possession proof (`signed`). Binding works with a fr
 **Your role may come from the human's IdP (indirectly).** An operator MAY source your role from a configured identity provider -- not by asking you, but through the human: when the human links you (this binding ceremony), the role their IdP reports for them becomes your role. You never pick your own role, and there's nothing extra to send. As always, branch on what the schema and the error responses tell you: a role-gated query or action you lack the role for is denied; role-less or single-role operators behave exactly as before.
 
 ### Step 3: Learn surface
-`GET <endpoint>/schema` with the Bearer header -> `{verbs, queries, actions}`. `verbs` is the module set (the same array `capabilities` carries in `/.well-known/kiosk.json` -- one origin, one self-description). `queries` and `actions` are the descriptors: one per verb, each with a free-text `description`, an `input_schema` and an `output_schema`. Read the descriptions -- they tell you what this operator actually does; do not assume names.
+`GET` the `schema_url` from Step 1 (or `<endpoint>/schema`) -> `{queries, actions}`. **No token is needed** -- the catalogue is public, so you MAY do this before Step 2 if you only want to know what an operator offers. There is no `verbs` field: the module set is `capabilities` in `/.well-known/kiosk.json` (Step 1), published once and not repeated here. `queries` and `actions` are the descriptors: one per verb, each with a free-text `description`, an `input_schema` and an `output_schema`. Read the descriptions -- they tell you what this operator actually does; do not assume names.
 
 **Both schemas are REQUIRED on every verb, so build from them rather than probing.** `input_schema` is a JSON Schema (draft 2020-12) for that verb's inputs -- names, required/optional, types, enums, ranges -- and it is the AUTHORITATIVE input contract. `output_schema` is a JSON Schema for what the verb RETURNS, and with no envelope it is the ONLY machine-readable statement of the result shape: it is where you read whether a query answers a bare array or the `{rows, next}` object of a paginating one, and what an action's object contains. A descriptor MAY also carry `example_params` (an inputs object you can copy as a starting call) and `example_row` (a sample result element). Examples illustrate; where an example and a schema disagree, the schema is right. Semantics always live in the prose `description`.
 
 ```python
-req = urllib.request.Request(f"{endpoint}/schema",
-    headers={"Authorization": f"Bearer {access_token}"})
-schema = json.load(urllib.request.urlopen(req))          # the body IS the result
+schema_url = doc["kiosk"]["schema_url"]                  # from Step 1
+
+# No Authorization header: the catalogue is public. `schema_url` comes from
+# the discovery document in Step 1; it is the same document either way.
+schema = json.load(urllib.request.urlopen(schema_url))   # the body IS the result
 queries = {q["name"]: q for q in schema["queries"]}
 actions = {a["name"]: a for a in schema["actions"]}
 ```
@@ -148,7 +150,7 @@ Sign 3 RS256 JWS mandates (intent -> cart -> payment). `iss` must match the `iss
 - **Dependencies:** `pyjwt` and `cryptography` for signing, plus `numpy` -- which is there only because the pinned solver script you download (see "Proof-of-work") imports it. `numpy` is a dependency OF that script, not a toolkit for writing a solver yourself; you never write one. Install if missing: `pip install pyjwt cryptography numpy`. If pip refuses with `externally-managed-environment` (PEP 668 -- common on system Python), don't force it; create a venv first: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography numpy`, then run your script with `~/.kiosk/venv/bin/python`. Use that ONE venv for every Kiosk operator and every snippet in this skill -- mixing system/embedded interpreters is the most common failure mode.
 - **Card setup:** Human-only. Present the `setup_url` to the user, then poll `payment_setup` every ~5 s (backing off to ~15 s after the first minute) until `status:"ready"`, giving up after ~5 minutes and telling the human it is unfinished. Never automate Stripe forms, never poll unbounded.
 - **Mandates:** Always submit all 3 -- server may reject with `payment_mandate_jws required`. Every mandate needs `id`, `user_id`, `agent_id`, `iss` (verbatim), `iat`, `exp`.
-- **Proof-of-work:** ANY endpoint under `<endpoint>` -- `schema`, any query, any action, `pay` -- as well as `POST /auth/register`, may return HTTP 402 `pow_required` (an operator MAY toll any of them; the only always-free entrypoint is the top-level discovery at `/.well-known/kiosk.json`). Solve every challenge and retry the SAME request -- same method, same path, same query string, same body -- with the proof(s) in the `Kiosk-PoW` request header (raw JSON). `POST /pay` can instead 402 with `payment_setup_required` (no `challenges`) -- run `payment_setup`, not the solver -- or with `payment_failed`, which is not a gate at all: the charge did not settle, and there is nothing to solve or set up. Never infer which one you got from the status, and never from a `WWW-Authenticate` header -- `payment_failed` carries none. Branch on `code` (see "The three 402s").
+- **Proof-of-work:** ANY tolled endpoint under `<endpoint>` -- any query, any action, `pay` -- as well as `POST /auth/register`, may return HTTP 402 `pow_required` (an operator MAY toll any of them). Always free: the discovery documents at `/.well-known/*` and `agents.json`/`agents.txt`, **and `schema`** -- a toll is charged against an identity, and that endpoint resolves none. Solve every challenge and retry the SAME request -- same method, same path, same query string, same body -- with the proof(s) in the `Kiosk-PoW` request header (raw JSON). `POST /pay` can instead 402 with `payment_setup_required` (no `challenges`) -- run `payment_setup`, not the solver -- or with `payment_failed`, which is not a gate at all: the charge did not settle, and there is nothing to solve or set up. Never infer which one you got from the status, and never from a `WWW-Authenticate` header -- `payment_failed` carries none. Branch on `code` (see "The three 402s").
 - **Login vs register:** existing key -> `/auth/login` (fresh token, same `user_id`, card persists); new key -> `/auth/register`. Re-registering a known key is a `409` -- use login; conversely, `/auth/login` on a key the operator has never seen is a `404` ("register first") -- fall through to register. Tokens are short-lived; call `/auth/login` again to refresh. To sign out other sessions, `POST /auth/revoke` **with the Bearer header** (it authenticates the caller from that token, then returns a fresh one).
 
 ## Versioning & verification
@@ -205,7 +207,7 @@ signed = jwt.encode(
 
 ## Proof-of-work (HTTP 402)
 
-Any endpoint under `<endpoint>` -- `schema`, a query, an action, `pay` -- may come back `402` with `code: "pow_required"` -- the operator is charging compute for this request (an operator MAY toll any of them; only the top-level discovery at `/.well-known/kiosk.json` is always free). Two other codes share the status `402` (see "The three 402s"), so read `code` before you reach for the solver. A `pow_required` response carries `WWW-Authenticate: Kiosk-PoW realm="<issuer>"`, and the problem document carries the challenges as a top-level extension member:
+Any tolled endpoint under `<endpoint>` -- a query, an action, `pay` -- may come back `402` with `code: "pow_required"` -- the operator is charging compute for this request (an operator MAY toll any of them; the discovery documents and `schema` are always free). Two other codes share the status `402` (see "The three 402s"), so read `code` before you reach for the solver. A `pow_required` response carries `WWW-Authenticate: Kiosk-PoW realm="<issuer>"`, and the problem document carries the challenges as a top-level extension member:
 
 ```json
 {
@@ -234,7 +236,7 @@ Kiosk-PoW: {"challenge":{"id":"9b1c...","alg":"equihash","params":{"n":168,"k":7
 ```
 
 - For **multiple** challenges, send a JSON **array** of proofs in the one header -- `Kiosk-PoW: [{...},{...}]` -- OR send a **repeated `Kiosk-PoW` header line per proof** (either form works; use repeated lines if N proofs would overflow a single ~8 KB header line at high difficulty).
-- **This applies to EVERY tolled endpoint, and most of them are now GETs.** A GET has no body to carry a proof, so the `Kiosk-PoW` header is the ONLY way to answer a `pow_required` 402 on `GET <endpoint>/schema` or on any query -- send the header, do not switch to POST (that would be a `405`).
+- **This applies to EVERY tolled endpoint, and most of them are now GETs.** A GET has no body to carry a proof, so the `Kiosk-PoW` header is the ONLY way to answer a `pow_required` 402 on a query -- send the header, do not switch to POST (that would be a `405`).
 - Challenges expire (`exp`) and proofs are single-use -- solve and retry promptly, do not cache.
 - A malformed `Kiosk-PoW` header comes back `400 bad_request` with a `hint` naming the expected proof shape -- fix the shape, do not retry blindly.
 - `/auth/register` may also return `402` -- solve its challenges and resubmit the same register body with the proof(s) in the `Kiosk-PoW` header (the PoP signature is not consumed on the 402, so reuse the same `signed`).

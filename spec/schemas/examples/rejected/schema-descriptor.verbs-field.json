@@ -1,9 +1,8 @@
 {
-  "$comment": "REJECTED ON PURPOSE. Byte-for-byte the sibling examples/schema-descriptor.json except for `verbs`, which carries protocol 0.3's invariant four. validate.sh asserts this document FAILS schema-descriptor.schema.json: since 0.4 `verbs` is the module set and equals `capabilities` in /.well-known/kiosk.json.",
   "verbs": [
     "schema",
-    "query",
-    "run",
+    "queries",
+    "actions",
     "pay"
   ],
   "queries": [

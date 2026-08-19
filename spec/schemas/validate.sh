@@ -58,12 +58,25 @@ chk validate "${F[@]}" -s "$(ref att     "$B/kyc.schema.json#/\$defs/attestation
 chk validate "${F[@]}" -s "$(ref kycreq  "$B/kyc.schema.json#/\$defs/request")"         -r kyc.schema.json -d examples/kyc.request.json
 
 echo "== reject what the schemas must refuse =="
-# T-068 slice 5 / T-075 = A: `capabilities` and `verbs` name MODULES
-# (schema, queries, actions, pay). Each of these documents is its accepted
-# sibling with that ONE array reverted to protocol 0.3's verb names, so the
-# only thing that can make it pass is the enum going soft.
+# T-068 slice 5 / T-075 = A: `capabilities` names MODULES (schema, queries,
+# actions, pay). This document is its accepted sibling with that ONE array
+# reverted to protocol 0.3's verb names, so the only thing that can make it
+# pass is the enum going soft.
 chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discovery.verb-names.json
-chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.verb-names.json
+# T-095: `verbs` is GONE from the catalog. It rendered the same value
+# `/.well-known/kiosk.json` publishes as `capabilities` — one value under two
+# names, not two facts — so the field was dropped rather than reconciled.
+#
+# THIS EXAMPLE IS WHY THE SCHEMA'S ROOT IS CLOSED. It is byte-for-byte the
+# accepted sibling with `verbs` added back, carrying exactly the value the
+# field used to hold (the CURRENT module names, not 0.3's — so a stale enum
+# cannot be what fails it). With an open root the document would simply
+# validate and this line would print PASS while checking nothing; it fails only
+# because `additionalProperties: false` refuses a key the schema does not
+# declare. Deleting either the closed root or this example silently removes a
+# property from the suite. Its predecessor, `schema-descriptor.verb-names.json`,
+# tested the `verbs` ENUM and had nothing left to test once the field went.
+chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.verbs-field.json
 
 echo "-----"
 echo "PASS=$pass FAIL=$fail"

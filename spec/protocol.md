@@ -175,6 +175,15 @@ proof-of-work gate.
       stating it as a prohibition closes the door on a well-meaning CDN
       configuration rather than relying on the default in
       [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) Section 3.5.
+
+      **`GET <endpoint>/schema` is the one exception to rules 1 and 3, and it
+      takes both at once.** It resolves no identity, is never tolled and
+      answers the same bytes to every caller (Section 8.3), so it **SHOULD** be
+      `public` and **MUST NOT** carry `Vary: Authorization` -- a public
+      document that varies on a header it does not read is one no shared cache
+      will ever reuse, which would quietly undo the `public`. An operator that
+      takes only half of this exception has made the endpoint slower than it
+      was before.
    4. The default for a `200` is `Cache-Control: private, no-store`. An
       operator **MAY** relax it to `private, max-age=N` for a payload that is
       genuinely identity-independent -- a public catalogue, say -- and doing so
@@ -202,10 +211,38 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 | `kiosk.issuer` | string | REQUIRED | The AP2 mandate `iss` anchor and token `iss`/`aud`. An absolute https origin. |
 | `kiosk.endpoint` | string | REQUIRED | The wire-verb root (base URL + mount path). All verb and auth URLs derive from this. |
 | `kiosk.capabilities` | array | REQUIRED | The MODULES this endpoint serves, from `["schema","queries","actions","pay"]`, in that canonical order (Section 4.2). |
+| `kiosk.schema_url` | string | REQUIRED | Where to fetch the catalog (Section 8.3). MUST resolve to the same document as `GET <endpoint>/schema`. MAY carry a cache-busting version parameter -- see below. |
 | `kiosk.min_client` | string | OPTIONAL | Advisory minimum client version. |
 | `kiosk.owner` | object | OPTIONAL | Operator contact info; SHOULD include at least an email. |
 | `kiosk.auth` | object | REQUIRED | The kiosk-pop auth block (Section 4.3). |
 | `kiosk.skill` | object | OPTIONAL | Pinned skill reference `{url, sha256}` (Section 14.4). Omitted entirely when absent. |
+
+**Caching, and why `schema_url` is a separate field.** This document is
+**unauthenticated** and identical for every caller, so an operator SHOULD serve
+it `Cache-Control: public` with a **short** freshness lifetime -- minutes. The
+catalog it points at is also unauthenticated and identical for every caller,
+and is far larger, so an operator will want to cache that one for much longer.
+Those two wishes conflict at a FIXED url: `<endpoint>/schema` never changes,
+so a long freshness lifetime there means a shared cache serving a catalog from
+before the operator's last deploy, invisibly, to an AI assistant that then
+calls verbs which no longer exist.
+
+`schema_url` resolves the conflict the way an asset pipeline does. An operator
+**MAY** publish it with a cache-busting version parameter -- for example
+`https://acme.example/kiosk/schema?v=<digest>`. When it does:
+
+- it **MUST** change that parameter whenever the catalog changes, so the value
+  is derived from everything the catalog is rendered from, not from the verb
+  roster alone (an implementation upgrade can change the bytes too);
+- it **MAY** serve the versioned url `public, max-age=31536000, immutable`,
+  because that url's answer cannot change; and
+- the short lifetime on THIS document is what republishes the new link, so it
+  **MUST NOT** exceed the staleness the operator is willing to serve.
+
+An operator that publishes no version parameter **MUST NOT** serve
+`<endpoint>/schema` with a freshness lifetime longer than this document's.
+Either way an AI assistant fetches `schema_url` and needs to know nothing about
+which choice was made.
 
 **One origin per instance (current constraint).** A Kiosk instance serves exactly
 one origin: the possession proof's `aud` is verified by strict equality against the
@@ -225,22 +262,36 @@ query or action is registered), `queries` (iff a query is registered),
 An operator **MUST** emit the canonical order and **MUST NOT** advertise a
 module it does not serve.
 
-`capabilities` names MODULES, never the origin's registered verb NAMES, and
-that is a security requirement rather than a stylistic one. This document is
-served unauthenticated (Section 4.1) while the catalog that enumerates the
-verbs is Bearer-gated (Section 8.3), the per-verb endpoints resolve identity
-BEFORE they resolve a name so an anonymous caller cannot distinguish a verb
-that exists from one that does not (Section 8.1), and the optional OpenAPI
-description is gated on the same terms (Section 4.6). An operator **MUST NOT**
-publish a registered verb name in this document, or in any unauthenticated
-surface of Section 4.5, because doing so defeats all three.
+`capabilities` names MODULES, never the origin's registered verb NAMES. **This
+is a modelling rule, not a security one, and it used to be the other way
+round.** Through protocol 0.3 and the first 0.4 drafts the rule was justified
+by three defences that kept the verb list behind a credential -- a Bearer gate
+on the catalog, identity resolved before a name on the per-verb endpoints, and
+a gated OpenAPI description. The first of those is retired: `GET
+<endpoint>/schema` is **unauthenticated** (Section 8.3), and Section 4.5's
+API Catalog hyperlinks every verb an origin serves, also unauthenticated. A
+verb name is not a secret, and this specification no longer pretends otherwise.
+
+What survives is the reason the two documents say different things: this one is
+a **pointer**, the catalog is the **contract**. An operator **MUST NOT**
+publish a registered verb name in this document or in the `agents.txt`,
+`agents.json`, `agent-configuration` or `auth.md` surfaces of Section 4.5 --
+not to withhold it, but because a second copy of the verb list is a second
+source of truth for it, and the two would drift. `/.well-known/api-catalog` is
+the one surface of Section 4.5 that names verbs, and it does so by
+HYPERLINKING the endpoints rather than by describing them, which is what an
+API catalog is for.
+
+The module set has exactly one home, and this is it. `GET <endpoint>/schema`
+published a byte-identical copy of it as `verbs` until protocol 0.4 removed the
+field (Section 8.3).
 
 An AI assistant reads `capabilities` to know which branches of its own
 instructions apply -- whether to expect a catalog at all, whether writes exist,
-whether payment is possible -- and reads the catalog itself, once
-authenticated, to know what to call. HTTP methods are **not** encoded here: the
-method follows the KIND of the verb (Section 8.1), which the catalog states per
-verb.
+whether payment is possible -- and reads the catalog itself, from
+`schema_url` (Section 4.1), to know what to call. Neither read requires a
+credential. HTTP methods are **not** encoded here: the method follows the KIND
+of the verb (Section 8.1), which the catalog states per verb.
 
 ### 4.3 The `auth` block
 
@@ -272,11 +323,24 @@ capability**: `agents.txt` emits `Protocols: ap2` and `Payments: required`,
 and `agents.json` includes its `payments` block (`ap2`, `required: true`),
 **only** when the operator serves `pay` (Section 4.2); an operator that serves no
 `pay` omits them, so the surfaces stay consistent with `capabilities`. These
-surfaces are unauthenticated, so the rule of Section 4.2 binds them too: an
-operator **MUST NOT** enumerate its registered verb names on any of them. They
-may LINK the two descriptions that do enumerate them -- `<endpoint>/schema` and,
-where served, `<endpoint>/openapi.json` -- because reaching either still costs a
-Bearer token.
+surfaces are unauthenticated. `agents.txt`, `agents.json`,
+`/.well-known/agent-configuration` and `/auth.md` are POINTERS, so the rule of
+Section 4.2 binds them: an operator **MUST NOT** enumerate its registered verb
+names on any of the four. They may LINK the descriptions that do enumerate them
+-- `<endpoint>/schema` and, where served, `<endpoint>/openapi.json`.
+
+**`/.well-known/api-catalog` is the exception, and hyperlinking the operations
+is what it is for.** RFC 9727 describes a linkset of the APIs an origin serves;
+an operator that serves it **SHOULD** include one linkset member per registered
+verb, `anchor`ed with the rest, at the verb's own endpoint (Section 8.1), with
+the HTTP method that reaches it -- a `GET` for a query, a `POST` for an action.
+The `service-desc` members pointing at `<endpoint>/schema` and, where served,
+`<endpoint>/openapi.json` are kept alongside them, not replaced by them. This
+does not require a credential and does not need one: the document is rendered
+from the same in-process registry the catalog is rendered from, so it is cheap
+to compose and cacheable, and the verb names it publishes are already public at
+`<endpoint>/schema`. An operator whose catalog would need per-request work to
+compose is outside what this paragraph contemplates.
 
 ### 4.6 An optional OpenAPI description (tooling only)
 
@@ -284,7 +348,10 @@ An operator **MAY** additionally serve an **OpenAPI 3.1** document at
 `GET <endpoint>/openapi.json` describing the per-verb endpoints of Section 8.1,
 and link it from `/.well-known/api-catalog` with a second `service-desc`
 relation. It exists for TOOLING -- a mock server, a request validator, a
-generated client -- not for an AI assistant.
+generated client -- not for an AI assistant. Unlike the `schema` verb it
+describes, this document is **Bearer-gated** in the reference implementation;
+this specification neither requires nor forbids that, because nothing in it
+depends on the document at all.
 
 It is **DERIVED**, and the constraints follow from that:
 
@@ -471,10 +538,14 @@ the read/write semantics:**
 
 | Verb | Method | Path | Auth |
 |---|---|---|---|
-| `schema` | GET | `<endpoint>/schema` | Bearer |
+| `schema` | GET | `<endpoint>/schema` | **none** |
 | a query | GET | `<endpoint>/<query-name>` | Bearer |
 | an action | POST | `<endpoint>/<action-name>` | Bearer |
 | `pay` | POST | `<endpoint>/pay` | Bearer |
+
+`schema` is the one endpoint under `endpoint` that takes no credential
+(Section 8.3). An operator **MUST NOT** require one, and **MUST NOT** toll it
+(Section 10): a toll prices a caller, and there is no caller to price.
 
 The concrete query and action **names** are operator-defined and discovered via
 `schema`; they are not part of this specification. A name is one path segment
@@ -521,7 +592,7 @@ result looks like.
 - A query that paginates answers `{"rows": [...], "next": "<cursor>"}`
   (Section 8.4).
 - An action answers its own JSON value, typically an object.
-- `schema` answers `{verbs, queries, actions}` (Section 8.3); `pay` answers its
+- `schema` answers `{queries, actions}` (Section 8.3); `pay` answers its
   settlement object (Section 11.3).
 
 Whichever it is, it **MUST** match the verb's declared `output_schema`
@@ -542,15 +613,35 @@ alone.
 
 ### 8.3 The `schema` verb
 
-`GET <endpoint>/schema` (Bearer) returns `{verbs, queries, actions}`. `verbs`
-is the module set of Section 4.2 and **MUST** equal the `capabilities` the same
-origin advertises in `/.well-known/kiosk.json` -- one origin, one
-self-description. (Through 0.3 it was instead the invariant four `query`,
-`run`, `pay`, `schema`, which named `pay` on an operator that had no payment
-provider wired while `capabilities` correctly dropped it; a wire that describes
-itself twice, differently, is not self-describing, and the reconciliation this
-section used to carry is retired with the constant.) Which VERBS the origin
-serves is `queries` and `actions`, right below it. `queries` and `actions` are
+`GET <endpoint>/schema` returns `{queries, actions}` and nothing else. The
+document is **UNAUTHENTICATED**: an operator **MUST** serve it to a caller that
+presents no credential, and **MUST NOT** toll it. It carries verb names,
+descriptions, input and output schemas and examples -- nothing about any
+particular AI assistant and nothing secret -- so gating it while the discovery
+surfaces of Section 4.5 stand open would withhold nothing and cost an
+explanation. An AI assistant **MAY** therefore read an origin's whole surface
+before it registers, and Section 4.1's `schema_url` is where it finds the url.
+
+**A response body carrying any other member is not a conformant catalog**; the
+root is closed in `schema-descriptor.schema.json`. In particular `verbs` is
+**GONE**. It named the module set of Section 4.2 and was required to equal the
+`capabilities` the same origin advertises in `/.well-known/kiosk.json` -- an
+equality that was never in doubt, because a conformant operator computed both
+from the same registry, so the field published one value under two names. The
+module set is read from `capabilities` (Section 4.2), which every AI assistant
+already fetches at Step 1. (Through 0.3 `verbs` was instead the invariant four
+`query`, `run`, `pay`, `schema`, which named `pay` on an operator that had no
+payment provider wired while `capabilities` correctly dropped it.)
+
+The document is identical for every caller and changes only when the operator
+deploys, so an operator **SHOULD** serve it `Cache-Control: public` and
+**MUST NOT** send `Vary: Authorization` on it -- a public document that varies
+on a header it does not read is one no shared cache can reuse. How long it may
+be cached, and how a version parameter makes a long lifetime safe, is
+Section 4.1.
+
+Which VERBS the origin
+serves is `queries` and `actions`, which are
 arrays of descriptors, sorted by name. `name` is
 REQUIRED; `description` is REQUIRED and is a string or `null`, and carries the
 verb's SEMANTICS in prose -- what it does, when to reach for it, what the result
@@ -737,11 +828,15 @@ wire is the account-binding `/oauth/*` pair, which uses the OAuth error object
 
 Schema: [`pow.schema.json`](./schemas/pow.schema.json).
 
-An operator **MAY** require proof-of-work before serving a request. There is
-**no verb exemption**: the toll MAY gate *any* verb -- `schema`, any query, any
-action, or `pay` -- as well as `POST /auth/register`. The always-free entrypoint is the
-discovery layer (`/.well-known/kiosk.json`, `agents.json`/`agents.txt`), not the
-`schema` verb. The gate
+An operator **MAY** require proof-of-work before serving a request. The toll MAY
+gate any query, any action, and `pay`, as well as `POST /auth/register`. There
+is **ONE exemption**, and it is not a courtesy: `GET <endpoint>/schema`
+**MUST NOT** be tolled (Section 8.3). A toll prices a caller and is charged
+against an identity; that endpoint resolves none, and the document it answers
+is the same bytes for everyone and cacheable, so serving it costs the operator
+nothing to begin with. The always-free surfaces are therefore the discovery
+layer (`/.well-known/*`, `agents.json`/`agents.txt`, `/auth.md`) and the
+catalog. The gate
 responds `402` with `code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
 realm="<issuer>"` (Section 9), carrying a `challenges` array. The `realm` is an
 RFC 7235 protection-space label and nothing more: an AI assistant **MUST NOT**
@@ -780,9 +875,9 @@ minified JSON** -- no base64, since a minified proof is all-VCHAR and
 newline-free, a valid HTTP header value. This completes the RFC 7235
 challenge/response begun by the `WWW-Authenticate: Kiosk-PoW` response header
 (Section 9): the server names the scheme on the 402, the client answers in the
-matching request header. Because the proof is a header (not a body field), the
-`schema` **GET** verb -- which has no body-proof channel -- can be tolled like
-any other (there is no verb exemption).
+matching request header. Because the proof is a header (not a body field), a
+**query** -- a `GET` with no body-proof channel, and most verbs are queries --
+can be tolled exactly like an action.
 
 A server **MUST** accept, and treat identically, all of these presentations,
 flattening them into one proofs list:
@@ -1075,7 +1170,8 @@ the discovery document, and are absent from `capabilities` for that reason:
 2. **Core -- auth (kiosk-pop)** (Section 5): challenge / register / login / revoke with
    proof-of-possession verification, origin-bound `aud` rejection, single-use
    server-held nonces, RS256 JWT access tokens, and the revoked-before watermark.
-3. **Core -- wire** (Section 8, Section 9): `schema` (GET), one endpoint per
+3. **Core -- wire** (Section 8, Section 9): `schema` (GET, UNAUTHENTICATED and
+   untolled -- Section 8.3), one endpoint per
    registered verb (GET for a query, POST for an action), the response shape,
    the problem-document error vocabulary including the `405` + `Allow` answer,
    the caching rules (Section 3, point 7), and the three version-handshake
