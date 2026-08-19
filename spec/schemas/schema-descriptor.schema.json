@@ -42,7 +42,7 @@
         },
         "output_schema": {
           "type": ["object", "boolean"],
-          "description": "REQUIRED. JSON Schema (draft 2020-12) for what this verb RETURNS. With no response envelope, this is the ONLY machine-readable statement of the result shape: whether a query answers a bare array or a paginating query's {rows, next}, and what an action's object contains. It must describe what the verb actually renders -- a success body that does not satisfy it is an operator-side defect, not a permitted variation."
+          "description": "REQUIRED. JSON Schema (draft 2020-12) for what this verb RETURNS. With no response envelope, this is the ONLY machine-readable statement of the result shape: what a query's rows look like, or what an action's object contains. A query's is an ARRAY schema whether or not the verb paginates -- a paginated page carries its cursor in an RFC 8288 Link header, not in the body -- so a paginating verb declares one shape, not a two-branch union. It must describe what the verb actually renders -- a success body that does not satisfy it is an operator-side defect, not a permitted variation."
         },
         "example_params": {
           "description": "OPTIONAL example params object an AI assistant can copy verbatim as a starting call for this verb. It ILLUSTRATES input_schema and is not the contract: where the two disagree, the schema is right."

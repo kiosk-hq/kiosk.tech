@@ -588,24 +588,35 @@ envelope, no `ok` flag and no `kind` discriminator: the HTTP status line says
 whether the call succeeded, and `output_schema` (Section 8.3) says what the
 result looks like.
 
-- A query that does not paginate answers a **JSON array** of rows.
-- A query that paginates answers `{"rows": [...], "next": "<cursor>"}`
-  (Section 8.4).
-- An action answers its own JSON value, typically an object.
-- `schema` answers `{queries, actions}` (Section 8.3); `pay` answers its
-  settlement object (Section 11.3).
+**There are TWO shapes, and which one a call answers with is decided by the KIND
+of verb -- never by how large the answer is or whether it was truncated:**
+
+- a **query** answers a **JSON array** of rows -- always, paginating or not;
+- **everything else** answers **its own JSON value**, typically an object. An
+  action's is operator-defined; `schema`'s is `{queries, actions}`
+  (Section 8.3) and `pay`'s is its settlement object (Section 11.3), both
+  fixed by this specification rather than by an operator.
 
 Whichever it is, it **MUST** match the verb's declared `output_schema`
 (Section 8.3), which is REQUIRED on every verb and is where an AI assistant
-reads WHICH of these shapes a particular verb answers with.
+reads WHAT a particular verb answers with.
 
-The four rules above do not stand down now that `output_schema` is required,
-and it is worth saying why: they are what an operator's declaration must
-CONFORM TO, not a substitute for it. Without them an operator could declare
+**A paginating query is not a third shape.** It was, until this revision: a
+truncated page answered `{"rows": [...], "next": "<cursor>"}`, an object that
+existed to carry one piece of transport metadata. That metadata now travels in
+an [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288) `Link` response header
+(Section 8.4), which is where HTTP already keeps it, and the body went back to
+being the array. An AI assistant therefore parses **one** query answer, and a
+paginating verb declares **one** `output_schema` rather than a two-branch
+`oneOf` covering "truncated" and "last page".
+
+The two rules above do not stand down now that `output_schema` is required, and
+it is worth saying why: they are what an operator's declaration must CONFORM TO,
+not a substitute for it. Without them an operator could declare
 `{"items": [...], "cursor": "..."}` and be self-consistent, and every
-`limit`/`cursor`/`next` mechanism in Section 8.4 would stop being portable
-across origins. `output_schema` says which shape THIS verb answers with; this
-section says which shapes exist.
+`limit`/`cursor` mechanism in Section 8.4 would stop being portable across
+origins. `output_schema` says what THIS verb answers with; this section says
+which shapes exist.
 
 An error response body is an **RFC 9457 problem document** (Section 9). An AI
 assistant **MUST** branch on the problem's `code`, never on the HTTP status
@@ -683,10 +694,12 @@ carry two examples:
 - `output_schema` (**REQUIRED**) -- a JSON Schema (draft 2020-12) for what the
   verb RETURNS. With no response envelope (Section 8.2) this is the ONLY
   machine-readable statement of the result shape: it is where an assistant
-  reads whether a query answers a bare array or the `{rows, next}` of a
-  paginating one (Section 8.4), and what an action's object contains. It
-  **MUST** describe what the verb actually renders; a success body that does
-  not satisfy it is an operator-side defect, not a permitted variation.
+  reads what the rows of a query look like, or what an action's object
+  contains. A query's is an ARRAY schema whether or not the verb paginates
+  (Section 8.4), so a paginating verb declares ONE shape rather than a
+  two-branch union. It **MUST** describe what the verb actually renders; a
+  success body that does not satisfy it is an operator-side defect, not a
+  permitted variation.
 - `example_params` (OPTIONAL) -- an example params object an assistant may copy
   as a starting call.
 - `example_row` (OPTIONAL) -- an example of one result element (a
@@ -713,21 +726,62 @@ For guidance on WRITING these fields consistently (how to phrase a
 `example_params`/`example_row`), see the non-normative
 [Descriptor House Style](./descriptor-house-style.md).
 
-### 8.4 Cursor pagination
+### 8.4 Cursor pagination -- the `Link` header
 
-A query that returns a list MAY paginate. A paginating query answers an OBJECT
-rather than a bare array -- `{"rows": [...], "next": "<cursor>"}` -- and
-declares that object in its `output_schema`:
+A query that returns a list MAY paginate. **A paginating query answers the same
+bare JSON array as any other query (Section 8.2); truncation is signalled OUT OF
+BAND, in response headers.**
 
-- `next` **PRESENT** -> the result was TRUNCATED; more rows exist. To fetch the
-  following page, the AI assistant repeats the *same* query with `next`'s value
-  echoed back verbatim as the `cursor` request param.
-- `next` **ABSENT** (the answer is a bare array, or an object with `rows` only)
-  -> the result is COMPLETE (this is the last, or only, page).
+**`Link` ([RFC 8288](https://www.rfc-editor.org/rfc/rfc8288), Web Linking) with
+`rel="next"` is the next page.**
 
-The cursor is **OPAQUE**: the assistant MUST treat `next` as an opaque token,
-echo it back unmodified, and MUST NOT parse or construct it. An operator MAY
-encode an offset, a keyset token, or any scheme behind it.
+```
+HTTP/1.1 200 OK
+Link: <https://api.example.com/kiosk/search_hotels?limit=20&cursor=b2Zmc2V0OjIw>; rel="next"
+X-Total-Count: 97
+Content-Type: application/json
+
+[ {"property_id": 4, "name": "Bosphorus Palace"}, ... ]
+```
+
+- A `rel="next"` link **PRESENT** -> the result was TRUNCATED; more rows exist.
+  The AI assistant **SHOULD** fetch that target URI **verbatim** to get the
+  following page. That is the point of a `Link` header: the next request is
+  handed over already built, so nothing has to be reconstructed and the cursor
+  never has to be read.
+- A `rel="next"` link **ABSENT** -> the result is COMPLETE (this is the last, or
+  only, page). Its absence is the ONLY signal of completeness; an operator
+  **MUST NOT** send an empty or self-referential `next` link to mean the same
+  thing.
+
+An operator **MUST** emit the link only on a truncated answer, **MUST** give it
+the relation type `next`, and **MAY** emit other relation types in the same
+field value (RFC 8288 field values are comma-separated lists). An AI assistant
+**MUST** select the link by its `rel` and **MUST** ignore relations it does not
+recognise. The target **MAY** be a relative reference, resolved against the
+request URI per [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986); an operator
+**SHOULD** emit an absolute URI.
+
+The cursor inside that URI is **OPAQUE**. An AI assistant **MUST NOT** parse it,
+construct one, or reason about the ordering behind it; an operator **MAY** encode
+an offset, a keyset token, or any scheme it likes. An assistant that builds the
+next request itself rather than following the link **MUST** copy the `cursor`
+parameter's value byte for byte.
+
+**`X-Total-Count` is the number of matching rows.** It carries how many rows
+**MATCH** the query across ALL pages -- not how many this response returned, and
+the two differ on every page but the last.
+
+> **`X-Total-Count` is a DE-FACTO CONVENTION, not a standard.** Unlike `Link`
+> there is no RFC behind it and no IANA registration; it is in this
+> specification because it is widely used, immediately understood, and cheaper
+> than minting a Kiosk-specific spelling of the same integer. It is named here
+> in our own words and **MUST NOT** be cited as if a standard defined it.
+
+An operator **MUST NOT** emit `X-Total-Count` when it does not know the total,
+and **MUST NOT** substitute the number of rows returned. An AI assistant
+**MUST** treat it as advisory: it is a progress indicator, never a loop bound.
+The loop bound is the `next` link's absence.
 
 Two OPTIONAL request params drive pagination, both read by the operator's query
 handler and both RESERVED names (Section 8.1 item 6) an operator always accepts
@@ -735,13 +789,18 @@ and never declares:
 
 - `limit` -- integer, the maximum rows the assistant wants in one page. The
   operator MAY clamp it to a maximum.
-- `cursor` -- the opaque string from the previous page's `next`.
+- `cursor` -- the opaque string an operator put in its own `next` link.
 
-Pagination applies to LIST results ONLY. Action and `pay` results never carry
-`next`. A query that ignores `limit`/`cursor`, answers a bare array and never
-emits `next` is a valid non-paginating query -- pagination is opt-in per query,
-and `output_schema` is where an AI assistant reads which of the two shapes a
-given query answers.
+**Caching.** A page is a per-caller answer to a per-caller question, so
+Section 3 point 7 applies to it unchanged: `private, no-store` by default,
+`Vary: Authorization, Kiosk-PoW`, and never `public` or `s-maxage`. The public,
+shared-cacheable exception in that rule is `GET <endpoint>/schema` and only it.
+
+Pagination applies to LIST results ONLY. Action and `pay` results never carry a
+`next` link. A query that ignores `limit`/`cursor` and never emits one is a
+valid non-paginating query -- pagination is opt-in per query, and since the body
+is the same array either way, an AI assistant that always follows a `next` link
+while one is present needs no advance knowledge of which queries paginate.
 
 ---
 
@@ -784,13 +843,13 @@ members it does not recognise.
 
 | `code` | HTTP | Meaning |
 |---|---|---|
-| `bad_request` | 400 | Malformed request: unparseable body, missing/invalid fields, unknown verb. |
+| `bad_request` | 400 | Malformed request: unparseable body, missing fields, or an argument value outside its domain (Section 9.1). |
 | `unauthenticated` | 401 | Missing, invalid, expired, wrong-issuer, or revoked Bearer token. |
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
 | `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay` (Section 11.5); the human must raise the cap. |
 | `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.3); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
-| `not_found` | 404 | Unknown query/action name or missing resource; `hint` carries known names. |
+| `not_found` | 404 | Unknown query/action name, or an argument that ADDRESSES a resource which does not exist (Section 9.1); `hint` carries known names. |
 | `method_not_allowed` | 405 | The path names a verb that exists, called with the other method -- a `GET` at an action's path or a `POST` at a query's (Section 8.1). The response **MUST** carry `Allow` naming the method the verb accepts; `hint` names the call to make. Distinct from `not_found`: the resource exists. |
 | `conflict` | 409 | State conflict -- e.g. registering an already-registered key. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
@@ -821,6 +880,51 @@ lost response cannot double-charge).
 The auth endpoints answer the same problem documents; the only exception on the
 wire is the account-binding `/oauth/*` pair, which uses the OAuth error object
 (Section 6.1).
+
+### 9.1 Which status a bad argument gets
+
+A caller that sends an argument the operator cannot use gets one of exactly
+three answers, and **which one is decided by what the argument DOES, not by what
+it looks like**:
+
+1. **A value OUTSIDE ITS DOMAIN** -- not a member of a closed set, a date
+   outside the horizon the verb serves, a category that does not exist --
+   is **`400 bad_request`**, and the `detail` or `hint` **MUST NAME THE VALID
+   VALUES**. Naming them is what lets an AI assistant recover from a guess
+   without fetching the catalogue again.
+2. **A well-formed IDENTIFIER of a specific resource that does not exist** is
+   **`404 not_found`**. An empty list here would ASSERT that the resource
+   exists and merely has no rows, which is a different -- and false --
+   statement.
+3. **A FILTER over a collection that matched nothing** is **`200` with an empty
+   array**. "Nothing matched" is a true answer about a collection that exists,
+   and refusing it would leave an AI assistant unable to tell a sold-out night
+   from a typo.
+
+**The discriminator is one question: does the argument ADDRESS an entity or
+FILTER a collection?** It is *not* "is it an id". The same `property_id` may
+address a property in one verb (`hotel_detail` -- 404 for an id nobody has) and
+filter a collection in another (`availability` for that property's free rooms).
+Two verbs of one operator MAY therefore answer the same bad value differently,
+and that is the rule working rather than an inconsistency.
+
+Where the value is a closed set the operator **SHOULD** declare it as an `enum`
+in `input_schema` (Section 8.3) and let the validation of Section 8.1 item 5
+produce the `400`, rather than writing a handler guard: one statement, published
+and enforced. A constraint a schema cannot express -- a rolling date horizon, a
+set derived from the operator's own data -- keeps an explicit guard returning
+the same typed `400`.
+
+> **A recorded trade-off, so it is not rediscovered as a defect.** On a strict
+> reading of [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110), rule 1 is
+> `422 Unprocessable Content`: the request is well-formed but semantically
+> erroneous, and `400` is for what the server could not parse. Kiosk answers
+> **`400` deliberately** -- it is what prevailing practice does, it is what the
+> closed vocabulary above already spells, and adding `422` would widen that
+> vocabulary to draw a line an AI assistant would have to learn. Rules 2 and 3
+> are uncontested: RFC 9110's own definitions, and the public REST guidance from
+> the large vendors, all reserve `404` for an ADDRESSED resource that is absent
+> and answer an empty filter result with `200` and an empty array.
 
 ---
 
@@ -1173,9 +1277,12 @@ the discovery document, and are absent from `capabilities` for that reason:
 3. **Core -- wire** (Section 8, Section 9): `schema` (GET, UNAUTHENTICATED and
    untolled -- Section 8.3), one endpoint per
    registered verb (GET for a query, POST for an action), the response shape,
-   the problem-document error vocabulary including the `405` + `Allow` answer,
+   the problem-document error vocabulary including the `405` + `Allow` answer
+   and the bad-argument status rule (Section 9.1),
    the caching rules (Section 3, point 7), and the three version-handshake
    response headers on every mount-path response (Section 3, point 6).
+   An operator that paginates additionally emits the `Link` `rel="next"`
+   header of Section 8.4 and no `next` body field.
 4. **Core -- identity binding** (Section 7): every verb scoped to the authenticated
    identity.
 5. **Module `pay`** (Section 11): AP2 mandate-chain verification and the
@@ -1189,7 +1296,9 @@ the discovery document, and are absent from `capabilities` for that reason:
 ### 16.2 AI assistant profile
 
 A client is a **Kiosk-compatible AI assistant** when it: branches on the problem document's `code`, never
-the HTTP status alone; fills the proof `aud` from the origin it dialed; solves
+the HTTP status alone; pages by following the `Link` `rel="next"` target until
+it is absent, rather than by reading a body field or trusting `X-Total-Count`
+(Section 8.4); fills the proof `aud` from the origin it dialed; solves
 every challenge in a `pow_required` list and retries the identical request --
 same method, same path, same query string, same body -- with the proof(s) in the
 `Kiosk-PoW` request header; runs `payment_setup` and hands `setup_url` to the human rather than
@@ -1234,7 +1343,9 @@ Machine-readable schemas for every wire object live in
 - RFC 7515 (JWS), RFC 7517 (JWK), RFC 7519 (JWT) -- token formats
 - RFC 7235 -- HTTP authentication framework (`WWW-Authenticate`)
 - RFC 8259 -- JSON
-- RFC 9110 -- HTTP semantics (`405 Method Not Allowed` and its `Allow` header)
+- RFC 8288 -- Web Linking (the `Link` header and `rel="next"`, Section 8.4)
+- RFC 9110 -- HTTP semantics (`405 Method Not Allowed` and its `Allow` header;
+  `400`/`404` and the status rule of Section 9.1)
 - RFC 9111 -- HTTP caching (Section 3, point 7)
 - RFC 9457 -- Problem Details for HTTP APIs (the error shape, Section 9)
 - RFC 8628 -- OAuth 2.0 Device Authorization Grant

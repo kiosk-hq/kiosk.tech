@@ -23,16 +23,14 @@
     },
     {
       "name": "search_hotels",
-      "description": "Find hotels matching what the human actually asked for; narrow with the filters this verb declares rather than pulling the whole catalogue. A row is a SUMMARY of one property, priced at its cheapest nightly rate and not at a total for the stay. The result is one PAGE of the matching set: when more hotels match, the response says so, and stopping at the first page answers from a partial list.",
+      "description": "Find hotels matching what the human actually asked for; narrow with the filters this verb declares rather than pulling the whole catalogue. A row is a SUMMARY of one property, priced at its cheapest nightly rate and not at a total for the stay. The result is one PAGE of the matching set: when more hotels match, the response carries a `Link` header with rel=\"next\" -- follow it, because stopping at the first page answers from a partial list. `limit` and `cursor` are reserved parameter names this verb deliberately does not declare (Section 8.1 item 6); the wire accepts them anyway.",
       "params": null,
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
         "required": ["city"],
         "properties": {
-          "city":   { "type": "string", "description": "City to search in." },
-          "limit":  { "type": "integer", "minimum": 1, "maximum": 50, "default": 20, "description": "Page size." },
-          "cursor": { "type": "string", "description": "Opaque `next` cursor from a prior page." }
+          "city": { "type": "string", "description": "City to search in." }
         }
       },
       "output_schema": {
@@ -50,20 +48,9 @@
             }
           }
         },
-        "description": "One page of matching hotels. A PAGINATING query has two conformant spellings and declares both: a truncated page is the object, a complete one is a bare array (Section 8.4).",
-        "oneOf": [
-          { "type": "array", "items": { "$ref": "#/$defs/hotel" }, "description": "The last (or only) page: no `next`, so no more hotels match." },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["rows", "next"],
-            "description": "A truncated page: more hotels match.",
-            "properties": {
-              "rows": { "type": "array", "items": { "$ref": "#/$defs/hotel" }, "description": "This page's hotels." },
-              "next": { "type": "string", "description": "An OPAQUE cursor. Echo it back verbatim as `cursor`; never parse or construct it." }
-            }
-          }
-        ]
+        "type": "array",
+        "description": "One page of matching hotels. A PAGINATING query declares ONE shape, the same array a non-paginating query declares: whether more hotels match is said by the RFC 8288 `Link` header with rel=\"next\", not by the body (Section 8.4).",
+        "items": { "$ref": "#/$defs/hotel" }
       },
       "example_params": { "city": "Lisbon", "limit": 20 },
       "example_row": { "id": 41, "name": "Grand Aljube", "city": "Lisbon", "nightly_price_cents": 14900, "currency": "eur" }
