@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kiosk.tech/spec/schemas/schema-descriptor.schema.json",
   "title": "Kiosk schema descriptor",
-  "description": "The value of the kind:\"value\" envelope returned by GET /kiosk/schema.",
+  "description": "The body returned by GET <endpoint>/schema.",
   "type": "object",
   "required": ["verbs", "queries", "actions"],
   "properties": {
@@ -26,26 +26,34 @@
   "$defs": {
     "descriptor": {
       "type": "object",
-      "required": ["name", "description"],
+      "required": ["name", "description", "input_schema", "output_schema"],
       "properties": {
-        "name": { "type": "string" },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "The verb's wire name, which is also its path segment under `endpoint`. One name is one KIND: a name listed under `queries` must not also appear under `actions`."
+        },
         "description": {
           "type": ["string", "null"],
-          "description": "Human-facing description or null. SEMANTICS live here in prose -- what the verb does, when to reach for it, what the result means. Names, types and constraints do not: they live in input_schema."
+          "description": "Human-facing description or null. SEMANTICS live here in prose -- what the verb does, when to reach for it, what the result means. Names, types and constraints do not: an input belongs to input_schema and a result field to output_schema."
         },
         "params": {
           "type": ["object", "null"],
           "description": "RETIRED free-form provider-defined hint object (by convention name -> type-hint string), or null. Never a validation contract, and no longer the input contract: publish null, or omit the key. Retained on the wire so descriptors written before the retirement still validate -- an AI assistant MAY read a non-null value as a prose hint for a verb that publishes no input_schema, and MUST prefer input_schema wherever one is published."
         },
         "input_schema": {
-          "type": "object",
-          "description": "JSON Schema (draft 2020-12) for THIS verb's inputs: names, required/optional, types, enums, ranges. Where present it is the AUTHORITATIVE input contract for the verb -- the only place a parameter name is declared -- and it wins over any `params` hint that disagrees. OPTIONAL in this version of the descriptor only because the reference implementation does not yet publish one on every registered verb; the descriptor house style already requires one on every query and action, and a later version is expected to make it REQUIRED. Absent = no machine input contract published for this verb."
+          "type": ["object", "boolean"],
+          "description": "REQUIRED. JSON Schema (draft 2020-12) for THIS verb's inputs: names, required/optional, types, enums, ranges. The AUTHORITATIVE input contract -- the only place a parameter name is declared -- and it wins over any `params` hint or `description` sentence that disagrees. The operator validates a request's arguments against it before the handler runs and answers 400 bad_request naming the offending parameter otherwise. A verb that takes nothing declares the closed empty object."
+        },
+        "output_schema": {
+          "type": ["object", "boolean"],
+          "description": "REQUIRED. JSON Schema (draft 2020-12) for what this verb RETURNS. With no response envelope, this is the ONLY machine-readable statement of the result shape: whether a query answers a bare array or a paginating query's {rows, next}, and what an action's object contains. It must describe what the verb actually renders -- a success body that does not satisfy it is an operator-side defect, not a permitted variation."
         },
         "example_params": {
           "description": "OPTIONAL example params object an AI assistant can copy verbatim as a starting call for this verb. It ILLUSTRATES input_schema and is not the contract: where the two disagree, the schema is right."
         },
         "example_row": {
-          "description": "OPTIONAL example of one result element -- a representative row for a query, or the example return value for an action -- so an assistant learns the result shape without a call-and-observe probe."
+          "description": "OPTIONAL example of one result element -- a representative row for a query, or the example return value for an action. It ILLUSTRATES output_schema and is not the contract."
         }
       }
     }

@@ -32,6 +32,8 @@ they move in ONE wave with the demo fleet at cutover:
 | `<endpoint>/{schema,pay}` | payload verbatim; problem documents | the retired 0.3 envelope |
 | `<endpoint>/{query,run}` | **deleted** -- no such endpoints | still routed, 0.3 envelope |
 | the auth plane (Section 5, Section 6, Section 12) | problem documents on error | the retired 0.3 error envelope |
+| the per-verb endpoints on the DEMO fleet | one endpoint per verb | the eight demos hand-draw the four 0.3 routes and mount no per-verb pair; only the e2e origin serves them |
+| a non-paginating query's shape (Section 8.2) | a bare JSON array of rows | one demo verb (`hotel_detail`) answers a bare OBJECT -- recorded, not a permitted variation |
 
 ---
 
@@ -492,7 +494,17 @@ result looks like.
 - `schema` answers `{verbs, queries, actions}` (Section 8.3); `pay` answers its
   settlement object (Section 11.3).
 
-Whichever it is, it **MUST** match the verb's declared `output_schema`.
+Whichever it is, it **MUST** match the verb's declared `output_schema`
+(Section 8.3), which is REQUIRED on every verb and is where an AI assistant
+reads WHICH of these shapes a particular verb answers with.
+
+The four rules above do not stand down now that `output_schema` is required,
+and it is worth saying why: they are what an operator's declaration must
+CONFORM TO, not a substitute for it. Without them an operator could declare
+`{"items": [...], "cursor": "..."}` and be self-consistent, and every
+`limit`/`cursor`/`next` mechanism in Section 8.4 would stop being portable
+across origins. `output_schema` says which shape THIS verb answers with; this
+section says which shapes exist.
 
 An error response body is an **RFC 9457 problem document** (Section 9). An AI
 assistant **MUST** branch on the problem's `code`, never on the HTTP status
@@ -510,8 +522,16 @@ configured); do not treat these `verbs` as mirroring what the origin advertises.
 REQUIRED; `description` is REQUIRED and is a string or `null`, and carries the
 verb's SEMANTICS in prose -- what it does, when to reach for it, what the result
 means. It does not carry shape: a parameter name, type, unit, format or default
-belongs to `input_schema`, which is where it can be checked against the handler
-that consumes it.
+belongs to `input_schema`, and a result field to `output_schema`, which is
+where each can be checked against the handler that produces it.
+
+A verb **name** is one path segment matching `^[a-z][a-z0-9_]*$` (Section 8.1),
+it **MUST NOT** be one of the reserved first segments the operator's own wire
+occupies (`schema`, `pay`, and whatever else the origin serves directly under
+`endpoint`), and one name is one KIND: a name published in `queries` **MUST
+NOT** also appear in `actions`, since `GET` and `POST` at that path would
+otherwise reach two different verbs and the `405` of Section 8.1 could never be
+right for it.
 
 `params` -- a free-form operator-defined hint object (by convention a map of
 parameter name -> type-hint string) or `null` -- is **RETIRED**. It was never a
@@ -522,37 +542,46 @@ retirement remain valid. An AI assistant MUST prefer `input_schema` wherever one
 is published, and MAY fall back to reading a non-null `params` as a prose hint
 only for a verb that publishes none.
 
-A descriptor MAY additionally carry three OPTIONAL machine-readable fields:
+Every descriptor **MUST** carry two machine-readable schemas, and **MAY**
+carry two examples:
 
-- `input_schema` -- a JSON Schema (draft 2020-12) for that verb's INPUTS (names,
-  required/optional, types, enums, ranges). Where present it is the
-  AUTHORITATIVE input contract for the verb: it is the one place a parameter
-  name is declared, and it wins over a `params` hint or a `description` sentence
-  that disagrees with it. An operator MAY validate arguments against
-  `input_schema` server-side, but is not required to; an AI assistant SHOULD
-  use it to shape a well-formed call.
-- `example_params` -- an example params object an assistant may copy as a
-  starting call.
-- `example_row` -- an example of one result element (a representative row for a
-  query, or the example return value for an action), so an assistant learns the
-  result shape without a call-and-observe probe.
+- `input_schema` (**REQUIRED**) -- a JSON Schema (draft 2020-12) for that
+  verb's INPUTS (names, required/optional, types, enums, ranges). It is the
+  AUTHORITATIVE input contract: the one place a parameter name is declared, and
+  it wins over a `params` hint or a `description` sentence that disagrees with
+  it. A verb that takes NO arguments still declares the closed empty object
+  `{"type": "object", "additionalProperties": false, "properties": {},
+  "required": []}` -- "this verb takes nothing" is then a published fact rather
+  than an absence an assistant has to interpret. An operator **MUST** validate
+  a request's arguments against it before the handler runs (Section 8.1 item 5)
+  and answer `400 bad_request` naming the offending parameter otherwise. An AI
+  assistant uses it to shape a well-formed call.
+- `output_schema` (**REQUIRED**) -- a JSON Schema (draft 2020-12) for what the
+  verb RETURNS. With no response envelope (Section 8.2) this is the ONLY
+  machine-readable statement of the result shape: it is where an assistant
+  reads whether a query answers a bare array or the `{rows, next}` of a
+  paginating one (Section 8.4), and what an action's object contains. It
+  **MUST** describe what the verb actually renders; a success body that does
+  not satisfy it is an operator-side defect, not a permitted variation.
+- `example_params` (OPTIONAL) -- an example params object an assistant may copy
+  as a starting call.
+- `example_row` (OPTIONAL) -- an example of one result element (a
+  representative row for a query, or the example return value for an action).
 
 Examples ILLUSTRATE the contract and are not the contract: where an example and
-`input_schema` disagree, the schema is right.
+a schema disagree, the schema is right.
 
-Two limits of this version, stated so an implementer is not surprised by them.
-`input_schema` is OPTIONAL here for one reason -- the reference implementation
-does not yet publish one on every registered verb -- and a verb that publishes
-none declares nothing machine-readable about its inputs; the house style below
-already requires one on every query and action, and a later version of this
-document is expected to make it REQUIRED once that coverage is complete. And
-there is no RESULT schema: `example_row` is a sample, not a declaration, so an
-assistant cannot know what a call returns without making it. A machine-readable
-counterpart to `input_schema` for the return value is anticipated but not
-specified here.
+**Why both are REQUIRED rather than encouraged.** A verb that publishes no
+`input_schema` gives an assistant nothing to shape a call from and gives the
+operator nothing to validate against, so an invalid argument becomes
+indistinguishable from a valid one that matched nothing -- an empty list where
+the honest answer is `400 bad_request` naming the valid values. A verb that
+publishes no `output_schema` cannot be consumed without a call-and-observe
+probe, because the envelope that used to carry a `kind` discriminator is gone.
+Both were OPTIONAL in 0.3 only because coverage was incomplete.
 
-Semantics remain PROSE in `description`; `input_schema` constrains only the
-input *shape*, never the meaning. A future `describe <verb>` progressive-disclosure
+Semantics remain PROSE in `description`; the schemas constrain only *shape*,
+never meaning. A future `describe <verb>` progressive-disclosure
 mechanism for very large catalogs is anticipated but not specified here.
 
 For guidance on WRITING these fields consistently (how to phrase a
