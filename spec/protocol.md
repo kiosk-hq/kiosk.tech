@@ -20,8 +20,9 @@ version **0.4**.
 Kiosk is a thin HTTPS + JSON + JWS contract that lets an **operator** expose an
 existing service API to a **customer's personal AI assistant**: the AI assistant discovers
 the operator, registers a self-generated identity by proof of possession, reads a
-self-describing surface, calls read (`query`) and write (`run`) verbs scoped to
-its identity, and settles payment (`pay`) through a signed AP2 mandate chain. The
+self-describing surface, calls the operator's own read and write verbs -- each
+at its own endpoint, a GET for a read and a POST for a write -- scoped to its
+identity, and settles payment (`pay`) through a signed AP2 mandate chain. The
 operator MAY meter anonymous load with a memory-hard proof-of-work toll and MAY
 bind an AI assistant to an existing human account.
 
@@ -94,9 +95,12 @@ proof-of-work gate.
   presented as `Authorization: Bearer`.
 - **Possession proof** (`signed`) -- a compact RS256 JWS over a server-issued
   single-use challenge, proving control of a public key.
-- **Verb** -- one of the four fixed wire operations: `schema`, `query`, `run`,
-  `pay`.
-- **Capability** -- a verb a given operator actually serves (Section 4.3).
+- **Verb** -- one named operation the operator serves at its own endpoint: a
+  QUERY (a read, GET) or an ACTION (a write, POST), plus the two the protocol
+  reserves for itself, `schema` and `pay` (Section 8.1).
+- **Module** -- one of the four DISCOVERABLE groupings a deployment advertises
+  in `capabilities`: `schema`, `queries`, `actions`, `pay` (Section 4.2). A
+  module is not a verb; which verbs a module holds is `schema`'s catalog.
 - **Problem document** -- the RFC 9457 `application/problem+json` object a verb
   answers on an error, carrying the vocabulary `code` (Section 9).
 - **Mandate** -- one link of the signed AP2 payment chain: intent, cart, or
@@ -437,8 +441,8 @@ token -- the `{user_id, agent_id}` pair.
 
 1. The operator **MUST** resolve the token to its identity on every authenticated
    request, before the verb runs.
-2. The operator **MUST** scope every read a `query` performs and every write or
-   side effect a `run` or `pay` performs to the authenticated `user_id`. Rows
+2. The operator **MUST** scope every read a query performs and every write or
+   side effect an action or `pay` performs to the authenticated `user_id`. Rows
    owned by another `user_id` **MUST NOT** be readable or affectable through this
    token.
 3. Operator-registered queries and actions **MUST NOT** execute with no identity
@@ -734,8 +738,8 @@ wire is the account-binding `/oauth/*` pair, which uses the OAuth error object
 Schema: [`pow.schema.json`](./schemas/pow.schema.json).
 
 An operator **MAY** require proof-of-work before serving a request. There is
-**no verb exemption**: the toll MAY gate *any* verb -- `schema`, `query`, `run`,
-or `pay` -- as well as `POST /auth/register`. The always-free entrypoint is the
+**no verb exemption**: the toll MAY gate *any* verb -- `schema`, any query, any
+action, or `pay` -- as well as `POST /auth/register`. The always-free entrypoint is the
 discovery layer (`/.well-known/kiosk.json`, `agents.json`/`agents.txt`), not the
 `schema` verb. The gate
 responds `402` with `code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
@@ -1090,8 +1094,9 @@ the discovery document, and are absent from `capabilities` for that reason:
 
 A client is a **Kiosk-compatible AI assistant** when it: branches on the problem document's `code`, never
 the HTTP status alone; fills the proof `aud` from the origin it dialed; solves
-every challenge in a `pow_required` list and retries the identical body with the
-proof(s) in the `Kiosk-PoW` request header; runs `payment_setup` and hands `setup_url` to the human rather than
+every challenge in a `pow_required` list and retries the identical request --
+same method, same path, same query string, same body -- with the proof(s) in the
+`Kiosk-PoW` request header; runs `payment_setup` and hands `setup_url` to the human rather than
 automating card entry; performs the skill dual-check; and, when the human owns an
 existing operator account, binds instead of registering.
 
@@ -1105,8 +1110,8 @@ Two oracles pin behavior beyond this text:
    a ported verifier MUST reproduce them.
 
 The reference end-to-end harness exercises the golden path
-(discovery -> register -> schema -> query -> run -> pay, plus the problem documents) an
-independent implementation should survive. A published stack-neutral black-box
+(discovery -> register -> schema -> a query -> an action -> pay, plus the problem
+documents) an independent implementation should survive. A published stack-neutral black-box
 conformance suite does not exist yet (Tier 3, deferred).
 
 ---
