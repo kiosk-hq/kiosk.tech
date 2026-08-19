@@ -1,0 +1,8 @@
+{
+  "type": "https://kiosk.tech/problems/method_not_allowed",
+  "title": "Method not allowed",
+  "status": 405,
+  "detail": "\"create_order\" is an action, not a query",
+  "code": "method_not_allowed",
+  "hint": "call POST /kiosk/create_order instead — queries are GET, actions are POST."
+}

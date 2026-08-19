@@ -25,19 +25,16 @@ B="https://kiosk.tech/spec/schemas"
 echo "== compile schemas =="
 chk compile "${F[@]}" -s discovery.schema.json
 chk compile "${F[@]}" -s pow.schema.json
-chk compile "${F[@]}" -s error.schema.json -r pow.schema.json
-chk compile "${F[@]}" -s envelope.schema.json -r error.schema.json -r pow.schema.json
+chk compile "${F[@]}" -s problem.schema.json -r pow.schema.json
 chk compile "${F[@]}" -s schema-descriptor.schema.json
 chk compile "${F[@]}" -s mandates.schema.json
 chk compile "${F[@]}" -s kyc.schema.json
 
 echo "== validate examples =="
 chk validate "${F[@]}" -s discovery.schema.json -d examples/discovery.json
-chk validate "${F[@]}" -s envelope.schema.json -r error.schema.json -r pow.schema.json -d examples/envelope.rows.json
-chk validate "${F[@]}" -s envelope.schema.json -r error.schema.json -r pow.schema.json -d examples/envelope.rows.paginated.json
-chk validate "${F[@]}" -s envelope.schema.json -r error.schema.json -r pow.schema.json -d examples/envelope.value.json
-chk validate "${F[@]}" -s envelope.schema.json -r error.schema.json -r pow.schema.json -d examples/envelope.error.json
-chk validate "${F[@]}" -s error.schema.json -r pow.schema.json -d examples/error.pow.json
+chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.not-found.json
+chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.pow.json
+chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.method-not-allowed.json
 chk validate "${F[@]}" -s schema-descriptor.schema.json -d examples/schema-descriptor.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.proofs.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.shorthand.json

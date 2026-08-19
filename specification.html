@@ -56,6 +56,8 @@
   <p><strong>Protocol version.</strong> This page specifies protocol version <strong>0.3</strong>. The protocol, the reference implementation, and the skill share their MAJOR.MINOR version (<strong>version parity</strong>: an operator on Kiosk 0.3 pins a 0.3 skill against a 0.3 wire). A new MINOR (0.2 → 0.3) is a <strong>feature milestone</strong> that bundles backward-compatible additions — new endpoints and fields only. Within a MINOR series (0.3.x) the wire stays <strong>additive and backward-compatible</strong> — patches add endpoints and fields only, existing flows never break (the same rule the skill files follow below).</p>
   <p><strong>Three version lines — don't expect all three numbers to match.</strong> (a) The <strong>protocol</strong> is <code>0.3.x</code>. (b) The <strong>skill</strong> is published as <code>skill-vMAJOR.MINOR.PATCH.md</code>, where MAJOR.MINOR tracks the protocol release (so <code>0.3</code>, honoring version parity) and PATCH is a skill-only revision — currently <strong>skill-v0.3.11</strong> (still protocol 0.3, eleven skill-only patches in). (c) The <strong>discovery-document format</strong> in <code>/.well-known/kiosk.json</code> is versioned independently at <code>"1.0"</code> — it's the well-known document's own schema, not the protocol. Version parity binds only MAJOR.MINOR between the protocol, the implementation, and the skill; the skill PATCH and the discovery format are separate lines.</p>
 
+  <div class="todo"><strong>Status — 0.4 is being written into this page.</strong> The wire sections below (<em>Endpoints</em>, <em>Response shape</em>, <em>Pagination</em>, <em>Errors</em>, <em>Caching</em>) already describe protocol <strong>0.4</strong>, in which every verb is its own endpoint, a success response is the verb's result with no envelope around it, and an error is an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document. The version line above still says 0.3 because 0.4 is <strong>not released</strong>: the reference implementation, every deployed operator and all nineteen published skill cuts speak 0.3, and the version flip, the new skill cut and the operator pin re-issue happen together at cutover. This is not a dual stack — 0.4 replaces 0.3 outright, with no tombstones. Three surfaces of the reference have not caught up yet and move in one wave at cutover: <code>/kiosk/schema</code> and <code>/kiosk/pay</code> still answer the retired envelope, <code>/kiosk/query</code> and <code>/kiosk/run</code> are still routed at all, and the auth plane still answers the retired error envelope. This box is deleted at cutover.</div>
+
   <h2>High-level flow</h2>
 
   <h3>Flow 1: Discovery and registration</h3>
@@ -90,12 +92,17 @@
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/claim</code></td><td>PoP (<code>signed</code>)</td><td>Account binding: redeem a link code with <code>{code, public_key, signed}</code> → linked assistant account + token</td></tr>
     <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/auth/unlink</code></td><td>Operator session</td><td>Account binding: deactivate a key's binding (registration-layer revocation, human-side)</td></tr>
     <tr><td><code>schema</code></td><td><code>GET</code></td><td><code>/kiosk/schema</code></td><td>Bearer</td><td>Machine-readable surface: queries + actions</td></tr>
-    <tr><td><code>query</code></td><td><code>POST</code></td><td><code>/kiosk/query</code></td><td>Bearer</td><td>Read data (catalog, slots, orders)</td></tr>
-    <tr><td><code>run</code></td><td><code>POST</code></td><td><code>/kiosk/run</code></td><td>Bearer</td><td>Perform action (create_order, schedule_delivery, payment_setup)</td></tr>
+    <tr><td>a query</td><td><code>GET</code></td><td><code>/kiosk/&lt;query-name&gt;</code></td><td>Bearer</td><td>Read data — one endpoint per query (<code>/kiosk/catalog</code>, <code>/kiosk/slots</code>, <code>/kiosk/orders</code>)</td></tr>
+    <tr><td>an action</td><td><code>POST</code></td><td><code>/kiosk/&lt;action-name&gt;</code></td><td>Bearer</td><td>Perform an action — one endpoint per action (<code>/kiosk/create_order</code>, <code>/kiosk/payment_setup</code>)</td></tr>
     <tr><td><code>pay</code></td><td><code>POST</code></td><td><code>/kiosk/pay</code></td><td>Bearer</td><td>Settle payment with signed AP2 mandates</td></tr>
   </table>
 
-  <p>All <code>POST</code> bodies are JSON. All successful responses are JSON. The operator self-describes its surface via <code>GET /kiosk/schema</code> — queries and actions are operator-specific, not part of the spec.</p>
+  <p><strong>The HTTP method carries the read/write semantics:</strong> a query is a <code>GET</code> at its own path, an action a <code>POST</code> at its own path, so <code>curl -H "Authorization: Bearer …" https://…/kiosk/catalog</code> is the whole invocation. A verb name is one path segment matching <code>^[a-z][a-z0-9_]*$</code>; the names themselves are operator-specific, discovered via <code>GET /kiosk/schema</code>, and not part of the spec. Calling a verb that exists with the other method is <code>405</code> carrying an <code>Allow</code> header — a different answer from <code>404</code>, because the resource exists.</p>
+
+  <p><strong>Where a verb's arguments live.</strong> A query's arguments are in the URL query string; an action's are in a JSON request body. There is no third channel — an operator <strong>MUST NOT</strong> read a query string on an action, or a body on a query. Scalars are <code>name=value</code> (strings percent-encoded UTF-8, booleans <code>true</code>/<code>false</code>, numbers JSON literals, dates <code>YYYY-MM-DD</code>); arrays of scalars are repeated <code>name[]=value</code> (percent-encoded <code>name%5B%5D=value</code>) and a bare repeated <code>name=</code> is <em>not</em> an array; objects are <code>name[key]=value</code>, one level deep with scalar leaves only. Anything deeper is not a query — model it as an action. Types come from the verb's <code>input_schema</code>: the operator coerces each parameter to its declared type before the handler sees it, and a value that cannot be that type is <code>400 bad_request</code> naming the parameter. <code>limit</code> and <code>cursor</code> are reserved parameter names, always accepted and never declared. <code>?title=</code> is the empty string, not an absent parameter.</p>
+
+  <h3>Caching</h3>
+  <p>Every verb response is scoped to the authenticated identity, and a tolled <code>200</code> differs from its <code>402</code> only by a request header — so caching is part of the response contract. An operator <strong>MUST</strong> send <code>Vary: Authorization, Kiosk-PoW</code> on every verb response (without the second token a cache keyed on the URL serves a paid <code>200</code> to an unpaid retry, defeating the toll, or a stale <code>402</code> to a paid one, which is a retry loop the AI assistant cannot break); <strong>MUST</strong> send <code>Cache-Control: no-store</code> on a <code>402</code>, because a proof-of-work challenge is single-use and expiring; and <strong>MUST NOT</strong> send <code>public</code> or <code>s-maxage</code> on any verb response, since shared caching of an identity-scoped payload is a cross-tenant leak. The default for a <code>200</code> is <code>private, no-store</code>; an operator <strong>MAY</strong> relax it to <code>private, max-age=N</code> for a genuinely identity-independent payload — which is also how an assistant's own cache saves a toll, since a response still fresh in cache is never re-requested and therefore never re-challenged. Conditional requests are welcome, but the toll gate runs <strong>before</strong> the freshness check: a <code>304</code> is a served response.</p>
 
   <h3>Response headers — the version handshake</h3>
   <p>Every response served under the mount path — all four verbs, the auth and account-binding endpoints, the KYC endpoint, the mount-relative JWKS — carries three response headers, on success and on error alike. An operator <strong>MUST</strong> emit all three; an AI assistant <strong>MAY</strong> ignore them. They are a handshake, not a contract: nothing in the wire depends on reading one.</p>
@@ -107,34 +114,30 @@
   </table>
   <p>The root-served discovery documents sit outside the mount path and do not carry these headers; <code>/.well-known/kiosk.json</code> states its own advisory <code>min_client</code> and its own format <code>version</code> instead. And these three headers are <strong>not</strong> the version <em>lines</em> described under <a href="/spec/protocol.md">Versioning</a> in the formal spec (protocol/implementation/skill parity, the skill's own PATCH, the discovery-document format version): only <code>Kiosk-API-Version</code> is one of those. Which skill to load still comes from the discovery document's <code>skill</code> pin and the dual-check, never from a response header.</p>
 
-  <h3>Response envelope</h3>
-  <p>Every <code>schema</code>, <code>query</code>, <code>run</code>, and <code>pay</code> response — success or error — is wrapped in a uniform envelope so an AI assistant can branch on one field. A success carries <code>ok: true</code> and a <code>kind</code> discriminator naming the payload shape, alongside the payload itself:</p>
-  <ul>
-    <li><code>kind: "rows"</code> → payload under <code>rows</code> (an array; queries).</li>
-    <li><code>kind: "value"</code> → payload under <code>value</code> (a single object; <code>schema</code>, actions, and <code>pay</code>).</li>
-    <li><code>kind: "events"</code> → payload under <code>events</code> (streaming; reserved).</li>
-  </ul>
-  <pre><code class="language-json">// query success                    // schema / action / pay success
-{ "ok": true,                       { "ok": true,
-  "kind": "rows",                     "kind": "value",
-  "rows": [ … ] }                     "value": { … } }
+  <h3>Response shape</h3>
+  <p><strong>A success response body is the verb's result, and nothing else</strong> — no envelope, no <code>ok</code> flag, no <code>kind</code> discriminator. The HTTP status line says whether the call succeeded; the verb's own <code>output_schema</code> says what the result looks like. A query that does not paginate answers a JSON array of rows; a query that paginates answers <code>{"rows": […], "next": "…"}</code>; an action answers its own JSON value; <code>schema</code> answers <code>{verbs, queries, actions}</code> and <code>pay</code> its settlement object. An error answers an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document, served as <code>application/problem+json</code>:</p>
+  <pre><code class="language-json">// query success                    // action / pay success
+[ … ]                               { … }
 
-// error (any endpoint)
-{ "ok": false,
-  "error": { "code": "…", "message": "…",
-             "hint": "…",             // optional — remediation pointer
-             "challenges": [ … ] } }  // pow_required only</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <p>The examples below show only the payload field for brevity; the full response always carries the <code>ok</code>/<code>kind</code> envelope shown here.</p>
+// error (any endpoint)             Content-Type: application/problem+json
+{ "type": "https://kiosk.tech/problems/kyc_required",
+  "title": "KYC attestation required",   // constant per type, not per incident
+  "status": 403,
+  "detail": "this rental requires age_over_18 and licence_a",
+  "code": "kyc_required",                // ← branch on THIS
+  "hint": "…",                           // optional — remediation pointer
+  "challenges": [ … ] }                  // pow_required only</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p>The examples below show response bodies exactly as they arrive.</p>
 
   <h3>Pagination — the <code>next</code> cursor</h3>
-  <p>A <code>query</code> that returns a list MAY paginate. Its <code>kind: "rows"</code> success then carries an optional top-level <code>next</code> string. <strong>Present</strong> <code>next</code> means the result was truncated (more rows exist); <strong>absent</strong> means it is complete. To fetch the next page the AI assistant repeats the same query with <code>next</code>'s value echoed back verbatim as the <code>cursor</code> request param (an optional <code>limit</code> param caps page size). The cursor is <strong>opaque</strong> — echo it back unchanged, never parse it. This is opt-in per query and only ever appears on list results; single-object, action, and <code>pay</code> results never carry <code>next</code>.</p>
+  <p>A query that returns a list MAY paginate. A paginating query answers an <em>object</em> rather than a bare array — <code>{"rows": […], "next": "…"}</code> — and declares that object in its <code>output_schema</code>, so an AI assistant knows which of the two shapes to expect before it calls. <strong>Present</strong> <code>next</code> means the result was truncated (more rows exist); <strong>absent</strong> means it is complete. To fetch the next page the AI assistant repeats the same query with <code>next</code>'s value echoed back verbatim as the <code>cursor</code> request param (an optional <code>limit</code> param caps page size). The cursor is <strong>opaque</strong> — echo it back unchanged, never parse it. This is opt-in per query; action and <code>pay</code> results never carry <code>next</code>.</p>
   <pre><code class="language-json">// paginated query success — more rows exist
-{ "ok": true, "kind": "rows",
-  "rows": [ … ],
-  "next": "b2Zmc2V0OjQy" }   // opaque — resend as { "cursor": "b2Zmc2V0OjQy" }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+{ "rows": [ … ],
+  "next": "b2Zmc2V0OjQy" }   // opaque — resend as ?cursor=b2Zmc2V0OjQy</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <h3>Error vocabulary</h3>
-  <p>The <code>error.code</code> values are a closed, stable vocabulary — an AI assistant branches on <code>code</code>, never on the HTTP status alone. The error object is <code>{code, message, hint?, challenges?}</code>: <code>hint</code> is an optional remediation pointer (for example the known query names on a <code>not_found</code>), and <code>challenges</code> appears only on <code>pow_required</code>.</p>
+  <h3>Errors — the problem document and its code vocabulary</h3>
+  <p>An error is an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document under <code>Content-Type: application/problem+json</code>. <code>type</code>, <code>title</code> and <code>status</code> are the RFC's own members — <code>type</code> is <code>https://kiosk.tech/problems/&lt;code&gt;</code>, one URI per vocabulary entry, and <code>title</code> is a constant of the type rather than of the incident; <code>detail</code> is the RFC's incident-specific message. <code>code</code>, <code>hint</code> and <code>challenges</code> are extension members. <code>instance</code> is not emitted, and an AI assistant ignores members it does not recognise.</p>
+  <p><strong><code>code</code> is the contract.</strong> It is the closed, stable vocabulary below, REQUIRED on every problem document, and an AI assistant branches on it — never on the HTTP status alone, and never by parsing <code>type</code> to recover it. <code>hint</code> is an optional remediation pointer (for example the known query names on a <code>not_found</code>); <code>challenges</code> appears only on <code>pow_required</code>.</p>
   <table>
     <tr><th>code</th><th>HTTP</th><th>Meaning</th></tr>
     <tr><td><code>bad_request</code></td><td>400</td><td>Malformed request: unparseable JSON body, missing or invalid fields</td></tr>
@@ -144,6 +147,7 @@
     <tr><td><code>spending_cap_exceeded</code></td><td>403</td><td>The acting assistant's per-assistant spending cap would be exceeded by this <code>pay</code>; the human raises the cap (optional, operator-configured — see <a href="#spending-cap">Payment</a>)</td></tr>
     <tr><td><code>kyc_required</code></td><td>403</td><td>An action requires a KYC attribute the AI assistant has not attested; <code>hint</code> names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries (see <a href="#kyc">KYC</a>)</td></tr>
     <tr><td><code>not_found</code></td><td>404</td><td>Unknown query or action name, or a missing resource; <code>hint</code> carries the known names</td></tr>
+    <tr><td><code>method_not_allowed</code></td><td>405</td><td>The path names a verb that exists, called with the other method — a <code>GET</code> at an action's path, a <code>POST</code> at a query's. Carries <code>Allow</code> naming the method the verb accepts, and a <code>hint</code> naming the call to make. Distinct from <code>not_found</code>: the resource exists</td></tr>
     <tr><td><code>conflict</code></td><td>409</td><td>State conflict — e.g. registering a public key that is already registered (use <code>/auth/login</code>)</td></tr>
     <tr><td><code>pow_required</code></td><td>402</td><td>Proof-of-work gate; carries <code>challenges</code> and <code>WWW-Authenticate: Kiosk-PoW</code> (see Proof-of-work)</td></tr>
     <tr><td><code>payment_setup_required</code></td><td>402</td><td>Payment gate: no card on file; no <code>challenges</code>; carries <code>WWW-Authenticate: Payment</code> (see <a href="#card-setup">Card setup</a>)</td></tr>
@@ -152,38 +156,34 @@
     <tr><td><code>action_failed</code></td><td>500</td><td>An operator-registered action raised</td></tr>
     <tr><td><code>internal_error</code></td><td>500</td><td>Catch-all server error</td></tr>
   </table>
-  <p>The auth endpoints speak the same envelope: registering an already-known key is <code>conflict</code>/409, logging in an unknown key is <code>not_found</code>/404 (register first). The one exception on this page is the account-binding <code>/kiosk/oauth/*</code> pair, which follows the OAuth wire (see <a href="#account-binding">Account binding</a>).</p>
+  <p>The auth endpoints answer the same problem documents: registering an already-known key is <code>conflict</code>/409, logging in an unknown key is <code>not_found</code>/404 (register first). The one exception on this page is the account-binding <code>/kiosk/oauth/*</code> pair, which follows the OAuth wire (see <a href="#account-binding">Account binding</a>).</p>
 
   <h2>The <code>schema</code> verb — self-description</h2>
-  <p><code>GET /kiosk/schema</code> (Bearer) returns a <code>kind: "value"</code> envelope whose <code>value</code> is exactly <code>{verbs, queries, actions}</code>:</p>
+  <p><code>GET /kiosk/schema</code> (Bearer) returns exactly <code>{verbs, queries, actions}</code>:</p>
   <pre><code class="language-json">GET /kiosk/schema
 Authorization: Bearer &lt;jwt&gt;
 
 → 200 OK
 {
-  "ok":   true,
-  "kind": "value",
-  "value": {
-    "verbs":   ["query", "run", "pay", "schema"],
-    "queries": [
-      { "name": "catalog", "description": "Browse the product catalog", "params": null },
-      { "name": "search_hotels",
-        "description": "Find hotels matching what the human asked for. A row is a SUMMARY of one property, priced at its cheapest nightly rate rather than a total for the stay; the result is one PAGE of the matching set, and stopping at the first page answers from a partial list.",
-        "params": null,
-        "input_schema": { "type": "object", "additionalProperties": false, "required": ["city"],
-                          "properties": { "city":   {"type":"string", "description":"City to search in."},
-                                          "limit":  {"type":"integer","minimum":1,"maximum":50,"default":20,"description":"Page size."},
-                                          "cursor": {"type":"string", "description":"Opaque `next` cursor from a prior page."} } },
-        "example_params": { "city": "Lisbon", "limit": 20 },
-        "example_row": { "id": 41, "name": "Grand Aljube", "city": "Lisbon", "nightly_price_cents": 14900, "currency": "eur" } }
-    ],
-    "actions": [
-      { "name": "create_order",  "description": "Place an order for what the human chose. Reserves the goods and returns the order to settle; `pay` takes the money.",
-        "input_schema": { "type": "object", "additionalProperties": false, "required": ["items"],
-                          "properties": { "items": {"type":"array","minItems":1,"items":{"type":"string"},"description":"Catalog SKUs to order."} } } },
-      { "name": "payment_setup", "description": "Check or begin card setup",  "params": null }
-    ]
-  }
+  "verbs":   ["query", "run", "pay", "schema"],
+  "queries": [
+    { "name": "catalog", "description": "Browse the product catalog", "params": null },
+    { "name": "search_hotels",
+      "description": "Find hotels matching what the human asked for. A row is a SUMMARY of one property, priced at its cheapest nightly rate rather than a total for the stay; the result is one PAGE of the matching set, and stopping at the first page answers from a partial list.",
+      "params": null,
+      "input_schema": { "type": "object", "additionalProperties": false, "required": ["city"],
+                        "properties": { "city":   {"type":"string", "description":"City to search in."},
+                                        "limit":  {"type":"integer","minimum":1,"maximum":50,"default":20,"description":"Page size."},
+                                        "cursor": {"type":"string", "description":"Opaque `next` cursor from a prior page."} } },
+      "example_params": { "city": "Lisbon", "limit": 20 },
+      "example_row": { "id": 41, "name": "Grand Aljube", "city": "Lisbon", "nightly_price_cents": 14900, "currency": "eur" } }
+  ],
+  "actions": [
+    { "name": "create_order",  "description": "Place an order for what the human chose. Reserves the goods and returns the order to settle; `pay` takes the money.",
+      "input_schema": { "type": "object", "additionalProperties": false, "required": ["items"],
+                        "properties": { "items": {"type":"array","minItems":1,"items":{"type":"string"},"description":"Catalog SKUs to order."} } } },
+    { "name": "payment_setup", "description": "Check or begin card setup",  "params": null }
+  ]
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <ul>
     <li><code>verbs</code> — the full fixed wire surface: all four verb names, always (array order is not significant here, unlike the canonical ordering of <code>capabilities</code>). This is <strong>not</strong> the advertised capability set: <code>capabilities</code> in <code>/.well-known/kiosk.json</code> is computed from what the operator actually registered (it drops <code>pay</code> when no payment provider is configured), while <code>verbs</code> names the protocol surface itself.</li>
@@ -349,7 +349,7 @@ grant_type=urn:ietf:params:oauth:grant-type:device_code
 → on approval:   200 { "access_token": "…kiosk RS256 JWT…", "token_type": "Bearer",
                        "expires_in": 3600 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>The success response is OAuth-pure — the bound identity is not repeated in the body: it rides inside the kiosk JWT's claims (<code>sub</code> = the human's <code>user_id</code>, plus <code>agent_id</code>), exactly as a login-minted token would carry it.</p>
-  <p><strong>The OAuth-shaped exception.</strong> The two <code>/kiosk/oauth/*</code> endpoints follow the OAuth/RFC 8628 wire — requests are form-encoded (<code>application/x-www-form-urlencoded</code>) and errors use the OAuth object (<code>authorization_pending</code>, <code>slow_down</code>, <code>expired_token</code>, <code>access_denied</code>, <code>invalid_grant</code>, and <code>invalid_client</code> for a failed possession proof) — a deliberate exception to the Kiosk envelope, so the ceremony stays recognizable to standard device-grant tooling. Every other endpoint on this page speaks the envelope.</p>
+  <p><strong>The OAuth-shaped exception.</strong> The two <code>/kiosk/oauth/*</code> endpoints follow the OAuth/RFC 8628 wire — requests are form-encoded (<code>application/x-www-form-urlencoded</code>) and errors use the OAuth object (<code>authorization_pending</code>, <code>slow_down</code>, <code>expired_token</code>, <code>access_denied</code>, <code>invalid_grant</code>, and <code>invalid_client</code> for a failed possession proof) — a deliberate exception to the Kiosk problem document, so the ceremony stays recognizable to standard device-grant tooling. Every other endpoint on this page answers problem documents.</p>
   <p><strong>What approval creates.</strong> A binding is created only after BOTH the human's approval AND a valid possession proof — a failed proof answers <code>invalid_client</code> and binds nothing (the row is not consumed; retry with a valid proof). A key the operator has never seen is registered as a <strong>linked assistant account</strong> under the human's <code>user_id</code>. A key that already has a self-standing account is <strong>rebound</strong>: its <code>agent_id</code> is stable, its <code>user_id</code> becomes the human's, and the identity's reputation carries over — claiming is <em>not</em> a reputation reset (no whitewashing) and grants no inherited trust. Because a rebind is a principal change, the key's <strong>pre-link tokens</strong> (still carrying the old <code>user_id</code>) stop verifying — watermark-revoked exactly as unlink revokes; the AI assistant uses the token the claim returns, or re-runs <code>/auth/login</code>, for a token under the new principal. The old standalone account's operator-domain data is not moved; an operator MAY migrate it in its claim hook.</p>
 
   <h3>Link (human-initiated — Kiosk extension)</h3>
@@ -374,40 +374,39 @@ grant_type=urn:ietf:params:oauth:grant-type:device_code
   <pre><code class="language-json">HTTP 402 Payment Required / PoW Required
 WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"
 
+Content-Type: application/problem+json
+
 {
-  "ok": false,
-  "error": {
-    "code": "pow_required",
-    "message": "solve the challenges and retry",
-    "challenges": [
-      {
-        "id":     "9b1c…",
-        "alg":    "equihash",
-        "params": { "n": 168, "k": 7 },
-        "salt":   "dGVzdC1zYWx0…",
-        "exp":    1751846400,
-        "sig":    "hmac-sha256…"
-      }
-    ]
-  }
+  "type":   "https://kiosk.tech/problems/pow_required",
+  "title":  "Proof-of-work required",
+  "status": 402,
+  "detail": "proof-of-work required",
+  "code":   "pow_required",
+  "challenges": [
+    {
+      "id":     "9b1c…",
+      "alg":    "equihash",
+      "params": { "n": 168, "k": 7 },
+      "salt":   "dGVzdC1zYWx0…",
+      "exp":    1751846400,
+      "sig":    "hmac-sha256…"
+    }
+  ]
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>Each challenge is <strong>stateless and request-bound</strong>: the HMAC <code>sig</code> covers the challenge fields plus a fingerprint of the exact request, so the server stores nothing to trust it, and a proof cannot be replayed against a different request. Valid proofs are single-use (a spent-id set on the operator side). Single-use is a property of the operator as a whole, not of one process: an operator running <strong>multiple processes MUST share one spent-id store across all of them</strong>. A per-process store accepts the same proof once per process — a replay the AI assistant has no way to observe.</p>
 
-  <p><strong>Two kinds of 402 gate.</strong> HTTP <code>402</code> carries two distinct gates — an AI assistant MUST branch on <code>error.code</code>, never on the status alone. <code>pow_required</code> (above) always carries an <code>error.challenges</code> array. The other, <code>payment_setup_required</code>, is returned only by <code>POST /kiosk/pay</code> when the identity has no card on file; it carries <strong>no <code>challenges</code> field</strong> and means "run <code>payment_setup</code>", not "solve proof-of-work" (see <a href="#card-setup">Card setup</a>). A <strong>third</strong> code shares the status without being a gate: <code>payment_failed</code> means the charge itself did not settle — there is nothing to solve and nothing to set up (see the error vocabulary above).</p>
+  <p><strong>Two kinds of 402 gate.</strong> HTTP <code>402</code> carries two distinct gates — an AI assistant MUST branch on the problem document's <code>code</code>, never on the status alone. <code>pow_required</code> (above) always carries a <code>challenges</code> array. The other, <code>payment_setup_required</code>, is returned only by <code>POST /kiosk/pay</code> when the identity has no card on file; it carries <strong>no <code>challenges</code> field</strong> and means "run <code>payment_setup</code>", not "solve proof-of-work" (see <a href="#card-setup">Card setup</a>). A <strong>third</strong> code shares the status without being a gate: <code>payment_failed</code> means the charge itself did not settle — there is nothing to solve and nothing to set up (see the error vocabulary above).</p>
 
-  <p><strong><code>WWW-Authenticate</code> disambiguates the two <em>gates</em> at the header level.</strong> Following RFC 7235, each of the two gates also carries a <code>WWW-Authenticate</code> response header naming it — <code>WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"</code> for the proof-of-work gate, and <code>WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"</code> for the payment-setup gate (the IETF <code>Payment</code> scheme; Kiosk settles via AP2). <code>payment_failed</code> deliberately carries <strong>no</strong> <code>WWW-Authenticate</code> at all — no scheme names a charge that failed — so the header tells the two gates apart but never substitutes for the code. A client MAY branch on this header to tell the two gates apart without parsing the body; it MUST still read the body for the challenge list / setup pointer (the header names the gate, the body carries the payload). The header is additive — clients that branch only on <code>error.code</code> are unaffected. The <code>realm</code> is an RFC 7235 <em>protection-space label</em> and nothing more: an AI assistant <strong>MUST NOT</strong> treat it as an origin, and in particular must never derive the possession proof's <code>aud</code> from it — <code>aud</code> always comes from the assistant's own request URL (see <em>Origin binding</em>).</p>
+  <p><strong><code>WWW-Authenticate</code> disambiguates the two <em>gates</em> at the header level.</strong> Following RFC 7235, each of the two gates also carries a <code>WWW-Authenticate</code> response header naming it — <code>WWW-Authenticate: Kiosk-PoW realm="&lt;issuer&gt;"</code> for the proof-of-work gate, and <code>WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"</code> for the payment-setup gate (the IETF <code>Payment</code> scheme; Kiosk settles via AP2). <code>payment_failed</code> deliberately carries <strong>no</strong> <code>WWW-Authenticate</code> at all — no scheme names a charge that failed — so the header tells the two gates apart but never substitutes for the code. A client MAY branch on this header to tell the two gates apart without parsing the body; it MUST still read the body for the challenge list / setup pointer (the header names the gate, the body carries the payload). The header is additive — clients that branch only on <code>code</code> are unaffected. The <code>realm</code> is an RFC 7235 <em>protection-space label</em> and nothing more: an AI assistant <strong>MUST NOT</strong> treat it as an origin, and in particular must never derive the possession proof's <code>aud</code> from it — <code>aud</code> always comes from the assistant's own request URL (see <em>Origin binding</em>).</p>
 
   <p>The AI assistant solves <strong>every</strong> challenge in the list and retries the <strong>same request</strong> — the <strong>identical body</strong> plus a <code>Kiosk-PoW</code> request header carrying the proof(s) as <strong>raw JSON</strong>, echoing each challenge back verbatim. The proof travels in the header, not the body, so the request fingerprint the challenge binds to is unchanged — and a GET verb (<code>schema</code>) can carry its proof too (a GET has no body-proof channel):</p>
 
-  <pre><code class="language-json">POST /kiosk/query
+  <pre><code class="language-json">GET /kiosk/catalog
 Kiosk-PoW: [{"challenge":{"id":"9b1c…","alg":"equihash","params":{"n":168,"k":7},"salt":"dGVzdC1zYWx0…","exp":1751846400,"sig":"hmac-sha256…"},"nonce":{"indices":[3,42,17,"…128 u64 integers in canonical tree order"],"header_nonce":0}}]
+Authorization: Bearer &lt;jwt&gt;</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-{
-  "name": "catalog"
-}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-
-  <p>The <code>Kiosk-PoW</code> header value is <strong>raw minified JSON</strong> (no base64 — a minified proof is all-VCHAR and newline-free, a valid header value). A server accepts, and treats identically, all of: a single proof object <code>{"challenge":…,"nonce":…}</code>; a JSON array of proofs <code>[{…},{…}]</code> (the N-proof case); <strong>repeated <code>Kiosk-PoW</code> header lines</strong>, one proof each; and a proxy comma-combined value <code>{A},{B}</code> — they all flatten to the same proofs list (so N proofs need not fit on one ~8&nbsp;KB header line). The retried body must be <strong>identical</strong> to the original — the proof is bound to the request fingerprint (for the registration toll, to the AI assistant public key instead). A malformed <code>Kiosk-PoW</code> header is a <code>bad_request</code> (400) naming the header and the expected proof shape.</p>
+  <p>The <code>Kiosk-PoW</code> header value is <strong>raw minified JSON</strong> (no base64 — a minified proof is all-VCHAR and newline-free, a valid header value). A server accepts, and treats identically, all of: a single proof object <code>{"challenge":…,"nonce":…}</code>; a JSON array of proofs <code>[{…},{…}]</code> (the N-proof case); <strong>repeated <code>Kiosk-PoW</code> header lines</strong>, one proof each; and a proxy comma-combined value <code>{A},{B}</code> — they all flatten to the same proofs list (so N proofs need not fit on one ~8&nbsp;KB header line). The retried request must be <strong>identical</strong> to the original — same method, same path, same arguments — because the proof is bound to the request fingerprint (for the registration toll, to the AI assistant public key instead). A malformed <code>Kiosk-PoW</code> header is a <code>bad_request</code> (400) naming the header and the expected proof shape.</p>
 
   <p><strong>Index ordering.</strong> The <code>nonce.indices</code> array MUST be in <strong>Zcash canonical (subtree/tree) order</strong> — the ordering a genuine Wagner solution produces, where at each collision level the left half's first index precedes the right half's. It is <strong>not</strong> a global ascending sort: the verifier explicitly <strong>rejects a globally-sorted array of indices</strong>, because that ordering is a trivial reshuffle that does not correspond to the algorithm-bound solution. Submit the indices exactly as the solver emits them. The optional <code>nonce.header_nonce</code> (u32, default 0) is folded into the PoW seed after the salt bytes as a little-endian u32 — an extensibility point, currently always 0; a proof solved for a non-zero <code>header_nonce</code> must carry it.</p>
 
@@ -420,22 +419,17 @@ Kiosk-PoW: [{"challenge":{"id":"9b1c…","alg":"equihash","params":{"n":168,"k":
 
   <h2>Catalog query (example)</h2>
 
-  <pre><code class="language-json">POST /kiosk/query
+  <pre><code class="language-json">GET /kiosk/catalog
 Authorization: Bearer &lt;jwt&gt;
-{"name": "catalog"}
 
 → 200 OK
-{
-  "ok":   true,
-  "kind": "rows",
-  "rows": [
-    {"sku": "milk-1l",     "name": "Whole Milk 1L",        "price_cents": 199},
-    {"sku": "bread-ww",    "name": "Whole Wheat Bread",     "price_cents": 299},
-    {"sku": "eggs-12",     "name": "Free-Range Eggs 12-pack","price_cents": 449}
-  ]
-}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+[
+  {"sku": "milk-1l",     "name": "Whole Milk 1L",        "price_cents": 199},
+  {"sku": "bread-ww",    "name": "Whole Wheat Bread",     "price_cents": 299},
+  {"sku": "eggs-12",     "name": "Free-Range Eggs 12-pack","price_cents": 449}
+]</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The query name (<code>"catalog"</code>) and the shape of <code>rows</code> are <strong>operator-defined</strong>. Kiosk does not mandate a product schema. The AI assistant learns the available queries and their parameters from <code>GET /kiosk/schema</code>.</p>
+  <p>The query name (<code>catalog</code>, and so its path) and the shape of a row are <strong>operator-defined</strong>. Kiosk does not mandate a product schema. The AI assistant learns the available queries and their parameters from <code>GET /kiosk/schema</code>.</p>
 
   <h2>Payment (AP2 mandate chain)</h2>
   <p>Payment follows <strong>AP2</strong> (Agent Payments Protocol) — an emerging open scheme in which an AI assistant authorises a purchase through a short chain of signed mandates rather than by handling card data. Every payment requires three cryptographically signed mandates. Each is a <strong>RS256 JWS</strong> (RFC 7515) signed with the AI assistant's private key. The <code>iss</code> field MUST match the operator's issuer from <code>/.well-known/kiosk.json</code>.</p>
@@ -461,33 +455,25 @@ Authorization: Bearer &lt;jwt&gt;
 
 → 200 OK
 {
-  "ok":   true,
-  "kind": "value",
-  "value": {
-    "settlement_id":      "f1b3e259-8c4d-4a7f-9e12-84b5c7d2a963",
-    "psp_reference":      "pi_3Rz...",
-    "settled_amount_cents": 2499,
-    "currency":           "eur"
-  }
+  "settlement_id":        "f1b3e259-8c4d-4a7f-9e12-84b5c7d2a963",
+  "psp_reference":        "pi_3Rz...",
+  "settled_amount_cents": 2499,
+  "currency":             "eur"
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>If the mandates verify but the charge does not settle — declined, authentication required, insufficient funds, a processor timeout — <code>pay</code> answers <code>402</code> with <code>error.code: "payment_failed"</code>. The message is one the operator has already made safe to show a human: raw payment-processor internals never reach the wire. Read <code>hint</code> before doing anything else — it distinguishes a <strong>definitive</strong> failure (no money moved; the human fixes the payment method, then the call can be retried) from an <strong>unknown</strong> outcome (the processor did not confirm; check the order's paid state through the operator's own queries first, so a lost response is not turned into a double charge).</p>
+  <p>If the mandates verify but the charge does not settle — declined, authentication required, insufficient funds, a processor timeout — <code>pay</code> answers <code>402</code> with <code>code: "payment_failed"</code>. The message is one the operator has already made safe to show a human: raw payment-processor internals never reach the wire. Read <code>hint</code> before doing anything else — it distinguishes a <strong>definitive</strong> failure (no money moved; the human fixes the payment method, then the call can be retried) from an <strong>unknown</strong> outcome (the processor did not confirm; check the order's paid state through the operator's own queries first, so a lost response is not turned into a double charge).</p>
 
   <h2 id="card-setup">Card setup</h2>
   <p>Payment uses Stripe's <strong>SetupIntent card-on-file</strong> model. The AI assistant calls <code>payment_setup</code> before every payment:</p>
 
-  <pre><code class="language-json">POST /kiosk/run
+  <pre><code class="language-json">POST /kiosk/payment_setup
 Authorization: Bearer &lt;jwt&gt;
-{"name": "payment_setup"}
+{}
 
 → First time (no card saved):
 {
-  "ok":   true,
-  "kind": "value",
-  "value": {
-    "status":    "setup_required",
-    "setup_url": "https://checkout.stripe.com/c/pay/..."
-  }
+  "status":    "setup_required",
+  "setup_url": "https://checkout.stripe.com/c/pay/..."
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The AI assistant hands the <code>setup_url</code> to the human. <strong>Never automate Stripe forms</strong> — the human enters their card once on Stripe's hosted page. The AI assistant polls <code>payment_setup</code> until <code>status: "ready"</code>, then proceeds to <code>pay</code>. Subsequent payments use the saved card without human intervention.</p>
@@ -568,7 +554,7 @@ Authorization: Bearer &lt;jwt&gt;
   <ol>
     <li><strong>Core — discovery:</strong> <code>/.well-known/kiosk.json</code> (issuer, endpoint, capabilities, auth block; optional skill pin) and the JWKS document at <code>/kiosk/.well-known/jwks.json</code>.</li>
     <li><strong>Core — auth (kiosk-pop):</strong> challenge / register / login / revoke with proof-of-possession verification, origin-bound <code>aud</code> rejection, single-use server-held nonces, RS256 JWT access tokens, and the revoked-before watermark.</li>
-    <li><strong>Core — wire:</strong> <code>schema</code> (GET) and <code>query</code>/<code>run</code> (POST) with the response envelope, the error vocabulary, the schema self-description format above, and the three version-handshake response headers on every mount-path response.</li>
+    <li><strong>Core — wire:</strong> <code>schema</code> (GET) plus one endpoint per registered verb (GET for a query, POST for an action) with the response shape, the problem-document error vocabulary including the <code>405</code>&nbsp;+&nbsp;<code>Allow</code> answer, the caching rules, the schema self-description format above, and the three version-handshake response headers on every mount-path response.</li>
     <li><strong>Core — identity binding:</strong> the session contract above — every verb scoped to the authenticated identity.</li>
     <li><strong>Module <code>pay</code></strong> (advertised via <code>capabilities</code>): AP2 mandate-chain verification — required claims, chain binding, cap/total/amount rules — plus the <code>payment_setup</code> convention and the <code>payment_setup_required</code> 402 with <code>WWW-Authenticate: Payment</code>.</li>
     <li><strong>Module proof-of-work</strong> (MAY): the Equihash 402 gate — stateless HMAC-signed challenges, all-proofs verification, a single-use spent set shared across every process the operator runs, canonical index-order rejection, <code>WWW-Authenticate: Kiosk-PoW</code> — and the optional registration toll binding proofs to the registering key.</li>
@@ -577,21 +563,21 @@ Authorization: Bearer &lt;jwt&gt;
   </ol>
 
   <h3>AI assistant profile</h3>
-  <p>A client is a <strong>Kiosk-compatible AI assistant</strong> when it: branches on <code>error.code</code>, never on the HTTP status alone; fills the proof's <code>aud</code> from the origin it dialed, never from server-supplied data; solves <strong>every</strong> challenge in a <code>pow_required</code> list and retries the identical body with the proof(s) in the <code>Kiosk-PoW</code> request header; runs <code>payment_setup</code> and hands <code>setup_url</code> to the human rather than automating card entry; performs the skill dual-check, never loading skill instructions from the operator; and, when the human owns an existing operator account, binds instead of registering — the claim ceremony (hand over <code>user_code</code> + <code>verification_uri</code>, poll with a possession proof) or a human-supplied link code redeemed with <code>{code, public_key, signed}</code>.</p>
+  <p>A client is a <strong>Kiosk-compatible AI assistant</strong> when it: branches on the problem document's <code>code</code>, never on the HTTP status alone; fills the proof's <code>aud</code> from the origin it dialed, never from server-supplied data; solves <strong>every</strong> challenge in a <code>pow_required</code> list and retries the identical body with the proof(s) in the <code>Kiosk-PoW</code> request header; runs <code>payment_setup</code> and hands <code>setup_url</code> to the human rather than automating card entry; performs the skill dual-check, never loading skill instructions from the operator; and, when the human owns an existing operator account, binds instead of registering — the claim ceremony (hand over <code>user_code</code> + <code>verification_uri</code>, poll with a possession proof) or a human-supplied link code redeemed with <code>{code, public_key, signed}</code>.</p>
 
   <h3>Conformance anchors</h3>
-  <p>Two oracles pin behavior beyond this text: the reference's <strong>frozen Equihash known-answer tests</strong> at production parameters (n=168, k=7) — a ported verifier MUST reproduce them — and the reference's <strong>end-to-end AI-assistant harness</strong> (see Reference below), which exercises the golden path an independent implementation should survive: discovery → register → schema → query → run → pay, plus the error envelopes. Machine-readable <a href="/spec/protocol.md">JSON Schemas</a> for every wire object ship with the <a href="/spec/protocol.md">formal specification</a> (Section 17 lists each file) and are the schema-level oracle. A published stack-neutral black-box conformance suite does not exist yet.</p>
+  <p>Two oracles pin behavior beyond this text: the reference's <strong>frozen Equihash known-answer tests</strong> at production parameters (n=168, k=7) — a ported verifier MUST reproduce them — and the reference's <strong>end-to-end AI-assistant harness</strong> (see Reference below), which exercises the golden path an independent implementation should survive: discovery → register → schema → query → run → pay, plus the problem documents. Machine-readable <a href="/spec/protocol.md">JSON Schemas</a> for every wire object ship with the <a href="/spec/protocol.md">formal specification</a> (Section 17 lists each file) and are the schema-level oracle. A published stack-neutral black-box conformance suite does not exist yet.</p>
 
   <p><strong>Ports are invited.</strong> The reference implementation is deliberately one stack, done completely. A Go, Python, or Node implementation of this page is a Kiosk operator — start from the operator profile, validate proof-of-work against the KATs, then run an AI assistant through the golden path.</p>
 
   <h2>Reference</h2>
   <ul>
     <li><a href="https://github.com/kiosk-hq/kiosk.tech">github.com/kiosk-hq/kiosk.tech</a> — this specification, onboarding guide, and AI assistant skill (Apache 2.0)</li>
-    <li><a href="/spec/protocol.md">Formal specification</a> — the RFC-style protocol contract with <a href="/spec/protocol.md">machine-readable JSON Schemas</a> for every wire object (listed in Section 17, e.g. <a href="/spec/schemas/envelope.schema.json">envelope.schema.json</a>); for implementers porting Kiosk to another stack</li>
+    <li><a href="/spec/protocol.md">Formal specification</a> — the RFC-style protocol contract with <a href="/spec/protocol.md">machine-readable JSON Schemas</a> for every wire object (listed in Section 17, e.g. <a href="/spec/schemas/problem.schema.json">problem.schema.json</a>); for implementers porting Kiosk to another stack</li>
     <li><a href="/onboarding.html">Operator onboarding guide</a> — add Kiosk to your Rails app: ~20–40 min for a read-only mount, a few hours to a day for a full payments integration</li>
     <li><a href="/skill.md">AI assistant skill</a> — the universal AI assistant integration guide</li>
     <li><code>kiosk-demo-getgrocery/getgrocery_flow.rb</code> — full AI assistant walkthrough: register → catalog → order → pay → schedule</li>
-    <li><code>e2e/run.sh</code> — automated E2E test that builds a fresh Rails app and exercises the core wire flow (discovery, registration, query, run, pay, and error envelopes)</li>
+    <li><code>e2e/run.sh</code> — automated E2E test that builds a fresh Rails app and exercises the core wire flow (discovery, registration, queries, actions, pay, and the problem documents)</li>
   </ul>
 </article>
 

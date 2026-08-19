@@ -1,6 +1,9 @@
 {
+  "type": "https://kiosk.tech/problems/pow_required",
+  "title": "Proof-of-work required",
+  "status": 402,
+  "detail": "proof-of-work required",
   "code": "pow_required",
-  "message": "solve the challenges and retry",
   "challenges": [
     {
       "id": "9b1c",

@@ -13,6 +13,26 @@ The protocol, the reference implementation, and the AI assistant skill share the
 MAJOR.MINOR version (**version parity**). This document specifies protocol
 version **0.3**.
 
+### Status of this revision -- 0.4 is being written into this document
+
+**The wire sections below (Section 3 item 7, Section 8, Section 9) already
+describe protocol 0.4.** The version line above still reads 0.3 because 0.4 is
+not released: the released reference implementation, every deployed operator
+and all nineteen published skill cuts speak 0.3, and the version flip, the new
+skill cut and the pin re-issue happen together at cutover. Nothing here is a
+dual stack -- 0.4 replaces 0.3 outright, with no tombstones and no compatibility
+mode. This block is deleted at cutover.
+
+Three surfaces of the reference implementation have not caught up yet, and
+they move in ONE wave with the demo fleet at cutover:
+
+| Surface | Specified here as | Reference still serves |
+|---|---|---|
+| `<endpoint>/<verb-name>` (Section 8.1) | payload verbatim; problem documents | as specified |
+| `<endpoint>/{schema,pay}` | payload verbatim; problem documents | the retired 0.3 envelope |
+| `<endpoint>/{query,run}` | **deleted** -- no such endpoints | still routed, 0.3 envelope |
+| the auth plane (Section 5, Section 6, Section 12) | problem documents on error | the retired 0.3 error envelope |
+
 ---
 
 ## 1. Introduction
@@ -73,8 +93,8 @@ wire only where they do not:
   (`agents.txt`, `agents.json`, `/.well-known/agent-configuration`,
   RFC 9727 `api-catalog`) as envelopes around the canonical `kiosk.json` (Section 4.5).
 
-Kiosk-specific is the **wire contract**: the four verbs, the response envelope,
-the error vocabulary, the identity-binding (session) semantics, and the
+Kiosk-specific is the **wire contract**: the per-verb endpoints, the response
+shape, the error vocabulary, the identity-binding (session) semantics, and the
 proof-of-work gate.
 
 ---
@@ -99,8 +119,8 @@ proof-of-work gate.
 - **Verb** -- one of the four fixed wire operations: `schema`, `query`, `run`,
   `pay`.
 - **Capability** -- a verb a given operator actually serves (Section 4.3).
-- **Envelope** -- the uniform `{ok, kind, ...}` / `{ok:false, error}` wrapper on
-  every verb response (Section 8).
+- **Problem document** -- the RFC 9457 `application/problem+json` object a verb
+  answers on an error, carrying the vocabulary `code` (Section 9).
 - **Mandate** -- one link of the signed AP2 payment chain: intent, cart, or
   payment (Section 11).
 - **Proof-of-work (PoW)** -- a memory-hard, request-bound challenge an operator MAY
@@ -155,6 +175,32 @@ proof-of-work gate.
    numbers off a response tells an AI assistant nothing about which skill
    version to load -- that comes from the discovery document's `skill` pin
    (Section 4.1) and the dual-check (Section 14).
+7. **Caching.** Every verb response is scoped to the authenticated identity
+   (Section 7), and a tolled `200` differs from its `402` (Section 10) only by
+   a request header -- so the cache rules are part of the response contract,
+   not a deployment detail.
+
+   1. An operator **MUST** send `Vary: Authorization, Kiosk-PoW` on every verb
+      response. Without `Authorization` a cache keyed on the URL serves one
+      identity's payload to another; without `Kiosk-PoW` it serves a paid `200`
+      to an unpaid retry -- defeating the toll -- or a stale `402` to a paid
+      one, which is a retry loop the AI assistant cannot break.
+   2. A `402` **MUST** carry `Cache-Control: no-store`. A proof-of-work
+      challenge is single-use, request-bound and expiring (Section 10); storing
+      one is never correct.
+   3. An operator **MUST NOT** send `public` or `s-maxage` on a verb response.
+      Shared caching of an identity-scoped payload is a cross-tenant leak, and
+      stating it as a prohibition closes the door on a well-meaning CDN
+      configuration rather than relying on the default in
+      [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) Section 3.5.
+   4. The default for a `200` is `Cache-Control: private, no-store`. An
+      operator **MAY** relax it to `private, max-age=N` for a payload that is
+      genuinely identity-independent -- a public catalogue, say -- and doing so
+      is how an AI assistant's own cache saves a toll: a response still fresh
+      in cache is not re-requested and therefore not re-challenged.
+   5. Conditional requests (`ETag` / `If-None-Match`) are permitted and useful,
+      but an operator **MUST** run the toll gate BEFORE the freshness check. A
+      `304` is a served response; revalidating a tolled resource costs a proof.
 
 ---
 
@@ -327,7 +373,7 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
    returns OAuth-shaped `{access_token, token_type: "Bearer", expires_in}` (the
    bound identity rides in the JWT claims, not the body).
 
-The `/oauth/*` endpoints are the **one exception** to the Kiosk envelope: they use
+The `/oauth/*` endpoints are the **one exception** to the Kiosk problem document: they use
 the OAuth wire, with errors `authorization_pending`, `slow_down`, `expired_token`,
 `access_denied`, `invalid_grant`, and `invalid_client` (a failed possession proof).
 
@@ -381,47 +427,80 @@ observable behavior: cross-identity reads and writes fail (`403 forbidden` or
 
 ---
 
-## 8. Wire verbs and the response envelope
+## 8. Wire verbs and the response shape
 
-Schemas: [`envelope.schema.json`](./schemas/envelope.schema.json),
+Schemas: [`problem.schema.json`](./schemas/problem.schema.json),
 [`schema-descriptor.schema.json`](./schemas/schema-descriptor.schema.json).
 
 ### 8.1 Verb-to-path binding
 
-The four verbs are bound to fixed methods and paths under `endpoint`:
+**Every verb is its own endpoint under `endpoint`, and the HTTP method carries
+the read/write semantics:**
 
 | Verb | Method | Path | Auth |
 |---|---|---|---|
 | `schema` | GET | `<endpoint>/schema` | Bearer |
-| `query` | POST | `<endpoint>/query` | Bearer |
-| `run` | POST | `<endpoint>/run` | Bearer |
+| a query | GET | `<endpoint>/<query-name>` | Bearer |
+| an action | POST | `<endpoint>/<action-name>` | Bearer |
 | `pay` | POST | `<endpoint>/pay` | Bearer |
 
-All POST bodies are JSON. The concrete query and action **names** are
-operator-defined and discovered via `schema`; they are not part of this
-specification.
+The concrete query and action **names** are operator-defined and discovered via
+`schema`; they are not part of this specification. A name is one path segment
+matching `^[a-z][a-z0-9_]*$`.
 
-### 8.2 Response envelope
+An operator **MUST** answer `405` (Section 9) with an `Allow` header when the
+path names a verb that exists but the method is the other one -- a `GET` at an
+action's path, a `POST` at a query's. It is a distinct answer from `404`
+because the resource exists.
 
-Every `schema`/`query`/`run`/`pay` response -- success or error -- **MUST** be one
-of two shapes. A success carries `ok: true` and a `kind` discriminator naming the
-payload field:
+**Where a verb's arguments live.** A query's arguments are in the URL query
+string; an action's are in a JSON request body. There is no third channel: an
+operator **MUST NOT** read a query string on an action, or a body on a query.
+The query-string encoding is:
 
-- `kind: "rows"` -> payload under `rows` (array; queries).
-- `kind: "value"` -> payload under `value` (object; `schema`, actions, `pay`).
-- `kind: "events"` -> payload under `events` (reserved).
+1. **Scalars** are `name=value`. Strings are UTF-8, percent-encoded; booleans
+   are the literals `true` / `false`; numbers are JSON number literals; dates
+   are `YYYY-MM-DD`.
+2. **Arrays of scalars** are repeated `name[]=value`, percent-encoded on the
+   wire as `name%5B%5D=value`. A bare repeated `name=` is **NOT** an array and
+   a server **MUST NOT** invent one from it.
+3. **Objects** are `name[key]=value` (`name%5Bkey%5D=value`), **one level deep,
+   scalar leaves only**.
+4. **Nothing deeper is a query.** A read whose input needs an array of objects,
+   two levels of nesting, or an array-valued object leaf **MUST** be modelled
+   as an action.
+5. **Types come from `input_schema`** (Section 8.3): the operator coerces each
+   parameter to its declared type before validating it and before the handler
+   sees it, and a value that cannot be that type is `400 bad_request` naming
+   the parameter.
+6. `limit` and `cursor` (Section 8.4) are **RESERVED** parameter names: always
+   accepted, never declared in a verb's `input_schema`.
+7. **Absent is not empty.** `?title=` decodes to the empty string, not to an
+   absent parameter.
 
-A `kind: "rows"` success MAY additionally carry an OPTIONAL top-level `next`
-string -- the pagination cursor (Section 8.4). No other `kind` ever carries
-`next`.
+### 8.2 Response shape
 
-An error carries `ok: false` and an `error` object (Section 9). An AI assistant **MUST** branch
-on the envelope and on `error.code`, never on the HTTP status alone.
+**A success response body is the verb's result, and nothing else.** There is no
+envelope, no `ok` flag and no `kind` discriminator: the HTTP status line says
+whether the call succeeded, and `output_schema` (Section 8.3) says what the
+result looks like.
+
+- A query that does not paginate answers a **JSON array** of rows.
+- A query that paginates answers `{"rows": [...], "next": "<cursor>"}`
+  (Section 8.4).
+- An action answers its own JSON value, typically an object.
+- `schema` answers `{verbs, queries, actions}` (Section 8.3); `pay` answers its
+  settlement object (Section 11.3).
+
+Whichever it is, it **MUST** match the verb's declared `output_schema`.
+
+An error response body is an **RFC 9457 problem document** (Section 9). An AI
+assistant **MUST** branch on the problem's `code`, never on the HTTP status
+alone.
 
 ### 8.3 The `schema` verb
 
-`GET <endpoint>/schema` (Bearer) returns a `kind: "value"` envelope whose `value`
-is `{verbs, queries, actions}`. `verbs` is the invariant four -- all of
+`GET <endpoint>/schema` (Bearer) returns `{verbs, queries, actions}`. `verbs` is the invariant four -- all of
 `query`, `run`, `pay`, `schema`, always (`events` is reserved) -- naming the
 protocol surface itself, NOT the served subset. The served subset is
 `capabilities` in `/.well-known/kiosk.json`, which is computed from what the
@@ -483,39 +562,72 @@ For guidance on WRITING these fields consistently (how to phrase a
 
 ### 8.4 Cursor pagination
 
-A `query` that returns a list MAY paginate. The response is a normal
-`kind: "rows"` envelope with an OPTIONAL top-level `next` string:
+A query that returns a list MAY paginate. A paginating query answers an OBJECT
+rather than a bare array -- `{"rows": [...], "next": "<cursor>"}` -- and
+declares that object in its `output_schema`:
 
 - `next` **PRESENT** -> the result was TRUNCATED; more rows exist. To fetch the
   following page, the AI assistant repeats the *same* query with `next`'s value
   echoed back verbatim as the `cursor` request param.
-- `next` **ABSENT** -> the result is COMPLETE (this is the last, or only, page).
+- `next` **ABSENT** (the answer is a bare array, or an object with `rows` only)
+  -> the result is COMPLETE (this is the last, or only, page).
 
 The cursor is **OPAQUE**: the assistant MUST treat `next` as an opaque token,
 echo it back unmodified, and MUST NOT parse or construct it. An operator MAY
 encode an offset, a keyset token, or any scheme behind it.
 
 Two OPTIONAL request params drive pagination, both read by the operator's query
-handler (they are ordinary query params, not a separate envelope):
+handler and both RESERVED names (Section 8.1 item 6) an operator always accepts
+and never declares:
 
 - `limit` -- integer, the maximum rows the assistant wants in one page. The
   operator MAY clamp it to a maximum.
 - `cursor` -- the opaque string from the previous page's `next`.
 
-Pagination applies to LIST (`kind: "rows"`) results ONLY. Single-object,
-action, and `pay` results (`kind: "value"`) never carry `next`. A query handler
-that ignores `limit`/`cursor` and never emits `next` is a valid non-paginating
-query -- pagination is opt-in per query.
+Pagination applies to LIST results ONLY. Action and `pay` results never carry
+`next`. A query that ignores `limit`/`cursor`, answers a bare array and never
+emits `next` is a valid non-paginating query -- pagination is opt-in per query,
+and `output_schema` is where an AI assistant reads which of the two shapes a
+given query answers.
 
 ---
 
-## 9. Error vocabulary
+## 9. Errors -- problem documents and the code vocabulary
 
-Schema: [`error.schema.json`](./schemas/error.schema.json).
+Schema: [`problem.schema.json`](./schemas/problem.schema.json).
 
-The `error` object is `{code, message?, hint?, challenges?}`. `code` is a closed,
-stable vocabulary; `hint` is an optional remediation pointer; `challenges` appears
-**only** on `pow_required`.
+An error response is a **problem document** per
+[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457), served with
+`Content-Type: application/problem+json`:
+
+```json
+{
+  "type":   "https://kiosk.tech/problems/kyc_required",
+  "title":  "KYC attestation required",
+  "status": 403,
+  "detail": "this rental requires age_over_18 and licence_a",
+  "code":   "kyc_required",
+  "hint":   "submit a signed attestation carrying those attributes, then retry"
+}
+```
+
+- `type`, `title` and `status` are the RFC's own members. `type` is
+  `https://kiosk.tech/problems/<code>` -- one URI per vocabulary entry, so the
+  closed vocabulary IS the problem-type space. `title` is a constant of the
+  type, not of the incident; `status` restates the HTTP status.
+- `detail` is the RFC's incident-specific sentence -- the human-readable
+  message.
+- `code`, `hint` and `challenges` are RFC 9457 **extension members**.
+
+**`code` is the contract.** It is the closed, stable vocabulary an AI assistant
+branches on, and it is REQUIRED on every Kiosk problem document. An AI
+assistant **MUST** branch on `code` and **MUST NOT** parse `type` to recover it
+-- the URI names the code, the code is the code. An operator **MUST NOT** emit
+a `code` outside this table.
+
+`hint` is an OPTIONAL remediation pointer; `challenges` appears **only** on
+`pow_required`. `instance` is not emitted. An AI assistant **MUST** ignore
+members it does not recognise.
 
 | `code` | HTTP | Meaning |
 |---|---|---|
@@ -526,6 +638,7 @@ stable vocabulary; `hint` is an optional remediation pointer; `challenges` appea
 | `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay` (Section 11.5); the human must raise the cap. |
 | `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.3); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
 | `not_found` | 404 | Unknown query/action name or missing resource; `hint` carries known names. |
+| `method_not_allowed` | 405 | The path names a verb that exists, called with the other method -- a `GET` at an action's path or a `POST` at a query's (Section 8.1). The response **MUST** carry `Allow` naming the method the verb accepts; `hint` names the call to make. Distinct from `not_found`: the resource exists. |
 | `conflict` | 409 | State conflict -- e.g. registering an already-registered key. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
@@ -542,7 +655,8 @@ all**: no scheme names a charge that simply failed, so there is no protection
 space to challenge into. An operator **MUST NOT** emit a `WWW-Authenticate`
 header on `payment_failed`, and an AI assistant **MUST** branch on `code` -- a
 client that reads the status, or the presence of a challenge header, cannot tell
-these three apart.
+these three apart. (They are three distinct problem `type` URIs for the same
+reason.)
 
 On `payment_failed` the `hint` distinguishes two outcomes an AI assistant must
 handle differently: a **definitive** failure (no money moved -- the human can fix
@@ -551,8 +665,9 @@ the payment method via `payment_setup` and the call may be retried) and an
 the order's paid state through the operator's own queries before retrying, so a
 lost response cannot double-charge).
 
-The auth endpoints speak the same envelope; the only exception on the wire is the
-account-binding `/oauth/*` pair, which uses the OAuth error object (Section 6.1).
+The auth endpoints answer the same problem documents; the only exception on the
+wire is the account-binding `/oauth/*` pair, which uses the OAuth error object
+(Section 6.1).
 
 ---
 
@@ -565,7 +680,7 @@ An operator **MAY** require proof-of-work before serving a request. There is
 or `pay` -- as well as `POST /auth/register`. The always-free entrypoint is the
 discovery layer (`/.well-known/kiosk.json`, `agents.json`/`agents.txt`), not the
 `schema` verb. The gate
-responds `402` with `error.code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
+responds `402` with `code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
 realm="<issuer>"` (Section 9), carrying a `challenges` array. The `realm` is an
 RFC 7235 protection-space label and nothing more: an AI assistant **MUST NOT**
 treat it as an origin, and in particular **MUST NOT** derive the possession
@@ -659,11 +774,10 @@ three signatures against the AI assistant's registered key -- providing non-repu
 
 `POST <endpoint>/pay` (Bearer) with
 `{intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}`. On success it
-returns a `kind: "value"` envelope whose `value` is
-`{settlement_id, psp_reference, settled_amount_cents, currency}`. If the mandates
+returns `{settlement_id, psp_reference, settled_amount_cents, currency}`. If the mandates
 verify but the charge itself does not settle -- declined, authentication
 required, insufficient funds, or a processor timeout -- `pay` answers `402` with
-`error.code: "payment_failed"` (Section 9), carrying a message the operator has
+`code: "payment_failed"` (Section 9), carrying a message the operator has
 already made safe to show a human: it **MUST NOT** relay raw PSP internals.
 
 ### 11.4 Card setup
@@ -779,10 +893,10 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    fields only. Within 0.3.x the wire stays backward-compatible and additive:
    patches add endpoints and fields only; existing request/response fields and
    their meaning **MUST NOT** change or be removed. An AI assistant **MUST** ignore
-   unknown response fields. The optional envelope `next` cursor (Section 8.4)
-   and the optional descriptor `input_schema`/`example_params`/`example_row`
-   fields (Section 8.3) are exactly this kind of additive extension: absent on
-   responses that predate them, they never alter an existing shape.
+   unknown response fields (including unrecognised problem-document members).
+   The optional descriptor `example_params`/`example_row` fields (Section 8.3)
+   are exactly this kind of additive extension: absent on responses that
+   predate them, they never alter an existing shape.
 3. **Discovery-document format version.** The `version` field inside
    `/.well-known/kiosk.json` is the **discovery-document format version**
    (currently `"1.0"`), independent of the protocol version this document
@@ -891,9 +1005,11 @@ optional modules it advertises in `capabilities`:
 2. **Core -- auth (kiosk-pop)** (Section 5): challenge / register / login / revoke with
    proof-of-possession verification, origin-bound `aud` rejection, single-use
    server-held nonces, RS256 JWT access tokens, and the revoked-before watermark.
-3. **Core -- wire** (Section 8, Section 9): `schema` (GET), `query`/`run` (POST), the response
-   envelope, the error vocabulary, and the three version-handshake response
-   headers on every mount-path response (Section 3, point 6).
+3. **Core -- wire** (Section 8, Section 9): `schema` (GET), one endpoint per
+   registered verb (GET for a query, POST for an action), the response shape,
+   the problem-document error vocabulary including the `405` + `Allow` answer,
+   the caching rules (Section 3, point 7), and the three version-handshake
+   response headers on every mount-path response (Section 3, point 6).
 4. **Core -- identity binding** (Section 7): every verb scoped to the authenticated
    identity.
 5. **Module `pay`** (Section 11): AP2 mandate-chain verification and the
@@ -906,7 +1022,7 @@ optional modules it advertises in `capabilities`:
 
 ### 16.2 AI assistant profile
 
-A client is a **Kiosk-compatible AI assistant** when it: branches on `error.code`, never
+A client is a **Kiosk-compatible AI assistant** when it: branches on the problem document's `code`, never
 the HTTP status alone; fills the proof `aud` from the origin it dialed; solves
 every challenge in a `pow_required` list and retries the identical body with the
 proof(s) in the `Kiosk-PoW` request header; runs `payment_setup` and hands `setup_url` to the human rather than
@@ -923,7 +1039,7 @@ Two oracles pin behavior beyond this text:
    a ported verifier MUST reproduce them.
 
 The reference end-to-end harness exercises the golden path
-(discovery -> register -> schema -> query -> run -> pay, plus the error envelopes) an
+(discovery -> register -> schema -> query -> run -> pay, plus the problem documents) an
 independent implementation should survive. A published stack-neutral black-box
 conformance suite does not exist yet (Tier 3, deferred).
 
@@ -937,8 +1053,7 @@ Machine-readable schemas for every wire object live in
 | Object | Schema |
 |---|---|
 | Discovery document | [`discovery.schema.json`](./schemas/discovery.schema.json) |
-| Response envelope | [`envelope.schema.json`](./schemas/envelope.schema.json) |
-| Error object | [`error.schema.json`](./schemas/error.schema.json) |
+| Error (problem document) | [`problem.schema.json`](./schemas/problem.schema.json) |
 | Schema descriptor | [`schema-descriptor.schema.json`](./schemas/schema-descriptor.schema.json) |
 | PoW challenge + proof | [`pow.schema.json`](./schemas/pow.schema.json) |
 | AP2 mandates | [`mandates.schema.json`](./schemas/mandates.schema.json) |
@@ -952,6 +1067,9 @@ Machine-readable schemas for every wire object live in
 - RFC 7515 (JWS), RFC 7517 (JWK), RFC 7519 (JWT) -- token formats
 - RFC 7235 -- HTTP authentication framework (`WWW-Authenticate`)
 - RFC 8259 -- JSON
+- RFC 9110 -- HTTP semantics (`405 Method Not Allowed` and its `Allow` header)
+- RFC 9111 -- HTTP caching (Section 3, point 7)
+- RFC 9457 -- Problem Details for HTTP APIs (the error shape, Section 9)
 - RFC 8628 -- OAuth 2.0 Device Authorization Grant
 - AP2 -- Agent Payments Protocol (mandate shapes)
 - Narrative specification -- <https://kiosk.tech/specification.html>
