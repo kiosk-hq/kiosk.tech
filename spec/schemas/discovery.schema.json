@@ -24,8 +24,8 @@
         },
         "capabilities": {
           "type": "array",
-          "description": "The verbs this endpoint actually serves, from the canonical set, in canonical order.",
-          "items": { "enum": ["schema", "query", "run", "pay"] },
+          "description": "The MODULES this endpoint serves, from the canonical set, in canonical order. Never the origin's registered verb NAMES: this document is unauthenticated, and the catalog that enumerates the verbs is Bearer-gated behind GET <endpoint>/schema.",
+          "items": { "enum": ["schema", "queries", "actions", "pay"] },
           "uniqueItems": true
         },
         "min_client": {

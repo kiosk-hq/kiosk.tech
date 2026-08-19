@@ -1,11 +1,19 @@
 {
+  "$comment": "REJECTED ON PURPOSE. Byte-for-byte the sibling examples/discovery.json except for `capabilities`, which carries protocol 0.3's VERB-NAME members. validate.sh asserts this document FAILS discovery.schema.json: a 0.4 origin advertises the MODULES it serves (schema, queries, actions, pay), and an origin still advertising verb names is answering an older protocol.",
   "kiosk": {
     "version": "1.0",
     "issuer": "https://getgrocery.demo.kiosk.tech",
     "endpoint": "https://getgrocery.demo.kiosk.tech/kiosk",
-    "capabilities": ["schema", "queries", "actions", "pay"],
+    "capabilities": [
+      "schema",
+      "query",
+      "run",
+      "pay"
+    ],
     "min_client": "0.2.0",
-    "owner": { "email": "ops@getgrocery.demo.kiosk.tech" },
+    "owner": {
+      "email": "ops@getgrocery.demo.kiosk.tech"
+    },
     "auth": {
       "kind": "kiosk-pop",
       "challenge_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/challenge",

@@ -8,8 +8,8 @@
   "properties": {
     "verbs": {
       "type": "array",
-      "description": "The invariant four verbs (query, run, pay, schema), always all present -- the protocol surface itself, NOT the served subset. The served subset is `capabilities` in /.well-known/kiosk.json.",
-      "items": { "enum": ["schema", "query", "run", "pay"] },
+      "description": "The MODULES this origin serves -- byte-identical to `capabilities` in /.well-known/kiosk.json, which is the point: one origin, one self-description. Which VERBS it serves is `queries` and `actions` below.",
+      "items": { "enum": ["schema", "queries", "actions", "pay"] },
       "uniqueItems": true
     },
     "queries": {

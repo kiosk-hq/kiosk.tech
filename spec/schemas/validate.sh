@@ -18,6 +18,17 @@ chk() {
     fail=$((fail+1)); echo "FAIL: ${@: -1}"; sed 's/^/   /' "$TMP/err"
   fi
 }
+# A schema is only as good as what it REFUSES, so some examples are checked for
+# rejection. `chk` above passes when ajv exits 0; this one passes when it does
+# not. Anything that made the schema vacuous — a dropped `enum`, an `items`
+# that stopped constraining — turns a rejected example green here.
+chkfail() {
+  if "${AJV[@]}" "$@" >/dev/null 2>|"$TMP/err"; then
+    fail=$((fail+1)); echo "FAIL (expected rejection, got acceptance): ${@: -1}"
+  else
+    pass=$((pass+1))
+  fi
+}
 # thin wrapper schema so an example can be checked against a specific $def
 ref() { printf '{"$ref":"%s"}\n' "$2" >|"$TMP/$1.json"; echo "$TMP/$1.json"; }
 B="https://kiosk.tech/spec/schemas"
@@ -45,6 +56,14 @@ chk validate "${F[@]}" -s "$(ref payreq  "$B/mandates.schema.json#/\$defs/payReq
 chk validate "${F[@]}" -s "$(ref settle  "$B/mandates.schema.json#/\$defs/settlement")" -r mandates.schema.json -d examples/settlement.json
 chk validate "${F[@]}" -s "$(ref att     "$B/kyc.schema.json#/\$defs/attestation")"     -r kyc.schema.json -d examples/kyc.attestation.json
 chk validate "${F[@]}" -s "$(ref kycreq  "$B/kyc.schema.json#/\$defs/request")"         -r kyc.schema.json -d examples/kyc.request.json
+
+echo "== reject what the schemas must refuse =="
+# T-068 slice 5 / T-075 = A: `capabilities` and `verbs` name MODULES
+# (schema, queries, actions, pay). Each of these documents is its accepted
+# sibling with that ONE array reverted to protocol 0.3's verb names, so the
+# only thing that can make it pass is the enum going soft.
+chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discovery.verb-names.json
+chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.verb-names.json
 
 echo "-----"
 echo "PASS=$pass FAIL=$fail"

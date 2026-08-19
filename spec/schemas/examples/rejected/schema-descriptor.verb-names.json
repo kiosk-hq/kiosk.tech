@@ -1,0 +1,274 @@
+{
+  "$comment": "REJECTED ON PURPOSE. Byte-for-byte the sibling examples/schema-descriptor.json except for `verbs`, which carries protocol 0.3's invariant four. validate.sh asserts this document FAILS schema-descriptor.schema.json: since 0.4 `verbs` is the module set and equals `capabilities` in /.well-known/kiosk.json.",
+  "verbs": [
+    "schema",
+    "query",
+    "run",
+    "pay"
+  ],
+  "queries": [
+    {
+      "name": "catalog",
+      "description": "Browse everything on offer. The whole catalogue comes back in one call, so this is the cheap way to see what exists before narrowing.",
+      "params": null,
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      },
+      "output_schema": {
+        "type": "array",
+        "description": "Every item on offer, one row each. Not paginated.",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sku",
+            "name",
+            "price_cents",
+            "currency"
+          ],
+          "properties": {
+            "sku": {
+              "type": "string",
+              "description": "Stable item handle -- reference items by this, never by a numeric id."
+            },
+            "name": {
+              "type": "string",
+              "description": "Display name."
+            },
+            "price_cents": {
+              "type": "integer",
+              "description": "EUR cents."
+            },
+            "currency": {
+              "type": "string",
+              "description": "eur."
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "search_hotels",
+      "description": "Find hotels matching what the human actually asked for; narrow with the filters this verb declares rather than pulling the whole catalogue. A row is a SUMMARY of one property, priced at its cheapest nightly rate and not at a total for the stay. The result is one PAGE of the matching set: when more hotels match, the response says so, and stopping at the first page answers from a partial list.",
+      "params": null,
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "city"
+        ],
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "City to search in."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 20,
+            "description": "Page size."
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque `next` cursor from a prior page."
+          }
+        }
+      },
+      "output_schema": {
+        "$defs": {
+          "hotel": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "city",
+              "nightly_price_cents",
+              "currency"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "description": "Pass to the detail verb."
+              },
+              "name": {
+                "type": "string",
+                "description": "Hotel name."
+              },
+              "city": {
+                "type": "string",
+                "description": "City the property is in."
+              },
+              "nightly_price_cents": {
+                "type": "integer",
+                "description": "EUR cents PER NIGHT for the cheapest room."
+              },
+              "currency": {
+                "type": "string",
+                "description": "eur."
+              }
+            }
+          }
+        },
+        "description": "One page of matching hotels. A PAGINATING query has two conformant spellings and declares both: a truncated page is the object, a complete one is a bare array (Section 8.4).",
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/hotel"
+            },
+            "description": "The last (or only) page: no `next`, so no more hotels match."
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rows",
+              "next"
+            ],
+            "description": "A truncated page: more hotels match.",
+            "properties": {
+              "rows": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/hotel"
+                },
+                "description": "This page's hotels."
+              },
+              "next": {
+                "type": "string",
+                "description": "An OPAQUE cursor. Echo it back verbatim as `cursor`; never parse or construct it."
+              }
+            }
+          }
+        ]
+      },
+      "example_params": {
+        "city": "Lisbon",
+        "limit": 20
+      },
+      "example_row": {
+        "id": 41,
+        "name": "Grand Aljube",
+        "city": "Lisbon",
+        "nightly_price_cents": 14900,
+        "currency": "eur"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "name": "create_order",
+      "description": "Place an order for what the human has chosen. This RESERVES the goods and returns the order to settle; it does not take money -- the `pay` verb does that.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "Catalogue SKUs to order."
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "order_id",
+          "status",
+          "total_cents",
+          "currency"
+        ],
+        "description": "The created order.",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "Name it in the cart mandate, and pass it to any verb that acts on this order."
+          },
+          "status": {
+            "type": "string",
+            "description": "The operator's order status."
+          },
+          "total_cents": {
+            "type": "integer",
+            "description": "EUR cents. Sign the cart at exactly this total."
+          },
+          "currency": {
+            "type": "string",
+            "description": "eur -- the currency the cart must be signed in."
+          }
+        }
+      },
+      "example_params": {
+        "items": [
+          "milk-1l",
+          "eggs-12"
+        ]
+      },
+      "example_row": {
+        "order_id": "a1b2c3",
+        "status": "placed",
+        "total_cents": 648,
+        "currency": "eur"
+      }
+    },
+    {
+      "name": "payment_setup",
+      "description": null,
+      "params": null,
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      },
+      "output_schema": {
+        "description": "TWO shapes, and the branch is `status`. The pairing is the contract: `setup_required` without a url is an answer an assistant cannot act on.",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "const": "ready",
+                "description": "A payment method is on file -- proceed to `pay`."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "setup_url"
+            ],
+            "properties": {
+              "status": {
+                "const": "setup_required",
+                "description": "A hosted setup flow must be completed by the human first."
+              },
+              "setup_url": {
+                "type": "string",
+                "description": "The hosted page to hand to the human."
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

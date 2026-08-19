@@ -221,7 +221,7 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 | `kiosk.version` | string | REQUIRED | Discovery-document format version (currently `"1.0"`), independent of protocol version. |
 | `kiosk.issuer` | string | REQUIRED | The AP2 mandate `iss` anchor and token `iss`/`aud`. An absolute https origin. |
 | `kiosk.endpoint` | string | REQUIRED | The wire-verb root (base URL + mount path). All verb and auth URLs derive from this. |
-| `kiosk.capabilities` | array | REQUIRED | The verbs this endpoint serves, from `["schema","query","run","pay"]`, in that canonical order (Section 4.2). |
+| `kiosk.capabilities` | array | REQUIRED | The MODULES this endpoint serves, from `["schema","queries","actions","pay"]`, in that canonical order (Section 4.2). |
 | `kiosk.min_client` | string | OPTIONAL | Advisory minimum client version. |
 | `kiosk.owner` | object | OPTIONAL | Operator contact info; SHOULD include at least an email. |
 | `kiosk.auth` | object | REQUIRED | The kiosk-pop auth block (Section 4.3). |
@@ -238,12 +238,29 @@ hostname the AI assistant actually dialed is rejected -- and the AI assistant
 
 ### 4.2 `capabilities`
 
-`capabilities` is the subset of the canonical verb set the operator actually
+`capabilities` is the subset of the canonical MODULE set the operator actually
 serves, derived from what it has registered: `schema` (present iff at least one
-query or action is registered), `query` (iff a query is registered), `run` (iff
-an action is registered), `pay` (iff payments are configured). HTTP methods are
-**not** encoded -- the method binding is fixed (Section 8.1). An operator **MUST** emit
-the canonical order and **MUST NOT** advertise a verb it does not serve.
+query or action is registered), `queries` (iff a query is registered),
+`actions` (iff an action is registered), `pay` (iff payments are configured).
+An operator **MUST** emit the canonical order and **MUST NOT** advertise a
+module it does not serve.
+
+`capabilities` names MODULES, never the origin's registered verb NAMES, and
+that is a security requirement rather than a stylistic one. This document is
+served unauthenticated (Section 4.1) while the catalog that enumerates the
+verbs is Bearer-gated (Section 8.3), the per-verb endpoints resolve identity
+BEFORE they resolve a name so an anonymous caller cannot distinguish a verb
+that exists from one that does not (Section 8.1), and the optional OpenAPI
+description is gated on the same terms (Section 4.6). An operator **MUST NOT**
+publish a registered verb name in this document, or in any unauthenticated
+surface of Section 4.5, because doing so defeats all three.
+
+An AI assistant reads `capabilities` to know which branches of its own
+instructions apply -- whether to expect a catalog at all, whether writes exist,
+whether payment is possible -- and reads the catalog itself, once
+authenticated, to know what to call. HTTP methods are **not** encoded here: the
+method follows the KIND of the verb (Section 8.1), which the catalog states per
+verb.
 
 ### 4.3 The `auth` block
 
@@ -274,7 +291,12 @@ The payment directives on these surfaces are **conditional on the `pay`
 capability**: `agents.txt` emits `Protocols: ap2` and `Payments: required`,
 and `agents.json` includes its `payments` block (`ap2`, `required: true`),
 **only** when the operator serves `pay` (Section 4.2); an operator that serves no
-`pay` omits them, so the surfaces stay consistent with `capabilities`.
+`pay` omits them, so the surfaces stay consistent with `capabilities`. These
+surfaces are unauthenticated, so the rule of Section 4.2 binds them too: an
+operator **MUST NOT** enumerate its registered verb names on any of them. They
+may LINK the two descriptions that do enumerate them -- `<endpoint>/schema` and,
+where served, `<endpoint>/openapi.json` -- because reaching either still costs a
+Bearer token.
 
 ### 4.6 An optional OpenAPI description (tooling only)
 
@@ -540,13 +562,16 @@ alone.
 
 ### 8.3 The `schema` verb
 
-`GET <endpoint>/schema` (Bearer) returns `{verbs, queries, actions}`. `verbs` is the invariant four -- all of
-`query`, `run`, `pay`, `schema`, always (`events` is reserved) -- naming the
-protocol surface itself, NOT the served subset. The served subset is
-`capabilities` in `/.well-known/kiosk.json`, which is computed from what the
-operator actually registered (it drops `pay` when no payment provider is
-configured); do not treat these `verbs` as mirroring what the origin advertises.
-`queries` and `actions` are arrays of descriptors, sorted by name. `name` is
+`GET <endpoint>/schema` (Bearer) returns `{verbs, queries, actions}`. `verbs`
+is the module set of Section 4.2 and **MUST** equal the `capabilities` the same
+origin advertises in `/.well-known/kiosk.json` -- one origin, one
+self-description. (Through 0.3 it was instead the invariant four `query`,
+`run`, `pay`, `schema`, which named `pay` on an operator that had no payment
+provider wired while `capabilities` correctly dropped it; a wire that describes
+itself twice, differently, is not self-describing, and the reconciliation this
+section used to carry is retired with the constant.) Which VERBS the origin
+serves is `queries` and `actions`, right below it. `queries` and `actions` are
+arrays of descriptors, sorted by name. `name` is
 REQUIRED; `description` is REQUIRED and is a string or `null`, and carries the
 verb's SEMANTICS in prose -- what it does, when to reach for it, what the result
 means. It does not carry shape: a parameter name, type, unit, format or default
@@ -1056,7 +1081,11 @@ being bound.
 ### 16.1 Operator profile
 
 An implementation is a **Kiosk operator** when it serves the core plus whichever
-optional modules it advertises in `capabilities`:
+optional modules it chooses to serve. Four of those modules are DISCOVERABLE
+and are exactly the members of `capabilities` (Section 4.2): `schema` and the
+`queries` / `actions` halves of item 3 below, and `pay` (item 5). The rest --
+proof-of-work, binding, KYC -- announce themselves in a response rather than in
+the discovery document, and are absent from `capabilities` for that reason:
 
 1. **Core -- discovery** (Section 4): `/.well-known/kiosk.json` and the JWKS document.
 2. **Core -- auth (kiosk-pop)** (Section 5): challenge / register / login / revoke with
