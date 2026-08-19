@@ -1,6 +1,6 @@
 # Kiosk Protocol -- Formal Specification
 
-**Version 0.3** (Draft; wire format stable) - Status: for implementers and porters
+**Version 0.4** (Draft; wire format stable) - Status: for implementers and porters
 
 This is the **formal** companion to the narrative specification at
 <https://kiosk.tech/specification.html>. The narrative page is the readable
@@ -11,31 +11,7 @@ corrected (audit dimension D8).
 
 The protocol, the reference implementation, and the AI assistant skill share their
 MAJOR.MINOR version (**version parity**). This document specifies protocol
-version **0.3**.
-
-### Status of this revision -- 0.4 is being written into this document
-
-**The wire sections below (Section 3 item 7, Section 8, Section 9) already
-describe protocol 0.4.** The version line above still reads 0.3 because 0.4 is
-not released: the released reference implementation, every deployed operator
-and all nineteen published skill cuts speak 0.3, and the version flip, the new
-skill cut and the pin re-issue happen together at cutover. Nothing here is a
-dual stack -- 0.4 replaces 0.3 outright, with no tombstones and no compatibility
-mode. This block is deleted at cutover.
-
-Three surfaces of the reference implementation have not caught up yet, and
-they move in ONE wave with the demo fleet at cutover:
-
-| Surface | Specified here as | Reference still serves |
-|---|---|---|
-| `<endpoint>/<verb-name>` (Section 8.1) | payload verbatim; problem documents | as specified |
-| `<endpoint>/{schema,pay}` | payload verbatim; problem documents | the retired 0.3 envelope |
-| `<endpoint>/{query,run}` | **deleted** -- no such endpoints | still routed, 0.3 envelope |
-| the auth plane (Section 5, Section 6, Section 12) | problem documents on error | the retired 0.3 error envelope |
-| the per-verb endpoints on the DEMO fleet | one endpoint per verb | the eight demos hand-draw the four 0.3 routes and mount no per-verb pair; only the e2e origin serves them |
-| a non-paginating query's shape (Section 8.2) | a bare JSON array of rows | one demo verb (`hotel_detail`) answers a bare OBJECT -- recorded, not a permitted variation |
-
----
+version **0.4**.
 
 ## 1. Introduction
 
@@ -145,7 +121,7 @@ proof-of-work gate.
 4. Endpoint paths derive from the discovery document's `endpoint` value plus the
    fixed verb-to-path binding in Section 8; an AI assistant MUST derive URLs this way and MUST
    NOT hard-code a mount path.
-5. **Version parity and additivity.** Within a MINOR series (0.3.x) the wire is
+5. **Version parity and additivity.** Within a MINOR series (0.4.x) the wire is
    additive and backward-compatible: new endpoints and fields only, existing
    flows never break (Section 14).
 6. **Version-handshake response headers.** Every response served under the
@@ -160,8 +136,8 @@ proof-of-work gate.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.3.0` | The protocol version the operator speaks -- the version this document specifies, at MAJOR.MINOR.PATCH. |
-   | `Kiosk-Min-Client` | `0.3.0` | Advisory: the oldest AI-assistant version the operator expects to interoperate with that API version. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. |
+   | `Kiosk-API-Version` | `0.4.0` | The protocol version the operator speaks -- the version this document specifies, at MAJOR.MINOR.PATCH. |
+   | `Kiosk-Min-Client` | `0.4.0` | Advisory: the oldest AI-assistant version the operator expects to interoperate with that API version. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
    spelling. The root-served discovery surfaces (Section 4.5) sit outside the
@@ -965,14 +941,16 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 ## 14. Versioning
 
 1. **Version parity (MAJOR.MINOR only).** The protocol, the reference implementation,
-   and the AI assistant skill share their **MAJOR.MINOR** version -- currently **0.3**.
-   An operator on Kiosk 0.3 pins a 0.3 skill against a 0.3 wire. Parity binds MAJOR.MINOR;
+   and the AI assistant skill share their **MAJOR.MINOR** version -- currently **0.4**.
+   An operator on Kiosk 0.4 pins a 0.4 skill against a 0.4 wire. Parity binds MAJOR.MINOR;
    the skill's PATCH is independent (see point 4), and the discovery-document format
    version is a separate line entirely (point 3). These are **three distinct version
    lines** -- do not expect all three numbers to match.
-2. **Additivity within a MINOR series.** A new MINOR (0.2 -> 0.3) is a feature
-   milestone that bundles backward-compatible additions -- new endpoints and
-   fields only. Within 0.3.x the wire stays backward-compatible and additive:
+2. **Additivity within a MINOR series.** A new MINOR (0.3 -> 0.4) is a feature
+   milestone that MAY break compatibility with the previous one -- 0.4 replaced
+   0.3's multiplexed `POST <endpoint>/{query,run}` and its response envelope
+   outright, with no tombstones. Within 0.4.x the wire stays backward-compatible
+   and additive:
    patches add endpoints and fields only; existing request/response fields and
    their meaning **MUST NOT** change or be removed. An AI assistant **MUST** ignore
    unknown response fields (including unrecognised problem-document members).
@@ -984,10 +962,12 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    (currently `"1.0"`), independent of the protocol version this document
    specifies.
 4. **Skill version.** The skill is published as `skill-vMAJOR.MINOR.PATCH.md`, where
-   **MAJOR.MINOR tracks the protocol release** (currently 0.3, so version parity holds)
+   **MAJOR.MINOR tracks the protocol release** (currently 0.4, so version parity holds)
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
-   protocol, cut without a protocol change. The current skill is **0.3.11**: still
-   protocol 0.3, eleven skill-only patches in. Published skill files are immutable and
+   protocol, cut without a protocol change. The current skill is **0.4.0**: the
+   first cut against protocol 0.4. The twenty published cuts before it (0.1.1
+   through 0.3.11) describe protocol 0.1-0.3 and stay published, immutable and
+   unedited; an assistant holding one of them cannot transact with a 0.4 origin. Published skill files are immutable and
    versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
