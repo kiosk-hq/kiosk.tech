@@ -1001,7 +1001,11 @@ header, not the body, so the body -- and hence the request fingerprint the
 challenge binds to -- is unchanged on retry, and a GET verb (`schema`) can carry
 its proof too. `nonce` is `{indices: [u64, ...], header_nonce?: u32}`; each index **MUST** be an
 integer in `[0, 2**64)` -- a verifier packs it as a little-endian u64, so an
-out-of-range value would silently alias another index -- and the `indices` array
+out-of-range value would silently alias another index; `pow.schema.json` states
+that same range as an INCLUSIVE `maximum` of `2**64 - 1` rather than an exclusive
+`2**64`, because a validator that reads JSON numbers as IEEE-754 doubles rounds
+the largest LEGAL index onto `2**64` and an exclusive bound there would refuse
+valid work -- and the `indices` array
 **MUST** be in **Zcash canonical (subtree/tree) order** -- a globally-sorted array
 is rejected. `header_nonce` is an OPTIONAL u32 (default 0) folded into the PoW seed after the
 salt bytes as a little-endian u32 -- an extensibility point (currently always 0); a proof solved

@@ -49,6 +49,14 @@ chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/pro
 chk validate "${F[@]}" -s schema-descriptor.schema.json -d examples/schema-descriptor.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.proofs.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.shorthand.json
+# K-845: the LARGEST LEGAL index, 2**64-1, must VALIDATE. This example exists
+# because it did not: with the bound written `exclusiveMaximum: 2**64` this file
+# was REJECTED by ajv (and by any double-precision reader), which rounds
+# 18446744073709551615 up to exactly 2**64 and then compares it against an
+# exclusive bound of 2**64. An inclusive `maximum: 2**64-1` is the same set for
+# an exact-integer reader and survives the round-trip for a double one. Flip the
+# bound back and this line goes red.
+chk validate "${F[@]}" -s pow.schema.json -d examples/pow.max-index.json
 chk validate "${F[@]}" -s "$(ref intent  "$B/mandates.schema.json#/\$defs/intent")"     -r mandates.schema.json -d examples/mandate.intent.json
 chk validate "${F[@]}" -s "$(ref cart    "$B/mandates.schema.json#/\$defs/cart")"       -r mandates.schema.json -d examples/mandate.cart.json
 chk validate "${F[@]}" -s "$(ref payment "$B/mandates.schema.json#/\$defs/payment")"    -r mandates.schema.json -d examples/mandate.payment.json
@@ -84,6 +92,15 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # every implementation rejects. Both examples are the accepted
 # examples/pow.shorthand.json with ONE index moved out of range — the only
 # thing that can turn either green is the bound going away.
+#
+# K-845: the over-range example is 2**64 + 4096, NOT 2**64 itself, and the
+# distance is not slack. ajv reads JSON numbers as IEEE-754 doubles, whose
+# spacing at this magnitude is 4096, so 2**64-1, 2**64 and everything between
+# them collapse onto ONE double — no bound expressible in JSON Schema can
+# separate a legal 2**64-1 from an illegal 2**64 for such a reader. The bound
+# is therefore written to keep the LEGAL value (see examples/pow.max-index.json
+# above), and this example is moved to the first magnitude a double can still
+# tell apart. An exact-integer reader (the reference verifier) refuses both.
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
 
