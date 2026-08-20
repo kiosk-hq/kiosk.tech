@@ -908,7 +908,7 @@ members it does not recognise.
 | `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.3); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
 | `not_found` | 404 | Unknown query/action name, or an argument that ADDRESSES a resource which does not exist (Section 9.1); `hint` carries known names. |
 | `method_not_allowed` | 405 | The path names a verb that exists, called with the other method -- a `GET` at an action's path or a `POST` at a query's (Section 8.1). The response **MUST** carry `Allow` naming the method the verb accepts; `hint` names the call to make. Distinct from `not_found`: the resource exists. |
-| `conflict` | 409 | State conflict -- e.g. registering an already-registered key. |
+| `conflict` | 409 | State conflict -- e.g. registering an already-registered key, or a `pay` re-presenting a mandate chain already processed for this `user_id` (Section 11.6). |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
 | `payment_failed` | 402 | The charge did not settle: declined, authentication required, insufficient funds, or a processor timeout (Section 11.3). Not a gate -- there is nothing to solve and nothing to set up; no `challenges`, and **no `WWW-Authenticate`** (see below). `hint` says whether the outcome was definitive or unknown. |
@@ -1131,6 +1131,56 @@ is deferred.
 > *Reference note (non-normative).* The Ruby reference enforces this via the
 > `config.spending_cap` pay-hook seam and ships a column-backed default
 > (`agents.spending_cap_cents`) editable from the manage-assistants page.
+
+### 11.6 Idempotency -- the mandate chain IS the key
+
+`pay` carries no separate idempotency header or field, and needs none: the
+mandate `id`s already are one. HTTP is at-least-once, so this section says what
+both sides do when a `pay` response is lost.
+
+**Operator.** The mandate `id` of each of the three mandates is unique per
+`user_id`. An operator **MUST** reject a `pay` presenting a mandate `id` it has
+already recorded for this `user_id` with `409 conflict` (Section 9), **before**
+any capture -- a mandate is single-use, and a second capture **MUST NOT** happen
+because a chain was presented twice. An operator **SHOULD** additionally key its
+PSP capture by the cart mandate `id`, so a retry inside the processor cannot
+double-charge either.
+
+**AI assistant.** When a `pay` response never arrives -- a timeout, a dropped
+connection, any outcome you cannot read -- retry with the **IDENTICAL** mandate
+chain: the same three `id`s and the same three signatures, byte for byte. Do
+**NOT** sign a fresh chain. A fresh chain carries fresh `id`s, collides with
+nothing, and is therefore a SECOND payment, not a retry; the identical chain is
+the only retry the operator can recognise as one.
+
+The identical retry has exactly two outcomes:
+
+- `200` -- the original request never reached the operator, and this one settled
+  it. One charge.
+- `409 conflict` -- this chain was already processed. The payment may have
+  settled. Do **NOT** re-mint and re-send. Reconcile first, through the
+  operator's own per-user query (Section 7, form 1 -- e.g. `my_orders`, reading
+  the order's paid flag): if it is paid, the work is done; if it is not, the
+  original attempt burned the `id`s without settling, and only then is a freshly
+  signed chain the correct next request.
+
+A chain whose `exp` has passed cannot be re-sent. Reconcile before signing a new
+one -- `409 conflict` and an expired chain give the assistant the same duty, and
+guessing instead is how a human gets charged twice.
+
+The two documented `pay` failures are NOT this case and keep their own rules: a
+DEFINITIVE `402 payment_failed` moved no money and its `id`s are spent, so it is
+retried with a fresh chain; an UNKNOWN `402 payment_failed` is reconciled exactly
+as `409 conflict` above (Section 11.3).
+
+> *Reference note (non-normative).* The Ruby reference enforces the mandate
+> uniqueness as `UNIQUE (user_id, mandate_id)` on each of the three mandate
+> tables plus `UNIQUE (cart_mandate_id)` on settlements, and the unique violation
+> becomes the `409 conflict` -- raised in the phase that persists the trail,
+> which runs before the capture. Its Stripe adapter passes the cart mandate `id`
+> as the PSP idempotency key. That `409` carries a problem document but no
+> settlement, which is why the reconciliation step above is the assistant's job
+> rather than something the answer hands it.
 
 ---
 

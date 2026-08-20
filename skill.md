@@ -157,6 +157,13 @@ Steps 5-6 apply only when the task involves payment and the operator advertises 
 ### Step 6: Pay
 Sign 3 RS256 JWS mandates (intent -> cart -> payment). `iss` must match the `issuer` from `/.well-known/kiosk.json` (under the `kiosk` key) verbatim. Submit via `POST <endpoint>/pay {intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}` with the Bearer header; the success body is the settlement object itself. Payment mandate: `payment_method: "on_file"` for saved-card flow. A `402 payment_setup_required` here means no saved card -- run `payment_setup` (Step 5), then retry. A `402 payment_failed` is a different thing entirely: the mandates were accepted but the charge itself did not settle -- read `hint` before you do anything else, because it tells you whether nothing was charged (fix the card, retry) or the outcome is UNKNOWN (confirm the order's paid state first -- never blind-retry). Both are `402`, so branch on `code` (see "The three 402s"). A `403 spending_cap_exceeded` means the human has set a per-assistant spending cap that this purchase would exceed -- you CANNOT pay past it; tell the human to raise this assistant's spending limit in their operator account, then retry (see "Spending cap (HTTP 403)").
 
+**If the `pay` response never arrives, retry the SAME mandates -- never fresh ones.** A timeout, a dropped connection, a response you cannot read: you do not know whether the charge happened. **Re-send the IDENTICAL chain** -- the same three mandate `id`s and the same three signed JWS strings, byte for byte, in the same request. Do NOT sign a new chain. Mandate `id`s are the idempotency key: a fresh chain has fresh `id`s, collides with nothing, and is a SECOND payment, not a retry -- that is how you charge your human twice. The identical retry gives you exactly two answers:
+
+- **`200`** -- your first attempt never landed; this one settled it. One charge. Done.
+- **`409 conflict`** -- this chain was already processed and the payment MAY have gone through. Do NOT re-mint and re-send. **Reconcile first:** run the operator's own per-user query (e.g. `query my_orders`) and read the order's paid flag. Paid -> you are done, report it. Still unpaid -> the first attempt burned the mandate `id`s without settling, and only NOW is a freshly signed chain the right next request.
+
+If the mandates' `exp` has already passed you cannot re-send them at all -- reconcile the same way before signing new ones. Same duty, same order: **look before you re-sign.** (This is the lost-response case only. A `402 payment_failed` you actually received is different and keeps its own rule below: definitive -> fresh mandates, unknown -> reconcile like a `409`.)
+
 **Pay once per order.** Some actions on an ALREADY-PAID order (e.g. rescheduling a delivery) reuse the order's EXISTING settlement -- call the action directly, do NOT pay again. When such an action's description says it "requires a settlement" (or "requires a paid order"), that is a precondition meaning "the order must already be paid," NOT an instruction to pay now; re-paying a settled order is rejected.
 
 ## Technical constraints
@@ -270,6 +277,8 @@ HTTP 402 carries **three** distinct errors, and only two of them are gates -- **
 
 - **Definitive** -- the hint says the charge did not go through and no money moved. Nothing was charged. Tell the human what failed, have them correct the payment method via `payment_setup` (Step 5), then retry `pay` with freshly signed mandates.
 - **Unknown** -- the hint says the processor did not confirm and the status is UNKNOWN. The charge MAY have gone through. Do **NOT** blind-retry: that is how you double-charge your human. First confirm this order's paid state through the operator's own queries (the hint names the check -- e.g. `query my_orders`, then read the order's paid flag), and retry `pay` only if it is still unpaid. If you cannot confirm either way, stop and tell the human; an unconfirmed charge is theirs to resolve, not yours to repeat.
+
+**A `pay` you never got an answer to is neither of these** -- you cannot read a `hint` you did not receive. Re-send the IDENTICAL mandate chain (never a fresh one) and branch on what comes back; see "If the `pay` response never arrives" in Step 6.
 
 Either way the `detail` on a `payment_failed` is already safe to show a human -- the operator strips raw payment-processor internals before the error reaches you, so relay it as-is rather than guessing at a cause.
 
