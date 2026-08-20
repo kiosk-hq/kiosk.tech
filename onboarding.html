@@ -54,7 +54,7 @@
   <p>Two scopes, assuming a working Rails + Postgres app you already know:</p>
   <ul>
     <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, mount the routes, declare a couple of read-only queries in a controller by adapting the examples below, name that controller in the initializer, and verify discovery + one query. That's the minimal agent-ready surface.</li>
-    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> table/model and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the ten kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
+    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> table/model and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the six kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
   </ul>
   <p>The steps below walk the full payments integration <em>assuming you already have the accounts and keys in hand</em>; they don't cover Stripe signup, or debugging your own catalog's queries.</p>
 
@@ -129,7 +129,7 @@ openssl genrsa 2048 | base64
   )
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code> and emits ten kiosk migrations, baking <code>uuid</code> into every one that touches a user id (the <code>kiosk.agents.user_id</code> FK and the mandate tables that reference it), and the <code>stripe_customers</code> table below uses <code>t.uuid :user_id</code>. If your <code>users.id</code> is a Rails-default <code>bigint</code>, don't just edit the <code>stripe_customers</code> column — <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches), set <code>c.user_id_type = :bigint</code>, and make the <code>stripe_customers.user_id</code> column <code>t.bigint</code> to match — otherwise migrations fail with a datatype mismatch.</blockquote>
+  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code> and emits six kiosk migrations (001–006), five of which bake that type in — the schema helper functions, the identity tables (the <code>kiosk.agents.user_id</code> FK), reservations, device authorizations and the mandate tables; only <code>kiosk.kyc_attributes</code> carries no user id. The <code>stripe_customers</code> table below uses <code>t.uuid :user_id</code> to match. If your <code>users.id</code> is a Rails-default <code>bigint</code>, don't just edit the <code>stripe_customers</code> column — <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches), set <code>c.user_id_type = :bigint</code>, and make the <code>stripe_customers.user_id</code> column <code>t.bigint</code> to match — otherwise migrations fail with a datatype mismatch.</blockquote>
 
   <p>You need a <code>stripe_customers</code> table (referenced by the resolver/saver above):</p>
   <pre><code class="language-ruby"># db/migrate/…_create_stripe_customers.rb
@@ -588,6 +588,20 @@ rails s</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-bash">curl -s http://localhost:3000/.well-known/kiosk.json | jq '.kiosk | {issuer, capabilities}'
 # => { "issuer": "http://localhost:3000", "capabilities": ["schema","queries","actions","pay"] }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
+  <p><strong>Now check the surface the mount installed, not only the path this page walks.</strong> The two calls below exist because the walkthrough is a bad test of the walkthrough: everything from here to the end of Step 6 exercises discovery-plus-register-plus-one-verb, so an app serving <em>nothing else</em> Step 3 promised would still get a clean run. Discovery is <strong>six</strong> documents, and the mount also draws the account-binding ceremony — so verify those directly, before you trust a green walkthrough:</p>
+  <pre><code class="language-bash"># All six discovery documents, at the ORIGIN ROOT (not under /kiosk).
+for p in /agents.txt /agents.json /auth.md \
+         /.well-known/kiosk.json /.well-known/agent-configuration /.well-known/api-catalog; do
+  printf '%s %s\n' "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3000$p")" "$p"
+done
+# => 200 for all six. A 404 means the engine is bundled but NOT mounted: these
+#    routes are appended to your app only when Step 3's mount line is present.
+
+# The account-binding ceremony is mounted too. Ask for it with no parameters and
+# it must REFUSE — a 400 is the route answering; a 404 is the route missing.
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:3000/kiosk/oauth/device_authorization
+# => 400   (invalid_request: "client_id parameter required")</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
   <p>The catalog is public — <code>GET /kiosk/schema</code> takes no token and pays no toll, so you can read it before you have one. <em>Every other</em> endpoint under the mount is authenticated, so to call a verb first obtain a token by registering. Registration is a proof-of-possession handshake: fetch a challenge for your public key, sign it as an RS256 JWS whose payload is <code>{aud, nonce, jti}</code> (<code>aud</code> = the origin you dialed, <code>nonce</code> = the challenge), then POST the public key + signature. A Kiosk-compatible agent does this for you, but here it is as a self-contained script (Ruby stdlib + the <code>jwt</code> gem — the same gem kiosk-server uses) so registration is followable without any external CLI:</p>
   <pre><code class="language-ruby"># register.rb — PoP handshake against a local Kiosk provider. `gem install jwt`
 require "openssl"; require "json"; require "net/http"; require "uri"
@@ -641,8 +655,8 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
   <blockquote><strong>Two shapes worth seeing once.</strong> A <strong>long list</strong> paginates by <a href="https://www.rfc-editor.org/rfc/rfc8288">RFC 8288</a>: the body is still a bare array, the total is in <code>X-Total-Count</code>, and a truncated page carries <code>Link: &lt;…&gt;; rel="next"</code>. <em>The absence of that link is the only signal there is no more</em> — there is no <code>next</code> field in the body. And a <strong>GET at an action's name</strong> (or a POST at a query's) is a <code>405 method_not_allowed</code> that tells you which method to use — a different fact from "no such verb", which is a <code>404</code>. Add <code>-i</code> to any call above to see both.</blockquote>
   <blockquote>The full register → order → <strong>pay</strong> flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow scripted end-to-end, run <code>rake demo</code> in <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>. The <code>pay</code> leg additionally needs a real <code>sk_test_…</code> Stripe key and a saved card on file.</blockquote>
 
-  <h2>How agents find you <span style="font-weight:400;font-size:14px;color:#666">(add 3 hooks, invisible to humans)</span></h2>
-  <p>Agents need to discover that your site speaks Kiosk. Three hooks — two machine-readable, one visual cue for the curious. None interfere with your existing site.</p>
+  <h2>Pointers from your human site <span style="font-weight:400;font-size:14px;color:#666">(optional, invisible to humans)</span></h2>
+  <p>Discovery is already done: the mount in Step 3 installed the six machine-readable documents agents actually read — <code>/agents.txt</code>, <code>/agents.json</code>, <code>/auth.md</code> and the <code>/.well-known/</code> trio — at your origin root, and nothing below is needed for an agent to find them. What follows is the layer <em>on top</em>: three optional pointers you can drop into the HTML site your human customers already browse, so an agent that lands on a page rather than at the root is sent to the root. Two are machine-readable, one is a visual cue for the curious. None interfere with your existing site.</p>
 
   <h3>1. HTML <code>&lt;link&gt;</code> tag (machine-readable)</h3>
   <p>Add to your <code>&lt;head&gt;</code>:</p>
@@ -675,7 +689,8 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
   <p>From the agent's perspective, once the steps above are done:</p>
   <ol class="steps">
     <li><strong>Discovery:</strong> <code>GET /.well-known/kiosk.json</code> → finds your endpoint</li>
-    <li><strong>Registration:</strong> generates RSA key, proves possession (<code>GET /auth/challenge</code> → sign → <code>POST /auth/register</code>) → gets <code>access_token</code>; returning keys refresh via <code>/auth/login</code></li>
+    <li><strong>Registration:</strong> generates RSA key, proves possession (<code>GET /kiosk/auth/challenge</code> → sign → <code>POST /kiosk/auth/register</code>) → gets <code>access_token</code>; returning keys refresh via <code>POST /kiosk/auth/login</code></li>
+    <li><strong>…or binding, when the human already has an account with you:</strong> instead of minting a fresh assistant account the assistant attaches to the existing one — either the claim ceremony it starts itself (<code>POST /kiosk/oauth/device_authorization</code> → the human approves the <code>user_code</code> at <code>/kiosk/oauth/device/verify</code> → <code>POST /kiosk/oauth/token</code>), or a link code the human generated on «Link an assistant» (<code>/kiosk/auth/assistants</code> → <code>POST /kiosk/auth/link</code>) and handed over, which the assistant redeems at <code>POST /kiosk/auth/claim</code>. Every step below is identical afterwards; only whose rows it sees changes.</li>
     <li><strong>Read the contract:</strong> <code>GET /kiosk/schema</code> (no token) → learns every verb's name, prose and both schemas before it spends anything</li>
     <li><strong>Browse:</strong> <code>GET /kiosk/catalog</code> and <code>GET /kiosk/delivery_slots?date=…</code> → sees your products and when you can deliver</li>
     <li><strong>Order:</strong> <code>POST /kiosk/create_order</code> → order created, delivery window booked with it</li>
