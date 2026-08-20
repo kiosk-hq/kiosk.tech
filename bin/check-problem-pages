@@ -1,0 +1,107 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Problem-type page guard (K-793).
+#
+# WHAT THIS ENFORCES
+# ------------------
+# Every error Kiosk puts on the wire is an RFC 9457 problem document whose
+# `type` is `https://kiosk.tech/problems/<code>` — one URI per entry in the
+# closed error vocabulary, minted in exactly one place in the engine
+# (`Errors::PROBLEM_TYPE_BASE`) and pinned by `spec/schemas/problem.schema.json`'s
+# `pattern`. This repo IS the other end of those URIs. Until 2026-08-21 all
+# fifteen of them 404ed: the shape was guarded end to end and nothing was
+# served, so a developer debugging a 402 who pasted the URI into a browser —
+# which is the first thing anyone does — got a GitHub Pages 404.
+#
+# RFC 9457 §3.1.1 does not REQUIRE dereferencing, so this was a SHOULD-miss
+# rather than a broken contract. It is a check and not a convention because
+# the failure is invisible from inside this repo: nothing here links to
+# `/problems/<code>` except the pages themselves, so a code added to the
+# vocabulary in the OTHER repo silently acquires a dead URI, and the only
+# symptom is on a stranger's screen.
+#
+# WHAT IS COMPARED
+# ----------------
+# The vocabulary table in `specification.html` (the narrative spec — normative,
+# and the document the pages themselves point back to) against the directory
+# listing of `problems/`. Every code in the table MUST have
+# `problems/<code>/index.html`, and every published page MUST correspond to a
+# code in the table — an orphan page is a URI the wire will never mint, which
+# is the same defect pointing the other way. Each page must also state its own
+# code and its own HTTP status, so a page copy-pasted from its neighbour and
+# not edited fails here rather than on a reader.
+#
+# The extension-less URI resolves because GitHub Pages serves `<dir>/index.html`
+# for a directory request; that is why the pages are directories and not
+# `problems/<code>.html`. Do NOT change the URI shape to make something
+# resolve — the wire is pinned to it in the gem, the schema and the e2e
+# harness, and site-side is the end that is cheap to move.
+#
+# Usage: bin/check-problem-pages     (exit 0 = clean, 1 = drift)
+
+REPO = File.expand_path("..", __dir__)
+SPEC = File.join(REPO, "specification.html")
+DIR  = File.join(REPO, "problems")
+
+spec_html = File.read(SPEC)
+
+# The vocabulary rows: <tr><td><code>NAME</code></td><td>STATUS</td>…
+vocabulary = spec_html
+             .scan(%r{<tr><td><code>([a-z_]+)</code></td><td>(\d{3})</td>})
+             .to_h { |code, status| [code, status.to_i] }
+
+if vocabulary.size < 10
+  warn "check-problem-pages: FAIL — parsed only #{vocabulary.size} vocabulary rows " \
+       "out of specification.html; the table's markup changed and this check is blind."
+  exit 1
+end
+
+published = Dir.children(DIR).select { |e| File.directory?(File.join(DIR, e)) }.sort
+
+errors = []
+
+(vocabulary.keys.sort - published).each do |code|
+  errors << "MISSING  problems/#{code}/index.html — " \
+            "https://kiosk.tech/problems/#{code} would 404"
+end
+
+(published - vocabulary.keys).each do |code|
+  errors << "ORPHAN   problems/#{code}/ — no such code in the specification's " \
+            "error vocabulary, so nothing on the wire ever mints that URI"
+end
+
+vocabulary.each do |code, status|
+  page = File.join(DIR, code, "index.html")
+  next unless File.file?(page)
+
+  body = File.read(page)
+  errors << "STALE    problems/#{code}/index.html does not name its own code" \
+    unless body.include?("<h1>#{code}</h1>")
+  errors << "STALE    problems/#{code}/index.html does not state HTTP #{status}" \
+    unless body.include?("HTTP #{status}")
+  errors << "STALE    problems/#{code}/index.html does not carry its own type URI" \
+    unless body.include?("https://kiosk.tech/problems/#{code}")
+end
+
+index = File.join(DIR, "index.html")
+errors << "MISSING  problems/index.html — the per-code pages all link back to it" \
+  unless File.file?(index)
+
+if File.file?(index)
+  index_body = File.read(index)
+  vocabulary.each_key do |code|
+    errors << "STALE    problems/index.html does not list #{code}" \
+      unless index_body.include?("/problems/#{code}/")
+  end
+end
+
+if errors.empty?
+  puts "check-problem-pages: OK — #{vocabulary.size} codes in the vocabulary, " \
+       "#{vocabulary.size} pages published, no orphans."
+  exit 0
+end
+
+warn "check-problem-pages: FAIL"
+errors.each { |e| warn "  #{e}" }
+exit 1
