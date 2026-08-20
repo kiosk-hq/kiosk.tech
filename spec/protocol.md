@@ -1198,11 +1198,15 @@ as `409 conflict` above (Section 11.3).
 > as the PSP idempotency key. That `409` carries a problem document but no
 > settlement, which is why the reconciliation step above is the assistant's job
 > rather than something the answer hands it. The operator half of the rule is
-> what the getgrocery demo shows: it claims the order before the capture and
-> flips it to `paid` the instant the capture returns -- a hair BEFORE the
-> settlement row is written -- and its `my_orders` paid flag reads that status
-> as well as the settlement row, so the gap between the two never reads as
-> "not paid".
+> what its three paying demos show, in the same shape: each claims the row
+> (`unpaid` -> `paying`) BEFORE the capture -- an atomic compare-and-set that
+> also makes a second capture impossible -- and flips it to `paid` the instant
+> the capture returns, a hair BEFORE the settlement row is written. Their
+> per-user queries (`my_orders`, `my_bookings`, `my_reservations`) publish a
+> `payment_state` of `unpaid` | `pending` | `paid` read from that marker first
+> and the settlement row second, so a claimed-but-unresolved capture answers
+> `pending` and the gap between capture and settlement never reads as "not
+> paid".
 
 ---
 
