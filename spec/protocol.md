@@ -1134,10 +1134,10 @@ operator learns only the booleans the KYC issuer signed -- it **MUST NOT** recei
 or store the underlying documents (date of birth, licence number, passport scan).
 An operator **MUST** honour only values that are literally `true`; any other value
 (`false`, string, number) is **NOT** a grant. The operator **MUST** record the
-granted attributes with the verification (the reference stores them in a
-`kyc_attributes` column) and **MUST NOT** log the underlying documents. The field
-is **additive**: a bare `level: "verified"` attestation with no `attributes` still
-verifies (the binary path), yielding an empty attribute set.
+granted attributes with the verification (the reference stores one row per granted
+name in a `kyc_attributes` table) and **MUST NOT** log the underlying documents.
+The field is **additive**: a bare `level: "verified"` attestation with no
+`attributes` still verifies (the binary path), yielding an empty attribute set.
 
 ### 12.3 Attribute-gated Actions
 
