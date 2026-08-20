@@ -548,14 +548,37 @@ token -- the `{user_id, agent_id}` pair.
 3. Operator-registered queries and actions **MUST NOT** execute with no identity
    bound.
 
-How the operator enforces scoping (application-layer filtering, database
-row-level security, or both) is out of scope for the wire. The requirement is the
-observable behavior: cross-identity reads and writes fail (`403 forbidden` or
-`403 rls_denied`, Section 9).
+This is a requirement on the OPERATOR. The protocol supplies the bound identity;
+it does not supply the filter. How the operator enforces the scoping
+(application-layer filtering, database row-level security, or both) is out of
+scope for the wire.
+
+What is in scope is the observable outcome, and it takes one of two forms
+depending on what the call names:
+
+1. **A call that names no foreign row** -- a query listing the caller's own rows,
+   an action creating one -- is ANSWERED normally (`200`), with rows owned by
+   another `user_id` absent from the result and unaffected by the write.
+   Filtering IS the conforming outcome here: there is no request to deny. An
+   operator **MUST NOT** refuse such a call merely because other principals'
+   rows exist, and a caller **MUST NOT** read an unanswered query (`403`, `404`,
+   `402`, `5xx`) as evidence of isolation -- an empty result and a failed request
+   are indistinguishable at the wire.
+2. **A call that names a row owned by another `user_id`** -- a read or a write
+   addressing it by identifier -- **MUST** fail with `403 forbidden`, or
+   `403 rls_denied` when a database policy is the layer that refused it
+   (Section 9). It **MUST NOT** be answered `200` carrying that row.
 
 > *Reference note (non-normative).* The Ruby reference propagates the identity
 > into PostgreSQL as a transaction-scoped setting (`kiosk.current_user_id()`) and
-> offers opt-in row-level-security policies as defense in depth.
+> offers opt-in row-level-security policies as defense in depth. Neither is the
+> filter: `kiosk-rls` is an unbundled opt-in gem and the `SET LOCAL ROLE`
+> backstop that arms its policies is off by default, so in the reference the
+> invariant above is carried by each registered query and action -- which is
+> exactly why it is stated here as a requirement on the operator. The demos'
+> isolation flows exercise both forms: a foreign row absent from an answered
+> `my_orders` (form 1) and a `403` on an action naming another principal's order
+> (form 2).
 
 ---
 
@@ -1427,7 +1450,8 @@ the discovery document, and are absent from `capabilities` for that reason:
    An operator that paginates additionally emits the `Link` `rel="next"`
    header of Section 8.4 and no `next` body field.
 4. **Core -- identity binding** (Section 7): every verb scoped to the authenticated
-   identity.
+   identity, in the two observable forms Section 7 names -- a call naming no
+   foreign row answered with them filtered out, a call naming one refused `403`.
 5. **Module `pay`** (Section 11): AP2 mandate-chain verification and the
    `payment_setup_required` 402 with `WWW-Authenticate: Payment`.
 6. **Module proof-of-work** (Section 10): the Equihash 402 gate, with a spent-id
