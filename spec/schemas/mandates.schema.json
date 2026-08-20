@@ -30,12 +30,12 @@
     "cart": {
       "allOf": [{ "$ref": "#/$defs/baseClaims" }],
       "type": "object",
-      "required": ["intent_mandate_id", "total_amount_cents", "currency"],
+      "required": ["intent_mandate_id", "total_amount_cents", "currency", "line_items"],
       "properties": {
         "intent_mandate_id": { "type": "string", "description": "MUST equal the intent mandate id; cart total MUST NOT exceed the intent cap." },
         "total_amount_cents": { "type": "integer", "minimum": 1, "description": "REQUIRED. MUST be positive; a non-positive amount is rejected." },
         "currency": { "type": "string", "description": "MUST equal the intent currency." },
-        "line_items": { "type": "array", "description": "Optional provider-defined line items." }
+        "line_items": { "type": "array", "description": "REQUIRED. Provider-defined line items. Required because the settlement and reconciliation path reads them: an operator matching a settlement back to its domain object has nothing to match on without them." }
       }
     },
     "payment": {

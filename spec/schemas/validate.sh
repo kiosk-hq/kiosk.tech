@@ -101,6 +101,13 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # is therefore written to keep the LEGAL value (see examples/pow.max-index.json
 # above), and this example is moved to the first magnitude a double can still
 # tell apart. An exact-integer reader (the reference verifier) refuses both.
+# K-741: `line_items` is REQUIRED on a cart mandate. This example is the
+# accepted examples/mandate.cart.json with that one key deleted and nothing
+# else changed, so the only thing that can turn it green is `line_items`
+# leaving the cart's `required` array again. The field was optional while the
+# settlement and reconciliation path already read it, which let a conforming
+# assistant pay and leave a capture nobody can match to a domain object.
+chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.no-line-items.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
 

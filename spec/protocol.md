@@ -1090,7 +1090,7 @@ identity, whose `iss` is not its own issuer (verbatim from `kiosk.json`), or who
 | # | Mandate | Own fields (all REQUIRED unless noted) |
 |---|---|---|
 | 1 | Intent | `cap_amount_cents`, `currency`, `scope`? |
-| 2 | Cart | `intent_mandate_id`, `total_amount_cents`, `currency`, `line_items`? |
+| 2 | Cart | `intent_mandate_id`, `total_amount_cents`, `currency`, `line_items` |
 | 3 | Payment | `cart_mandate_id`, `amount_cents`, `currency`, `payment_method`? |
 
 ### 11.2 Binding rules
