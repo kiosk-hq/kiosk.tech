@@ -172,11 +172,16 @@ proof-of-work gate.
    2. A `402` **MUST** carry `Cache-Control: no-store`. A proof-of-work
       challenge is single-use, request-bound and expiring (Section 10); storing
       one is never correct.
-   3. An operator **MUST NOT** send `public` or `s-maxage` on a verb response.
-      Shared caching of an identity-scoped payload is a cross-tenant leak, and
-      stating it as a prohibition closes the door on a well-meaning CDN
-      configuration rather than relying on the default in
-      [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) Section 3.5.
+   3. An operator **MUST NOT** send `public`, `s-maxage` or `must-revalidate`
+      on a verb response. Shared caching of an identity-scoped payload is a
+      cross-tenant leak, and stating it as a prohibition closes the door on a
+      well-meaning CDN configuration rather than relying on the default in
+      [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) Section 3.5. Those
+      three are exactly the set that default names: a shared cache MUST NOT
+      reuse a stored response to a request bearing `Authorization` *unless* the
+      response carries one of them -- and every verb request carries
+      `Authorization` (point 2 above), so `must-revalidate` on a `max-age=N`
+      response with no `private` opens the same door `public` does.
 
       **The two SELF-DESCRIPTION endpoints are the exception to rules 1 and 3,
       and each takes both at once.** `GET <endpoint>/schema` (Section 8.3) and,
@@ -821,7 +826,8 @@ and never declares:
 
 **Caching.** A page is a per-caller answer to a per-caller question, so
 Section 3 point 7 applies to it unchanged: `private, no-store` by default,
-`Vary: Authorization, Kiosk-PoW`, and never `public` or `s-maxage`. The public,
+`Vary: Authorization, Kiosk-PoW`, and never `public`, `s-maxage` or
+`must-revalidate`. The public,
 shared-cacheable exception in that rule is `GET <endpoint>/schema` and only it.
 
 Pagination applies to LIST results ONLY. Action and `pay` results never carry a
