@@ -999,7 +999,9 @@ the request with the **identical** body plus a `Kiosk-PoW` request header
 carrying the proof(s) as **raw JSON** (Section 10.1). The proof travels in the
 header, not the body, so the body -- and hence the request fingerprint the
 challenge binds to -- is unchanged on retry, and a GET verb (`schema`) can carry
-its proof too. `nonce` is `{indices: [...], header_nonce?: u32}`; the `indices` array
+its proof too. `nonce` is `{indices: [u64, ...], header_nonce?: u32}`; each index **MUST** be an
+integer in `[0, 2**64)` -- a verifier packs it as a little-endian u64, so an
+out-of-range value would silently alias another index -- and the `indices` array
 **MUST** be in **Zcash canonical (subtree/tree) order** -- a globally-sorted array
 is rejected. `header_nonce` is an OPTIONAL u32 (default 0) folded into the PoW seed after the
 salt bytes as a little-endian u32 -- an extensibility point (currently always 0); a proof solved

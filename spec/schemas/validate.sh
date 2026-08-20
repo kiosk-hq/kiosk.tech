@@ -77,6 +77,15 @@ chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discove
 # property from the suite. Its predecessor, `schema-descriptor.verb-names.json`,
 # tested the `verbs` ENUM and had nothing left to test once the field went.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.verbs-field.json
+# K-839: `indices` items are u64. The description said so from the start; only
+# the bound makes the schema REFUSE what a conforming verifier refuses.
+# `pack("Q<")` truncates mod 2**64, so without the upper bound `idx` and
+# `idx + 2**64` were two spellings of one leaf and the schema admitted a proof
+# every implementation rejects. Both examples are the accepted
+# examples/pow.shorthand.json with ONE index moved out of range — the only
+# thing that can turn either green is the bound going away.
+chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
+chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
 
 echo "-----"
 echo "PASS=$pass FAIL=$fail"
