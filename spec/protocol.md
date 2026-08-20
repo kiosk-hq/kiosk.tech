@@ -527,7 +527,14 @@ carries over -- claiming is **not** a reputation reset (Section 13). Because a r
 principal change, the key's **pre-link tokens** (still carrying the old `user_id`)
 **MUST** stop verifying, watermark-revoked exactly as unlink revokes (Section 15.4); the
 AI assistant obtains a token under the new principal from the `access_token` the claim
-returns, or by re-running `/auth/login`. `POST <endpoint>/auth/unlink` (operator
+returns, or by re-running `/auth/login`.
+
+Re-binding a key to the account it is **already** bound to is **idempotent**: the
+ceremony still succeeds, still returns a fresh `access_token`, and the key's
+previous tokens still stop verifying. An operator **MUST NOT** treat the no-op
+case specially, and the response is indistinguishable from any other rebind's.
+
+`POST <endpoint>/auth/unlink` (operator
 session, `{agent_id}`) is registration-layer revocation: the key's tokens stop
 verifying and `/auth/login` answers `404` (Section 15.4). Codes are stored hashed,
 single-use, short-TTL, and attempt-capped.
