@@ -535,6 +535,15 @@ The human, signed in on the operator's site, mints a single-use link code:
   code is a long opaque token (paste-grade).
 - The AI assistant redeems it: `POST <endpoint>/auth/claim` with `{code, public_key,
   signed}` -> `201 {agent_id, user_id, access_token}`.
+- The third endpoint of this ceremony, `POST <endpoint>/auth/unlink` (Section 6.3),
+  answers **`204 No Content`**: the effect is the whole answer, and there is
+  nothing the caller does not already know. It is stated here because the other
+  two are: an endpoint on a published surface whose siblings document their
+  responses cannot leave its own unstated, or an implementer fills the gap and
+  a body nobody specified ends up on the wire. That is what happened -- unlink
+  rendered `{ok: true}` for four months, undocumented (K-870) -- and the answer
+  is the one K-855 took to the same class of defect: withdraw the body rather
+  than write it down after the fact.
 
 ### 6.3 Fresh vs. rebind, and unlink
 
@@ -554,7 +563,8 @@ case specially, and the response is indistinguishable from any other rebind's.
 
 `POST <endpoint>/auth/unlink` (operator
 session, `{agent_id}`) is registration-layer revocation: the key's tokens stop
-verifying and `/auth/login` answers `404` (Section 15.4). Codes are stored hashed,
+verifying and `/auth/login` answers `404` (Section 15.4). It answers
+`204 No Content` (Section 6.2). Codes are stored hashed,
 single-use, short-TTL, and attempt-capped.
 
 ---
