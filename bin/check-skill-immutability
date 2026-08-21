@@ -35,28 +35,84 @@
 # reference repo's `bin/check-*` guards exist for the same reason; this is the
 # same shape, in the repo that owns the files.
 #
+# THE SECOND INVARIANT: THE ALIAS MAY NOT COME TO REST DIVERGED (K-847)
+# ---------------------------------------------------------------------
+# This guard's header used to say «editing skill.md (the alias) allowed — the
+# working alias is mutable by design», and that sentence sanctioned a practice
+# this repo has now retired. Under it, notes were staged in the live alias
+# between cuts, and for as long as they sat there `specification.html` and
+# `skill.md` were BOTH publishing a false sentence about a supply-chain control:
+# «`https://kiosk.tech/skill.md` is the "latest" alias, byte-identical to the
+# newest version file». It was false at head for days, and the drift widened
+# while it was being decided.
+#
+# Phil's answer (2026-08-21, K-847 — audit/DECISIONS-LOG.md) was to make the
+# sentence TRUE rather than to soften it, and to state the discipline that keeps
+# it true:
+#
+#   1. a skill edit ENDS in a version bump — the alias may not come to rest
+#      diverged from the newest cut;
+#   2. re-pinning the demos is PART of the change, not follow-up work;
+#   3. no cut anything pins is EVER mutated — so when skill changes are
+#      foreseen, bump FIRST and make the edits inside the new cut.
+#
 # WHAT IS ALLOWED AND WHAT IS NOT
 # -------------------------------
-#   ADDING skill-v0.3.12.md          allowed — that IS the prescribed mechanism
-#   editing skill.md (the alias)     allowed — the working alias is mutable by
-#                                    design; only the `skill-v*.md` cuts freeze
-#   editing skill-v0.3.11.md         FAILS
+#   ADDING skill-v0.4.4.md           allowed — that IS the prescribed mechanism
+#   editing skill-v0.4.4.md          allowed while it is UNTRACKED (or staged-add
+#     before it is committed          and not yet committed) — which is exactly
+#                                    the window rule 3's «bump first, then edit
+#                                    inside the new cut» works in. THE CUT IS
+#                                    FROZEN THE MOMENT IT IS COMMITTED, because
+#                                    that is the same wave in which the demos
+#                                    are re-pinned to it (rule 2): from then on
+#                                    something pins it. The RANGE pass is
+#                                    correspondingly forgiving — a branch that
+#                                    adds a cut in one commit and amends it in
+#                                    the next still shows a net `A` against the
+#                                    base, so a cut that has not reached the
+#                                    base branch is not frozen against it.
+#                                    Deliberately NOT keyed on "is it in the
+#                                    base?" here: a local `origin/main` that
+#                                    lags by three cuts would then exempt three
+#                                    already-pinned files.
+#   editing skill.md (the alias)     allowed WHILE WORKING — but the tree must
+#                                    come to rest with the alias byte-identical
+#                                    to the newest cut, so an alias edit is
+#                                    finished only when the cut carries it too.
+#   editing skill-v0.4.2.md          FAILS — it is on the base branch
 #   deleting skill-v0.3.4.md         FAILS — unpublishing breaks live pins just
 #                                    as thoroughly as rewriting
 #   renaming a cut                   FAILS (seen as delete + add)
+#   alias sha != newest cut sha      FAILS — the two sentences above are
+#                                    normative text on a published site
+#   alias frontmatter version !=     FAILS — same reason: the version an
+#     the newest cut's version         assistant reads must name the bytes it got
 #
 # HOW IT DECIDES
 # --------------
-# Two independent passes, because the useful moment to be stopped is before the
-# commit and the authoritative moment is in CI:
+# Three passes, because the useful moment to be stopped is before the commit,
+# the authoritative moment is in CI, and the third property is about the tree
+# rather than about a diff:
 #
 #   1. WORKING TREE — `git status` for tracked, modified or deleted cuts. Stops
-#      an edit locally. A no-op in CI, where the tree is clean.
+#      an edit locally. A no-op in CI, where the tree is clean. Untracked and
+#      staged-add paths pass: that is a cut being written, not one being
+#      rewritten.
 #   2. RANGE — `git diff --name-status --no-renames <merge-base> <head>`, i.e.
 #      what this push / pull request does to the base branch. Only status `A`
 #      passes. `--no-renames` on purpose: a rename decomposes into D + A, and
 #      the D is a failure we want to see rather than a status letter to special-
 #      case.
+#   3. ALIAS AT REST — sha256(skill.md) against sha256(newest cut), plus the
+#      frontmatter `version` against that cut's version. Reads the files, not
+#      git, so it is the same answer locally and in CI.
+#
+# "AT REST" MEANS THE TREE THAT GETS PUSHED, not every intermediate commit, and
+# that is forced rather than lenient: a cut is frozen the moment it is
+# committed, so the cut is necessarily the LAST commit of a skill change and the
+# commits before it hold an alias that has moved ahead of it. Run this on the
+# head you are about to push.
 #
 # BASE RESOLUTION, in order: `--base <ref>`, then `$BASE_SHA` (what CI sets from
 # `github.event.before` for a push and `pull_request.base.sha` for a PR), then
@@ -83,6 +139,22 @@ Dir.chdir(ROOT)
 # than `\d+\.\d+\.\d+` — anything named like a published version file is
 # protected, so a future naming shape is covered rather than silently exempt.
 CUT = %r{\Askill-v[^/]+\.md\z}
+
+# The "latest" alias. Two published sentences say it carries the newest cut's
+# exact bytes; pass 3 is what makes that true rather than aspirational (K-847).
+ALIAS = "skill.md"
+
+# Every published cut, oldest first. Sorted NUMERICALLY on the version
+# components, not lexically — `skill-v0.3.10.md` is newer than `skill-v0.3.9.md`
+# and a string sort says the opposite.
+def cuts
+  Dir["skill-v*.md"].select { CUT.match?(_1) }.sort_by { |f| f.scan(/\d+/).map(&:to_i) }
+end
+
+# The `version:` line of a skill file's YAML frontmatter, unquoted, or nil.
+def frontmatter_version(path)
+  File.read(path)[/^version:\s*"?([^"\n]+)"?\s*$/, 1]&.strip
+end
 
 # `-c log.follow=false` is not decoration. With `log.follow=true` in a user's
 # global config (it is, on the machine this repo is maintained from), `git log
@@ -120,20 +192,35 @@ end
 
 # ── --list: the immutability ledger ──────────────────────────────────────────
 if list
-  cuts = Dir["skill-v*.md"].select { CUT.match?(_1) }.sort_by { |f| f.scan(/\d+/).map(&:to_i) }
+  published = cuts
   puts format("%-22s %-10s %-12s %s", "PUBLISHED CUT", "ADDED", "COMMIT", "SHA-256")
-  cuts.each do |cut|
+  published.each do |cut|
     log, _err, _ok = git("log", "--diff-filter=A", "--format=%h %ad", "--date=short", "--", cut)
     commit, date = log.lines.last.to_s.split(" ", 2).then { |h, d| [h.to_s, d.to_s.strip] }
     puts format("%-22s %-10s %-12s %s", cut, date, commit, Digest::SHA256.hexdigest(File.binread(cut)))
   end
+  if File.exist?(ALIAS)
+    puts format("%-22s %-10s %-12s %s", ALIAS, "(alias)", "-", Digest::SHA256.hexdigest(File.binread(ALIAS)))
+  end
   puts
-  puts "#{cuts.size} published cuts. Every one of them is frozen: a change ships a NEW file."
+  puts "#{published.size} published cuts. Every one of them is frozen: a change ships a NEW file, " \
+       "and #{ALIAS} carries the newest cut's exact bytes."
   puts
 end
 
-failures = []
-notes    = []
+failures    = []
+notes       = []
+newest_cut  = cuts.last
+
+# ── Base + head resolution ───────────────────────────────────────────────────
+env_base = ENV["BASE_SHA"] || ENV["GITHUB_BASE_SHA"]
+base_src, base =
+  if base_arg then ["--base #{base_arg}", rev_parse(base_arg)]
+  elsif rev_parse(env_base) then ["$BASE_SHA (#{env_base[0, 12]})", rev_parse(env_base)]
+  else ["origin/main", rev_parse("origin/main")]
+  end
+
+head = rev_parse(head_arg)
 
 # ── Pass 1: the working tree ─────────────────────────────────────────────────
 #
@@ -162,15 +249,6 @@ else
 end
 
 # ── Pass 2: the range this push / PR introduces ──────────────────────────────
-env_base = ENV["BASE_SHA"] || ENV["GITHUB_BASE_SHA"]
-base_src, base =
-  if base_arg then ["--base #{base_arg}", rev_parse(base_arg)]
-  elsif rev_parse(env_base) then ["$BASE_SHA (#{env_base[0, 12]})", rev_parse(env_base)]
-  else ["origin/main", rev_parse("origin/main")]
-  end
-
-head = rev_parse(head_arg)
-
 if head.nil?
   failures << "could not resolve head ref `#{head_arg}` to a commit."
 elsif base.nil?
@@ -223,15 +301,58 @@ else
   end
 end
 
+# ── Pass 3: the alias, at rest (K-847) ───────────────────────────────────────
+#
+# The two sentences this enforces are NORMATIVE text on a published site:
+#   specification.html  "`https://kiosk.tech/skill.md` is the "latest" alias,
+#                        byte-identical to the newest version file"
+#   skill.md            "`https://kiosk.tech/skill.md` is the "latest" alias
+#                        with identical content"
+# Phil's K-847 answer was to keep them and make them true, which turns them into
+# a build invariant: a skill edit is not finished until a cut carries it and the
+# alias equals that cut. Reads the FILES, so it says the same thing locally and
+# in CI, and it does not care which commit put them there.
+if File.exist?(ALIAS)
+  if newest_cut.nil?
+    failures << "no skill-v*.md cut exists at all, so #{ALIAS} mirrors nothing."
+  else
+    alias_sha = Digest::SHA256.hexdigest(File.binread(ALIAS))
+    cut_sha   = Digest::SHA256.hexdigest(File.binread(newest_cut))
+    if alias_sha == cut_sha
+      notes << "alias #{ALIAS} == newest cut #{newest_cut} (#{alias_sha[0, 12]}…)"
+    else
+      failures << "#{ALIAS} is NOT byte-identical to the newest cut #{newest_cut} " \
+                  "(#{alias_sha[0, 12]}… vs #{cut_sha[0, 12]}…). specification.html and " \
+                  "#{ALIAS} itself both PUBLISH that it is, about a supply-chain control, so " \
+                  "the tree must not come to rest like this. A skill edit ends in a version " \
+                  "bump (K-847): cut a new skill-v*.md from the alias, re-pin every consumer, " \
+                  "and never edit a cut once it has been committed."
+    end
+
+    alias_version = frontmatter_version(ALIAS)
+    cut_version   = newest_cut[/skill-v(.+)\.md\z/, 1]
+    if alias_version != cut_version
+      failures << "#{ALIAS} frontmatter says version #{alias_version.inspect} but the newest cut " \
+                  "is #{cut_version.inspect} (#{newest_cut}). An assistant reads the version out " \
+                  "of the frontmatter, so it must name the bytes it was handed."
+    end
+  end
+else
+  failures << "#{ALIAS} does not exist — the \"latest\" alias is part of what this site publishes."
+end
+
 notes.each { puts "  note: #{_1}" }
 
 if failures.empty?
-  puts "check-skill-immutability: OK — no published skill-v*.md was modified or removed."
+  puts "check-skill-immutability: OK — no published skill-v*.md was modified or removed, " \
+       "and #{ALIAS} is byte-identical to #{newest_cut}."
   exit 0
 end
 
 warn "\ncheck-skill-immutability FAILED:\n"
 failures.each { warn "  x #{_1}" }
-warn "\nA published version file is never edited. Every change ships a NEW skill-vX.Y.Z.md " \
-     "(ADR-0012). That is what makes the spec's \"this pin cannot drift by construction\" true."
+warn "\nA published version file is never edited, and the alias never comes to rest diverged " \
+     "from the newest cut. Every change ships a NEW skill-vX.Y.Z.md, the demos are re-pinned in " \
+     "the same wave, and skill.md is regenerated from it (ADR-0012, K-847). That is what makes " \
+     "the spec's \"byte-identical to the newest version file\" true."
 exit 1
