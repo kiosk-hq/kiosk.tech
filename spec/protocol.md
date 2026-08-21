@@ -339,7 +339,25 @@ An operator MAY advertise Kiosk on its human-facing pages with a
 `<link rel="kiosk" href="...">` tag (or an equivalent HTTP `Link` header). The tag
 is a **signal, not a source**: its `href` points at the universal skill on
 kiosk.tech, and an AI assistant **MUST NOT** load skill instructions from the operator
-(Section 15.6). An operator MAY additionally emit the standard agent-web discovery
+(Section 15.6).
+
+**The `href` names a VERSIONED CUT, never the alias.** An operator that
+advertises the signal -- in the tag, in the header, or in both -- **MUST** point
+it at `https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md`, and **MUST NOT** point it
+at the `https://kiosk.tech/skill.md` alias. Where the operator also publishes a
+`skill` pin in its discovery document (Section 4.1), the two **MUST** name the
+same url, so an origin advertises exactly one skill rather than two that can
+disagree. The reason is the reason the pin is versioned at all: the alias tracks
+whatever kiosk.tech publishes next, so an `href` naming it hands different bytes
+to two assistants that read the same page a week apart, and hands neither of them
+anything a hash can be taken over -- the one artefact an operator and kiosk.tech
+share would be the one carrying no version and no digest. Naming the cut also
+changes the failure of a stale advertisement from silent to loud: an origin
+pointing at a cut kiosk.tech has not published yet answers `404` on a fetch,
+instead of quietly handing an assistant instructions for a wire this operator
+does not serve.
+
+An operator MAY additionally emit the standard agent-web discovery
 surfaces -- `agents.txt`, `agents.json`, `/.well-known/agent-configuration`
 (RFC 8414-style), `/.well-known/api-catalog` (RFC 9727), and `/auth.md` -- as
 envelopes around `kiosk.json`; when present they are rendered from the same
