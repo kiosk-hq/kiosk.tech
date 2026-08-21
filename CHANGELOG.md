@@ -3,6 +3,8 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-08-21: **The cart mandate says how many line items make a cart: at least one (K-857).** Requiring the field (K-741) left `[]` conforming, which withholds the reconciliation trail the requirement exists for while the mandate still authorises a positive charge. §11.2 states the MUST, the schema states `minItems: 1`, and the reference verifier refuses the same set. Intent: a rule whose stated purpose is defeated by a value it admits is not yet the rule.
+
 - 2026-08-21: **`header_nonce` gets the u32 bound the prose always claimed for it (K-842).** The PoW schema described the field as a u32 and then declared an unbounded integer, so the normative document admitted values the reference verifier folds down to a different number — the bound is now stated inclusively, the same spelling `indices` uses (K-845). Intent: where a schema and a verifier disagree about what a proof IS, one proof has more than one legal spelling.
 
 - 2026-08-21: **The landing page stops selling 0.3's wire.** «four fixed verbs, one envelope» described the multiplexed `POST /query` + `POST /run` pair and the `{ok, data, error}` success envelope, both of which 0.4 removed outright — the answer to «why not assemble the standards yourself» was pinning a layer that no longer looks like that. It now says what 0.4 pins: one endpoint per verb over a published catalog, and one error envelope (RFC 9457 problem+json). (K-859)

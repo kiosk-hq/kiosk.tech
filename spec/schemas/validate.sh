@@ -109,6 +109,13 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # settlement and reconciliation path already read it, which let a conforming
 # assistant pay and leave a capture nobody can match to a domain object.
 chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.no-line-items.json
+# K-857: and an EMPTY array is not a cart either — the question K-741 left open.
+# `[]` satisfies `required` while carrying exactly as much reconciliation value
+# as omission did, and `total_amount_cents` has `minimum: 1`, so an empty cart
+# is a positive charge with nothing itemised under it. This example is the
+# accepted examples/mandate.cart.json with `line_items` emptied and nothing else
+# changed, so only `minItems` leaving the schema can turn it green.
+chkfail validate "${F[@]}" -s "$(ref cartempty "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.empty-line-items.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
 # K-842: `header_nonce` is a u32 and was an unbounded integer, so the schema

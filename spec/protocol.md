@@ -1097,6 +1097,11 @@ identity, whose `iss` is not its own issuer (verbatim from `kiosk.json`), or who
 
 `cart.intent_mandate_id` **MUST** equal the intent's `id`; the cart total **MUST
 NOT** exceed the intent cap; `cart.currency` **MUST** equal the intent currency.
+`cart.line_items` **MUST** carry at least one entry: a cart mandate exists to say
+what is being bought, and the settlement trail is reconciled from those entries,
+so an EMPTY array satisfies the field's presence while withholding everything the
+field is required for -- and a positive `total_amount_cents` with nothing itemised
+under it is an unitemised charge, which is what this mandate exists to prevent.
 `payment.cart_mandate_id` **MUST** equal the cart's `id`; `payment.amount_cents`
 **MUST** equal the cart total in the same `currency`. The server verifies all
 three signatures against the AI assistant's registered key -- providing non-repudiation.
