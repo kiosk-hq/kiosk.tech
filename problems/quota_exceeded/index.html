@@ -35,7 +35,7 @@
     <p><span class="status">HTTP 429</span> &nbsp; <code>title</code>: Quota exceeded</p>
 
     <h2>What it means</h2>
-    <p>A rate or volume quota has been exhausted. <strong>Reserved for the quotas companion gem</strong> — a core Kiosk operator never emits it, so most callers will never see it.</p>
+    <p>A rate or volume quota the operator enforces has been exhausted — for example, a cap on how many KYC verifications one principal may have open at the same time. The Kiosk engine never raises this code itself; an operator emits it from its own handler when it meters something. It is the one refusal in the vocabulary that means <strong>come back later</strong> rather than <em>no</em>: finish or abandon whatever is already outstanding, then retry.</p>
 
     <h2>What to do next</h2>
     <p>Back off and retry later. The core wire prices abuse with proof-of-work (<code>pow_required</code>) rather than with quotas, so a <code>429</code> means the operator has added a quota layer of its own.</p>

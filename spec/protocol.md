@@ -919,7 +919,7 @@ members it does not recognise.
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
 | `payment_failed` | 402 | The charge did not settle: declined, authentication required, insufficient funds, or a processor timeout (Section 11.3). Not a gate -- there is nothing to solve and nothing to set up; no `challenges`, and **no `WWW-Authenticate`** (see below). `hint` says whether the outcome was definitive or unknown. |
-| `quota_exceeded` | 429 | Reserved for the quotas companion; the core operator never emits it. |
+| `quota_exceeded` | 429 | A rate or volume quota the OPERATOR enforces is exhausted -- e.g. a cap on how many KYC verifications one principal may have open at once. The engine never raises it: an operator emits it from its own handler when it meters something, and it is the one refusal in this table that means "come back later" rather than "no". |
 | `action_failed` | 500 | An operator-registered action raised. |
 | `internal_error` | 500 | Catch-all server error. |
 

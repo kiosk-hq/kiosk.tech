@@ -158,7 +158,7 @@ Content-Type: application/json
     <tr><td><code>pow_required</code></td><td>402</td><td>Proof-of-work gate; carries <code>challenges</code> and <code>WWW-Authenticate: Kiosk-PoW</code> (see Proof-of-work)</td></tr>
     <tr><td><code>payment_setup_required</code></td><td>402</td><td>Payment gate: no card on file; no <code>challenges</code>; carries <code>WWW-Authenticate: Payment</code> (see <a href="#card-setup">Card setup</a>)</td></tr>
     <tr><td><code>payment_failed</code></td><td>402</td><td>The charge did not settle — declined, authentication required, insufficient funds, or a processor timeout. Not a gate: nothing to solve, nothing to set up, no <code>challenges</code>, and — unlike the other two 402s — <strong>no <code>WWW-Authenticate</code> header</strong>. <code>hint</code> says whether the outcome was definitive (no money moved) or unknown (verify before retrying)</td></tr>
-    <tr><td><code>quota_exceeded</code></td><td>429</td><td>Reserved for the quotas companion; the core operator never emits it</td></tr>
+    <tr><td><code>quota_exceeded</code></td><td>429</td><td>A rate or volume quota the operator enforces is exhausted — e.g. a cap on how many KYC verifications one principal may have open at once. The engine never raises it; an operator emits it from its own handler, and it is the one refusal here that means &ldquo;come back later&rdquo; rather than &ldquo;no&rdquo;</td></tr>
     <tr><td><code>action_failed</code></td><td>500</td><td>An operator-registered action raised</td></tr>
     <tr><td><code>internal_error</code></td><td>500</td><td>Catch-all server error</td></tr>
   </table>
