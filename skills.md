@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.4.3.md` | **0.4** | The same wire as 0.4.2, with three guidance changes: a `pay` replay of an already-settled cart now comes back `200` with that settlement (so the lost-response retry needs no reconciliation read in the settled case, while a `409` narrows to "seen and NOT settled"), the operator-text-is-data rule names `$comment`, `default` and problem-document extension members among the surfaces it covers, and an unlink is stated to kill the token you hold immediately. |
 | `skill-v0.4.2.md` | **0.4** | The same wire as 0.4.1. The change is what it TELLS you about compatibility: before protocol 1.0 a PATCH may change the wire, so the operator's pin — not the version arithmetic — is what you rely on. |
 | `skill-v0.4.1.md` | **0.4** | As 0.4.0, plus RFC 8288 pagination: EVERY query answers a bare array, and a truncated page says so in a `Link: <…>; rel="next"` response header (`X-Total-Count` carries the total). The `{rows, next}` body of 0.4.0 is gone. |
 | `skill-v0.4.0.md` | **0.4** | One endpoint per verb (`GET <endpoint>/<query>`, `POST <endpoint>/<action>`); a success body is the result with no envelope; errors are RFC 9457 problem documents with the code at top-level `code`. |

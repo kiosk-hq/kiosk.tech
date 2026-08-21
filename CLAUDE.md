@@ -2,10 +2,13 @@
 
 This repo is everything published at https://kiosk.tech (GitHub Pages,
 `CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
-universal agent skill (the "latest" alias; the immutable published versions
-are `skill-vX.Y.Z.md`, current `skill-v0.3.11.md` (MAJOR.MINOR tracks the
-framework release from 0.2 on) — a published
-version file is never edited, every change ships a new one), `index.html` —
+universal agent skill (the "latest" alias, which must come to REST byte-identical
+to the newest cut; the immutable published versions are `skill-vX.Y.Z.md`,
+current `skill-v0.4.3.md` (MAJOR.MINOR tracks the framework release from 0.2 on)
+— a published version file is never edited, every change ships a new one, and a
+skill edit ends in a version bump plus a re-pin of every consumer in the same
+wave: `bin/check-skill-immutability` enforces both halves. K-847, and the three
+standing rules are in the umbrella `CLAUDE.md`.), `index.html` —
 landing, `onboarding.html`, `payment/return` (Stripe Checkout return page),
 and `spec/` — the **formal** specification (`spec/protocol.md`,
 RFC-style) plus machine-readable JSON Schemas (`spec/schemas/`) for adopters and
