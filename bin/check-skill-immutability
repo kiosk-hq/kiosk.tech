@@ -88,12 +88,26 @@
 #                                    normative text on a published site
 #   alias frontmatter version !=     FAILS — same reason: the version an
 #     the newest cut's version         assistant reads must name the bytes it got
+#   a page saying "the current       FAILS — a stale version line is a claim,
+#     skill is <not the newest>"       not a typo: it tells an adopter to pin a
+#                                      superseded cut (K-863)
+#   an example pin URL naming        FAILS — same reason; that URL is copied
+#     anything but the newest cut
+#   `skill-v0.4.1.md` named in       allowed — that is HISTORY, and it must keep
+#     prose without the origin         its number forever
+#
+# THE THIRD INVARIANT: THE PROSE THAT NAMES THE CURRENT CUT (K-863)
+# -----------------------------------------------------------------
+# Passes 1-3 hold the BYTES. None of them reads a sentence, so the relink
+# inventory kept a hand-maintained half — and that half rotted three times in
+# six days. See the pass-4 block below for the full account and for what is
+# deliberately left unchecked.
 #
 # HOW IT DECIDES
 # --------------
-# Three passes, because the useful moment to be stopped is before the commit,
-# the authoritative moment is in CI, and the third property is about the tree
-# rather than about a diff:
+# Four passes, because the useful moment to be stopped is before the commit,
+# the authoritative moment is in CI, and the last two properties are about the
+# tree rather than about a diff:
 #
 #   1. WORKING TREE — `git status` for tracked, modified or deleted cuts. Stops
 #      an edit locally. A no-op in CI, where the tree is clean. Untracked and
@@ -107,6 +121,11 @@
 #   3. ALIAS AT REST — sha256(skill.md) against sha256(newest cut), plus the
 #      frontmatter `version` against that cut's version. Reads the files, not
 #      git, so it is the same answer locally and in CI.
+#   4. PROSE AT REST — every published sentence that states WHICH cut is
+#      current, every example `https://kiosk.tech/skill-v*.md` pin, and the
+#      cut table in skills.md, all against the cuts on disk. No version number
+#      appears in this script: the expectations are derived, so the next bump
+#      moves the gate with it.
 #
 # "AT REST" MEANS THE TREE THAT GETS PUSHED, not every intermediate commit, and
 # that is forced rather than lenient: a cut is frozen the moment it is
@@ -128,6 +147,9 @@
 #   bin/check-skill-immutability --base <ref>    # explicit base
 #   bin/check-skill-immutability --head <ref>    # explicit head (default HEAD)
 #   bin/check-skill-immutability --list          # every published cut + its sha256
+#
+# Pass 4 reads the working tree (`git ls-files` + untracked-not-ignored), so it
+# answers about the tree in front of you, not about a range.
 
 require "digest"
 require "open3"
@@ -339,6 +361,217 @@ if File.exist?(ALIAS)
   end
 else
   failures << "#{ALIAS} does not exist — the \"latest\" alias is part of what this site publishes."
+end
+
+# ── Pass 4: the PROSE that names the current cut (K-863, K-745) ──────────────
+#
+# Passes 1–3 hold the ARTEFACTS: no published cut is rewritten, and the alias
+# carries the newest cut's exact bytes. None of them reads a sentence. So the
+# relink inventory kept its hand-maintained half, and that half rotted three
+# times in six days: `CLAUDE.md` sat three cuts behind (K-863), `protocol.md`
+# §14.4 said «The current skill is 0.4.2» while `specification.html` two files
+# away already said 0.4.3 (K-745), and the illustrative `skill` pin in
+# `specification.html` and in the schema examples named `skill-v0.4.0.md`,
+# three cuts stale.
+#
+# A stale version line on the normative page is a CLAIM, not a typo: it tells
+# an adopter to pin a superseded cut, and the dual-check will happily verify
+# that superseded cut's bytes and then drive a wire the operator no longer
+# serves. So the prose gets a gate for the same reason the bytes do.
+#
+# EVERYTHING HERE IS DERIVED FROM THE FILES ON DISK. There is no version number
+# in this script — the expectations come from `cuts`, so the next bump moves the
+# gate with it and nobody has to remember to edit the guard.
+#
+# WHAT IS CHECKED
+#
+#   R1  a sentence that states WHICH cut is current names the newest cut
+#       («The current skill is X», «currently skill-vX», «current skill-vX.md»,
+#        «a X operator no longer serves»)
+#   R2  «A-B describe earlier <series> wires» spans the newest series from its
+#       first cut to the one immediately before the newest
+#   R3  «A-B (cuts) describe protocol S-T» spans the oldest cut to the last cut
+#       before the newest series
+#   R4  every `https://kiosk.tech/skill-vX.Y.Z.md` URL — a PIN, something a
+#       reader copies — names the newest cut
+#   R5  every `skill-vX.Y.Z.md` named anywhere names a cut that EXISTS
+#   R6  the cut table in skills.md carries a row for every cut on the newest
+#       series, newest first
+#
+# WHAT IS DELIBERATELY NOT CHECKED, and why
+#
+#   * THE CUTS THEMSELVES AND THE ALIAS. A published cut is immutable (pass 1)
+#     and the alias is byte-identical to the newest cut (pass 3), so a prose
+#     rule over them could only be satisfied by mutating a frozen artefact —
+#     a guard must never demand an edit the guard next to it forbids. A stale
+#     example pin inside the skill text is fixed in the NEXT cut, which is
+#     exactly what «bump first, then edit inside the new cut» is for.
+#   * BARE FILENAMES IN PROSE (`skill-v0.4.1.md` without the origin). Those are
+#     how this site refers to HISTORY — «skill-v0.4.1.md did exactly that: it
+#     moved the cursor into a Link header» must keep its number forever. Only
+#     the URL form is a pin, so only the URL form is held to the newest cut.
+#     R5 still applies, so a bare name cannot dangle.
+#   * skills.md AND CHANGELOG.md's cut numbers. Their job IS to name every cut;
+#     R4 would make them unwritable. R5 and R6 cover them instead.
+PROSE_EXTENSIONS = %w[.md .html .json .txt].freeze
+
+# Surfaces whose purpose is to enumerate cuts, so R4 does not apply to them.
+HISTORY_SURFACES = %w[skills.md CHANGELOG.md].freeze
+
+CUT_TABLE = "skills.md"
+
+# A concrete cut named in text: `skill-v0.4.3.md`. Numeric on purpose — the
+# placeholders this site writes on purpose (`skill-vX.Y.Z.md`,
+# `skill-vMAJOR.MINOR.PATCH.md`) must not be read as versions.
+NAMED_CUT = /skill-v(\d+(?:\.\d+)+)\.md/
+PIN_URL   = %r{https://kiosk\.tech/skill-v(\d+(?:\.\d+)+)\.md}
+
+# A sentence stating which cut is current.
+CURRENT_CLAIM = /
+  (?: the\s+current\s+skill\s+is\s+v?
+    | currently\s+skill-v
+    | current\s+skill-v
+    | newest\s+cut\s+is\s+v?
+  )
+  (\d+(?:\.\d+)+)
+/xi
+SERVES_CLAIM      = /a\s+(\d+(?:\.\d+)+)\s+operator\s+no\s+longer\s+serves/i
+EARLIER_WIRES     = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+describe\s+earlier\s+(\d+\.\d+)\s+wires/i
+EARLIER_PROTOCOLS = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+(?:cuts\s+)?describe\s+protocol\s+(\d+\.\d+)\s*[-–—]\s*(\d+\.\d+)/i
+
+def cut_version(cut) = cut[/skill-v(.+)\.md\z/, 1]
+def series_of(version) = version.split(".")[0, 2].join(".")
+
+# Tags, entities and markdown emphasis out of the way, so one set of patterns
+# answers the same on `specification.html` and on `spec/protocol.md`.
+def plain(text)
+  text.gsub(/<[^>]+>/, " ")
+      .gsub(/&(?:[a-zA-Z]+|#\d+);/, " ")
+      .tr("*`", "  ")
+      .gsub(/\s+/, " ")
+end
+
+# Tracked files plus untracked-not-ignored ones: a new page that names a stale
+# pin should fail before it is committed, not after.
+def prose_files
+  tracked, _err, _ok = git("ls-files", "-z")
+  others,  _err2, _ok2 = git("ls-files", "--others", "--exclude-standard", "-z")
+  (tracked.split("\0") + others.split("\0")).reject(&:empty?).uniq.select do |path|
+    next false if path == ALIAS || CUT.match?(File.basename(path))
+
+    PROSE_EXTENSIONS.include?(File.extname(path)) && File.file?(path)
+  end.sort
+end
+
+if newest_cut
+  newest_version = cut_version(newest_cut)
+  newest_series  = series_of(newest_version)
+  all_versions   = cuts.map { cut_version(_1) }
+  series_cuts    = all_versions.select { series_of(_1) == newest_series }
+  before_series  = all_versions.reject { series_of(_1) == newest_series }
+  scanned        = prose_files
+  claims_checked = 0
+
+  scanned.each do |path|
+    raw  = File.read(path)
+    text = plain(raw)
+
+    text.scan(CURRENT_CLAIM) do |(named)|
+      claims_checked += 1
+      next if named == newest_version
+
+      failures << "#{path}: names #{named} as the current skill; the newest cut is " \
+                  "#{newest_version} (#{newest_cut}). Relinking is PART of a skill change, not " \
+                  "follow-up (K-847 rule 2) — a version line on a published page tells an " \
+                  "adopter which cut to pin."
+    end
+
+    text.scan(SERVES_CLAIM) do |(named)|
+      claims_checked += 1
+      next if named == newest_version
+
+      failures << "#{path}: says a #{named} operator no longer serves the earlier wires, but the " \
+                  "newest cut is #{newest_version}. That sentence names the CURRENT cut."
+    end
+
+    text.scan(EARLIER_WIRES) do |(from, to, series)|
+      claims_checked += 1
+      if series_cuts.size < 2
+        failures << "#{path}: describes cuts earlier than #{newest_version} within the " \
+                    "#{newest_series} series, but #{newest_cut} is the only cut on it. Reword or " \
+                    "remove the sentence."
+        next
+      end
+      want_from, want_to = series_cuts.first, series_cuts[-2]
+      next if from == want_from && to == want_to && series == newest_series
+
+      failures << "#{path}: «#{from}-#{to} describe earlier #{series} wires» — derived from the " \
+                  "cuts on disk that range is #{want_from}-#{want_to} on the #{newest_series} " \
+                  "series (every cut on the newest series except the newest itself)."
+    end
+
+    text.scan(EARLIER_PROTOCOLS) do |(from, to, from_series, to_series)|
+      claims_checked += 1
+      if before_series.empty?
+        failures << "#{path}: describes cuts from protocol series older than #{newest_series}, " \
+                    "but every published cut is on #{newest_series}."
+        next
+      end
+      want_from, want_to = all_versions.first, before_series.last
+      next if from == want_from && to == want_to &&
+              from_series == series_of(want_from) && to_series == series_of(want_to)
+
+      failures << "#{path}: «#{from}-#{to} describe protocol #{from_series}-#{to_series}» — " \
+                  "derived from the cuts on disk that is #{want_from}-#{want_to}, protocol " \
+                  "#{series_of(want_from)}-#{series_of(want_to)} (every cut before the " \
+                  "#{newest_series} series)."
+    end
+
+    raw.scan(NAMED_CUT).flatten.uniq.each do |named|
+      next if all_versions.include?(named)
+
+      failures << "#{path}: names skill-v#{named}.md, which does not exist. Every cut this site " \
+                  "names must be a file it publishes — a dangling pin fails closed on the " \
+                  "assistant's side and looks like the operator's fault."
+    end
+
+    next if HISTORY_SURFACES.include?(File.basename(path))
+
+    raw.scan(PIN_URL).flatten.uniq.each do |named|
+      claims_checked += 1
+      next if named == newest_version
+
+      failures << "#{path}: pins https://kiosk.tech/skill-v#{named}.md; the newest cut is " \
+                  "#{newest_cut}. A URL here is an EXAMPLE AN OPERATOR COPIES, so it must name " \
+                  "the cut this site would have them pin today. (A bare `skill-v#{named}.md` in " \
+                  "prose is history and is left alone — only the URL form is checked.)"
+    end
+  end
+
+  # R6: the cut table. Older series are collapsed into ranges on purpose, so
+  # only the NEWEST series is required to carry a row per cut — that is the
+  # series an adopter chooses from.
+  if File.exist?(CUT_TABLE)
+    table = File.read(CUT_TABLE)
+    missing = series_cuts.reject { |v| table.include?("skill-v#{v}.md") }
+    unless missing.empty?
+      failures << "#{CUT_TABLE}: the cut table has no row for " \
+                  "#{missing.map { "skill-v#{_1}.md" }.join(", ")}. Every cut on the current " \
+                  "#{newest_series} series is listed there, newest first — a cut nobody can find " \
+                  "is a cut nobody adopts."
+    end
+
+    first_row = table[/^\|\s*`?skill-v(\d+(?:\.\d+)+)\.md/, 1]
+    if first_row && first_row != newest_version
+      failures << "#{CUT_TABLE}: the first row of the cut table is skill-v#{first_row}.md, but " \
+                  "the newest cut is #{newest_cut}. The table reads newest-first."
+    end
+  else
+    failures << "#{CUT_TABLE} is missing — it is the published index of every cut."
+  end
+
+  notes << "prose: #{claims_checked} current-cut claim(s)/pin(s) checked against #{newest_cut} " \
+           "across #{scanned.size} file(s)"
 end
 
 notes.each { puts "  note: #{_1}" }
