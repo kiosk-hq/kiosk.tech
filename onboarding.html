@@ -174,7 +174,7 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <h2>Step 4: Declare your queries — write the controller, then name it</h2>
   <p>Queries are read-only data access. Agents use them to browse your catalog. Two moves, both required: write the controller here, and name it in <code>c.handlers</code> (Step 2's line, repeated at the end of Step 5) — that second line is what puts the verbs on the wire.</p>
 
-  <p>They live in <strong>controllers you own</strong>. Kiosk ships a mixin, not a base class — <code>include Kiosk::Query</code> (or <code>Kiosk::Action</code>) into a controller with whatever superclass you use, and that include is the whole of the contract on the class side. Each class-level macro records a declaration; the <strong>next <code>def</code></strong> claims all pending ones and becomes a wire verb. A method with no declarations above it is not a verb, so private helpers stay invisible to agents — and one controller declares queries <em>or</em> actions, never both. Inside a handler you are in an ordinary Rails action: <code>params</code>, <code>before_action</code> and <code>rescue_from</code> all apply, <code>kiosk_identity</code> is the principal the wire resolved (its <code>user_id</code> is your own model's PK), and whatever you <code>render json:</code> is the verb's result. The handler runs inside the wire's scoped transaction, so per-principal SQL scoping (and RLS, where you opted in) applies without you wiring anything.</p>
+  <p>They live in <strong>controllers you own</strong>. Kiosk ships a mixin, not a base class — <code>include Kiosk::Handler</code> into a controller with whatever superclass you use, and that include is the whole of the contract on the class side. Each class-level macro records a declaration; the <strong>next <code>def</code></strong> claims all pending ones and becomes a wire verb. A method with no declarations above it is not a verb, so private helpers stay invisible to agents. <code>kind :query</code> or <code>kind :action</code> says which verb reaches each one — a property of the <em>declaration</em>, so one controller may declare both. Inside a handler you are in an ordinary Rails action: <code>params</code>, <code>before_action</code> and <code>rescue_from</code> all apply, <code>kiosk_identity</code> is the principal the wire resolved (its <code>user_id</code> is your own model's PK), and whatever you <code>render json:</code> is the verb's result. The handler runs inside the wire's scoped transaction, so per-principal SQL scoping (and RLS, where you opted in) applies without you wiring anything.</p>
 
   <blockquote><strong>Two things to know.</strong> Handler controllers are <em>not routable</em> — do not draw a route at one. They are reached only through the Kiosk wire, which is where authentication, the PoW gate and the transaction live; a direct request answers 404. And <strong>a handler you have not named is not there at all.</strong> Declaration happens when the class body is read; production eager-loads <code>app/controllers</code>, but development (<code>config.eager_load = false</code>) autoloads on first reference and nothing ever references a handler controller — the wire reaches it <em>through</em> the registry, which is the thing that would be missing. An origin that names none of them serves no verbs: <code>GET /kiosk/schema</code> answers with an empty catalog, every <code>/kiosk/&lt;name&gt;</code> answers a <code>404</code> problem document, and <code>/.well-known/kiosk.json</code> advertises <code>"capabilities": []</code> — those are computed from the live registry. Step 2's <code>c.handlers</code> line is what closes it: the engine registers the classes you name in both load modes and <em>rebuilds</em> them after every code reload, so an edited, added <em>or removed</em> verb lands without restarting the server. You never write reload plumbing, and the catalog is identical in every environment.</blockquote>
 
@@ -234,9 +234,10 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p><code>app/controllers/kiosk/catalog_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/catalog_controller.rb
 class Kiosk::CatalogController &lt; ApplicationController   # your base class, your call
-  include Kiosk::Query
+  include Kiosk::Handler
 
   # What can the agent browse?
+  kind :query
   description "Browse everything currently in stock. Out-of-stock products are hidden, " \
               "so anything visible here is something that can actually be ordered. The " \
               "whole in-stock catalogue comes back in one call — this is the complete " \
@@ -264,6 +265,7 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
   # Delivery time slots. Each row carries the id create_order books, under the
   # SAME name that action takes — so the assistant copies it straight through
   # instead of guessing that your `id` is its `delivery_slot_id`.
+  kind :query
   description "Offer the delivery windows still bookable on a day. Whichever window the " \
               "human picks is booked as part of the order itself, so get their choice " \
               "before ordering, not after. A window that has already started today is " \
@@ -312,6 +314,7 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
   end
 
   # The agent can check its own orders
+  kind :query
   description "List this principal's own orders, newest first — the operator scopes them " \
               "to the authenticated assistant account, so an assistant only ever sees its " \
               "own. It is how an assistant finds the order reschedule_delivery should " \
@@ -343,7 +346,7 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 5: Declare your actions</h2>
-  <p>Actions mutate state — create orders, move a paid delivery, set up payment. They are the same shape as Step 4's queries — a second controller, <code>include Kiosk::Action</code> — because a controller declares queries <em>or</em> actions, never both.</p>
+  <p>Actions mutate state — create orders, move a paid delivery, set up payment. They are the same shape as Step 4's queries, marked <code>kind :action</code> instead of <code>kind :query</code>. They go in a second controller here because orders and the catalogue are different things — not because they have to: one controller may declare both.</p>
   <p>One of the actions below gates on the order being <em>paid</em>, and the receipts live in tables the Kiosk engine writes (<code>kiosk.settlements</code>, linked to the signed cart mandate it settled). Read them the Rails way — two small models over the engine's tables, no SQL by hand:</p>
   <pre><code class="language-ruby"># app/models/kiosk_settlement.rb — a read window onto the capture receipts
 # the Kiosk engine records after a successful /pay.
@@ -361,7 +364,7 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p><code>app/controllers/kiosk/orders_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/orders_controller.rb
 class Kiosk::OrdersController &lt; ApplicationController
-  include Kiosk::Action
+  include Kiosk::Handler
 
   # The canonical 8-4-4-4-12 uuid shape your app hands out. Checked BEFORE an
   # agent-supplied id is used, so a malformed one is answered as the agent's
@@ -371,6 +374,7 @@ class Kiosk::OrdersController &lt; ApplicationController
   # Check/setup saved payment card. A verb that takes nothing still declares the
   # empty closed object — "this verb takes no arguments" then becomes a published
   # fact instead of an absence the assistant has to interpret.
+  kind :action
   description "Say whether this principal already has a card on file, or hand back a " \
               "Stripe-hosted link for the human to add one. Nothing is charged and no " \
               "card data touches your app. Call it before every pay on a new device or " \
@@ -402,6 +406,7 @@ class Kiosk::OrdersController &lt; ApplicationController
   # Create an order. Delivery is PART of the order — the window and the address
   # are inputs here, not a later step (getgrocery's shape: an assistant that
   # cannot deliver has not finished shopping).
+  kind :action
   description "Place an order for the authenticated principal and book its delivery in " \
               "the same call — an order with nowhere and no time to go is not something " \
               "this operator can fulfil, so get both from the human first. The order " \
@@ -487,6 +492,7 @@ class Kiosk::OrdersController &lt; ApplicationController
   # kiosk.settlements (linked to the signed cart mandate). Look it up and refuse
   # if it's absent — the same settlement gate the getgrocery demo enforces on
   # reschedule_delivery.
+  kind :action
   description "Move an ALREADY-PAID order to a different delivery window, and optionally " \
               "to a new address. The existing payment carries over: there is nothing new " \
               "to sign and this does not charge again. An unpaid order cannot be moved " \
@@ -718,7 +724,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
     <li><a href="/spec/descriptor-house-style.md">descriptor house style</a> — how to write the <code>description</code> + <code>input_schema</code> pair well, with a worked search verb and a checklist</li>
     <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#mount-the-routes">kiosk-server — mount the routes</a> — the engine behind Step 3's one line: everything it draws under the mount, the root-relative discovery documents it installs, and the hand-drawing escape hatch</li>
-    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Query</code>/<code>Kiosk::Action</code> mixin this page's controllers use: the full macro list, the <code>c.handlers</code> line that puts them on the wire, the dispatch mechanics, and the error seam</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Handler</code> mixin this page's controllers use: the full macro list, the <code>c.handlers</code> line that puts them on the wire, the dispatch mechanics, and the error seam</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end with curl output. Its handlers are the controller shape this page shows.</li>
   </ul>
 </article>

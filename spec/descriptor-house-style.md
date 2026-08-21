@@ -21,7 +21,7 @@ asked for schemas the wire called optional. The spec has since caught up and
 passed it; the voice below is corrected to match.
 
 In the reference implementation these fields are the class-level macros of
-`Kiosk::Query` / `Kiosk::Action`, written in a controller the operator owns and
+`Kiosk::Handler`, written in a controller the operator owns and
 claimed by the next `def` (the kiosk-server README, "Declaring queries and
 actions", has the mechanics). This guide is about what the fields SAY, not
 where they are typed: the rules are identical however a descriptor reaches the
@@ -267,8 +267,9 @@ A paginated, multi-parameter search over ~100 hotels, written to the rules above
 ```
 # app/controllers/kiosk/hotel_search_controller.rb
 class Kiosk::HotelSearchController < ApplicationController   # your base class, your call
-  include Kiosk::Query
+  include Kiosk::Handler
 
+  kind :query
   description "Find Istanbul hotels matching what the human actually asked " \
               "for. Narrow with the filters this verb declares rather than " \
               "pulling the whole catalogue; filters combine, so several " \
