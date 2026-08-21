@@ -205,7 +205,7 @@
         <li>"Reserve a scooter near the office" — unlocked with a signed offline token; motorcycles are KYC-gated (skooti)</li>
         <li>"Schedule a haircut Saturday morning" — appointment confirmed, no app needed (stylish)</li>
         <li>"Buy groceries for the week" — cart filled, delivery slot booked, paid by saved card (getgrocery)</li>
-        <li>Second grocery order: zero human taps — the card is already on file (real Stripe, test mode)</li>
+        <li>Second grocery order: zero human taps — the card is already on file (scripted against stripe-mock; the off-session charge on a saved card is covered against real Stripe, test mode)</li>
       </ol>
     </div>
 
@@ -309,7 +309,7 @@
             <span class="demo-prompt">On philslist.demo.kiosk.tech, post my carbon road bike for €300 with my phone number 555-123-4567 as the contact.</span>
             <button onclick="copyPrompt(this)" title="try it with your personal AI assistant" aria-label="Copy prompt — try it with your personal AI assistant" class="demo-copy">⧉</button>
           </div>
-          <span style="display:block;color:#777;font-size:11px;margin-top:7px;font-style:italic">Attach a photo of the bike when your assistant asks.</span>
+          <span style="display:block;color:#777;font-size:11px;margin-top:7px;font-style:italic">Text only — no photos. The board shows sellers by an opaque handle, never an address, so the contact detail you give goes in the listing text and is public.</span>
         </div>
         <div class="demo-card">
           <a href="https://tudu.demo.kiosk.tech" class="demo-card__link">
