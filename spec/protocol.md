@@ -247,7 +247,9 @@ which no longer exist.
 
 - it **MUST** change that parameter whenever the catalog changes, so the value
   is derived from everything the catalog is rendered from, not from the verb
-  roster alone (an implementation upgrade can change the bytes too);
+  roster alone (an implementation upgrade can change the bytes too, and where a
+  descriptor is derived from operator DATA -- Section 8.3 -- so can a change to
+  that data, which is not a deploy);
 - it **MAY** serve the versioned url `public, max-age=31536000, immutable`,
   because that url's answer cannot change; and
 - the short lifetime on THIS document is what republishes the new link, so it
@@ -735,12 +737,27 @@ already fetches at Step 1. (Through 0.3 `verbs` was instead the invariant four
 `query`, `run`, `pay`, `schema`, which named `pay` on an operator that had no
 payment provider wired while `capabilities` correctly dropped it.)
 
-The document is identical for every caller and changes only when the operator
-deploys, so an operator **SHOULD** serve it `Cache-Control: public` and
-**MUST NOT** send `Vary: Authorization` on it -- a public document that varies
-on a header it does not read is one no shared cache can reuse. How long it may
-be cached, and how a version parameter makes a long lifetime safe, is
-Section 4.1.
+The document is identical for every caller, so an operator **SHOULD** serve it
+`Cache-Control: public` and **MUST NOT** send `Vary: Authorization` on it -- a
+public document that varies on a header it does not read is one no shared cache
+can reuse. How long it may be cached, and how a version parameter makes a long
+lifetime safe, is Section 4.1.
+
+**A descriptor MAY be derived from the operator's own data, and then the catalog
+changes without a deploy.** The usual case is a constraint whose domain IS a
+table: an `enum` of the sections a classifieds board actually has, of the
+currencies an origin actually prices in. An operator **MAY** publish such a
+descriptor, and where it does: the served document **MUST** state the CURRENT
+value, not one captured when the process started, so adding a row is enough to
+publish it -- requiring a restart or a redeploy to publish a row is not
+conformant; the version parameter of Section 4.1 **MUST** move with it, since it
+is what tells a client holding a cached copy that the copy is stale; and the
+operator **SHOULD** bound how long a derived value is reused by the freshness
+lifetime it serves on the discovery document, because a catalog that refreshes
+more slowly than the pointer to it cannot be observed as fresh. What such a
+descriptor **MUST NOT** do is vary by CALLER: this document is one answer for
+everyone (that is what makes it unauthenticated and shared-cacheable), so a
+descriptor derived from the requesting identity is not a conformant catalog.
 
 Which VERBS the origin
 serves is `queries` and `actions`, which are
@@ -1003,9 +1020,12 @@ and that is the rule working rather than an inconsistency.
 Where the value is a closed set the operator **SHOULD** declare it as an `enum`
 in `input_schema` (Section 8.3) and let the validation of Section 8.1 item 5
 produce the `400`, rather than writing a handler guard: one statement, published
-and enforced. A constraint a schema cannot express -- a rolling date horizon, a
-set derived from the operator's own data -- keeps an explicit guard returning
-the same typed `400`.
+and enforced. **A set derived from the operator's own data is not such a case**
+-- a descriptor MAY publish it and be re-derived as the data moves (Section
+8.3), so an `enum` of the sections a board actually has belongs in the schema
+rather than in a guard. A constraint a schema genuinely cannot express -- a
+rolling date horizon, a value whose validity depends on another argument --
+keeps an explicit guard returning the same typed `400`.
 
 > **A recorded trade-off, so it is not rediscovered as a defect.** On a strict
 > reading of [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110), rule 1 is

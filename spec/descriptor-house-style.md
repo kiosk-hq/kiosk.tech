@@ -148,6 +148,16 @@ the handler runs, so a property you did not declare is refused with a typed
   categories, amenities), `minimum`/`maximum` for ranges (a 1..5 star rating, a
   non-negative price, a page-size cap), `default` where the handler has one,
   `pattern`/`format` where the string has a shape.
+- **Where the closed set IS a table, derive it rather than copying it.** A
+  `category_slug` enum written out by hand refuses the section an operator added
+  yesterday, and nothing tells them why. Publish the live values and let the
+  catalog be re-derived as the data moves (Section 8.3 of the specification);
+  `kiosk-server` takes a proc for this — `enum: -> { Category.pluck(:slug) }`.
+  The distinction worth keeping is between a VOCABULARY table and a column on
+  an inventory table: deriving the sections a board has is right, deriving the
+  neighbourhoods from the hotels currently listed is not, because it collapses
+  "we do not serve that area" (a `400`) into "nothing there right now" (a
+  `200 []`).
 - `required` lists the fields with no default. A fetch-by-id takes
   `required: ["<thing>_id"]`; an all-optional filter search takes `required: []`.
 - A verb that takes NOTHING still declares
