@@ -57,6 +57,7 @@ chk validate "${F[@]}" -s pow.schema.json -d examples/pow.shorthand.json
 # an exact-integer reader and survives the round-trip for a double one. Flip the
 # bound back and this line goes red.
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.max-index.json
+chk validate "${F[@]}" -s pow.schema.json -d examples/pow.max-header-nonce.json
 chk validate "${F[@]}" -s "$(ref intent  "$B/mandates.schema.json#/\$defs/intent")"     -r mandates.schema.json -d examples/mandate.intent.json
 chk validate "${F[@]}" -s "$(ref cart    "$B/mandates.schema.json#/\$defs/cart")"       -r mandates.schema.json -d examples/mandate.cart.json
 chk validate "${F[@]}" -s "$(ref payment "$B/mandates.schema.json#/\$defs/payment")"    -r mandates.schema.json -d examples/mandate.payment.json
@@ -110,6 +111,16 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.no-line-items.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
+# K-842: `header_nonce` is a u32 and was an unbounded integer, so the schema
+# admitted values the reference verifier folds down to a DIFFERENT number --
+# `pack("V")` truncates mod 2**32, which made 0, 2**32 and -(2**32) three
+# spellings of one proof. Unlike the u64 case above there is no double-rounding
+# problem at this magnitude (2**32-1 is exactly representable), so the accepted
+# example carries the largest LEGAL value and the two rejected ones sit exactly
+# one step outside it in each direction. The only thing that can turn either
+# green is the bound going away.
+chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.header-nonce-above-u32.json
+chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.header-nonce-negative.json
 
 echo "-----"
 echo "PASS=$pass FAIL=$fail"
