@@ -143,7 +143,7 @@ proof-of-work gate.
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
    | `Kiosk-API-Version` | `0.4.0` | The protocol version the operator speaks -- the version this document specifies, at MAJOR.MINOR.PATCH. |
-   | `Kiosk-Min-Client` | `0.4.0` | Advisory: the oldest AI-assistant version the operator expects to interoperate with that API version. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. |
+   | `Kiosk-Min-Client` | `0.4.0` | Advisory: the oldest AI-assistant version the operator expects to interoperate with that API version. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
    spelling. The root-served discovery surfaces (Section 4.5) sit outside the
@@ -222,7 +222,7 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 | `kiosk.endpoint` | string | REQUIRED | The wire-verb root (base URL + mount path). All verb and auth URLs derive from this. |
 | `kiosk.capabilities` | array | REQUIRED | The MODULES this endpoint serves, from `["schema","queries","actions","pay"]`, in that canonical order (Section 4.2). |
 | `kiosk.schema_url` | string | REQUIRED | Where to fetch the catalog (Section 8.3). MUST resolve to the same document as `GET <endpoint>/schema`. MAY carry a cache-busting version parameter -- see below. |
-| `kiosk.min_client` | string | OPTIONAL | Advisory minimum client version. |
+| `kiosk.min_client` | string | OPTIONAL | Advisory minimum client version. When present it **MUST** equal the `Kiosk-Min-Client` response header (Section 3, point 6) -- same number, two surfaces. |
 | `kiosk.owner` | object | OPTIONAL | Operator contact info; SHOULD include at least an email. |
 | `kiosk.auth` | object | REQUIRED | The kiosk-pop auth block (Section 4.3). |
 | `kiosk.skill` | object | OPTIONAL | Pinned skill reference `{url, sha256}` (Section 14.4). Omitted entirely when absent. |
