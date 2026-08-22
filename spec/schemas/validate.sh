@@ -86,6 +86,15 @@ chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discove
 # property from the suite. Its predecessor, `schema-descriptor.verb-names.json`,
 # tested the `verbs` ENUM and had nothing left to test once the field went.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.verbs-field.json
+# K-949 / ADR-0028: `reach` is a CLOSED vocabulary, and the closure is the
+# whole enforcement. `reach` is what lets a verb answer with another
+# principal's rows and still conform, so an unrecognised value must be a
+# refusal rather than a shrug: "public" is the word an operator reaches for
+# first, it is not one of the four, and a schema that accepted it would let a
+# typo publish a claim no assistant and no sweep can read. This example is the
+# accepted sibling's first query with that one word substituted, so nothing but
+# the enum can be what fails it.
+chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.bad-reach.json
 # K-839: `indices` items are u64. The description said so from the start; only
 # the bound makes the schema REFUSE what a conforming verifier refuses.
 # `pack("Q<")` truncates mod 2**64, so without the upper bound `idx` and

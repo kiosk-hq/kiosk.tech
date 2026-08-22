@@ -216,6 +216,44 @@ value, so its `output_schema` describes that object directly.
 `required` list, and it is the ONLY machine-readable statement of what a call
 gives back -- there is no second source for it and no probe that substitutes.
 
+### 3a. `reach` -- whose rows this verb touches (REQUIRED, and defaulted)
+
+`reach` answers one question: may this verb hand a caller rows belonging to
+somebody else? The default is `principal` -- only the calling principal's own
+rows, or rows that belong to no principal at all (a catalogue, a price list, a
+room rate) -- and it is what a verb that declares nothing means. Most verbs
+declare nothing, and that is correct: per-principal scoping is Section 7.2's
+absolute requirement and it costs you no ceremony.
+
+Write one of the other three ONLY when the verb really does cross a principal
+boundary, and pick the one that names what authorises it:
+
+- `published` -- your service publishes these owner-carrying rows to every
+  principal, by intent: a classifieds board, a public review wall. **It costs
+  something.** Those rows are readable by everyone who can register at your
+  origin, so Section 7.2 forbids putting in them any identifier your own
+  accounts authenticate with -- a login address, a phone number on file -- and
+  a row that must name its owner should name a stable opaque pseudonym instead.
+- `consented` -- a principal SHARED them, and you can point at the artefact
+  that says so: an invite a human minted, redeemed into a membership. Prefer
+  this over `published` wherever it is true; it is the stronger claim, because
+  it rests on an act by the human whose data it is rather than on your own
+  decision to publish.
+- `role` -- the reach follows the caller's `role` claim: staff read the whole
+  book, everyone else reads their own rows. Sound only because you ASSIGN the
+  role and a caller can never request one.
+
+Two rules make this worth writing rather than a comment. **Declaring a reach
+does not make it correct -- it makes it reviewable**: an undeclared
+cross-principal read is a defect whether or not you meant it, and the
+declaration is what lets an assistant tell your open board from your scoping
+bug. And **the reach bounds the verb, it does not open it**: a `consented`
+verb still answers `403` to a caller with no artefact, and a `role` verb still
+falls back to the caller's own rows for a role that was not granted the reach.
+
+If you find yourself reaching for a fifth value, the verb probably wants
+splitting into two -- one scoped, one declared.
+
 ### 4. `params` -- do not write one
 
 The free-text `params` name-to-hint hash is **RETIRED by the protocol**
@@ -427,6 +465,11 @@ Before shipping a query or an action, confirm:
       min/max, and each property's own one-line `description` carries its
       unit/format.
 - [ ] `required` is accurate (empty for all-optional search; the id for fetch-by-id).
+- [ ] `reach` is left undeclared unless the verb really hands the caller
+      somebody else's rows -- and where it is declared, the value names what
+      authorises it (`published` / `consented` / `role`), `consented` is
+      preferred wherever it is true, and no `published` row carries an
+      identifier your accounts authenticate with.
 - [ ] No `params` hint hash -- every param name appears in `input_schema` and
       nowhere else.
 - [ ] Nothing in `description`, a per-property `description`, an `enum` member

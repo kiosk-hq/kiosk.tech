@@ -4,24 +4,37 @@
   "title": "Kiosk schema descriptor",
   "description": "The body returned by GET <endpoint>/schema. UNAUTHENTICATED: the catalog is public. It carries the origin's verbs and their contracts and nothing else -- the MODULE set it once duplicated as `verbs` lives in `capabilities` in /.well-known/kiosk.json, which is where an AI assistant reads it. The root is CLOSED: a document carrying `verbs`, or any other key this schema does not declare, is not a conformant catalog.",
   "type": "object",
-  "required": ["queries", "actions"],
+  "required": [
+    "queries",
+    "actions"
+  ],
   "additionalProperties": false,
   "properties": {
     "queries": {
       "type": "array",
       "description": "Query descriptors, sorted by name.",
-      "items": { "$ref": "#/$defs/descriptor" }
+      "items": {
+        "$ref": "#/$defs/descriptor"
+      }
     },
     "actions": {
       "type": "array",
       "description": "Action descriptors, sorted by name.",
-      "items": { "$ref": "#/$defs/descriptor" }
+      "items": {
+        "$ref": "#/$defs/descriptor"
+      }
     }
   },
   "$defs": {
     "descriptor": {
       "type": "object",
-      "required": ["name", "description", "input_schema", "output_schema"],
+      "required": [
+        "name",
+        "description",
+        "reach",
+        "input_schema",
+        "output_schema"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -29,19 +42,41 @@
           "description": "The verb's wire name, which is also its path segment under `endpoint`. One name is one KIND: a name listed under `queries` must not also appear under `actions`."
         },
         "description": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Human-facing description or null. SEMANTICS live here in prose -- what the verb does, when to reach for it, what the result means. Names, types and constraints do not: an input belongs to input_schema and a result field to output_schema."
         },
+        "reach": {
+          "type": "string",
+          "enum": [
+            "principal",
+            "published",
+            "consented",
+            "role"
+          ],
+          "description": "REQUIRED. Whose rows this verb may touch (Section 7.2). `principal` is the DEFAULT and the norm: this verb touches only the calling principal's own rows, or rows that belong to no principal at all (a catalogue, a price list). The other three are DECLARED DEPARTURES, each naming what authorises the wider reach -- `published`, the operator publishes these owner-carrying rows to every principal by intent (a classifieds board); `consented`, a principal shared them and the operator can point at the artefact that says so (an invite that became a membership) -- the stronger of the two sharing claims; `role`, the reach follows the caller's operator-ASSIGNED `role` claim, which is never client-requested (Section 5.4). Declaring a reach does not make it correct, it makes it reviewable: an UNDECLARED cross-principal read is a defect whether or not the operator intended it. An AI assistant that meets a descriptor with no `reach` MUST read the verb as `principal` and MUST NOT take the absence as licence to assume anything wider."
+        },
         "params": {
-          "type": ["object", "null"],
+          "type": [
+            "object",
+            "null"
+          ],
           "description": "RETIRED free-form provider-defined hint object (by convention name -> type-hint string), or null. Never a validation contract, and no longer the input contract: publish null, or omit the key. Retained on the wire so descriptors written before the retirement still validate -- an AI assistant MAY read a non-null value as a prose hint for a verb that publishes no input_schema, and MUST prefer input_schema wherever one is published."
         },
         "input_schema": {
-          "type": ["object", "boolean"],
+          "type": [
+            "object",
+            "boolean"
+          ],
           "description": "REQUIRED. JSON Schema (draft 2020-12) for THIS verb's inputs: names, required/optional, types, enums, ranges. The AUTHORITATIVE input contract -- the only place a parameter name is declared -- and it wins over any `params` hint or `description` sentence that disagrees. The operator validates a request's arguments against it before the handler runs and answers 400 bad_request naming the offending parameter otherwise. A verb that takes nothing declares the closed empty object."
         },
         "output_schema": {
-          "type": ["object", "boolean"],
+          "type": [
+            "object",
+            "boolean"
+          ],
           "description": "REQUIRED. JSON Schema (draft 2020-12) for what this verb RETURNS. With no response envelope, this is the ONLY machine-readable statement of the result shape: what a query's rows look like, or what an action's object contains. A query's is an ARRAY schema whether or not the verb paginates -- a paginated page carries its cursor in an RFC 8288 Link header, not in the body -- so a paginating verb declares one shape, not a two-branch union. It must describe what the verb actually renders -- a success body that does not satisfy it is an operator-side defect, not a permitted variation."
         },
         "example_params": {

@@ -9,6 +9,7 @@
     {
       "name": "catalog",
       "description": "Browse everything on offer. The whole catalogue comes back in one call, so this is the cheap way to see what exists before narrowing.",
+      "reach": "principal",
       "params": null,
       "input_schema": {
         "type": "object",
@@ -52,6 +53,7 @@
     {
       "name": "search_hotels",
       "description": "Find hotels matching what the human actually asked for; narrow with the filters this verb declares rather than pulling the whole catalogue. A row is a SUMMARY of one property, priced at its cheapest nightly rate and not at a total for the stay. The result is one PAGE of the matching set: when more hotels match, the response says so, and stopping at the first page answers from a partial list.",
+      "reach": "principal",
       "params": null,
       "input_schema": {
         "type": "object",
@@ -163,6 +165,7 @@
     {
       "name": "create_order",
       "description": "Place an order for what the human has chosen. This RESERVES the goods and returns the order to settle; it does not take money -- the `pay` verb does that.",
+      "reach": "principal",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -225,6 +228,7 @@
     {
       "name": "payment_setup",
       "description": null,
+      "reach": "principal",
       "params": null,
       "input_schema": {
         "type": "object",
