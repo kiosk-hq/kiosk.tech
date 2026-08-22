@@ -13,9 +13,13 @@ landing, `onboarding.html`, `payment/return` (Stripe Checkout return page),
 and `spec/` — the **formal** specification (`spec/protocol.md`,
 RFC-style) plus machine-readable JSON Schemas (`spec/schemas/`) for adopters and
 porters (`specification.html` is the narrative spec, the formal spec is
-its precise companion; both are kept consistent). Static files, no build step —
-the one CI workflow (`.github/workflows/spec-schemas.yml`) lints `spec/schemas/`
-and does not build the site.
+its precise companion; both are kept consistent). Static files, no build step — nothing
+here is compiled, and neither CI workflow builds the site. `.github/workflows/spec-schemas.yml`
+lints `spec/schemas/`; `.github/workflows/skill-immutability.yml` runs
+`bin/check-skill-immutability`, the guard the paragraph above depends on, so it
+answers the same in CI as it does locally. `bin/` also ships
+`check-problem-pages` (the RFC 9457 problem-type pages under `problems/` resolve
+and match the spec's vocabulary), which no workflow runs yet.
 
 Extra weight of rule 1 here: the spec is the ROOT of the authority chain.
 Changing normative spec text is a decision — it needs an ADR or a ledger
