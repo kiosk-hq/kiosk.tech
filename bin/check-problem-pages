@@ -84,6 +84,52 @@ vocabulary.each do |code, status|
     unless body.include?("https://kiosk.tech/problems/#{code}")
 end
 
+# THE 0.3 ENVELOPE MUST NOT SURVIVE IN A COPYABLE EXAMPLE (K-866)
+# ----------------------------------------------------------------
+# 0.3 answered errors with `{"ok": false, "error": {"code", "message"}}`; 0.4
+# answers a FLAT RFC 9457 problem document, and `skill.md` tells every
+# assistant to branch on `body["code"]`, "not `body["error"]["code"]`". The
+# cutover moved the prose everywhere and left one EXAMPLE behind — the
+# `payment_setup_required` 402 in `specification.html`, inside a copy-button
+# block, which is worse than prose because a reader copies it and ships a body
+# that fails `problem.schema.json`.
+#
+# So this scans EXAMPLES ONLY — `<pre><code>` blocks in the HTML pages and
+# fenced blocks in the Markdown ones. Prose may still discuss the retired
+# envelope (specification.html and spec/protocol.md both narrate the withdrawn
+# `{ok: true}` unlink body; skills.md's table describes what the 0.3 cuts
+# taught), and that is not a defect — nobody copies a sentence into a client.
+# The published `skill-v*.md` cuts are EXEMPT and must stay so: they are frozen
+# artefacts describing the protocol they were cut against, and the 0.3 ones
+# legitimately show the 0.3 envelope. CHANGELOG.md is history, same reason.
+ENVELOPE_SURFACES = (
+  %w[specification.html index.html onboarding.html skill.md skills.md
+     spec/protocol.md spec/descriptor-house-style.md] +
+  Dir.glob("problems/**/index.html", base: REPO)
+).freeze
+
+def example_blocks(path, body)
+  if path.end_with?(".md")
+    body.scan(/^```.*?^```/m)
+  else
+    body.scan(%r{<pre><code[^>]*>.*?</code>}m)
+  end
+end
+
+ENVELOPE_SURFACES.each do |rel|
+  path = File.join(REPO, rel)
+  next unless File.file?(path)
+
+  example_blocks(rel, File.read(path)).each do |block|
+    next unless block.match?(/"ok"\s*:/) || block.match?(/"error"\s*:\s*\{/)
+
+    offending = block.lines.find { |l| l.match?(/"ok"\s*:/) || l.match?(/"error"\s*:\s*\{/) }
+    errors << "ENVELOPE #{rel} publishes the retired 0.3 error envelope in a " \
+              "COPYABLE example: #{offending.strip.inspect} — 0.4 answers a flat " \
+              "RFC 9457 problem document (`code` at the top level, no `ok` flag)"
+  end
+end
+
 index = File.join(DIR, "index.html")
 errors << "MISSING  problems/index.html — the per-code pages all link back to it" \
   unless File.file?(index)

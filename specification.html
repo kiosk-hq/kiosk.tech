@@ -54,7 +54,7 @@
   <p>The spec is intentionally small. It covers the <strong>invariants</strong> — the things every Kiosk operator and every compatible AI assistant must agree on. Individual operators extend the surface with their own queries and actions (catalog, delivery slots, booking — whatever their vertical needs).</p>
   <p><strong>Normative language.</strong> The key words <strong>MUST</strong>, <strong>MUST NOT</strong>, <strong>SHOULD</strong>, and <strong>MAY</strong> are to be interpreted as described in <a href="https://www.rfc-editor.org/rfc/rfc2119">RFC 2119</a>. Requirements bind two conformance targets: the <strong>operator</strong> (the party serving the endpoints) and the <strong>AI assistant</strong> (the client calling them). An operator can be a service provider, an information steward, or a merchant/aggregator. Boxes marked <em>Reference note</em> describe the Ruby reference implementation and are non-normative — one way to satisfy a requirement, not the requirement itself.</p>
   <p><strong>Protocol version.</strong> This page specifies protocol version <strong>0.4</strong>. The protocol, the reference implementation, and the skill share their MAJOR.MINOR version (<strong>version parity</strong>: an operator on Kiosk 0.4 pins a 0.4 skill against a 0.4 wire). A new MINOR (0.3 → 0.4) is a <strong>feature milestone</strong> and MAY break compatibility: 0.4 gave every verb its own endpoint and removed 0.3's multiplexed <code>POST /query</code> and <code>POST /run</code> along with the response envelope, outright and with no tombstones. From <strong>1.0</strong> onward, within a MINOR series the wire stays <strong>additive and backward-compatible</strong> — patches add endpoints and fields only, existing flows never break. <strong>Before 1.0, which includes 0.4.x, any release may change the wire, a patch included</strong>; 0.4.1 removed a paginating query's <code>next</code> body field. What an AI assistant relies on before 1.0 is the operator's <code>skill</code> pin — an exact immutable file plus its SHA-256, adopted before transacting — not the version arithmetic. See <em>Skill versioning &amp; the dual-check</em>.</p>
-  <p><strong>Three version lines — don't expect all three numbers to match.</strong> (a) The <strong>protocol</strong> is <code>0.4.x</code>. (b) The <strong>skill</strong> is published as <code>skill-vMAJOR.MINOR.PATCH.md</code>, where MAJOR.MINOR tracks the protocol release (so <code>0.4</code>, honoring version parity) and PATCH is a skill-only revision — currently <strong>skill-v0.4.3</strong>. Before 1.0 a skill PATCH may also carry a wire change, because the wire itself may change in a patch (see <em>Skill versioning &amp; the dual-check</em>). Every earlier cut stays published and unedited, because live pins verify its bytes: 0.1.1–0.3.11 describe protocol 0.1–0.3 and cannot transact with a 0.4 origin at all, and 0.4.0–0.4.2 describe earlier 0.4 wires a 0.4.3 operator no longer serves. (c) The <strong>discovery-document format</strong> in <code>/.well-known/kiosk.json</code> is versioned independently at <code>"1.0"</code> — it's the well-known document's own schema, not the protocol. Version parity binds only MAJOR.MINOR between the protocol, the implementation, and the skill; the skill PATCH and the discovery format are separate lines.</p>
+  <p><strong>Three version lines — don't expect all three numbers to match.</strong> (a) The <strong>protocol</strong> is <code>0.4.x</code>. (b) The <strong>skill</strong> is published as <code>skill-vMAJOR.MINOR.PATCH.md</code>, where MAJOR.MINOR tracks the protocol release (so <code>0.4</code>, honoring version parity) and PATCH is a skill-only revision — currently <strong>skill-v0.4.4</strong>. Before 1.0 a skill PATCH may also carry a wire change, because the wire itself may change in a patch (see <em>Skill versioning &amp; the dual-check</em>). Every earlier cut stays published and unedited, because live pins verify its bytes: 0.1.1–0.3.11 describe protocol 0.1–0.3 and cannot transact with a 0.4 origin at all, 0.4.0–0.4.3 describe earlier 0.4 cuts a 0.4.4 operator no longer serves — 0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but with a device-code poll loop that named no terminal error and no give-up horizon. (c) The <strong>discovery-document format</strong> in <code>/.well-known/kiosk.json</code> is versioned independently at <code>"1.0"</code> — it's the well-known document's own schema, not the protocol. Version parity binds only MAJOR.MINOR between the protocol, the implementation, and the skill; the skill PATCH and the discovery format are separate lines.</p>
 
     <h2>High-level flow</h2>
 
@@ -271,7 +271,7 @@ ETag: "1f0c7a3e9b5d24618af03c9d7e2b5a04"
       "device_authorization_url": "https://getgrocery.demo.kiosk.tech/kiosk/oauth/device_authorization",
       "claim_url":     "https://getgrocery.demo.kiosk.tech/kiosk/auth/claim"
     },
-    "skill": { "url": "https://kiosk.tech/skill-v0.4.3.md", "sha256": "…" }
+    "skill": { "url": "https://kiosk.tech/skill-v0.4.4.md", "sha256": "…" }
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -294,7 +294,7 @@ ETag: "1f0c7a3e9b5d24618af03c9d7e2b5a04"
 
   <p><strong>The "this site speaks Kiosk" signal.</strong> An operator advertises Kiosk support on its human-facing pages with a <code>&lt;link rel="kiosk"&gt;</code> tag in the HTML <code>&lt;head&gt;</code> (an equivalent HTTP <code>Link: &lt;…&gt;; rel="kiosk"</code> response header also counts), so an AI assistant browsing the site knows to bootstrap from <code>/.well-known/kiosk.json</code> on the same origin:</p>
 
-  <pre><code class="language-html">&lt;link rel="kiosk" href="https://kiosk.tech/skill-v0.4.3.md"&gt;</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <pre><code class="language-html">&lt;link rel="kiosk" href="https://kiosk.tech/skill-v0.4.4.md"&gt;</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The tag is a <strong>signal, not a source</strong>: its <code>href</code> points at the universal skill on kiosk.tech, and an AI assistant must never load skill instructions from the operator itself — a malicious operator could inject arbitrary AI-assistant instructions. Everything operator-specific comes from the origin's own <code>/.well-known/kiosk.json</code>.</p>
 
@@ -303,7 +303,7 @@ ETag: "1f0c7a3e9b5d24618af03c9d7e2b5a04"
   <h3>Skill versioning &amp; the dual-check</h3>
   <p>The universal skill is <strong>versioned and immutable</strong>. Each published version is a distinct file at <code>https://kiosk.tech/skill-vX.Y.Z.md</code> whose content <strong>never changes once published</strong>; a change ships a NEW version file rather than editing an existing one. <code>https://kiosk.tech/skill.md</code> is the <strong>"latest" alias</strong>, byte-identical to the newest version file. A file's own version lives in its frontmatter <code>version</code> field, matching the version in its URL.</p>
 
-  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.4.3.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When an operator pins a skill, the AI assistant performs the <strong>dual-check</strong>:</p>
+  <p>The optional <code>skill</code> pin in <code>/.well-known/kiosk.json</code> is a <strong>versioned URL plus its SHA-256</strong> — e.g. <code>{ "url": "https://kiosk.tech/skill-v0.4.4.md", "sha256": "…" }</code>. Because a version file is immutable, this pin cannot drift by construction. There is <strong>no</strong> skill-version field on the wire: the pinned version is read from the URL itself. When an operator pins a skill, the AI assistant performs the <strong>dual-check</strong>:</p>
   <ol>
     <li>Read the pinned version from the URL (<code>skill-vX.Y.Z.md</code>).</li>
     <li>If it is newer than the AI assistant's cached skill, fetch and adopt it before transacting — the operator may rely on newer protocol features.</li>
@@ -596,12 +596,15 @@ Authorization: Bearer &lt;jwt&gt;
 
 → 402
 WWW-Authenticate: Payment realm="&lt;issuer&gt;", method="ap2"
+Content-Type: application/problem+json
+
 {
-  "ok": false,
-  "error": {
-    "code":    "payment_setup_required",
-    "message": "payment setup required"
-  }
+  "type":   "https://kiosk.tech/problems/payment_setup_required",
+  "title":  "Payment setup required",
+  "status": 402,
+  "detail": "payment setup required",
+  "code":   "payment_setup_required",
+  "hint":   "call payment_setup to obtain a card setup link"
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <div class="todo">

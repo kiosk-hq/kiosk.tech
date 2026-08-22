@@ -676,7 +676,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
   <pre><code class="language-ruby">response.set_header("Link", %(&lt;#{Kiosk.configuration.skill_url}&gt;; rel="kiosk"))</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>A HEAD request is enough — no page download needed.</p>
 
-  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.4.3.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together — rather than a hunt through your views.</blockquote>
+  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.4.4.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together — rather than a hunt through your views.</blockquote>
 
   <h3>3. Visual "Agents — over here" card (human-readable, subtle)</h3>
   <p>Add a small section at the bottom of your homepage. It tells agent users that your store speaks Kiosk without distracting regular customers:</p>
@@ -711,7 +711,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
 
   <h2>What to do next</h2>
   <ul>
-    <li><strong>Test with your own agent.</strong> Point Hermes (or any Kiosk-compatible agent) at your local server and say "order groceries."</li>
+    <li><strong>Test with your own agent.</strong> Point an AI assistant that can fetch a skill file and make its own HTTP calls at your local server and say "order groceries." (Hermes has driven this loop end to end against a hosted demo, on the 0.3 wire; the 0.4 surface has not been re-verified with a live assistant &mdash; so treat the first run as a test of your integration <em>and</em> of the claim.)</li>
     <li><strong>Add more queries.</strong> Expose anything an agent might need — store locations, nutritional info, allergy filters. A new verb in a controller you already named needs nothing else; a new <em>controller</em> goes in <code>c.handlers</code>.</li>
     <li><strong>Add more actions.</strong> Reservations, cancellations, loyalty points — anything your app does today.</li>
     <li><strong>Go to production.</strong> Swap <code>STRIPE_SECRET_KEY</code> for a live key, add your domain to <code>KIOSK_ISSUER</code>, and deploy.</li>
