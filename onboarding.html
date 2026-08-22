@@ -679,7 +679,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
   <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.4.4.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together — rather than a hunt through your views.</blockquote>
 
   <h3>3. Visual "Agents — over here" card (human-readable, subtle)</h3>
-  <p>Add a small section at the bottom of your homepage. It tells agent users that your store speaks Kiosk without distracting regular customers:</p>
+  <p>Add a small section somewhere unobtrusive on your homepage &mdash; a thin bar above the header, or a card below the fold. It tells agent users that your store speaks Kiosk without distracting regular customers:</p>
   <pre><code class="language-html">&lt;section style="background:#0f2a1c;color:#fff;border-radius:16px;
                 padding:26px 28px;max-width:880px;margin:8px auto 56px"&gt;
   &lt;h2 style="font-size:19px"&gt;🤖 Agents — over here. This store speaks Kiosk.&lt;/h2&gt;
@@ -691,7 +691,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
   &lt;a href="/kiosk/schema"&gt;/kiosk/schema&lt;/a&gt;
 &lt;/section&gt;</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote>See <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/views/home/index.html.erb">getgrocery's homepage</a> for a live example — it's at the bottom, below the product categories. Regular users scroll past it. Agent users know where to look.</blockquote>
+  <blockquote>See <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/views/home/index.html.erb">getgrocery's homepage</a> for a live example — a thin "For agents" bar above the storefront header, pointing at <code>/.well-known/kiosk.json</code>. One line a human's eye slides off; the line an agent is looking for.</blockquote>
 
   <hr>
 
@@ -727,7 +727,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
     <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#mount-the-routes">kiosk-server — mount the routes</a> — the engine behind Step 3's one line: everything it draws under the mount, the root-relative discovery documents it installs, and the hand-drawing escape hatch</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Handler</code> mixin this page's controllers use: the full macro list, the <code>c.handlers</code> line that puts them on the wire, the dispatch mechanics, and the error seam</li>
-    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end with curl output. Its handlers are the controller shape this page shows.</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end over plain <code>Net::HTTP</code>, printing one JSON line the rake task asserts on. Its handlers are the controller shape this page shows.</li>
   </ul>
 </article>
 
