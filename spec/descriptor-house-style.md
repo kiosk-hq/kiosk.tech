@@ -152,7 +152,7 @@ the handler runs, so a property you did not declare is refused with a typed
   `category_slug` enum written out by hand refuses the section an operator added
   yesterday, and nothing tells them why. Publish the live values and let the
   catalog be re-derived as the data moves (Section 8.3 of the specification);
-  `kiosk-server` takes a proc for this — `enum: -> { Category.pluck(:slug) }`.
+  `kiosk-server` takes a proc for this -- `enum: -> { Category.pluck(:slug) }`.
   The distinction worth keeping is between a VOCABULARY table and a column on
   an inventory table: deriving the sections a board has is right, deriving the
   neighbourhoods from the hotels currently listed is not, because it collapses

@@ -20,8 +20,8 @@ chk() {
 }
 # A schema is only as good as what it REFUSES, so some examples are checked for
 # rejection. `chk` above passes when ajv exits 0; this one passes when it does
-# not. Anything that made the schema vacuous — a dropped `enum`, an `items`
-# that stopped constraining — turns a rejected example green here.
+# not. Anything that made the schema vacuous -- a dropped `enum`, an `items`
+# that stopped constraining -- turns a rejected example green here.
 chkfail() {
   if "${AJV[@]}" "$@" >/dev/null 2>|"$TMP/err"; then
     fail=$((fail+1)); echo "FAIL (expected rejection, got acceptance): ${@: -1}"
@@ -73,12 +73,12 @@ echo "== reject what the schemas must refuse =="
 # pass is the enum going soft.
 chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discovery.verb-names.json
 # T-095: `verbs` is GONE from the catalog. It rendered the same value
-# `/.well-known/kiosk.json` publishes as `capabilities` — one value under two
-# names, not two facts — so the field was dropped rather than reconciled.
+# `/.well-known/kiosk.json` publishes as `capabilities` -- one value under two
+# names, not two facts -- so the field was dropped rather than reconciled.
 #
 # THIS EXAMPLE IS WHY THE SCHEMA'S ROOT IS CLOSED. It is byte-for-byte the
 # accepted sibling with `verbs` added back, carrying exactly the value the
-# field used to hold (the CURRENT module names, not 0.3's — so a stale enum
+# field used to hold (the CURRENT module names, not 0.3's -- so a stale enum
 # cannot be what fails it). With an open root the document would simply
 # validate and this line would print PASS while checking nothing; it fails only
 # because `additionalProperties: false` refuses a key the schema does not
@@ -100,13 +100,13 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # `pack("Q<")` truncates mod 2**64, so without the upper bound `idx` and
 # `idx + 2**64` were two spellings of one leaf and the schema admitted a proof
 # every implementation rejects. Both examples are the accepted
-# examples/pow.shorthand.json with ONE index moved out of range — the only
+# examples/pow.shorthand.json with ONE index moved out of range -- the only
 # thing that can turn either green is the bound going away.
 #
 # K-845: the over-range example is 2**64 + 4096, NOT 2**64 itself, and the
 # distance is not slack. ajv reads JSON numbers as IEEE-754 doubles, whose
 # spacing at this magnitude is 4096, so 2**64-1, 2**64 and everything between
-# them collapse onto ONE double — no bound expressible in JSON Schema can
+# them collapse onto ONE double -- no bound expressible in JSON Schema can
 # separate a legal 2**64-1 from an illegal 2**64 for such a reader. The bound
 # is therefore written to keep the LEGAL value (see examples/pow.max-index.json
 # above), and this example is moved to the first magnitude a double can still
@@ -118,7 +118,7 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # settlement and reconciliation path already read it, which let a conforming
 # assistant pay and leave a capture nobody can match to a domain object.
 chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.no-line-items.json
-# K-857: and an EMPTY array is not a cart either — the question K-741 left open.
+# K-857: and an EMPTY array is not a cart either -- the question K-741 left open.
 # `[]` satisfies `required` while carrying exactly as much reconciliation value
 # as omission did, and `total_amount_cents` has `minimum: 1`, so an empty cart
 # is a positive charge with nothing itemised under it. This example is the
