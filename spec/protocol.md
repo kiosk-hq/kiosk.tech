@@ -641,7 +641,7 @@ assigned by the operator and is never client-requested (Section 5.4) -- an origi
 that let a caller name its own role would have made this value a self-service
 escalation.
 
-Three rules hold the declaration together, and without them the clause would
+Four rules hold the declaration together, and without them the clause would
 swallow the default whole:
 
 1. **Silence is the strict claim.** A verb that declares nothing is
@@ -658,14 +658,33 @@ swallow the default whole:
    verb **MUST** fall back to the caller's own rows for a role that was not
    granted the wider reach. `published` is the one value that admits every
    authenticated caller, and it is the one that costs the most (below).
+4. **No reach admits a login address.** Whatever a verb declares, a row it
+   returns about an account OTHER THAN THE CALLER **MUST NOT** carry any
+   identifier by which that account authenticates -- a login address, a phone
+   number on file. This binds every value in the table above and not only
+   `published`: consent to share a list is not consent to publish an email
+   address, and a `role` claim is permission to read the operator's rows, not a
+   licence to hand out its account holders' credentials. Returning the CALLER's
+   own contact details to the caller is not covered -- disclosing them to their
+   owner discloses nothing. Where such a row must name a person, the operator
+   **SHOULD** publish either a name that account chose for the purpose or a
+   stable opaque pseudonym derived from an identifier that is not the
+   credential -- an account id, never a hash of the address, whose input space
+   is a wordlist and which anyone holding a candidate address confirms with one
+   hexdigest. Masking is not a third option: two characters of a local part,
+   plus the confirmation that the address holds an account at this origin, is a
+   disclosure and not a redaction.
 
 **What `published` costs.** A `published` verb's rows are readable by every
 principal that can authenticate at the origin, which on a Kiosk origin is
-everyone who can pay the registration toll. An operator therefore **MUST NOT**
-place in such a row any identifier by which its own accounts authenticate -- a
-login address, a phone number on file -- and **SHOULD** publish a stable opaque
-pseudonym where a row must name its owner, so that "these two listings are the
-same seller" stays answerable and "who is that seller" does not.
+everyone who can pay the registration toll. Rule 4 bites hardest here, and one
+thing more follows from the audience: a `published` row is read by strangers,
+who have no name to recognise, so where such a row must name its owner the
+operator **SHOULD** prefer the opaque pseudonym to a chosen name, so that
+"these two listings are the same seller" stays answerable and "who is that
+seller" does not. On a `consented` verb the trade runs the other way -- the
+readers are the people the account holder invited, and a roster they cannot
+read defeats the verb -- which is why rule 4 names the chosen name first.
 
 ### 7.3 The observable outcomes
 
@@ -1738,7 +1757,9 @@ the discovery document, and are absent from `capabilities` for that reason:
 4. **Core -- identity binding** (Section 7): the identity resolved from the token
    before the verb runs and never taken from the wire (Section 7.1); every verb
    scoped to the authenticated principal BY DEFAULT, with any wider reach
-   declared in the verb's descriptor and published on the catalog (Section 7.2);
+   declared in the verb's descriptor and published on the catalog, and no row
+   about another account carrying an identifier by which that account
+   authenticates, at any reach (Section 7.2);
    and the three observable forms of Section 7.3 -- a `principal`-reach call
    naming no foreign row answered with them filtered out, a call naming a row
    outside the verb's reach refused `403`, and a declared-reach verb answering
