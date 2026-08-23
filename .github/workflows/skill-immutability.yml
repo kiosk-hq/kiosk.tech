@@ -31,14 +31,14 @@ on:
 
 jobs:
   immutability:
-    name: published skill cuts are frozen (bin/check-skill-immutability)
+    name: published cuts are frozen and the alias matches the newest one (bin/check-skill-immutability)
     runs-on: ubuntu-latest
 
     steps:
       # fetch-depth: 0 is required, not tidiness — the check diffs this push /
       # PR against the base commit, and a shallow clone does not contain it.
       # The script fails loudly rather than passing if the base is missing.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

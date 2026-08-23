@@ -18,7 +18,7 @@ jobs:
   schemas:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The formal spec (protocol.md + schemas + examples) MUST be pure ASCII —
       # an RFC-style contract for adopters/porters, no encoding surprises.
       - name: Formal spec is ASCII
@@ -28,7 +28,7 @@ jobs:
             exit 1
           fi
           echo "spec/ is pure ASCII."
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Install ajv-cli
