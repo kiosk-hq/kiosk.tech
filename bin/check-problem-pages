@@ -57,7 +57,17 @@ if vocabulary.size < 10
   exit 1
 end
 
-published = Dir.children(DIR).select { |e| File.directory?(File.join(DIR, e)) }.sort
+# A code is PUBLISHED when its page exists — not when its DIRECTORY does.
+# Reading directory names alone was a hole with a green face on it (K-977):
+# delete `problems/conflict/index.html` and leave the directory behind, and
+# this check printed "15 codes in the vocabulary, 15 pages published, no
+# orphans" while https://kiosk.tech/problems/conflict served a 404. Git hides
+# the difference on a fresh checkout — an emptied directory is not tracked, so
+# CI would have caught it — which is exactly why the local run must not
+# disagree with the CI run about what is published.
+published = Dir.children(DIR)
+              .select { |e| File.file?(File.join(DIR, e, "index.html")) }
+              .sort
 
 errors = []
 

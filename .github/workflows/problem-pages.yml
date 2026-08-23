@@ -1,0 +1,47 @@
+name: problem-pages
+
+# Every error code the specification defines has a published page at
+# problems/<code>/, and every published page is a code the specification
+# defines (K-793, T-106).
+#
+# WHY THIS RUNS IN CI RATHER THAN BEING REMEMBERED. The vocabulary is defined
+# in the OTHER repo's terms and published here, and the two move in separate
+# waves: a code added to the error table gets a `type` URI that resolves to a
+# 404 the moment the spec ships, and nothing about the spec change looks wrong.
+# bin/check-problem-pages has existed and passed since K-793 with nothing
+# running it, which is the state a vocabulary drifts from.
+#
+# ITS OWN WORKFLOW, not a step in spec-schemas.yml, for the reason
+# skill-immutability.yml already records for itself: that workflow is
+# path-filtered on `spec/**` while these inputs are specification.html and
+# problems/** at the repo root, it installs Node and ajv this check does not
+# need, and one invariant deserves one exit code and one name in the checks
+# list.
+
+on:
+  push:
+    paths:
+      - "specification.html"
+      - "problems/**"
+      - "bin/check-problem-pages"
+      - ".github/workflows/problem-pages.yml"
+  pull_request:
+    paths:
+      - "specification.html"
+      - "problems/**"
+      - "bin/check-problem-pages"
+      - ".github/workflows/problem-pages.yml"
+
+jobs:
+  problem-pages:
+    name: every error code has a page, and every page has a code (bin/check-problem-pages)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The runner's preinstalled Ruby. The script requires nothing at all —
+      # no Gemfile, no bundle, no Ruby toolchain anywhere in this repo — so
+      # pinning a version here would be a version to maintain for no gain.
+      - name: The published problem pages match the specification's vocabulary
+        run: ruby bin/check-problem-pages
