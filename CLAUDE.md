@@ -4,7 +4,7 @@ This repo is everything published at https://kiosk.tech (GitHub Pages,
 `CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
 universal agent skill (the "latest" alias, which must come to REST byte-identical
 to the newest cut; the immutable published versions are `skill-vX.Y.Z.md`,
-current `skill-v0.4.5.md` (MAJOR.MINOR tracks the framework release from 0.2 on)
+current `skill-v0.4.6.md` (MAJOR.MINOR tracks the framework release from 0.2 on)
 — a published version file is never edited, every change ships a new one, and a
 skill edit ends in a version bump plus a re-pin of every consumer in the same
 wave: `bin/check-skill-immutability` enforces both halves. K-847, and the three
@@ -14,12 +14,18 @@ and `spec/` — the **formal** specification (`spec/protocol.md`,
 RFC-style) plus machine-readable JSON Schemas (`spec/schemas/`) for adopters and
 porters (`specification.html` is the narrative spec, the formal spec is
 its precise companion; both are kept consistent). Static files, no build step — nothing
-here is compiled, and neither CI workflow builds the site. `.github/workflows/spec-schemas.yml`
-lints `spec/schemas/`; `.github/workflows/skill-immutability.yml` runs
-`bin/check-skill-immutability`, the guard the paragraph above depends on, so it
-answers the same in CI as it does locally. `bin/` also ships
-`check-problem-pages` (the RFC 9457 problem-type pages under `problems/` resolve
-and match the spec's vocabulary), which no workflow runs yet.
+here is compiled, and NO workflow builds the site: every workflow in
+`.github/workflows/` runs a guard over the checked-in files. Each `bin/check-*`
+has exactly one workflow that runs it, so the guards answer the same in CI as
+they do locally — that pairing is the fact worth knowing, and it is the one
+`audit/check-file-inventories.rb` enforces rather than a count. **Do not
+enumerate or count the workflows in this paragraph.** It claimed a single one
+while two existed (K-898); the repair claimed two while a third was landing; and
+that same repair asserted `check-problem-pages` was run by nothing on the very
+day the workflow that runs it was committed. Three wrong statements, one cause:
+a set the directory already knows, retyped by hand. `ls .github/workflows/` and
+`ls bin/` are the list, and `audit/check-file-inventories.rb` fails if one is
+written back here.
 
 Extra weight of rule 1 here: the spec is the ROOT of the authority chain.
 Changing normative spec text is a decision — it needs an ADR or a ledger
