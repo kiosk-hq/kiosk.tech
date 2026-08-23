@@ -132,8 +132,9 @@ proof-of-work gate.
    PATCH included** (Section 14).
 6. **Version-handshake response headers.** Every response served under the
    operator's mount path -- the discovery document's `endpoint`, and everything
-   below it: the four wire verbs, the auth endpoints, the account-binding
-   endpoints, the KYC endpoint, and the mount-relative JWKS -- carries three
+   below it: every verb endpoint (one per registered query and action, plus
+   `schema` and `pay`), the auth endpoints, the account-binding endpoints, the
+   KYC endpoint, and the mount-relative JWKS -- carries three
    response headers, on success and on error alike. An operator **MUST** emit
    all three; an AI assistant **MAY** ignore them entirely. They are a
    handshake, not a contract: no flow in this specification depends on reading
@@ -780,8 +781,16 @@ The query-string encoding is:
    are the literals `true` / `false`; numbers are JSON number literals; dates
    are `YYYY-MM-DD`.
 2. **Arrays of scalars** are repeated `name[]=value`, percent-encoded on the
-   wire as `name%5B%5D=value`. A bare repeated `name=` is **NOT** an array and
-   a server **MUST NOT** invent one from it.
+   wire as `name%5B%5D=value`. A bare repeated `name=` is **NOT** an array for
+   a parameter `input_schema` does not declare as an array, and a server
+   **MUST NOT** invent one from it. Where the schema DOES declare that
+   parameter an array, the repeats ARE that array: an operator **MUST** read
+   every bare occurrence of the name, in the order the query string gives them,
+   and a single bare occurrence as a one-element array. That is rule 5's
+   coercion applied to the declared type, not an invented array -- the
+   declaration resolves the ambiguity, and the bracketed spelling stays the one
+   an operator MUST accept whatever the declaration says, so an AI assistant
+   sends the brackets regardless.
 3. **Objects** are `name[key]=value` (`name%5Bkey%5D=value`), **one level deep,
    scalar leaves only**.
 4. **Nothing deeper is a query.** A read whose input needs an array of objects,
@@ -1568,11 +1577,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
    protocol, cut without a protocol change -- with the pre-1.0 exception of
    point 2: before 1.0 a skill PATCH may also carry a wire change, because the
-   wire itself may change in a PATCH. The current skill is **0.4.6**. Every cut
+   wire itself may change in a PATCH. The current skill is **0.4.7**. Every cut
    before it stays published, immutable and unedited, because live pins
    reference its bytes: the 0.1.1-0.3.11 cuts describe protocol 0.1-0.3 and
-   cannot transact with a 0.4 origin at all, and 0.4.0-0.4.5 describe
-   earlier 0.4 cuts that a 0.4.6 operator no longer serves. Published skill
+   cannot transact with a 0.4 origin at all, and 0.4.0-0.4.6 describe
+   earlier 0.4 cuts that a 0.4.7 operator no longer serves. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
