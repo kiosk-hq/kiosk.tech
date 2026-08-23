@@ -1014,8 +1014,12 @@ and never declares:
 **Caching.** A page is a per-caller answer to a per-caller question, so
 Section 3 point 7 applies to it unchanged: `private, no-store` by default,
 `Vary: Authorization, Kiosk-PoW`, and never `public`, `s-maxage` or
-`must-revalidate`. The public,
-shared-cacheable exception in that rule is `GET <endpoint>/schema` and only it.
+`must-revalidate`. No pagination surface is ever one of that rule's
+public, shared-cacheable exceptions -- those are the self-description and
+discovery surfaces named in Section 3 point 7 rule 3 (`GET <endpoint>/schema`,
+`GET <endpoint>/openapi.json` where served, and the unauthenticated discovery
+surfaces of Section 4.5), and a paginated LIST is none of them: it is scoped to
+the caller.
 
 Pagination applies to LIST results ONLY. Action and `pay` results never carry a
 `next` link. A query that ignores `limit`/`cursor` and never emits one is a
