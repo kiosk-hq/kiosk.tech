@@ -736,8 +736,11 @@ the read/write semantics:**
 | an action | POST | `<endpoint>/<action-name>` | Bearer |
 | `pay` | POST | `<endpoint>/pay` | Bearer |
 
-`schema` is the one endpoint under `endpoint` that takes no credential
-(Section 8.3). An operator **MUST NOT** require one, and **MUST NOT** toll it
+`schema` is the one VERB under `endpoint` that takes no credential
+(Section 8.3); the other uncredentialed path under the mount is the OPTIONAL
+`<endpoint>/openapi.json` (Section 4.6), which is a tooling description rather
+than a verb, and the JWKS document of Section 4.4. An operator **MUST NOT**
+require a credential on any of the three, and **MUST NOT** toll them
 (Section 10): a toll prices a caller, and there is no caller to price.
 
 The concrete query and action **names** are operator-defined and discovered via
@@ -1161,14 +1164,19 @@ keeps an explicit guard returning the same typed `400`.
 Schema: [`pow.schema.json`](./schemas/pow.schema.json).
 
 An operator **MAY** require proof-of-work before serving a request. The toll MAY
-gate any query, any action, and `pay`, as well as `POST /auth/register`. There
-is **ONE exemption**, and it is not a courtesy: `GET <endpoint>/schema`
-**MUST NOT** be tolled (Section 8.3). A toll prices a caller and is charged
-against an identity; that endpoint resolves none, and the document it answers
-is the same bytes for everyone and cacheable, so serving it costs the operator
-nothing to begin with. The always-free surfaces are therefore the discovery
-layer (`/.well-known/*`, `agents.json`/`agents.txt`, `/auth.md`) and the
-catalog. The gate
+gate any query, any action, and `pay`, as well as `POST /auth/register`. That
+list is EXHAUSTIVE: no other request is tollable, and the two SELF-DESCRIPTION
+endpoints are exempt by construction rather than as a courtesy --
+`GET <endpoint>/schema` (Section 8.3) and, where served,
+`GET <endpoint>/openapi.json` (Section 4.6) **MUST NOT** be tolled. A toll
+prices a caller and is charged against an identity; neither endpoint resolves
+one, and each answers the same bytes to everyone and is cacheable, so serving
+them costs the operator nothing to begin with. Because the tollable list is closed, the always-free
+surfaces are everything else the operator serves: the discovery layer
+(`/.well-known/*`, `agents.json`/`agents.txt`, `/auth.md`), the JWKS document
+(Section 4.4), the catalog, every auth and binding endpoint except
+`POST /auth/register`, the KYC attestation endpoint, and, where served, the
+OpenAPI description. The gate
 responds `402` with `code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
 realm="<issuer>"` (Section 9), carrying a `challenges` array. The `realm` is an
 RFC 7235 protection-space label and nothing more: an AI assistant **MUST NOT**
@@ -1192,8 +1200,8 @@ The AI assistant **MUST** solve **every** challenge and retry
 the request with the **identical** body plus a `Kiosk-PoW` request header
 carrying the proof(s) as **raw JSON** (Section 10.1). The proof travels in the
 header, not the body, so the body -- and hence the request fingerprint the
-challenge binds to -- is unchanged on retry, and a GET verb (`schema`) can carry
-its proof too. `nonce` is `{indices: [u64, ...], header_nonce?: u32}`; each index **MUST** be an
+challenge binds to -- is unchanged on retry, and a query, which is a `GET` and
+has no body-proof channel, can carry its proof too (Section 10.1). `nonce` is `{indices: [u64, ...], header_nonce?: u32}`; each index **MUST** be an
 integer in `[0, 2**64)` -- a verifier packs it as a little-endian u64, so an
 out-of-range value would silently alias another index; `pow.schema.json` states
 that same range as an INCLUSIVE `maximum` of `2**64 - 1` rather than an exclusive
@@ -1541,11 +1549,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
    protocol, cut without a protocol change -- with the pre-1.0 exception of
    point 2: before 1.0 a skill PATCH may also carry a wire change, because the
-   wire itself may change in a PATCH. The current skill is **0.4.4**. Every cut
+   wire itself may change in a PATCH. The current skill is **0.4.5**. Every cut
    before it stays published, immutable and unedited, because live pins
    reference its bytes: the 0.1.1-0.3.11 cuts describe protocol 0.1-0.3 and
-   cannot transact with a 0.4 origin at all, and 0.4.0-0.4.3 describe
-   earlier 0.4 cuts that a 0.4.4 operator no longer serves. Published skill
+   cannot transact with a 0.4 origin at all, and 0.4.0-0.4.4 describe
+   earlier 0.4 cuts that a 0.4.5 operator no longer serves. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version

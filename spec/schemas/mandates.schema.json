@@ -61,7 +61,7 @@
     },
     "settlement": {
       "type": "object",
-      "description": "The value of the kind:\"value\" pay response.",
+      "description": "The pay response body, answered verbatim: there is no envelope, no ok flag and no kind discriminator (protocol.md 8.2, 11.3).",
       "required": ["settlement_id", "psp_reference", "settled_amount_cents", "currency"],
       "properties": {
         "settlement_id": { "type": "string" },
