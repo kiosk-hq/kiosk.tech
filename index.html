@@ -23,7 +23,7 @@
       text-align:center;
       padding:30px 24px 60px;
     }
-    /* Visually-hidden document heading (K-538): a real <h1> for a11y + SEO,
+    /* Visually-hidden document heading: a real <h1> for a11y + SEO,
        clipped out of the visual layout so the hero wordmark stays the <img>.
        clip-rect (NOT display:none / visibility:hidden, which drop it from the
        a11y tree). There is exactly one <h1> and it lives in <header>. */
@@ -120,7 +120,7 @@
     .cta-primary:hover{background:#3a854f}
 
     /* The one .audience h2: its declarations used to be inline, which made this
-       rule a matched-but-dead no-op. The live values now live here (K-576). */
+       rule a matched-but-dead no-op. The live values now live here. */
     .audience h2{font-size:22px;font-weight:800;margin-bottom:10px}
 
     footer{
@@ -152,10 +152,10 @@
     .benefits li::before{content:"·";position:absolute;left:4px;color:#8bc49a}
     .benefits li strong{color:#e0e0e0}
     /* ToC links: the base colour lives here, not inline, so nav a:hover (0,1,2)
-       can actually outrank it (0,0,2). K-521. */
+       can actually outrank it (0,0,2). */
     nav a{color:#888;text-decoration:none}
     nav a:hover{color:#8bc49a}
-    /* ── classes extracted from inline styles that repeated 3+ times (K-508).
+    /* ── classes extracted from inline styles that repeated 3+ times.
        Every rule below is the verbatim declaration set it replaced, and no
        earlier selector in this sheet sets those properties on those elements,
        so rendering is unchanged. ── */

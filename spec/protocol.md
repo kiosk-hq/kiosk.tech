@@ -544,9 +544,8 @@ The human, signed in on the operator's site, mints a single-use link code:
   two are: an endpoint on a published surface whose siblings document their
   responses cannot leave its own unstated, or an implementer fills the gap and
   a body nobody specified ends up on the wire. That is what happened -- unlink
-  rendered `{ok: true}` for four months, undocumented (K-870) -- and the answer
-  is the one K-855 took to the same class of defect: withdraw the body rather
-  than write it down after the fact.
+  rendered `{ok: true}` for four months, undocumented -- and the answer taken
+  here is to withdraw the body rather than write it down after the fact.
 
 ### 6.3 Fresh vs. rebind, and unlink
 
