@@ -46,7 +46,7 @@
 # newest version file». It was false at head for days, and the drift widened
 # while it was being decided.
 #
-# Phil's answer (2026-08-21, K-847 — audit/DECISIONS-LOG.md) was to make the
+# Phil's answer (2026-08-21, K-847) was to make the
 # sentence TRUE rather than to soften it, and to state the discipline that keeps
 # it true:
 #
