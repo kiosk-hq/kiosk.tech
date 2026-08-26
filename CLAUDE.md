@@ -18,15 +18,14 @@ here is compiled, and NO workflow builds the site: every workflow in
 `.github/workflows/` runs a guard over the checked-in files. Each `bin/check-*`
 has exactly one workflow that runs it, so the guards answer the same in CI as
 they do locally — that pairing is the fact worth knowing, and it is the one
-the umbrella workspace's `audit/check-file-inventories.rb` enforces rather
-than a count. **Do not
-enumerate or count the workflows in this paragraph.** It claimed a single one
-while two existed (K-898); the repair claimed two while a third was landing; and
-that same repair asserted `check-problem-pages` was run by nothing on the very
-day the workflow that runs it was committed. Three wrong statements, one cause:
-a set the directory already knows, retyped by hand. `ls .github/workflows/` and
-`ls bin/` are the list, and that same umbrella check fails if one is written
-back here.
+the umbrella workspace's `audit/check-file-inventories.rb` enforces rather than
+a count. **Do not enumerate or count the workflows in this paragraph.** It
+claimed a single one while two existed (K-898); the repair claimed two while a
+third was landing; and that same repair asserted `check-problem-pages` was run
+by nothing on the very day the workflow that runs it was committed. Three wrong
+statements, one cause: a set the directory already knows, retyped by hand.
+`ls .github/workflows/` and `ls bin/` are the list, and that same umbrella
+check fails if one is written back here.
 
 Extra weight of rule 1 here: the spec is the ROOT of the authority chain.
 Changing normative spec text is a decision — it needs an ADR or a ledger
