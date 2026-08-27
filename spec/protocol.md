@@ -534,9 +534,21 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
    access the approval hands over.
 3. The AI assistant polls `POST <endpoint>/oauth/token` (form-encoded) with
    `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, and
-   -- once approved -- `signed` (the possession proof of Section 5.2). On success it
-   returns OAuth-shaped `{access_token, token_type: "Bearer", expires_in}` (the
-   bound identity rides in the JWT claims, not the body).
+   -- once approved -- `signed` (the possession proof of Section 5.2). The proof is
+   REQUIRED on the poll that completes the ceremony and is not read before it: a
+   poll arriving while the authorization is still pending **MUST** be answered
+   `authorization_pending` whether or not it carries `signed`, and an operator
+   **MUST NOT** answer it `invalid_client` for a missing proof. An AI assistant
+   cannot know which poll is the completing one, so sending a freshly signed
+   challenge on every poll is conforming and is what the skill instructs.
+   On success it returns OAuth-shaped
+   `{access_token, token_type: "Bearer", expires_in}`, plus `scope` when -- and
+   only when -- the binding carries a role: `scope` is RFC 6749 Section 5.1's
+   scope actually GRANTED, which here is the approving human's role and never an
+   echo of a requested one, since no role may be requested (item 1). An operator
+   whose identity system reports no role for that human omits the member, and an
+   AI assistant **MUST NOT** treat its absence as an error. The bound principal
+   itself (`user_id`, `agent_id`) rides in the JWT claims, not the body.
 
 The `/oauth/*` endpoints are the **one exception** to the Kiosk problem document: they use
 the OAuth wire, with errors `authorization_pending`, `slow_down`, `expired_token`,
