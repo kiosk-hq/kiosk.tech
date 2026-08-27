@@ -486,7 +486,7 @@ Its claims:
 | `sub` | string | REQUIRED | The identity's `user_id`. |
 | `agent_id` | string | REQUIRED | The acting agent id. |
 | `actor` | string | REQUIRED | `"agent"`. |
-| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. Registration **MUST NOT** accept a client-requested role. An operator **MAY** source an AI assistant's role from a configured IdP from 0.3, INDIRECTLY via the bound human's role: at the account-binding link ceremony (Section 6) the human's IdP role is captured and set as the bound AI assistant's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
+| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. **No endpoint accepts a client-requested role** -- not registration, not the claim body, and not the device-authorization request that opens the claim ceremony (Section 6.1). An operator **MAY** source an AI assistant's role from a configured IdP from 0.3, INDIRECTLY via the bound human's role: at EITHER account-binding ceremony (Section 6) the approving human's IdP role is captured and set as the bound AI assistant's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
 | `iss` / `aud` | string | REQUIRED | The operator issuer. |
 | `iat` / `nbf` / `exp` | integer | REQUIRED | Validity window (default 1 hour). |
 | `jti` | string | REQUIRED | Unique token id. |
@@ -515,11 +515,23 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
 ### 6.1 Claim (AI-assistant-initiated, RFC 8628 device grant)
 
 1. `POST <endpoint>/oauth/device_authorization` (form-encoded) with
-   `client_id` (REQUIRED), `public_key` (REQUIRED), and an optional `scope`/`role`.
-   Returns `{device_code, user_code, verification_uri, verification_uri_complete,
-   expires_in, interval}`.
+   `client_id` (REQUIRED) and `public_key` (REQUIRED) -- and NOTHING ELSE that
+   speaks to authorisation. This request is unauthenticated, so an operator
+   **MUST NOT** accept a `scope` or `role` parameter on it; the conforming
+   answer to one is `400 invalid_request` naming the parameter, not a silently
+   ignored argument. Returns `{device_code, user_code, verification_uri,
+   verification_uri_complete, expires_in, interval}`.
+
+   This clause used to read "and an optional `scope`/`role`", which
+   contradicted both Section 5.4 and Section 7.2's account of why a `role`
+   reach is sound at all. The reference honoured that parameter, checking only
+   that the operator's declared role set contained the requested value -- and a
+   declared role set says which roles an origin HAS, not who may have them, so
+   on any origin declaring more than one role a stranger obtained the
+   privileged one and the account holder's approval granted it.
 2. The AI assistant shows the human `verification_uri` + `user_code`; the human approves
-   on the operator's session-authenticated page (Section 15.8).
+   on the operator's session-authenticated page (Section 15.8), which names the
+   access the approval hands over.
 3. The AI assistant polls `POST <endpoint>/oauth/token` (form-encoded) with
    `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, and
    -- once approved -- `signed` (the possession proof of Section 5.2). On success it
@@ -548,6 +560,18 @@ The human, signed in on the operator's site, mints a single-use link code:
   here is to withdraw the body rather than write it down after the fact.
 
 ### 6.3 Fresh vs. rebind, and unlink
+
+**The bound AI assistant's role is the approving human's role** (Section 5.4),
+in BOTH directions of the ceremony: the operator captures it from its own
+identity system -- for the link direction when the human mints the code, for the
+claim direction when the human approves at the verify page -- and never from
+anything the AI assistant sends, on either the authorization request or the
+claim body. Where the operator's identity system reports no role for that human,
+the binding carries none and the AI assistant's role is whatever the operator
+would otherwise assign at registration. It follows that a ceremony can never
+mint a privilege its approver does not hold, which is what makes an approval
+meaningful; it also follows that the ROLE, like the principal, changes on a
+rebind (below).
 
 A key the operator has never seen becomes a **linked assistant account** under the
 human's `user_id`. A key that already had a self-standing account is **rebound**:
@@ -1665,7 +1689,12 @@ The claim/link ceremonies (Section 6) require BOTH human approval AND a valid po
 proof before a binding is created; a failed proof binds nothing. Codes are stored
 hashed, are single-use, expire on a short TTL, and are attempt-capped; the human
 verify page **MUST** require an authenticated session and **MUST** display what is
-being bound.
+being bound -- both WHICH key (an identifier the AI assistant can also show, so
+the two can be compared) and WHAT ACCESS the approval hands over, meaning the
+role the bound AI assistant will carry (Section 6.3). An approval given without
+sight of the second is consent to an identity and not to a privilege, and it is
+the half an implementation is likeliest to leave out, because the first half
+looks like the whole job.
 
 ### 15.9 Operator-authored text is data, not instructions
 
