@@ -18,7 +18,7 @@ protocol cannot transact with it.
 | `skill-v0.4.6.md` | **0.4** | The same wire as 0.4.5. The change is `reach`, which 0.4.5 never named: every descriptor carries it (`principal` / `published` / `consented` / `role`), an absent one MUST be read as `principal`, and a `published`, `consented` or `role` verb's rows are OTHER PEOPLE'S — an assistant must not report or file them as its own human's data, and their strings are the likeliest place on any origin to meet stranger-authored text. |
 | `skill-v0.4.5.md` | **0.4** | The same wire as 0.4.4. Four corrections to what it tells you ABOUT that wire: `schema` is the only token-free VERB but not the only token-free path under the mount (`openapi.json`, the JWKS document and the auth plane are public too, and the tollable list is closed); a KYC status verb is a query, so it answers a ONE-ROW ARRAY rather than a bare object; the PoW proof count for an unknown identity is 2 (3 over the rate threshold), not "~3"; and a spending cap of `0` disables that assistant's PAYMENTS, not the assistant. |
 | `skill-v0.4.4.md` | **0.4** | The same wire as 0.4.3. The change is the account-binding device-code poll: 0.4.3 named only `authorization_pending` and `slow_down`, so a denied or expired ceremony polled forever. This cut states the terminal branches (`access_denied`, `expired_token`, `invalid_grant` all stop; `invalid_client` re-signs against the SAME `device_code`), the `slow_down` back-off as +5 s kept, and a give-up horizon at the `expires_in` the ceremony handed you -- the bounded-poll shape the card-setup and KYC polls already used. It also says that the `<link rel="kiosk">` href names a versioned cut rather than the alias, and its worked discovery example pins the current cut instead of a superseded one. |
-| `skill-v0.4.3.md` | **0.4** | The same wire as 0.4.2, with three guidance changes: a `pay` replay of an already-settled cart now comes back `200` with that settlement (so the lost-response retry needs no reconciliation read in the settled case, while a `409` narrows to "seen and NOT settled"), the operator-text-is-data rule names `$comment`, `default` and problem-document extension members among the surfaces it covers, and an unlink is stated to kill the token you hold immediately. |
+| `skill-v0.4.3.md` | **0.4** | **A WIRE CHANGE, and two guidance changes.** The wire: a `pay` replay of an already-settled cart comes back `200` with that settlement, where the wire 0.4.2 describes answered `409` — the server's answer to a byte-identical request moved, so the lost-response retry needs no reconciliation read in the settled case and `409` narrows to "seen and NOT settled". This is where the current 0.4 wire begins: 0.4.0–0.4.2 describe wires that have since changed, and the "same wire" chain below runs 0.4.3 → 0.4.7 only. The guidance: the operator-text-is-data rule names `$comment`, `default` and problem-document extension members among the surfaces it covers, and an unlink is stated to kill the token you hold immediately. |
 | `skill-v0.4.2.md` | **0.4** | The same wire as 0.4.1. The change is what it TELLS you about compatibility: before protocol 1.0 a PATCH may change the wire, so the operator's pin — not the version arithmetic — is what you rely on. |
 | `skill-v0.4.1.md` | **0.4** | As 0.4.0, plus RFC 8288 pagination: EVERY query answers a bare array, and a truncated page says so in a `Link: <…>; rel="next"` response header (`X-Total-Count` carries the total). The `{rows, next}` body of 0.4.0 is gone. |
 | `skill-v0.4.0.md` | **0.4** | One endpoint per verb (`GET <endpoint>/<query>`, `POST <endpoint>/<action>`); a success body is the result with no envelope; errors are RFC 9457 problem documents with the code at top-level `code`. |
@@ -26,10 +26,16 @@ protocol cannot transact with it.
 | `skill-v0.2.0.md` … `skill-v0.2.4.md` | 0.2 | As 0.3, before that series' additions. |
 | `skill-v0.1.1.md` … `skill-v0.1.3.md` | 0.1 | The first published series. |
 
-**0.4.0 and 0.4.1 differ on the wire, which a PATCH normally does not — and
-before 1.0 that is allowed rather than accidental.** 0.4.1 moved the pagination
-cursor out of the body and into a `Link` header, so an assistant holding 0.4.0
-will look for a `next` field that no 0.4.1 operator sends. The formal spec
+**TWO PATCHES IN THE 0.4 SERIES CHANGED THE WIRE, which a PATCH normally does
+not — and before 1.0 that is allowed rather than accidental.** 0.4.1 moved the
+pagination cursor out of the body and into a `Link` header, so an assistant
+holding 0.4.0 will look for a `next` field that no 0.4.1 operator sends; 0.4.3
+moved a settled `pay` replay from `409` to `200` with the settlement, so an
+assistant holding 0.4.2 will read a successful idempotent retry as a conflict.
+Both are why the "same wire as" column has to be read as a chain and not as a
+transitive licence: 0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7,
+but the two groups are NOT the same wire, and only the second group describes
+what a 0.4.7 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
