@@ -244,9 +244,9 @@
 
     <div class="demo-box band" id="try" style="background:#060219">
       <h2>Try one of the demos<a href="#try" class="anchor-link">#</a></h2>
-      <p class="time">Seven operators, each showing a different Kiosk capability.</p>
+      <p class="time">Seven live operators, each showing a different Kiosk capability.</p>
       <p style="font-size:14px;color:#bbb;line-height:1.7;margin:0 0 20px">
-        These run the real reference stack. All seven serve, right now, the documents an assistant starts from — <code>/.well-known/kiosk.json</code>, <code>/kiosk/schema</code>, <code>/agents.txt</code>. Two are waiting on a redeploy of their hosts, and it shows on the human side: tudu’s pages, and skooti’s sign-in form, are returning errors.
+        These run the real reference stack. All seven serve, right now, the documents an assistant starts from — <code>/.well-known/kiosk.json</code>, <code>/kiosk/schema</code>, <code>/agents.txt</code>.
       </p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
         <div class="demo-card">
@@ -320,7 +320,6 @@
             <span class="demo-prompt">Create a shared to-do list called 'Roommate errands' on tudu.demo.kiosk.tech, add 'take out the recycling', and share it with my housemate.</span>
             <button onclick="copyPrompt(this)" title="try it with your personal AI assistant" aria-label="Copy prompt — try it with your personal AI assistant" class="demo-copy">⧉</button>
           </div>
-          <span style="display:block;color:#777;font-size:11px;margin-top:7px;font-style:italic">Waiting on a redeploy of its host: tudu’s web pages are returning errors, so this link will not load yet.</span>
         </div>
       </div>
       <script>
@@ -430,7 +429,7 @@
       <ul class="why-list">
         <li>
           <strong>Why not just agents.txt + auth.md + AP2, assembled by hand?</strong>
-          That is what Kiosk is — those standards, embraced where they reach, plus the one layer none of them defines: the wire the assistant actually calls. agents.txt says where you are; auth.md-shaped registration says how an assistant introduces itself; AP2 says how a payment is signed. None of them says what a request, response, or error looks like, how a proof-of-work or payment-setup gate is signalled and retried, or how the acting identity scopes what a call may touch. Assemble them yourself and you've built one more bespoke dialect — every assistant learns your service from scratch, and every service drifts in exactly the hard places (replay, origin-binding, 402 retry, mandate chaining). Kiosk pins that layer — one endpoint per verb over a published catalog, one error envelope (RFC 9457 problem+json), one retriable gate, one identity-scoping rule, identical at every Kiosk operator — and ships the whole thing assembled and tested: engine, proof-of-work toll, reputation, account linking, spending caps, payments adapter, skill, seven demos (their live status is noted above). The standards are the vocabulary; Kiosk is the working sentence.
+          That is what Kiosk is — those standards, embraced where they reach, plus the one layer none of them defines: the wire the assistant actually calls. agents.txt says where you are; auth.md-shaped registration says how an assistant introduces itself; AP2 says how a payment is signed. None of them says what a request, response, or error looks like, how a proof-of-work or payment-setup gate is signalled and retried, or how the acting identity scopes what a call may touch. Assemble them yourself and you've built one more bespoke dialect — every assistant learns your service from scratch, and every service drifts in exactly the hard places (replay, origin-binding, 402 retry, mandate chaining). Kiosk pins that layer — one endpoint per verb over a published catalog, one error envelope (RFC 9457 problem+json), one retriable gate, one identity-scoping rule, identical at every Kiosk operator — and ships the whole thing assembled and tested: engine, proof-of-work toll, reputation, account linking, spending caps, payments adapter, skill, seven live demos. The standards are the vocabulary; Kiosk is the working sentence.
         </li>
         <li>
           <strong>Why not MCP?</strong>
@@ -448,7 +447,7 @@
     </div>
 
     <div style="margin-top:48px;padding:18px 20px;background:#141414;border:1px solid #242424;border-radius:10px;font-size:12px;color:#777;line-height:1.7">
-      <strong class="accent">Status: v0.4</strong> — pre-1.0: the wire may still change between releases, and an operator's pinned skill file is what an assistant relies on. Seven demos above, on the real stack — two of them (tudu’s pages, skooti’s sign-in) are erroring until their hosts are redeployed. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
+      <strong class="accent">Status: v0.4</strong> — pre-1.0: the wire may still change between releases, and an operator's pinned skill file is what an assistant relies on. Seven live demos above, on the real stack. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
     </div>
   </section>
 
