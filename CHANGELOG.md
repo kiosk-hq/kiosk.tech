@@ -3,6 +3,8 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-08-28: **`POST /kiosk/auth/link` has answered `201` since it shipped and neither specification said so (K-1195).** §6.2's own amendment — "an endpoint on a published surface whose siblings document their responses cannot leave its own unstated" — produced the `204` clause for `unlink` and left `link`, the endpoint next to it, with a body and no status; both documents now state the `201` and why the call mints rather than reads. Intent: the sentence that closed the gap for one sibling should not have left the same gap open for another.
+
 - 2026-08-28: **the normative page's Endpoints table — its only endpoint inventory — omitted the KYC endpoint the same page specifies five hundred lines later (K-1194).** `POST /kiosk/agents/kyc` (Bearer) now has its row beside `pay`, so a reader building the surface from the table does not ship an operator with no KYC endpoint on it. Intent: an inventory that is the page's only list of a thing is read as complete, whether or not it says so.
 
 - 2026-08-28: **mandate amount positivity was enforced by the JSON Schemas and by the engine and stated in neither prose document (K-1193).** Both specifications now say that `cap_amount_cents`, `total_amount_cents` and `amount_cents` MUST be positive integers rejected before the binding comparisons run, and why — a negative total is under any cap, matches a negative payment mandate, and drives the spent-to-date sum down, permanently raising the assistant's remaining cap. Intent: a porter reads the prose, so a rule that lives only in a schema and a Ruby method ships a verifier that accepts a negative cap.

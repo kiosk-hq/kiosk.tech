@@ -558,8 +558,10 @@ the OAuth wire, with errors `authorization_pending`, `slow_down`, `expired_token
 
 The human, signed in on the operator's site, mints a single-use link code:
 
-- `POST <endpoint>/auth/link` (operator session) -> `{link_code, expires_in}`. The
-  code is a long opaque token (paste-grade).
+- `POST <endpoint>/auth/link` (operator session) -> **`201 Created`**
+  `{link_code, expires_in}`. The code is a long opaque token (paste-grade).
+  `201` rather than `200` because the call MINTS a redeemable single-use
+  credential; the same status the redeem below answers, for the same reason.
 - The AI assistant redeems it: `POST <endpoint>/auth/claim` with `{code, public_key,
   signed}` -> `201 {agent_id, user_id, access_token}`.
 - The third endpoint of this ceremony, `POST <endpoint>/auth/unlink` (Section 6.3),
