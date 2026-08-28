@@ -3,6 +3,8 @@
 Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
 sentences — essence and intent, not content.
 
+- 2026-08-28: **the normative page's Endpoints table — its only endpoint inventory — omitted the KYC endpoint the same page specifies five hundred lines later (K-1194).** `POST /kiosk/agents/kyc` (Bearer) now has its row beside `pay`, so a reader building the surface from the table does not ship an operator with no KYC endpoint on it. Intent: an inventory that is the page's only list of a thing is read as complete, whether or not it says so.
+
 - 2026-08-28: **mandate amount positivity was enforced by the JSON Schemas and by the engine and stated in neither prose document (K-1193).** Both specifications now say that `cap_amount_cents`, `total_amount_cents` and `amount_cents` MUST be positive integers rejected before the binding comparisons run, and why — a negative total is under any cap, matches a negative payment mandate, and drives the spent-to-date sum down, permanently raising the assistant's remaining cap. Intent: a porter reads the prose, so a rule that lives only in a schema and a Ruby method ships a verifier that accepts a negative cap.
 
 - 2026-08-28: **the normative page described the agent-web discovery surfaces as things an operator does, where the formal specification and the page's own operator profile make them optional (K-1192).** The `<link rel="kiosk">` signal, the `agents.txt`/`agents.json`/`agent-configuration`/`api-catalog` envelopes and the api-catalog's per-verb linkset members now read MAY, MAY and SHOULD, matching §4.5 and the Core-discovery clause of the same page's conformance checklist. Intent: a reader who takes the body text literally builds five surfaces to be conformant when two are the requirement.

@@ -94,6 +94,7 @@
     <tr><td>a query</td><td><code>GET</code></td><td><code>/kiosk/&lt;query-name&gt;</code></td><td>Bearer</td><td>Read data — one endpoint per query (<code>/kiosk/catalog</code>, <code>/kiosk/slots</code>, <code>/kiosk/orders</code>)</td></tr>
     <tr><td>an action</td><td><code>POST</code></td><td><code>/kiosk/&lt;action-name&gt;</code></td><td>Bearer</td><td>Perform an action — one endpoint per action (<code>/kiosk/create_order</code>, <code>/kiosk/payment_setup</code>)</td></tr>
     <tr><td><code>pay</code></td><td><code>POST</code></td><td><code>/kiosk/pay</code></td><td>Bearer</td><td>Settle payment with signed AP2 mandates</td></tr>
+    <tr><td>—</td><td><code>POST</code></td><td><code>/kiosk/agents/kyc</code></td><td>Bearer</td><td>KYC: submit a signed attestation JWS; on a clean verify the operator stamps <code>kyc_verified_at</code> on the AI assistant record (see KYC)</td></tr>
   </table>
 
   <p><strong>The HTTP method carries the read/write semantics:</strong> a query is a <code>GET</code> at its own path, an action a <code>POST</code> at its own path, so <code>curl -H "Authorization: Bearer …" https://…/kiosk/catalog</code> is the whole invocation. A verb name is one path segment matching <code>^[a-z][a-z0-9_]*$</code>; the names themselves are operator-specific, discovered via <code>GET /kiosk/schema</code>, and not part of the spec. Calling a verb that exists with the other method is <code>405</code> carrying an <code>Allow</code> header — a different answer from <code>404</code>, because the resource exists.</p>
