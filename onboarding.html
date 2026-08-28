@@ -63,7 +63,7 @@
 gem "kiosk-all",        github: "kiosk-hq/kiosk"   # meta-gem: kiosk-core + kiosk-server
 gem "kiosk-pay-stripe", github: "kiosk-hq/kiosk"   # Stripe card-on-file payment adapter (this walkthrough uses it)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-bash">bundle install
-rails generate kiosk:install                # migration + initializer
+rails generate kiosk:install                # six migrations (001-006) + initializer
 rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 2: Configure Kiosk</h2>
