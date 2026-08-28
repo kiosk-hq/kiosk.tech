@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.4.10.md` | **0.4** | The same wire as 0.4.9. One correction to what it tells you ABOUT that wire: the heavy default toll's ~1.3 GiB is the reference solver's sorted-nonce table, not a floor the parameters impose on every implementation -- a memory-optimised solver trades the table for time, which is precisely how Equihash 200/9's real footprint fell to ~144 MB. 0.4.9 had qualified the seconds to one machine and then stated the memory half more strongly than it holds; this cut states it as the measurement it is. |
 | `skill-v0.4.9.md` | **0.4** | The same wire as 0.4.8. One correction to what it tells you ABOUT that wire: the heavy default toll's cost is qualified to the machine it was measured on -- ~10s on one M-series laptop core with the reference numpy solver, and the ~1.3 GiB stated as a property of the parameters rather than the host -- so the figure reads as a measurement on one machine class, not a portable constant, matching the landing and the specification. |
 | `skill-v0.4.8.md` | **0.4** | The same wire as 0.4.7. Three corrections to what it tells you ABOUT that wire: the account-binding poll's success body carries a fourth member, `scope`, whenever the binding carries a role -- the role actually GRANTED, and the only place you can read it without decoding the token, its absence not an error; the flat promise that "re-paying a settled order is rejected" is RETRACTED -- many operators do refuse a fresh mandate chain against an order they have settled, but no clause of the protocol requires it and a fresh chain collides with nothing, so the identical-chain retry is the only thing that stops a double charge; and the worked `pow_required` example spells `title` and `detail` hyphenated, the way every operator actually sends them. |
 | `skill-v0.4.7.md` | **0.4** | The same wire as 0.4.6. Four corrections to what it tells you ABOUT that wire, one of which follows a spec change: a bare repeated `name=` IS read as an array where the verb's `input_schema` declares that parameter one (the brackets stay the spelling to send); the discovery auth block's `device_authorization_url` and `claim_url` are REQUIRED of every operator, so their presence was never a binding-capability probe; `429 quota_exceeded` is the one refusal that means "come back later" and must not be treated as terminal; and a `reach: role` verb you lack the role for answers `200` NARROWED to your own rows rather than denying you -- a partial answer that looks complete. |
@@ -35,9 +36,9 @@ holding 0.4.0 will look for a `next` field that no 0.4.1 operator sends; 0.4.3
 moved a settled `pay` replay from `409` to `200` with the settlement, so an
 assistant holding 0.4.2 will read a successful idempotent retry as a conflict.
 Both are why the "same wire as" column has to be read as a chain and not as a
-transitive licence: 0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9,
+transitive licence: 0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10,
 but the two groups are NOT the same wire, and only the second group describes
-what a 0.4.9 operator serves. The formal spec
+what a 0.4.10 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
