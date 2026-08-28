@@ -414,6 +414,10 @@ end
 #   R10 the same-wire group written as a SPAN rather than as a chain («the
 #       "same wire" chain below runs 0.4.3 → 0.4.10 only») reaches the newest
 #       cut, exactly as R7 requires of the «=» spelling (K-1232)
+#   R11 the per-cut history clause list R8 reads is PRESENT on the normative
+#       page (specification.html) whenever the newest series has more than one
+#       cut — R8 is a rule about a list it finds, and until K-1236 nothing said
+#       WHICH file has to carry one (see the R8 limits below)
 #
 # WHAT IS DELIBERATELY NOT CHECKED, and why
 #
@@ -446,6 +450,36 @@ end
 #     subject is WHICH CUT SET IS CURRENT — R1, R2, R3, R8 and R10 — and
 #     CHANGELOG.md alone; see CLAIM_HISTORY_LINES for what is deliberately NOT
 #     in it.
+#   * WHICH CLAUSE OF THE R8 LIST BELONGS TO WHICH CUT (K-1236). R8 derives the
+#     SET and the ORDER of the cut NUMBERS; it says nothing about the prose each
+#     number carries. MEASURED by plant-and-restore (copy first; specification.html
+#     sha256 557ce1c2… re-verified after): SWAPPING the descriptive clauses of
+#     0.4.8 and 0.4.9 while leaving both numbers in place — so 0.4.8 now carries
+#     «answering that second half wrongly» and 0.4.9 carries «stating the heavy
+#     default toll's cost as a portable figure» — leaves this gate, its
+#     --self-test AND check-publication-paths at EXIT 0. R8's own failure text
+#     promises that «a clause written against the wrong cut tells them the wrong
+#     thing about two», and that is TRUE ONLY WHEN THE NUMBER IS WRONG; read the
+#     sentence as scoped to the number.
+#     WHY IT IS STATED RATHER THAN CLOSED, and this is a judgement, not a fact:
+#     a cut wave APPENDS a clause, it does not transpose two existing ones, so
+#     no wave this list has ever seen produces the shape — where the two shapes
+#     R8 does catch are both things a real wave did. And the only available fix
+#     binds each clause to a phrase derived from its own cut (its CHANGELOG
+#     line, say), which is a LEXICAL rule over prose — exactly the construction
+#     EARLIER_WIRES was, and it matched nothing anywhere for its whole existence
+#     while reading as coverage. A rule that fires on every rewording of a
+#     sentence a human is meant to edit is worse than a stated limit. If a wave
+#     ever IS found to have transposed two clauses, that is the evidence this
+#     paragraph is waiting for and the trade changes.
+#   * THE SPELLING OF R10's SPAN (K-1236). CHAIN_SPAN requires «→» or «->».
+#     MEASURED by plant-and-restore (skills.md sha256 48b6cd01… re-verified):
+#     re-spelling the live span as «0.4.3–0.4.9» (en-dash) or «0.4.3 to 0.4.9»,
+#     STALE, leaves the gate at EXIT 0 — the pattern simply stops matching.
+#     What catches it is the --self-test's VACUITY arm (EXIT 1, «chain_span
+#     matches NOTHING in this repository»), because that span is the only
+#     subject R10 has; see the CHAIN_SPAN comment for why widening the pattern
+#     to those spellings is NOT the cheap fix it looks like.
 #
 # THE FOURTH ITERATION OF ONE FAILURE (K-1213 → K-1223 → K-1227). Three times
 # running, a claim about what holds a relink was written without planting a
@@ -568,11 +602,33 @@ SAME_WIRE_CHAIN = /\d+(?:\.\d+){2,}(?:\s*=\s*\d+(?:\.\d+){2,})+/
 # nothing anywhere for its whole existence. And note WHICH WAY this one fails: a
 # reworded clause stops matching, which makes the enumerated list INCOMPLETE and
 # the rule RED. A wording change cannot switch R8 off in silence; it can only
-# make it complain. (Measured at head, `git grep -nE` over the tracked
-# .md/.html/.json/.txt tree: this shape occurs on exactly one line in this repo,
-# specification.html:57. A future page that writes «0.4.5 on …» for some other
-# purpose therefore goes RED and a human decides — the safe direction.)
+# make it complain. A future page that writes «0.4.5 on …» for some other
+# purpose therefore goes RED and a human decides — the safe direction.
+#
+# THE SUBJECT IS UNIQUE TODAY, AND R11 EXISTS BECAUSE THAT IS NOT A GUARANTEE
+# (K-1236). RE-MEASURED at head by running this file's own `plain` +
+# CLAIM_HISTORY_LINES view over `prose_files` (57 files, tracked AND untracked
+# .md/.html/.json/.txt): HISTORY_CLAUSE has a subject in exactly ONE file —
+# specification.html, 8 clauses, all on ONE line, specification.html:57 — and
+# CHAIN_SPAN in exactly ONE file, skills.md, 1 span, on ONE line, skills.md:24.
+# Those two numbers are what the vacuity arm was silently resting on, and the
+# arm asks a REPOSITORY-WIDE question — «does this rule match SOMEWHERE» — never
+# «does it match the page that has to carry it». So before R11: deleting the
+# WHOLE list from the normative page while any other prose file carried a
+# conformant one left the gate AND the self-test at EXIT 0. MEASURED, by
+# plant-and-restore: list cut out of specification.html + a decoy page
+# enumerating 0.4.0-0.4.2 … 0.4.9 → gate EXIT 0, --self-test EXIT 0 (both files
+# restored from `cp` copies, sha256 557ce1c2… / 48b6cd01… re-verified). R11 is
+# the repair: the presence of the list is asserted of specification.html BY
+# NAME, the way R6 asserts the cut table of skills.md, so it no longer depends
+# on a uniqueness nobody was measuring.
 HISTORY_CLAUSE = /(\d+(?:\.\d+)+)(?:\s*[-–—]\s*(\d+(?:\.\d+)+))?\s+on\s/
+
+# R11's page. Hard-coded for the same reason CUT_TABLE is: «the list exists
+# somewhere» is not the claim — specification.html is the NORMATIVE page, and
+# the list is what tells an adopter why the cut they may be holding is
+# superseded. Everything ABOUT the list stays derived from the cuts on disk.
+HISTORY_PAGE = "specification.html"
 
 # R10's subject: the same-wire group written as a SPAN instead of as a chain —
 # skills.md's «the "same wire" chain below runs 0.4.3 → 0.4.9 only». R7 reads the
@@ -582,6 +638,18 @@ HISTORY_CLAUSE = /(\d+(?:\.\d+)+)(?:\s*[-–—]\s*(\d+(?:\.\d+)+))?\s+on\s/
 # waves each moved this span; the v0.4.10 wave did not, and the sentence shipped
 # a cut stale, because R7 cannot see the arrow and R4/R7's HISTORY_LINES exempt
 # the row it lives on (K-1232).
+#
+# THE ARROW IS THE ONLY SPELLING THIS READS, AND WIDENING IT IS NOT CHEAP
+# (K-1236). Re-spelling the live span «0.4.3–0.4.9» or «0.4.3 to 0.4.9», stale,
+# leaves the gate at EXIT 0 (measured). But a dash or a « to » is ALSO how this
+# site writes the two ranges that are stale BY DEFINITION: R2's «0.4.0–0.4.9
+# describe earlier 0.4 cuts» and R3's «0.1.1–0.3.11 … protocol 0.1–0.3» both
+# have three components on each side, so widening this pattern would demand that
+# THEY reach the newest cut and turn two correct sentences permanently red. A
+# guard must never demand an edit the guard next to it forbids, and R2 forbids
+# exactly that edit. The limit stands, and what holds the class meanwhile is the
+# --self-test's vacuity arm: this span is R10's only subject in the repository,
+# so the re-spelling makes the arm's «matches NOTHING» fire (EXIT 1).
 CHAIN_SPAN = /(\d+(?:\.\d+){2,})\s*(?:→|-+>)\s*(\d+(?:\.\d+){2,})/
 
 # R9's subject: one cut-table row naming exactly ONE cut, split into its version,
@@ -723,6 +791,29 @@ def history_clause_failures(path, clauses, ctx)
    "and relinking is PART of a skill change, not follow-up (K-847 rule 2): a clause that is " \
    "missing tells an adopter one published cut simply does not exist, and a clause written " \
    "against the wrong cut tells them the wrong thing about two."]
+end
+
+# R11. R8 reads a list WHERE IT FINDS ONE. Nothing said which file has to carry
+# one, and the vacuity arm's question is repository-wide, so the normative page
+# could lose the list entirely while both stayed green as long as any other
+# prose file wrote the shape (K-1236, measured). This asserts the presence of
+# the list on specification.html by name — the way R6 asserts the cut table of
+# skills.md — and asserts nothing about its content, which stays R8's job.
+#
+# CONDITIONAL ON PURPOSE: when the newest series has only one cut there is no
+# earlier cut to enumerate, and history_clause_failures says so and asks for the
+# list to be REMOVED. Requiring its presence unconditionally would then demand
+# an edit the rule next to it forbids — the trap CLAIM_HISTORY_LINES exists for.
+def history_page_failures(text, ctx)
+  return [] if ctx.series_cuts.size < 2
+  return [] unless plain(text).scan(HISTORY_CLAUSE).empty?
+
+  ["#{HISTORY_PAGE}: carries no per-cut history list at all, but #{ctx.series_cuts.size} cuts " \
+   "are published on the #{ctx.newest_series} series. This page is NORMATIVE, and that list is " \
+   "what tells an adopter holding #{ctx.series_cuts[0..-2].join(", ")} why the cut they have is " \
+   "superseded. R8 checks a list where it finds one; only this rule says the list has to be " \
+   "HERE (K-1236) — before it existed, deleting the list outright was invisible to every " \
+   "mechanism in this workspace whenever some other page happened to write the same shape."]
 end
 
 # R1-R5, R7, R8 and R10 over ONE file's bytes. Returns [failures, claims checked,
@@ -946,6 +1037,13 @@ if newest_cut
     failures << "#{CUT_TABLE} is missing — it is the published index of every cut."
   end
 
+  if File.exist?(HISTORY_PAGE)
+    failures.concat(history_page_failures(File.read(HISTORY_PAGE), ctx))
+  else
+    failures << "#{HISTORY_PAGE} is missing — it is the normative page, and the per-cut history " \
+                "list R8 reads lives on it."
+  end
+
   notes << "prose: #{claims_checked} current-cut claim(s)/pin(s) checked against #{newest_cut} " \
            "across #{scanned.size} file(s)"
 end
@@ -1148,6 +1246,23 @@ def self_test_table_cases(descending)
   ].freeze
 end
 
+# [label, specification.html body, :red | :green]. R11 asks ONE question — is
+# there a list here at all — so its fixtures are a page with one and a page
+# without. The third case is the boundary that matters: a list R8 will reject is
+# still a list, and R11 must not double-report it.
+def self_test_history_page_cases
+  [
+    ["R11 the normative page with NO per-cut history list at all (K-1236)",
+     "<p>Every earlier cut stays published and unedited, because live pins verify its bytes.</p>",
+     :red],
+    ["R11 the normative page carrying the list",
+     "<p>0.4.0–0.4.2 on wires that have since changed, and 0.4.3 on this same wire but A.</p>",
+     :green],
+    ["R11 a list R8 will reject is still a list — R11 does not double-report it",
+     "<p>0.4.3 on this same wire but A.</p>", :green]
+  ].freeze
+end
+
 # Every rule must find something to say about this repository's own files.
 VACUITY_RULES = {
   current_claim: "R1 a sentence naming the current cut",
@@ -1180,6 +1295,16 @@ def run_self_test
 
   self_test_table_cases(descending).each do |label, table, want|
     got, = cut_table_failures(table, ctx)
+    red = !got.empty?
+    if red == (want == :red)
+      puts format("  %-5s %s", want == :red ? "RED" : "GREEN", label)
+    else
+      bad << "#{label}: expected #{want}, got #{red ? "red" : "green"}"
+    end
+  end
+
+  self_test_history_page_cases.each do |label, body, want|
+    got = history_page_failures(body, ctx)
     red = !got.empty?
     if red == (want == :red)
       puts format("  %-5s %s", want == :red ? "RED" : "GREEN", label)
