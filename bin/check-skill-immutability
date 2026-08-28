@@ -404,6 +404,16 @@ end
 #       series, newest first
 #   R7  the cut table's «same wire» chain («0.4.3 = 0.4.4 = … = 0.4.10») is a
 #       contiguous run of published cuts and reaches the newest one
+#   R8  the PER-CUT HISTORY CLAUSE LIST («0.4.0–0.4.2 on wires that have since
+#       changed, 0.4.3 on this same wire but …, … and 0.4.9 on this same wire
+#       but …») names every cut on the newest series BELOW the newest, exactly
+#       once, in order — ranges expanded through the cuts on disk (K-1232)
+#   R9  each cut table ROW BODY: its protocol column states the series its own
+#       cut is on, and a «the same wire as X» in it names that cut's immediate
+#       PREDECESSOR (K-1232)
+#   R10 the same-wire group written as a SPAN rather than as a chain («the
+#       "same wire" chain below runs 0.4.3 → 0.4.10 only») reaches the newest
+#       cut, exactly as R7 requires of the «=» spelling (K-1232)
 #
 # WHAT IS DELIBERATELY NOT CHECKED, and why
 #
@@ -424,15 +434,18 @@ end
 #     table is not history — it states what the current cut is, in two sentences
 #     every cut moves, and the file-level exemption handed them the table's
 #     licence. See HISTORY_LINES.
-#   * R1 INSIDE CHANGELOG.md (K-1228). A changelog entry is a record of a wave
-#     that has already happened, and this repo's history is append-only, so an
-#     entry writing a concrete «a 0.4.10 operator serves» is green the day it is
-#     written and RED ON THE VERY NEXT CUT — with no legal repair, because the
-#     only conformant outcomes are a permanently red gate or an edit the
-#     constitution forbids. That is the same reasoning that keeps the cuts
-#     themselves out of pass 4: a guard must never demand an edit the guard next
-#     to it forbids. The exemption is R1's alone and CHANGELOG.md's alone; see
-#     CLAIM_HISTORY_LINES for what is deliberately NOT in it.
+#   * THE CURRENT-CUT RULES INSIDE CHANGELOG.md (K-1228, widened by K-1229). A
+#     changelog entry is a record of a wave that has already happened, and this
+#     repo's history is append-only, so an entry writing a concrete «a 0.4.10
+#     operator serves», «0.4.0-0.4.9 describe earlier 0.4 cuts» or «0.4.3 →
+#     0.4.10» is green the day it is written and RED ON THE VERY NEXT CUT — with
+#     no legal repair, because the only conformant outcomes are a permanently red
+#     gate or an edit the constitution forbids. That is the same reasoning that
+#     keeps the cuts themselves out of pass 4: a guard must never demand an edit
+#     the guard next to it forbids. The exemption covers exactly the rules whose
+#     subject is WHICH CUT SET IS CURRENT — R1, R2, R3, R8 and R10 — and
+#     CHANGELOG.md alone; see CLAIM_HISTORY_LINES for what is deliberately NOT
+#     in it.
 #
 # THE FOURTH ITERATION OF ONE FAILURE (K-1213 → K-1223 → K-1227). Three times
 # running, a claim about what holds a relink was written without planting a
@@ -464,8 +477,8 @@ HISTORY_LINES = {
   "CHANGELOG.md" => ->(_line) { true }
 }.freeze
 
-# R1's history exemption, and it is NARROWER than the one above ON PURPOSE
-# (K-1228).
+# THE CURRENT-CUT RULES' history exemption, and it is NARROWER than the one
+# above ON PURPOSE (K-1228, widened to R2/R3/R8/R10 by K-1229).
 #
 # WHY IT EXISTS: R4 and R7 are not the only rules an append-only file cannot
 # satisfy. A CHANGELOG entry saying «a 0.4.10 operator serves the new wire»
@@ -476,17 +489,28 @@ HISTORY_LINES = {
 # it was committed; a convention that every future author remembers to do that
 # is precisely the kind of thing this workspace keeps learning does not hold.
 #
+# WHAT IS IN IT, and why the membership grew rather than the file list (K-1229):
+# every rule whose subject is WHICH CUT SET IS CURRENT carries that unrepairable
+# shape, not just R1. «0.4.0-0.4.9 describe earlier 0.4 cuts» (R2), «the 0.1.1-
+# 0.3.11 cuts describe protocol 0.1-0.3» (R3), a per-cut history list (R8) and a
+# «0.4.3 → 0.4.10» span (R10) are all green when written into a changelog entry
+# and red on the next cut. K-1228 scoped its fix to R1 because nothing at head
+# tripped the others and an exemption widened past the evidence stops meaning
+# anything; K-1229 is the recorded decision to widen it, and the widening is one
+# constant — the FILE list did not move.
+#
 # WHY IT IS SEPARATE FROM HISTORY_LINES RATHER THAN THE SAME MAP:
-#   * `skills.md` is deliberately ABSENT. Its table rows are history for PINS —
-#     naming every cut is the table's job — but a table cell that said which cut
-#     is CURRENT would be a live claim, and handing R1 the table's licence is
-#     the file-level mistake K-1227 spent a wave undoing. Nothing has asked for
-#     that widening, so it is not here.
-#   * R2, R3 and R5 are NOT exempted either. R5 only asks that a named cut
-#     exists, which stays true forever (cuts are never deleted — pass 1). R2/R3
-#     are ranges and carry the same unrepairable shape as R1; nothing at head
-#     trips them and widening the exemption on a hunch is the opposite of what
-#     this constant is for, so that residue is filed rather than absorbed.
+#   * `skills.md` is deliberately ABSENT, still. Its table rows are history for
+#     PINS — naming every cut is the table's job — but a table cell that said
+#     which cut is CURRENT would be a live claim, and handing these rules the
+#     table's licence is the file-level mistake K-1227 spent a wave undoing.
+#     R9 and R10 both READ those rows, and both find a live break there today.
+#   * R5 is NOT exempted. It only asks that a named cut exists, which stays true
+#     forever (cuts are never deleted — pass 1), so a changelog entry naming an
+#     old cut can satisfy it in perpetuity and needs no licence.
+#   * R6 and R9 are not exempted either: the cut table is not append-only in the
+#     sense that matters here — a NEW cut adds a NEW row, and no existing row has
+#     to change for either rule to stay satisfied.
 # Adding a rule here is therefore a decision with a reason, not a default.
 CLAIM_HISTORY_LINES = { "CHANGELOG.md" => ->(_line) { true } }.freeze
 
@@ -530,6 +554,48 @@ EARLIER_PROTOCOLS = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+(?:cuts\s+)
 # Three or more components per element so an ordinary "1.0 = 1.0" in prose is
 # not read as one, and no capture group, so `scan` yields whole chains.
 SAME_WIRE_CHAIN = /\d+(?:\.\d+){2,}(?:\s*=\s*\d+(?:\.\d+){2,})+/
+
+# R8's subject: ONE CLAUSE of the per-cut history list that specification.html
+# writes under the earlier-cuts range — «0.4.0–0.4.2 on wires that have since
+# changed, 0.4.3 on this same wire but …, … and 0.4.9 on this same wire but …».
+# EVERY cut moves that list (`git show --stat 00fd3ea`, `d29ebb6`), and until
+# K-1232 NOTHING held it: deleting the newest clause, or writing it against the
+# wrong cut, left all six candidate mechanisms in this workspace at exit 0.
+#
+# THE ANCHOR IS STRUCTURAL, NOT LEXICAL: a version (or a version range) followed
+# by "on". Requiring the trailing noun is the mistake EARLIER_WIRES made — it
+# demanded the word "wires" where both live sentences say "cuts" and so matched
+# nothing anywhere for its whole existence. And note WHICH WAY this one fails: a
+# reworded clause stops matching, which makes the enumerated list INCOMPLETE and
+# the rule RED. A wording change cannot switch R8 off in silence; it can only
+# make it complain. (Measured at head, `git grep -nE` over the tracked
+# .md/.html/.json/.txt tree: this shape occurs on exactly one line in this repo,
+# specification.html:57. A future page that writes «0.4.5 on …» for some other
+# purpose therefore goes RED and a human decides — the safe direction.)
+HISTORY_CLAUSE = /(\d+(?:\.\d+)+)(?:\s*[-–—]\s*(\d+(?:\.\d+)+))?\s+on\s/
+
+# R10's subject: the same-wire group written as a SPAN instead of as a chain —
+# skills.md's «the "same wire" chain below runs 0.4.3 → 0.4.9 only». R7 reads the
+# "=" spelling; this is the same claim in the arrow spelling and must reach the
+# newest cut for the same reason. Three-or-more components on both sides so
+# "(0.3 → 0.4)" in prose is not read as one. MEASURED: the v0.4.8 and v0.4.9
+# waves each moved this span; the v0.4.10 wave did not, and the sentence shipped
+# a cut stale, because R7 cannot see the arrow and R4/R7's HISTORY_LINES exempt
+# the row it lives on (K-1232).
+CHAIN_SPAN = /(\d+(?:\.\d+){2,})\s*(?:→|-+>)\s*(\d+(?:\.\d+){2,})/
+
+# R9's subject: one cut-table row naming exactly ONE cut, split into its version,
+# its protocol cell and its body. The collapsed range rows («`skill-v0.3.0.md` …
+# `skill-v0.3.11.md`») deliberately do not match: they describe a whole series
+# and have no single predecessor.
+CUT_TABLE_ROW = /^\|\s*`?skill-v(\d+(?:\.\d+)+)\.md`?\s*\|([^|]*)\|(.*)\|\s*$/
+
+# R9's second half: «The same wire as 0.4.9.» at the head of a row body. The
+# claim is RELATIVE — it names the row's own predecessor — so unlike R1 it is
+# satisfied forever once written, and unlike R4 it is not history the table is
+# licensed to keep: a NEW row written against the wrong cut is a stale relink
+# that no other rule can see.
+SAME_WIRE_AS = /wire\s+as\s+(\d+(?:\.\d+)+)/i
 
 def cut_version(cut) = cut[/skill-v(.+)\.md\z/, 1]
 def series_of(version) = version.split(".")[0, 2].join(".")
@@ -612,17 +678,65 @@ def chain_failures(path, text, ctx)
   [fails, chains.size]
 end
 
-# R1-R5 and R7 over ONE file's bytes. Returns [failures, claims checked, rules
-# that found a subject here] — the third is what the self-test's vacuity arm
+# R8. The per-cut history clause list, derived END TO END from the cuts on disk:
+# every cut on the newest series BELOW the newest appears exactly once, in
+# ascending order, and nothing else appears at all. Ranges are expanded THROUGH
+# the published cuts, so «0.4.0–0.4.2» is three cuts and not two — which is why
+# this cannot be done by counting clauses.
+#
+# What it catches, and both shapes were measured invisible to all six candidate
+# mechanisms before it existed (K-1232): the wave that appends the cut and moves
+# the R2 range but FORGETS the clause (the list then stops one cut short), and
+# the wave that writes the clause against the WRONG cut (the list then names one
+# twice and one not at all).
+def history_clause_failures(path, clauses, ctx)
+  want = ctx.series_cuts[0..-2].to_a
+  if want.empty?
+    return ["#{path}: enumerates cuts earlier than #{ctx.newest_version} on the " \
+            "#{ctx.newest_series} series, but #{ctx.newest_cut} is the only cut on it. Reword " \
+            "or remove the list."]
+  end
+
+  named = []
+  clauses.each do |from, to|
+    unknown = [from, to].compact.reject { ctx.all_versions.include?(_1) }
+    unless unknown.empty?
+      return ["#{path}: the per-cut history list names #{unknown.join(", ")}, which no published " \
+              "cut carries. Every clause of that list is about a cut an assistant may still be " \
+              "holding, so a number nobody publishes cannot appear in it."]
+    end
+    next named << from unless to
+
+    lo, hi = ctx.all_versions.index(from), ctx.all_versions.index(to)
+    if lo > hi
+      return ["#{path}: the per-cut history list writes the range #{from}-#{to} backwards."]
+    end
+
+    named.concat(ctx.all_versions[lo..hi])
+  end
+
+  return [] if named == want
+
+  ["#{path}: the per-cut history list reads #{named.join(", ")} — derived from the cuts on disk " \
+   "it must read #{want.join(", ")}: every cut on the #{ctx.newest_series} series below " \
+   "#{ctx.newest_version}, each exactly once, in ascending order. Every cut moves this list, " \
+   "and relinking is PART of a skill change, not follow-up (K-847 rule 2): a clause that is " \
+   "missing tells an adopter one published cut simply does not exist, and a clause written " \
+   "against the wrong cut tells them the wrong thing about two."]
+end
+
+# R1-R5, R7, R8 and R10 over ONE file's bytes. Returns [failures, claims checked,
+# rules that found a subject here] — the third is what the self-test's vacuity arm
 # reads, so a rule that matches nothing anywhere cannot sit green again.
 def prose_failures(path, raw, ctx)
   fails  = []
   claims = 0
   hits   = []
   text   = plain(raw)
-  # R1 alone reads the claim-exempt view: a changelog records past waves, and
-  # the sentence it records cannot be rewritten when the next cut lands
-  # (K-1228). Everything else below still reads the whole file.
+  # R1, R2, R3, R8 and R10 read the claim-exempt view: a changelog records past
+  # waves, and the sentence it records cannot be rewritten when the next cut
+  # lands (K-1228, widened by K-1229). R5 and the HISTORY_LINES rules below
+  # still read the whole file / their own exemption.
   claim_text = plain(history_free(path, raw, CLAIM_HISTORY_LINES))
 
   claim_text.scan(CURRENT_CLAIM) do |(named)|
@@ -646,7 +760,7 @@ def prose_failures(path, raw, ctx)
              "round it is written."
   end
 
-  text.scan(EARLIER_WIRES) do |(from, to, series)|
+  claim_text.scan(EARLIER_WIRES) do |(from, to, series)|
     claims += 1
     hits |= [:earlier_wires]
     if ctx.series_cuts.size < 2
@@ -663,7 +777,7 @@ def prose_failures(path, raw, ctx)
              "(every cut on the newest series except the newest itself)."
   end
 
-  text.scan(EARLIER_PROTOCOLS) do |(from, to, from_series, to_series)|
+  claim_text.scan(EARLIER_PROTOCOLS) do |(from, to, from_series, to_series)|
     claims += 1
     hits |= [:earlier_protocols]
     if ctx.before_series.empty?
@@ -679,6 +793,29 @@ def prose_failures(path, raw, ctx)
              "derived from the cuts on disk that is #{want_from}-#{want_to}, protocol " \
              "#{series_of(want_from)}-#{series_of(want_to)} (every cut before the " \
              "#{ctx.newest_series} series)."
+  end
+
+  clauses = claim_text.scan(HISTORY_CLAUSE)
+  unless clauses.empty?
+    claims += clauses.size
+    hits |= [:history_clause]
+    fails.concat(history_clause_failures(path, clauses, ctx))
+  end
+
+  claim_text.scan(CHAIN_SPAN) do |(from, to)|
+    claims += 1
+    hits |= [:chain_span]
+    unknown = [from, to].reject { ctx.all_versions.include?(_1) }
+    if !unknown.empty?
+      fails << "#{path}: the same-wire span \"#{from} → #{to}\" names #{unknown.join(", ")}, " \
+               "which no published cut carries."
+    elsif to != ctx.newest_version
+      fails << "#{path}: the same-wire span \"#{from} → #{to}\" stops at #{to}, but the newest " \
+               "cut is #{ctx.newest_version} (#{ctx.newest_cut}). A span written this way is the " \
+               "same published claim as the \"=\" chain R7 reads — \"these cuts describe one " \
+               "wire\" — so it must reach the newest cut: extend it if #{ctx.newest_version} " \
+               "describes that same wire, and REWRITE the sentence if it opens a new group."
+    end
   end
 
   raw.scan(NAMED_CUT).flatten.uniq.each do |named|
@@ -712,11 +849,25 @@ def prose_failures(path, raw, ctx)
   [fails, claims, hits]
 end
 
-# R6: the cut table. Older series are collapsed into ranges on purpose, so
-# only the NEWEST series is required to carry a row per cut — that is the
+# R6 and R9: the cut table. Older series are collapsed into ranges on purpose,
+# so only the NEWEST series is required to carry a row per cut — that is the
 # series an adopter chooses from.
+#
+# R6 holds the table's SHAPE — a row per cut, newest first — and until K-1232
+# that was all anything held: the ROW BODY, which every cut writes fresh, was
+# invisible. Changing «The same wire as 0.4.9» to «as 0.4.8», or a row's protocol
+# column to a series its cut is not on, left every mechanism in this workspace at
+# exit 0. R9 reads the body, and both of its claims are DERIVED: a row's protocol
+# is `series_of` its own cut, and a «same wire as» in it names that cut's
+# immediate predecessor among the published cuts. Both are RELATIVE claims, so
+# unlike R1/R4 they are true forever once written — the table stays append-only
+# and R9 still catches the row a wave writes against the wrong cut.
+#
+# Returns [failures, rules that found a subject here]; the second is what the
+# self-test's vacuity arm reads.
 def cut_table_failures(table, ctx)
   fails   = []
+  hits    = []
   missing = ctx.series_cuts.reject { |v| table.include?("skill-v#{v}.md") }
   unless missing.empty?
     fails << "#{CUT_TABLE}: the cut table has no row for " \
@@ -730,7 +881,39 @@ def cut_table_failures(table, ctx)
     fails << "#{CUT_TABLE}: the first row of the cut table is skill-v#{first_row}.md, but " \
              "the newest cut is #{ctx.newest_cut}. The table reads newest-first."
   end
-  fails
+
+  table.each_line do |line|
+    row = CUT_TABLE_ROW.match(line)
+    next unless row
+
+    version, protocol_cell, body = row[1], row[2], row[3]
+    next unless ctx.all_versions.include?(version) # R5 owns a name nobody publishes
+
+    hits |= [:row_protocol]
+    stated = protocol_cell.tr("*`", "  ").strip
+    unless stated == series_of(version)
+      fails << "#{CUT_TABLE}: the row for skill-v#{version}.md states protocol #{stated.inspect}, " \
+               "but version parity puts that cut on #{series_of(version)}. This column is the " \
+               "published answer to \"can this cut talk to this operator\" — the whole reason the " \
+               "table exists — so it is derived from the cut's own name, not written by hand."
+    end
+
+    index    = ctx.all_versions.index(version)
+    previous = index.positive? ? ctx.all_versions[index - 1] : nil
+    body.scan(SAME_WIRE_AS) do |(named)|
+      hits |= [:row_same_wire]
+      next if named == previous
+
+      fails << "#{CUT_TABLE}: the row for skill-v#{version}.md says it describes the same wire as " \
+               "#{named}, but the cut published immediately before it is " \
+               "#{previous || "(none — it is the oldest cut)"}. Each row states its cut's " \
+               "relation to the one before it, and that is what makes the column readable as a " \
+               "CHAIN (R7) rather than as a transitive licence; a row written against the wrong " \
+               "cut silently joins two groups that are not the same wire."
+    end
+  end
+
+  [fails, hits]
 end
 
 # Tracked files plus untracked-not-ignored ones: a new page that names a stale
@@ -757,7 +940,8 @@ if newest_cut
   end
 
   if File.exist?(CUT_TABLE)
-    failures.concat(cut_table_failures(File.read(CUT_TABLE), ctx))
+    table_failures, = cut_table_failures(File.read(CUT_TABLE), ctx)
+    failures.concat(table_failures)
   else
     failures << "#{CUT_TABLE} is missing — it is the published index of every cut."
   end
@@ -798,9 +982,15 @@ end
 FIXTURE_CUTS = (%w[0.1.1 0.2.0 0.3.11] + (0..10).map { "0.4.#{_1}" })
                .map { "skill-v#{_1}.md" }.freeze
 
-def fixture_table(versions)
+# `overrides` replaces one row's protocol cell and body, so an R9 fixture is a
+# WHOLE VALID TABLE with exactly one thing wrong in it — otherwise R6 would fire
+# and the case would go red for the wrong reason.
+def fixture_table(versions, overrides = {})
   "| Cut | Protocol | Wire it describes |\n|---|---|---|\n" +
-    versions.map { "| `skill-v#{_1}.md` | **0.4** | some wire |\n" }.join
+    versions.map { |v|
+      protocol, body = overrides.fetch(v, ["**0.4**", "some wire"])
+      "| `skill-v#{v}.md` | #{protocol} | #{body} |\n"
+    }.join
 end
 
 # [label, path, body, :red | :green]. The path decides which history exemption
@@ -863,7 +1053,78 @@ def self_test_prose_cases
     ["R7 same-wire chain at head",
      "skills.md", "0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10,\nbut the two groups", :green],
     ["R7 a CHANGELOG record of a past chain is history",
-     "CHANGELOG.md", "- 2026-08-27: the table then chained 0.4.3 = 0.4.4 = 0.4.5 as one wire.\n", :green]
+     "CHANGELOG.md", "- 2026-08-27: the table then chained 0.4.3 = 0.4.4 = 0.4.5 as one wire.\n", :green],
+    # K-1229: R2 and R3 carry R1's unrepairable shape, so the CHANGELOG exemption
+    # widened to them. Same discipline as K-1228's fixtures — the red arms carry
+    # the SAME BYTES as the green ones, so what is under test is the file the
+    # sentence lives in, and the exemption is proved NOT to have sprayed onto the
+    # normative page, the formal spec, or a skills.md table row.
+    ["R2 range in CHANGELOG.md is history (K-1229)",
+     "CHANGELOG.md", "- 2026-08-27: at that point 0.4.0-0.4.8 describe earlier 0.4 cuts.\n", :green],
+    ["R2 those same range bytes in spec/protocol.md still fail (K-1229)",
+     "spec/protocol.md", "- 2026-08-27: at that point 0.4.0-0.4.8 describe earlier 0.4 cuts.\n", :red],
+    ["R2 those same range bytes in specification.html still fail (K-1229)",
+     "specification.html", "- 2026-08-27: at that point 0.4.0-0.4.8 describe earlier 0.4 cuts.\n", :red],
+    ["R2 those same range bytes in a skills.md TABLE ROW still fail (K-1229)",
+     "skills.md", "| `skill-v0.4.3.md` | **0.4** | 0.4.0-0.4.8 describe earlier 0.4 cuts. |\n", :red],
+    ["R3 protocol range in CHANGELOG.md is history (K-1229)",
+     "CHANGELOG.md", "- 2026-08-27: at that point the 0.1.1-0.3.10 cuts describe protocol 0.1-0.3.\n", :green],
+    ["R3 those same bytes in spec/protocol.md still fail (K-1229)",
+     "spec/protocol.md", "- 2026-08-27: at that point the 0.1.1-0.3.10 cuts describe protocol 0.1-0.3.\n", :red],
+    ["R3 those same bytes in specification.html still fail (K-1229)",
+     "specification.html", "- 2026-08-27: at that point the 0.1.1-0.3.10 cuts describe protocol 0.1-0.3.\n", :red],
+    ["R3 those same bytes in a skills.md TABLE ROW still fail (K-1229)",
+     "skills.md", "| `skill-v0.4.3.md` | 0.1.1-0.3.10 cuts describe protocol 0.1-0.3 | x |\n", :red],
+    # K-1232's two plants, as fixtures. The first is what a wave that adds the
+    # cut and moves the R2 range but forgets the clause leaves behind; the second
+    # is the clause written against the wrong cut. Both were measured invisible
+    # to all six candidate mechanisms in this workspace.
+    ["R8 per-cut history list, newest clause missing (K-1232)",
+     "specification.html",
+     "0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but A, 0.4.4 on " \
+     "this same wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, " \
+     "0.4.7 on this same wire but E, and 0.4.8 on this same wire but F.", :red],
+    ["R8 per-cut history list, a clause naming the wrong cut (K-1232)",
+     "specification.html",
+     "0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but A, 0.4.4 on " \
+     "this same wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, " \
+     "0.4.7 on this same wire but E, 0.4.8 on this same wire but F, and 0.4.8 on this same " \
+     "wire but G.", :red],
+    ["R8 per-cut history list out of order",
+     "specification.html",
+     "0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but A, 0.4.4 on " \
+     "this same wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, " \
+     "0.4.7 on this same wire but E, 0.4.9 on this same wire but G, and 0.4.8 on this same " \
+     "wire but F.", :red],
+    ["R8 per-cut history list, complete and in order",
+     "specification.html",
+     "0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but A, 0.4.4 on " \
+     "this same wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, " \
+     "0.4.7 on this same wire but E, 0.4.8 on this same wire but F, and 0.4.9 on this same " \
+     "wire but G.", :green],
+    ["R8 the SAME collapsed range spelled cut by cut is equally green",
+     "specification.html",
+     "0.4.0 on a wire that has since changed, 0.4.1 on a wire that has since changed, 0.4.2 " \
+     "on a wire that has since changed, 0.4.3 on this same wire but A, 0.4.4 on this same " \
+     "wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, 0.4.7 on " \
+     "this same wire but E, 0.4.8 on this same wire but F, and 0.4.9 on this same wire but " \
+     "G.", :green],
+    ["R8 a CHANGELOG record of a past history list is history (K-1229)",
+     "CHANGELOG.md",
+     "- 2026-08-27: the page then read 0.4.0–0.4.2 on wires that have since changed and " \
+     "0.4.3 on this same wire but A.\n", :green],
+    # R10: the arrow spelling of the same-wire group. The stale bytes are the
+    # ones this repo actually shipped at v0.4.10 (K-1232).
+    ["R10 same-wire span stops one cut short, in a skills.md row (K-1232)",
+     "skills.md", "| `skill-v0.4.3.md` | **0.4** | the \"same wire\" chain below runs 0.4.3 → 0.4.9 only. |\n", :red],
+    ["R10 same-wire span reaching the newest cut",
+     "skills.md", "| `skill-v0.4.3.md` | **0.4** | the \"same wire\" chain below runs 0.4.3 → 0.4.10 only. |\n", :green],
+    ["R10 those same stale span bytes in specification.html still fail",
+     "specification.html", "the \"same wire\" chain below runs 0.4.3 → 0.4.9 only.", :red],
+    ["R10 a CHANGELOG record of a past span is history (K-1229)",
+     "CHANGELOG.md", "- 2026-08-27: the chain then ran 0.4.3 → 0.4.9 only.\n", :green],
+    ["R10 an ordinary two-component arrow is not a span",
+     "specification.html", "A new MINOR (0.3 → 0.4) is a feature milestone.", :green]
   ].freeze
 end
 
@@ -871,7 +1132,19 @@ def self_test_table_cases(descending)
   [
     ["R6 table carries every cut on the newest series", fixture_table(descending), :green],
     ["R6 table missing the newest cut's row", fixture_table(descending.drop(1)), :red],
-    ["R6 table written oldest-first", fixture_table(descending.reverse), :red]
+    ["R6 table written oldest-first", fixture_table(descending.reverse), :red],
+    # K-1232's row-body arm. One row differs from the green table above, so what
+    # is under test is the body and not the table's shape.
+    ["R9 a row body naming the wrong predecessor (K-1232)",
+     fixture_table(descending, "0.4.10" => ["**0.4**", "The same wire as 0.4.8."]), :red],
+    ["R9 a row body naming its predecessor",
+     fixture_table(descending, "0.4.10" => ["**0.4**", "The same wire as 0.4.9."]), :green],
+    ["R9 a MIDDLE row body naming the wrong predecessor",
+     fixture_table(descending, "0.4.5" => ["**0.4**", "The same wire as 0.4.3."]), :red],
+    ["R9 a row body naming its predecessor, mid-table",
+     fixture_table(descending, "0.4.5" => ["**0.4**", "The same wire as 0.4.4."]), :green],
+    ["R9 a row's protocol column naming a series its cut is not on (K-1232)",
+     fixture_table(descending, "0.4.10" => ["**0.3**", "some wire"]), :red]
   ].freeze
 end
 
@@ -883,7 +1156,11 @@ VACUITY_RULES = {
   earlier_protocols: "R3 the earlier-protocols range",
   named_cut: "R5 a cut named in prose",
   pin_url: "R4 an example pin URL",
-  same_wire_chain: "R7 the cut table's same-wire chain"
+  same_wire_chain: "R7 the cut table's same-wire chain",
+  history_clause: "R8 the per-cut history clause list",
+  chain_span: "R10 the same-wire group written as an arrow span",
+  row_protocol: "R9 a cut table row's protocol column",
+  row_same_wire: "R9 a cut table row body's \"same wire as\" predecessor"
 }.freeze
 
 def run_self_test
@@ -902,7 +1179,7 @@ def run_self_test
   end
 
   self_test_table_cases(descending).each do |label, table, want|
-    got = cut_table_failures(table, ctx)
+    got, = cut_table_failures(table, ctx)
     red = !got.empty?
     if red == (want == :red)
       puts format("  %-5s %s", want == :red ? "RED" : "GREEN", label)
@@ -919,6 +1196,9 @@ def run_self_test
     real = context_for(published)
     seen = []
     prose_files.each { |p| seen |= prose_failures(p, File.read(p), real)[2] }
+    # R9's subject lives in the cut table, which prose_failures does not read as
+    # rows, so the arm has to ask cut_table_failures the same question.
+    seen |= cut_table_failures(File.read(CUT_TABLE), real)[1] if File.exist?(CUT_TABLE)
     VACUITY_RULES.each do |rule, description|
       if seen.include?(rule)
         puts format("  %-5s vacuity: %s", "HIT", description)
