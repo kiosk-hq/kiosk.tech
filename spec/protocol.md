@@ -1839,9 +1839,12 @@ the discovery document, and are absent from `capabilities` for that reason:
    semantics -- reputation carries over a rebind, it is not reset -- and unlink
    (Section 6.3).
 8. **Module KYC** (Section 12): the attestation endpoint, verifying the
-   attestation's issuer, `sub`, `exp` and `level` (Section 12.1), plus the
+   attestation's issuer, `aud`, `sub`, `exp` and `level` (Section 12.1), plus the
    OPTIONAL named anonymized `attributes` booleans (Section 12.2) and the
-   `kyc_required` gate on attribute-restricted actions (Section 12.3).
+   `kyc_required` gate on attribute-restricted actions (Section 12.3). The `aud`
+   check is the operator binding of Section 12.1 and belongs in this list for
+   the reason that section gives: an implementation that omits it accepts an
+   attestation the KYC provider minted for a DIFFERENT operator.
 
 ### 16.2 AI assistant profile
 
