@@ -46,6 +46,18 @@ jobs:
       # open3) and shells out to git; there is no Gemfile, no bundle and no
       # Ruby toolchain anywhere else in this repo, so pinning a version here
       # would be a version to maintain for no gain.
+      #
+      # The self-test is a step of its own, and it runs FIRST, for the reason
+      # publication-paths.yml records for itself: pass 4 is regular expressions
+      # over prose, and the way one fails is by matching NOTHING and exiting 0,
+      # which is indistinguishable from a clean tree. Three of its rules had
+      # done exactly that (K-1227). So the guard proves it is red on a planted
+      # stale relink of every rule, green on the history rows it must leave
+      # alone, and non-vacuous over this tree, before a green run below means
+      # anything.
+      - name: Pass 4 is red on a planted stale relink of every rule, and non-vacuous here
+        run: ruby bin/check-skill-immutability --self-test
+
       - name: No published skill-v*.md was modified or removed
         env:
           # push: the commit the branch was at before this push.

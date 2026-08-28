@@ -147,6 +147,9 @@
 #   bin/check-skill-immutability --base <ref>    # explicit base
 #   bin/check-skill-immutability --head <ref>    # explicit head (default HEAD)
 #   bin/check-skill-immutability --list          # every published cut + its sha256
+#   bin/check-skill-immutability --self-test     # prove pass 4 is red on a plant of
+#                                                # every rule, green on the history it
+#                                                # must leave alone, and non-vacuous here
 #
 # Pass 4 reads the working tree (`git ls-files` + untracked-not-ignored), so it
 # answers about the tree in front of you, not about a range.
@@ -197,17 +200,19 @@ def rev_parse(ref)
 end
 
 # ── argv ─────────────────────────────────────────────────────────────────────
-base_arg = nil
-head_arg = "HEAD"
-list     = false
-argv     = ARGV.dup
+base_arg  = nil
+head_arg  = "HEAD"
+list      = false
+self_test = false
+argv      = ARGV.dup
 until argv.empty?
   case (arg = argv.shift)
   when "--base" then base_arg = argv.shift
   when "--head" then head_arg = argv.shift
   when "--list" then list = true
+  when "--self-test" then self_test = true
   else
-    warn "usage: #{$PROGRAM_NAME} [--base <ref>] [--head <ref>] [--list]"
+    warn "usage: #{$PROGRAM_NAME} [--base <ref>] [--head <ref>] [--list] [--self-test]"
     exit 2
   end
 end
@@ -397,6 +402,8 @@ end
 #   R5  every `skill-vX.Y.Z.md` named anywhere names a cut that EXISTS
 #   R6  the cut table in skills.md carries a row for every cut on the newest
 #       series, newest first
+#   R7  the cut table's «same wire» chain («0.4.3 = 0.4.4 = … = 0.4.10») is a
+#       contiguous run of published cuts and reaches the newest one
 #
 # WHAT IS DELIBERATELY NOT CHECKED, and why
 #
@@ -411,12 +418,42 @@ end
 #     moved the cursor into a Link header» must keep its number forever. Only
 #     the URL form is a pin, so only the URL form is held to the newest cut.
 #     R5 still applies, so a bare name cannot dangle.
-#   * skills.md AND CHANGELOG.md's cut numbers. Their job IS to name every cut;
-#     R4 would make them unwritable. R5 and R6 cover them instead.
+#   * skills.md's TABLE ROWS and CHANGELOG.md. Their job IS to name every cut;
+#     R4 would make them unwritable. R5, R6 and R7 cover them instead. Note
+#     ROWS: the exemption used to be per FILE, and skills.md's prose under the
+#     table is not history — it states what the current cut is, in two sentences
+#     every cut moves, and the file-level exemption handed them the table's
+#     licence. See HISTORY_LINES.
+#
+# THE FOURTH ITERATION OF ONE FAILURE (K-1213 → K-1223 → K-1227). Three times
+# running, a claim about what holds a relink was written without planting a
+# break to test it, and three times it was wrong. Pass 4's own patterns were the
+# fourth: `SERVES_CLAIM` matched only the negative wording, `EARLIER_WIRES`
+# required a noun neither live sentence uses (so it matched nothing at all,
+# anywhere, for as long as it existed), and skills.md was exempt from R4 by
+# file. A faithful stale-relink planted in any of the four resulting classes
+# left ALL SIX candidate mechanisms in this workspace at exit 0. The repair is
+# in the patterns below, and `--self-test`'s VACUITY arm is what stops the class
+# from recurring: a rule that matches nothing in this repository is now a
+# failure rather than a green run.
 PROSE_EXTENSIONS = %w[.md .html .json .txt].freeze
 
-# Surfaces whose purpose is to enumerate cuts, so R4 does not apply to them.
-HISTORY_SURFACES = %w[skills.md CHANGELOG.md].freeze
+# THE HISTORY EXEMPTION IS PER-LINE, NOT PER-FILE (K-1227).
+#
+# Two files legitimately write cut names and pin URLs that are not the newest:
+# skills.md enumerates every published cut, and CHANGELOG.md records what each
+# wave did. Saying that BY FILE was the cheap way to put it, and it was wrong
+# about skills.md. The table ROWS are history; the prose UNDER the table states
+# what the current cut IS -- "0.4.3 = ... = 0.4.10", "only the second group
+# describes what a 0.4.10 operator serves" -- and a file-level exemption handed
+# that prose the table's licence. Every cut moves both of those sentences, and
+# a plant in either left all six candidate mechanisms in this workspace at exit
+# 0. So the exemption is a predicate over LINES: CHANGELOG.md is history end to
+# end, skills.md exempts its table rows and nothing else.
+HISTORY_LINES = {
+  "skills.md" => ->(line) { line.start_with?("|") },
+  "CHANGELOG.md" => ->(_line) { true }
+}.freeze
 
 CUT_TABLE = "skills.md"
 
@@ -435,12 +472,33 @@ CURRENT_CLAIM = /
   )
   (\d+(?:\.\d+)+)
 /xi
-SERVES_CLAIM      = /a\s+(\d+(?:\.\d+)+)\s+operator\s+no\s+longer\s+serves/i
-EARLIER_WIRES     = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+describe\s+earlier\s+(\d+\.\d+)\s+wires/i
+
+# "a 0.4.10 operator no longer serves" and "what a 0.4.10 operator serves" are
+# ONE claim written from opposite ends, and both are live at head: protocol.md
+# and specification.html write the negative, skills.md writes the positive. The
+# pattern this replaces required the words "no longer", so the positive one —
+# a sentence every cut moves — was held by nothing at all (K-1227).
+SERVES_CLAIM = /a\s+(\d+(?:\.\d+)+)\s+operator\s+(?:no\s+longer\s+)?serves/i
+
+# "0.4.0-0.4.9 describe earlier 0.4 cuts". THE TRAILING NOUN IS NOT PART OF THE
+# PATTERN, on purpose: this rule used to require the literal word "wires", both
+# live sentences say "cuts", and so it matched NOTHING ANYWHERE IN THE REPO
+# while reading as though it covered them (K-1227). What identifies the claim is
+# "<range> describe earlier <series>"; the noun after it is prose, and a rule
+# keyed on prose is a rule one wording change switches off in silence. The
+# self-test's VACUITY arm is the standing check that this cannot recur — a
+# pattern that matches nothing here is now a failure rather than a green run.
+EARLIER_WIRES     = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+describe\s+earlier\s+(\d+\.\d+)(?![\d.])/i
 EARLIER_PROTOCOLS = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+(?:cuts\s+)?describe\s+protocol\s+(\d+\.\d+)\s*[-–—]\s*(\d+\.\d+)/i
+
+# R7's subject: the cut table's same-wire chain, "0.4.3 = 0.4.4 = ... = 0.4.10".
+# Three or more components per element so an ordinary "1.0 = 1.0" in prose is
+# not read as one, and no capture group, so `scan` yields whole chains.
+SAME_WIRE_CHAIN = /\d+(?:\.\d+){2,}(?:\s*=\s*\d+(?:\.\d+){2,})+/
 
 def cut_version(cut) = cut[/skill-v(.+)\.md\z/, 1]
 def series_of(version) = version.split(".")[0, 2].join(".")
+def version_order(version) = version.split(".").map(&:to_i)
 
 # Tags, entities and markdown emphasis out of the way, so one set of patterns
 # answers the same on `specification.html` and on `spec/protocol.md`.
@@ -449,6 +507,188 @@ def plain(text)
       .gsub(/&(?:[a-zA-Z]+|#\d+);/, " ")
       .tr("*`", "  ")
       .gsub(/\s+/, " ")
+end
+
+# Everything pass 4 needs to know about the cuts on disk, derived once. Passed
+# in rather than read from globals so the self-test can drive the same rules
+# with a fixture set of cuts.
+Ctx = Struct.new(:newest_cut, :newest_version, :newest_series, :all_versions, :series_cuts, :before_series)
+
+def context_for(cut_files)
+  newest  = cut_files.last
+  version = cut_version(newest)
+  series  = series_of(version)
+  all     = cut_files.map { cut_version(_1) }
+  Ctx.new(newest, version, series, all,
+          all.select { series_of(_1) == series },
+          all.reject { series_of(_1) == series })
+end
+
+# The part of a file R4 and R7 read: everything except the lines whose job is
+# to enumerate cuts. See HISTORY_LINES.
+def history_free(path, raw)
+  exempt = HISTORY_LINES[File.basename(path)]
+  return raw unless exempt
+
+  raw.lines.reject { |line| exempt.call(line) }.join
+end
+
+# R7. The same-wire chain. Derived entirely from the cuts on disk: every element
+# must be a published cut, the chain must be a CONTIGUOUS run of them, and the
+# furthest a chain reaches must be the newest cut. Returns [failures, chains].
+def chain_failures(path, text, ctx)
+  fails  = []
+  chains = text.scan(SAME_WIRE_CHAIN)
+  return [fails, 0] if chains.empty?
+
+  chains.each do |chain|
+    named   = chain.scan(/\d+(?:\.\d+)+/)
+    unknown = named.reject { ctx.all_versions.include?(_1) }
+    unless unknown.empty?
+      fails << "#{path}: the \"same wire\" chain \"#{chain}\" names #{unknown.join(", ")}, which " \
+               "no published cut carries. Every element of that chain is a cut an assistant may " \
+               "be holding, so a number nobody publishes cannot appear in it."
+      next
+    end
+
+    idx = named.map { ctx.all_versions.index(_1) }
+    next if idx.each_cons(2).all? { |a, b| b == a + 1 }
+
+    gap = (idx.min..idx.max).map { ctx.all_versions[_1] } - named
+    fails << "#{path}: the \"same wire\" chain \"#{chain}\" skips #{gap.join(", ")}. A chain reads " \
+             "as \"every cut from here to here describes one wire\", so a hole in it either states " \
+             "something false or hides a cut an adopter cannot place."
+  end
+
+  reach = chains.map { _1.scan(/\d+(?:\.\d+)+/).max_by { |v| version_order(v) } }
+                .max_by { |v| version_order(v) }
+  unless reach == ctx.newest_version
+    fails << "#{path}: the furthest a \"same wire\" chain reaches is #{reach}, but the newest cut " \
+             "is #{ctx.newest_version} (#{ctx.newest_cut}). This note is the published answer to " \
+             "\"can this cut talk to this operator\", so the newest cut must appear in it: extend " \
+             "the chain if #{ctx.newest_version} describes the same wire, and REWRITE the note if " \
+             "it does not — a cut that changes the wire opens a new group, and the sentence around " \
+             "the chain is stale either way. Relinking is PART of a skill change (K-847 rule 2)."
+  end
+
+  [fails, chains.size]
+end
+
+# R1-R5 and R7 over ONE file's bytes. Returns [failures, claims checked, rules
+# that found a subject here] — the third is what the self-test's vacuity arm
+# reads, so a rule that matches nothing anywhere cannot sit green again.
+def prose_failures(path, raw, ctx)
+  fails  = []
+  claims = 0
+  hits   = []
+  text   = plain(raw)
+
+  text.scan(CURRENT_CLAIM) do |(named)|
+    claims += 1
+    hits |= [:current_claim]
+    next if named == ctx.newest_version
+
+    fails << "#{path}: names #{named} as the current skill; the newest cut is " \
+             "#{ctx.newest_version} (#{ctx.newest_cut}). Relinking is PART of a skill change, not " \
+             "follow-up (K-847 rule 2) — a version line on a published page tells an " \
+             "adopter which cut to pin."
+  end
+
+  text.scan(SERVES_CLAIM) do |(named)|
+    claims += 1
+    hits |= [:serves_claim]
+    next if named == ctx.newest_version
+
+    fails << "#{path}: says what a #{named} operator serves (or no longer serves), but the newest " \
+             "cut is #{ctx.newest_version}. That sentence names the CURRENT cut whichever way " \
+             "round it is written."
+  end
+
+  text.scan(EARLIER_WIRES) do |(from, to, series)|
+    claims += 1
+    hits |= [:earlier_wires]
+    if ctx.series_cuts.size < 2
+      fails << "#{path}: describes cuts earlier than #{ctx.newest_version} within the " \
+               "#{ctx.newest_series} series, but #{ctx.newest_cut} is the only cut on it. Reword " \
+               "or remove the sentence."
+      next
+    end
+    want_from, want_to = ctx.series_cuts.first, ctx.series_cuts[-2]
+    next if from == want_from && to == want_to && series == ctx.newest_series
+
+    fails << "#{path}: \"#{from}-#{to} describe earlier #{series} …\" — derived from the cuts on " \
+             "disk that range is #{want_from}-#{want_to} on the #{ctx.newest_series} series " \
+             "(every cut on the newest series except the newest itself)."
+  end
+
+  text.scan(EARLIER_PROTOCOLS) do |(from, to, from_series, to_series)|
+    claims += 1
+    hits |= [:earlier_protocols]
+    if ctx.before_series.empty?
+      fails << "#{path}: describes cuts from protocol series older than #{ctx.newest_series}, " \
+               "but every published cut is on #{ctx.newest_series}."
+      next
+    end
+    want_from, want_to = ctx.all_versions.first, ctx.before_series.last
+    next if from == want_from && to == want_to &&
+            from_series == series_of(want_from) && to_series == series_of(want_to)
+
+    fails << "#{path}: \"#{from}-#{to} describe protocol #{from_series}-#{to_series}\" — " \
+             "derived from the cuts on disk that is #{want_from}-#{want_to}, protocol " \
+             "#{series_of(want_from)}-#{series_of(want_to)} (every cut before the " \
+             "#{ctx.newest_series} series)."
+  end
+
+  raw.scan(NAMED_CUT).flatten.uniq.each do |named|
+    hits |= [:named_cut]
+    next if ctx.all_versions.include?(named)
+
+    fails << "#{path}: names skill-v#{named}.md, which does not exist. Every cut this site " \
+             "names must be a file it publishes — a dangling pin fails closed on the " \
+             "assistant's side and looks like the operator's fault."
+  end
+
+  free = history_free(path, raw)
+
+  free.scan(PIN_URL).flatten.uniq.each do |named|
+    claims += 1
+    hits |= [:pin_url]
+    next if named == ctx.newest_version
+
+    fails << "#{path}: pins https://kiosk.tech/skill-v#{named}.md; the newest cut is " \
+             "#{ctx.newest_cut}. A URL here is an EXAMPLE AN OPERATOR COPIES, so it must name " \
+             "the cut this site would have them pin today. (A bare `skill-v#{named}.md` in " \
+             "prose is history and is left alone — only the URL form is checked, and in " \
+             "#{HISTORY_LINES.keys.join(" / ")} the cut-enumerating lines are exempt.)"
+  end
+
+  chain_fails, chain_count = chain_failures(path, plain(free), ctx)
+  claims += chain_count
+  hits |= [:same_wire_chain] if chain_count.positive?
+  fails.concat(chain_fails)
+
+  [fails, claims, hits]
+end
+
+# R6: the cut table. Older series are collapsed into ranges on purpose, so
+# only the NEWEST series is required to carry a row per cut — that is the
+# series an adopter chooses from.
+def cut_table_failures(table, ctx)
+  fails   = []
+  missing = ctx.series_cuts.reject { |v| table.include?("skill-v#{v}.md") }
+  unless missing.empty?
+    fails << "#{CUT_TABLE}: the cut table has no row for " \
+             "#{missing.map { "skill-v#{_1}.md" }.join(", ")}. Every cut on the current " \
+             "#{ctx.newest_series} series is listed there, newest first — a cut nobody can find " \
+             "is a cut nobody adopts."
+  end
+
+  first_row = table[/^\|\s*`?skill-v(\d+(?:\.\d+)+)\.md/, 1]
+  if first_row && first_row != ctx.newest_version
+    fails << "#{CUT_TABLE}: the first row of the cut table is skill-v#{first_row}.md, but " \
+             "the newest cut is #{ctx.newest_cut}. The table reads newest-first."
+  end
+  fails
 end
 
 # Tracked files plus untracked-not-ignored ones: a new page that names a stale
@@ -464,114 +704,196 @@ def prose_files
 end
 
 if newest_cut
-  newest_version = cut_version(newest_cut)
-  newest_series  = series_of(newest_version)
-  all_versions   = cuts.map { cut_version(_1) }
-  series_cuts    = all_versions.select { series_of(_1) == newest_series }
-  before_series  = all_versions.reject { series_of(_1) == newest_series }
+  ctx            = context_for(cuts)
   scanned        = prose_files
   claims_checked = 0
 
   scanned.each do |path|
-    raw  = File.read(path)
-    text = plain(raw)
-
-    text.scan(CURRENT_CLAIM) do |(named)|
-      claims_checked += 1
-      next if named == newest_version
-
-      failures << "#{path}: names #{named} as the current skill; the newest cut is " \
-                  "#{newest_version} (#{newest_cut}). Relinking is PART of a skill change, not " \
-                  "follow-up (K-847 rule 2) — a version line on a published page tells an " \
-                  "adopter which cut to pin."
-    end
-
-    text.scan(SERVES_CLAIM) do |(named)|
-      claims_checked += 1
-      next if named == newest_version
-
-      failures << "#{path}: says a #{named} operator no longer serves the earlier wires, but the " \
-                  "newest cut is #{newest_version}. That sentence names the CURRENT cut."
-    end
-
-    text.scan(EARLIER_WIRES) do |(from, to, series)|
-      claims_checked += 1
-      if series_cuts.size < 2
-        failures << "#{path}: describes cuts earlier than #{newest_version} within the " \
-                    "#{newest_series} series, but #{newest_cut} is the only cut on it. Reword or " \
-                    "remove the sentence."
-        next
-      end
-      want_from, want_to = series_cuts.first, series_cuts[-2]
-      next if from == want_from && to == want_to && series == newest_series
-
-      failures << "#{path}: «#{from}-#{to} describe earlier #{series} wires» — derived from the " \
-                  "cuts on disk that range is #{want_from}-#{want_to} on the #{newest_series} " \
-                  "series (every cut on the newest series except the newest itself)."
-    end
-
-    text.scan(EARLIER_PROTOCOLS) do |(from, to, from_series, to_series)|
-      claims_checked += 1
-      if before_series.empty?
-        failures << "#{path}: describes cuts from protocol series older than #{newest_series}, " \
-                    "but every published cut is on #{newest_series}."
-        next
-      end
-      want_from, want_to = all_versions.first, before_series.last
-      next if from == want_from && to == want_to &&
-              from_series == series_of(want_from) && to_series == series_of(want_to)
-
-      failures << "#{path}: «#{from}-#{to} describe protocol #{from_series}-#{to_series}» — " \
-                  "derived from the cuts on disk that is #{want_from}-#{want_to}, protocol " \
-                  "#{series_of(want_from)}-#{series_of(want_to)} (every cut before the " \
-                  "#{newest_series} series)."
-    end
-
-    raw.scan(NAMED_CUT).flatten.uniq.each do |named|
-      next if all_versions.include?(named)
-
-      failures << "#{path}: names skill-v#{named}.md, which does not exist. Every cut this site " \
-                  "names must be a file it publishes — a dangling pin fails closed on the " \
-                  "assistant's side and looks like the operator's fault."
-    end
-
-    next if HISTORY_SURFACES.include?(File.basename(path))
-
-    raw.scan(PIN_URL).flatten.uniq.each do |named|
-      claims_checked += 1
-      next if named == newest_version
-
-      failures << "#{path}: pins https://kiosk.tech/skill-v#{named}.md; the newest cut is " \
-                  "#{newest_cut}. A URL here is an EXAMPLE AN OPERATOR COPIES, so it must name " \
-                  "the cut this site would have them pin today. (A bare `skill-v#{named}.md` in " \
-                  "prose is history and is left alone — only the URL form is checked.)"
-    end
+    file_failures, file_claims, = prose_failures(path, File.read(path), ctx)
+    failures.concat(file_failures)
+    claims_checked += file_claims
   end
 
-  # R6: the cut table. Older series are collapsed into ranges on purpose, so
-  # only the NEWEST series is required to carry a row per cut — that is the
-  # series an adopter chooses from.
   if File.exist?(CUT_TABLE)
-    table = File.read(CUT_TABLE)
-    missing = series_cuts.reject { |v| table.include?("skill-v#{v}.md") }
-    unless missing.empty?
-      failures << "#{CUT_TABLE}: the cut table has no row for " \
-                  "#{missing.map { "skill-v#{_1}.md" }.join(", ")}. Every cut on the current " \
-                  "#{newest_series} series is listed there, newest first — a cut nobody can find " \
-                  "is a cut nobody adopts."
-    end
-
-    first_row = table[/^\|\s*`?skill-v(\d+(?:\.\d+)+)\.md/, 1]
-    if first_row && first_row != newest_version
-      failures << "#{CUT_TABLE}: the first row of the cut table is skill-v#{first_row}.md, but " \
-                  "the newest cut is #{newest_cut}. The table reads newest-first."
-    end
+    failures.concat(cut_table_failures(File.read(CUT_TABLE), ctx))
   else
     failures << "#{CUT_TABLE} is missing — it is the published index of every cut."
   end
 
   notes << "prose: #{claims_checked} current-cut claim(s)/pin(s) checked against #{newest_cut} " \
            "across #{scanned.size} file(s)"
+end
+
+
+# ── --self-test ──────────────────────────────────────────────────────────────
+#
+# WHY THIS EXISTS, and it is not symmetry with check-publication-paths.
+#
+# Pass 4 is a wall of regular expressions over prose, and the way one fails is
+# not by throwing: it is by MATCHING NOTHING and exiting 0, which reads exactly
+# like a clean tree. That is not hypothetical. `EARLIER_WIRES` required the
+# literal word "wires", both sentences it exists for say "cuts", and it matched
+# nothing anywhere in this repository for as long as it has existed;
+# `SERVES_CLAIM` required "no longer serves" and skills.md writes the positive
+# form; and skills.md's whole prose half was exempted along with its table. Each
+# was a live class that every skill cut moves, and a faithful stale-relink plant
+# in any of them left ALL SIX candidate mechanisms in the workspace green
+# (K-1227, and K-1213/K-1223 before it — the third and fourth time a claim about
+# what holds a relink turned out to be a claim nobody had planted against).
+#
+# So this has two arms, and the second is the one that answers K-1227:
+#
+#   FIXTURES — every rule is shown RED on a faithful stale-relink and GREEN on
+#     the shape it must not fire on (a history row, a CHANGELOG line, the older
+#     series' range).
+#   VACUITY  — every rule must find a subject in THIS repository's own files. A
+#     pattern with nothing to match is a pattern that has been switched off, and
+#     from here that is a failure rather than a green run.
+#
+# Fixture cuts, not the real ones, so the fixtures state their own expectations
+# and do not move on the next bump. The shape mirrors the real set: three older
+# series, then a full 0.4.0..0.4.10 run.
+FIXTURE_CUTS = (%w[0.1.1 0.2.0 0.3.11] + (0..10).map { "0.4.#{_1}" })
+               .map { "skill-v#{_1}.md" }.freeze
+
+def fixture_table(versions)
+  "| Cut | Protocol | Wire it describes |\n|---|---|---|\n" +
+    versions.map { "| `skill-v#{_1}.md` | **0.4** | some wire |\n" }.join
+end
+
+# [label, path, body, :red | :green]. The path decides which history exemption
+# applies, so the same bytes are a violation in one file and history in another
+# — which is the whole of what K-1227 got wrong.
+def self_test_prose_cases
+  [
+    ["R1 current-skill sentence, stale",
+     "spec/protocol.md", "The current skill is **0.4.9**.", :red],
+    ["R1 current-skill sentence, at head",
+     "spec/protocol.md", "The current skill is **0.4.10**.", :green],
+    ["R1 serves-claim, negative form, stale",
+     "spec/protocol.md", "cuts that a 0.4.9 operator no longer serves.", :red],
+    ["R1 serves-claim, POSITIVE form, stale (K-1227)",
+     "skills.md", "only the second group describes\nwhat a 0.4.9 operator serves.", :red],
+    ["R1 serves-claim, positive form, at head",
+     "skills.md", "only the second group describes\nwhat a 0.4.10 operator serves.", :green],
+    ["R2 earlier-cuts range, noun \"wires\", stale",
+     "specification.html", "0.4.0–0.4.8 describe earlier 0.4 wires.", :red],
+    ["R2 earlier-cuts range, noun \"cuts\", stale (K-1227)",
+     "spec/protocol.md", "and 0.4.0-0.4.8 describe\nearlier 0.4 cuts that a 0.4.10 operator no longer serves.", :red],
+    ["R2 earlier-cuts range, at head",
+     "spec/protocol.md", "and 0.4.0-0.4.9 describe\nearlier 0.4 cuts that a 0.4.10 operator no longer serves.", :green],
+    ["R3 earlier-protocols range, stale",
+     "spec/protocol.md", "the 0.1.1-0.3.10 cuts describe protocol 0.1-0.3", :red],
+    ["R3 earlier-protocols range, at head",
+     "spec/protocol.md", "the 0.1.1-0.3.11 cuts describe protocol 0.1-0.3", :green],
+    ["R4 pin URL, stale",
+     "specification.html", %({ "url": "https://kiosk.tech/skill-v0.4.3.md" }), :red],
+    ["R4 pin URL in skills.md PROSE, stale (K-1227)",
+     "skills.md", "Adopt https://kiosk.tech/skill-v0.4.3.md today.", :red],
+    ["R4 pin URL in a skills.md TABLE ROW is history",
+     "skills.md", "| `skill-v0.4.3.md` | **0.4** | https://kiosk.tech/skill-v0.4.3.md |\n", :green],
+    ["R4 pin URL in CHANGELOG.md is history",
+     "CHANGELOG.md", "- 2026-08-27: re-pinned https://kiosk.tech/skill-v0.4.3.md in the same wave.\n", :green],
+    ["R5 a cut name nobody publishes",
+     "specification.html", "pin skill-v9.9.9.md", :red],
+    ["R5 a bare historical cut name is left alone",
+     "specification.html", "skill-v0.4.1.md moved the cursor into a Link header", :green],
+    ["R7 same-wire chain stops one cut short (K-1227)",
+     "skills.md", "0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9,\nbut the two groups", :red],
+    ["R7 same-wire chain with a hole in it",
+     "skills.md", "0.4.3 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10", :red],
+    ["R7 same-wire chain naming an unpublished cut",
+     "skills.md", "0.4.9 = 0.4.99", :red],
+    ["R7 same-wire chain at head",
+     "skills.md", "0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10,\nbut the two groups", :green],
+    ["R7 a CHANGELOG record of a past chain is history",
+     "CHANGELOG.md", "- 2026-08-27: the table then chained 0.4.3 = 0.4.4 = 0.4.5 as one wire.\n", :green]
+  ].freeze
+end
+
+def self_test_table_cases(descending)
+  [
+    ["R6 table carries every cut on the newest series", fixture_table(descending), :green],
+    ["R6 table missing the newest cut's row", fixture_table(descending.drop(1)), :red],
+    ["R6 table written oldest-first", fixture_table(descending.reverse), :red]
+  ].freeze
+end
+
+# Every rule must find something to say about this repository's own files.
+VACUITY_RULES = {
+  current_claim: "R1 a sentence naming the current cut",
+  serves_claim: "R1 a sentence saying what a cut's operator serves",
+  earlier_wires: "R2 the earlier-cuts range on the newest series",
+  earlier_protocols: "R3 the earlier-protocols range",
+  named_cut: "R5 a cut named in prose",
+  pin_url: "R4 an example pin URL",
+  same_wire_chain: "R7 the cut table's same-wire chain"
+}.freeze
+
+def run_self_test
+  ctx        = context_for(FIXTURE_CUTS)
+  descending = (0..10).to_a.reverse.map { "0.4.#{_1}" }
+  bad        = []
+
+  self_test_prose_cases.each do |label, path, body, want|
+    got, = prose_failures(path, body, ctx)
+    red  = !got.empty?
+    if red == (want == :red)
+      puts format("  %-5s %s", want == :red ? "RED" : "GREEN", label)
+    else
+      bad << "#{label}: expected #{want}, got #{red ? "red" : "green"}#{red ? " (#{got.first})" : ""}"
+    end
+  end
+
+  self_test_table_cases(descending).each do |label, table, want|
+    got = cut_table_failures(table, ctx)
+    red = !got.empty?
+    if red == (want == :red)
+      puts format("  %-5s %s", want == :red ? "RED" : "GREEN", label)
+    else
+      bad << "#{label}: expected #{want}, got #{red ? "red" : "green"}"
+    end
+  end
+
+  # The vacuity arm, over the real tree. `cuts` is re-read rather than taken
+  # from the passes above, so this method says the same thing wherever it is
+  # called from.
+  published = cuts
+  if published.any?
+    real = context_for(published)
+    seen = []
+    prose_files.each { |p| seen |= prose_failures(p, File.read(p), real)[2] }
+    VACUITY_RULES.each do |rule, description|
+      if seen.include?(rule)
+        puts format("  %-5s vacuity: %s", "HIT", description)
+      else
+        bad << "vacuity: #{description} (#{rule}) matches NOTHING in this repository. A pattern " \
+               "with no subject is a pattern that has been switched off, and it exits 0 forever " \
+               "— which is exactly how K-1227's three holes stayed open."
+      end
+    end
+  else
+    bad << "vacuity: no cut exists on disk, so the arm that proves these rules have subjects " \
+           "could not run."
+  end
+
+  if bad.empty?
+    puts "check-skill-immutability --self-test: OK — every rule is red on a faithful stale-relink, " \
+         "green on the history it must leave alone, and has a subject in this repository."
+    return true
+  end
+
+  warn "\ncheck-skill-immutability --self-test FAILED:\n"
+  bad.each { warn "  x #{_1}" }
+  false
+end
+
+# The self-test asks about the RULES, not about this tree, so it reports its own
+# verdict and the passes above do not colour it. The workflow runs both, in that
+# order, for the reason publication-paths.yml already records: a guard has to
+# prove it is red on a plant before a green run over real files means anything.
+if self_test
+  exit(run_self_test ? 0 : 1)
 end
 
 notes.each { puts "  note: #{_1}" }
