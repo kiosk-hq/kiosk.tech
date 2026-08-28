@@ -1,0 +1,49 @@
+name: publication-paths
+
+# This repository is published out of a larger private workspace, and a shipped
+# line that cites something from that workspace is a dangling pointer for every
+# reader who will ever hold the repo. The class has been caught five times
+# (K-1049, K-1148, K-1149, K-1153, K-1154) and never once by the commit that
+# introduced it — the only thing that asked the question lived outside both
+# published repos and ran only when a periodic sweep ran. K-1049 is this repo's
+# own instance: a published CHANGELOG line and a checker's header pointed at
+# files that ship nowhere, and it took a sweep to find them.
+#
+# bin/check-publication-paths asks it here instead, over `git ls-files`, so a
+# push that adds one is red before anyone reads a stale pointer. Its --self-test
+# is a step of its own rather than a convention: the failure mode of a scan
+# aimed at the wrong tree is an empty file set, which exits 0 and reads exactly
+# like a clean repository, so the guard proves it is red on a plant of every
+# pattern it carries and non-vacuous over this tree before a green run means
+# anything.
+#
+# NO PATH FILTER, on purpose, and for the reason skill-immutability.yml already
+# records for itself: the guard reads EVERY tracked file, so any filter would be
+# a list of paths to get subtly wrong, and the one it missed is exactly the one
+# that ships a dangling pointer. It costs ~5 s.
+#
+# Its own workflow rather than a job in spec-schemas.yml: that one is
+# path-filtered on `spec/**` and installs Node and ajv this needs none of, and
+# one invariant deserves one exit code and one name in the checks list.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  publication-paths:
+    name: nothing shipped cites what does not ship (bin/check-publication-paths)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The runner's preinstalled Ruby. The script is stdlib-only (digest,
+      # fileutils, open3, tmpdir) and shells out to git; there is no Gemfile,
+      # no bundle and no Ruby toolchain anywhere else in this repo, so pinning
+      # a version here would be a version to maintain for no gain.
+      - name: The guard is red on a plant of every pattern, and non-vacuous here
+        run: ruby bin/check-publication-paths --self-test
+
+      - name: No shipped line cites material that does not ship with this repo
+        run: ruby bin/check-publication-paths
