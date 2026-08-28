@@ -823,7 +823,6 @@ def prose_failures(path, raw, ctx)
   fails  = []
   claims = 0
   hits   = []
-  text   = plain(raw)
   # R1, R2, R3, R8 and R10 read the claim-exempt view: a changelog records past
   # waves, and the sentence it records cannot be rewritten when the next cut
   # lands (K-1228, widened by K-1229). R5 and the HISTORY_LINES rules below
