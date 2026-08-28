@@ -364,7 +364,7 @@
         <div>
           <h3 class="accent">Thanks to Kiosk specifically <span style="font-size:11px;color:#666;font-weight:400;display:block;margin-top:2px">shipped and demo-backed today</span></h3>
           <ul>
-            <li><strong>The wire itself</strong> — one REST endpoint per operation the operator declares (a read is a <code>GET</code>, a write a <code>POST</code>), a public machine-readable catalog of them, RFC 9457 problem documents for every refusal, one retriable 402 gate, one identity-scoping rule: the runtime contract the disclosure standards leave undefined, identical at every Kiosk operator.</li>
+            <li><strong>The wire itself</strong> — one REST endpoint per operation the operator declares (a read is a <code>GET</code>, a write a <code>POST</code>), a public machine-readable catalog of them, RFC 9457 problem documents on every refusal those endpoints answer, one retriable 402 gate, one identity-scoping rule: the runtime contract the disclosure standards leave undefined, identical at every Kiosk operator.</li>
             <li><strong>A price on abuse</strong> — the memory-hard proof-of-work toll plus per-operator reputation, in the wire, not bolted on.</li>
             <li><strong>Accounts that bind and answer</strong> — human↔assistant linking (the ceremony auth.md doesn't have), per-assistant revocation and spending caps on one page, roles inherited from your IdP via the human who linked.</li>
             <li><strong>KYC as attributes</strong> — gate actions on "18+, licence A" attestations, never documents.</li>
@@ -429,7 +429,7 @@
       <ul class="why-list">
         <li>
           <strong>Why not just agents.txt + auth.md + AP2, assembled by hand?</strong>
-          That is what Kiosk is — those standards, embraced where they reach, plus the one layer none of them defines: the wire the assistant actually calls. agents.txt says where you are; auth.md-shaped registration says how an assistant introduces itself; AP2 says how a payment is signed. None of them says what a request, response, or error looks like, how a proof-of-work or payment-setup gate is signalled and retried, or how the acting identity scopes what a call may touch. Assemble them yourself and you've built one more bespoke dialect — every assistant learns your service from scratch, and every service drifts in exactly the hard places (replay, origin-binding, 402 retry, mandate chaining). Kiosk pins that layer — one endpoint per verb over a published catalog, one error envelope (RFC 9457 problem+json), one retriable gate, one identity-scoping rule, identical at every Kiosk operator — and ships the whole thing assembled and tested: engine, proof-of-work toll, reputation, account linking, spending caps, payments adapter, skill, seven live demos. The standards are the vocabulary; Kiosk is the working sentence.
+          That is what Kiosk is — those standards, embraced where they reach, plus the one layer none of them defines: the wire the assistant actually calls. agents.txt says where you are; auth.md-shaped registration says how an assistant introduces itself; AP2 says how a payment is signed. None of them says what a request, response, or error looks like, how a proof-of-work or payment-setup gate is signalled and retried, or how the acting identity scopes what a call may touch. Assemble them yourself and you've built one more bespoke dialect — every assistant learns your service from scratch, and every service drifts in exactly the hard places (replay, origin-binding, 402 retry, mandate chaining). Kiosk pins that layer — one endpoint per verb over a published catalog, one problem-document vocabulary (RFC 9457 problem+json), one retriable gate, one identity-scoping rule, identical at every Kiosk operator — and ships the whole thing assembled and tested: engine, proof-of-work toll, reputation, account linking, spending caps, payments adapter, skill, seven live demos. The standards are the vocabulary; Kiosk is the working sentence.
         </li>
         <li>
           <strong>Why not MCP?</strong>
@@ -447,7 +447,7 @@
     </div>
 
     <div style="margin-top:48px;padding:18px 20px;background:#141414;border:1px solid #242424;border-radius:10px;font-size:12px;color:#777;line-height:1.7">
-      <strong class="accent">Status: v0.4</strong> — pre-1.0: the wire may still change between releases, and an operator's pinned skill file is what an assistant relies on. Seven live demos above, on the real stack. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
+      <strong class="accent">Status: v0.4</strong> — pre-1.0: the wire may still change between releases, and an operator's pinned skill file is what an assistant relies on. Seven live demos above, on the real stack. Known TODOs live in <a href="/specification.html" style="color:#8bc49a;text-decoration:none">the spec</a>: durable token revocation, key rotation, refunds &amp; cancellations, operator-push events. The reference implementation is Rails; on the wire it's HTTPS, JSON, and JWS — nothing Ruby-specific. Port it.
     </div>
   </section>
 
