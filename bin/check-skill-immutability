@@ -424,6 +424,15 @@ end
 #     table is not history — it states what the current cut is, in two sentences
 #     every cut moves, and the file-level exemption handed them the table's
 #     licence. See HISTORY_LINES.
+#   * R1 INSIDE CHANGELOG.md (K-1228). A changelog entry is a record of a wave
+#     that has already happened, and this repo's history is append-only, so an
+#     entry writing a concrete «a 0.4.10 operator serves» is green the day it is
+#     written and RED ON THE VERY NEXT CUT — with no legal repair, because the
+#     only conformant outcomes are a permanently red gate or an edit the
+#     constitution forbids. That is the same reasoning that keeps the cuts
+#     themselves out of pass 4: a guard must never demand an edit the guard next
+#     to it forbids. The exemption is R1's alone and CHANGELOG.md's alone; see
+#     CLAIM_HISTORY_LINES for what is deliberately NOT in it.
 #
 # THE FOURTH ITERATION OF ONE FAILURE (K-1213 → K-1223 → K-1227). Three times
 # running, a claim about what holds a relink was written without planting a
@@ -454,6 +463,32 @@ HISTORY_LINES = {
   "skills.md" => ->(line) { line.start_with?("|") },
   "CHANGELOG.md" => ->(_line) { true }
 }.freeze
+
+# R1's history exemption, and it is NARROWER than the one above ON PURPOSE
+# (K-1228).
+#
+# WHY IT EXISTS: R4 and R7 are not the only rules an append-only file cannot
+# satisfy. A CHANGELOG entry saying «a 0.4.10 operator serves the new wire»
+# passes on the day it is written and fails on the next cut, and by then the
+# entry is published history that must not be rewritten — so the tree can only
+# come to rest red, or be repaired by an edit the constitution forbids. The
+# K-1227 wave's own entry hit exactly this and was reworded to `0.4.N` before
+# it was committed; a convention that every future author remembers to do that
+# is precisely the kind of thing this workspace keeps learning does not hold.
+#
+# WHY IT IS SEPARATE FROM HISTORY_LINES RATHER THAN THE SAME MAP:
+#   * `skills.md` is deliberately ABSENT. Its table rows are history for PINS —
+#     naming every cut is the table's job — but a table cell that said which cut
+#     is CURRENT would be a live claim, and handing R1 the table's licence is
+#     the file-level mistake K-1227 spent a wave undoing. Nothing has asked for
+#     that widening, so it is not here.
+#   * R2, R3 and R5 are NOT exempted either. R5 only asks that a named cut
+#     exists, which stays true forever (cuts are never deleted — pass 1). R2/R3
+#     are ranges and carry the same unrepairable shape as R1; nothing at head
+#     trips them and widening the exemption on a hunch is the opposite of what
+#     this constant is for, so that residue is filed rather than absorbed.
+# Adding a rule here is therefore a decision with a reason, not a default.
+CLAIM_HISTORY_LINES = { "CHANGELOG.md" => ->(_line) { true } }.freeze
 
 CUT_TABLE = "skills.md"
 
@@ -524,10 +559,13 @@ def context_for(cut_files)
           all.reject { series_of(_1) == series })
 end
 
-# The part of a file R4 and R7 read: everything except the lines whose job is
-# to enumerate cuts. See HISTORY_LINES.
-def history_free(path, raw)
-  exempt = HISTORY_LINES[File.basename(path)]
+# The part of a file a rule reads: everything except the lines whose job is to
+# record history. The map is passed in because the exemptions are NOT the same
+# for every rule — R4/R7 read HISTORY_LINES, R1 reads CLAIM_HISTORY_LINES — and
+# a single shared map would have made K-1228's fix widen skills.md's table
+# licence to R1 as a side effect.
+def history_free(path, raw, exemptions = HISTORY_LINES)
+  exempt = exemptions[File.basename(path)]
   return raw unless exempt
 
   raw.lines.reject { |line| exempt.call(line) }.join
@@ -582,8 +620,12 @@ def prose_failures(path, raw, ctx)
   claims = 0
   hits   = []
   text   = plain(raw)
+  # R1 alone reads the claim-exempt view: a changelog records past waves, and
+  # the sentence it records cannot be rewritten when the next cut lands
+  # (K-1228). Everything else below still reads the whole file.
+  claim_text = plain(history_free(path, raw, CLAIM_HISTORY_LINES))
 
-  text.scan(CURRENT_CLAIM) do |(named)|
+  claim_text.scan(CURRENT_CLAIM) do |(named)|
     claims += 1
     hits |= [:current_claim]
     next if named == ctx.newest_version
@@ -594,7 +636,7 @@ def prose_failures(path, raw, ctx)
              "adopter which cut to pin."
   end
 
-  text.scan(SERVES_CLAIM) do |(named)|
+  claim_text.scan(SERVES_CLAIM) do |(named)|
     claims += 1
     hits |= [:serves_claim]
     next if named == ctx.newest_version
@@ -776,6 +818,20 @@ def self_test_prose_cases
      "skills.md", "only the second group describes\nwhat a 0.4.9 operator serves.", :red],
     ["R1 serves-claim, positive form, at head",
      "skills.md", "only the second group describes\nwhat a 0.4.10 operator serves.", :green],
+    # K-1228's four fixtures: the exemption is LIVE for CHANGELOG.md, and it did
+    # not widen. The red arms carry the SAME BYTES as the green ones, so what is
+    # being tested is the file the sentence lives in and not its wording — an
+    # exemption with no red side is how a guard quietly stops guarding.
+    ["R1 serves-claim in CHANGELOG.md is history (K-1228)",
+     "CHANGELOG.md", "- 2026-08-27: after that wave a 0.4.9 operator serves the same wire.\n", :green],
+    ["R1 those same serves bytes OUTSIDE CHANGELOG.md still fail (K-1228)",
+     "spec/protocol.md", "- 2026-08-27: after that wave a 0.4.9 operator serves the same wire.\n", :red],
+    ["R1 current-skill sentence in CHANGELOG.md is history (K-1228)",
+     "CHANGELOG.md", "- 2026-08-27: cut it, so the current skill is 0.4.9 from here.\n", :green],
+    ["R1 those same current-skill bytes OUTSIDE CHANGELOG.md still fail (K-1228)",
+     "specification.html", "- 2026-08-27: cut it, so the current skill is 0.4.9 from here.\n", :red],
+    ["R1 a serves-claim in a skills.md TABLE ROW is NOT exempt (K-1228)",
+     "skills.md", "| `skill-v0.4.3.md` | **0.4** | what a 0.4.9 operator serves |\n", :red],
     ["R2 earlier-cuts range, noun \"wires\", stale",
      "specification.html", "0.4.0–0.4.8 describe earlier 0.4 wires.", :red],
     ["R2 earlier-cuts range, noun \"cuts\", stale (K-1227)",
