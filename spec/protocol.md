@@ -1328,6 +1328,20 @@ identity, whose `iss` is not its own issuer (verbatim from `kiosk.json`), or who
 | 2 | Cart | `intent_mandate_id`, `total_amount_cents`, `currency`, `line_items` |
 | 3 | Payment | `cart_mandate_id`, `amount_cents`, `currency`, `payment_method`? |
 
+**Every amount is a POSITIVE integer number of cents.** `cap_amount_cents`,
+`total_amount_cents` and `amount_cents` **MUST** each be an integer greater than
+zero, and an operator **MUST** reject a mandate carrying a zero or negative one
+BEFORE the binding rules of Section 11.2 are applied -- the checks there are
+comparisons, and a negative amount passes them while meaning the opposite of
+what they test. A negative cart total is under any cap (-100000 <= 5000), it
+matches a negative payment mandate, it settles on any PSP that echoes the
+amount, and it drives the spent-to-date sum DOWN, which permanently raises the
+AI assistant's remaining cap (Section 11.5). Zero carries the same defect in a
+quieter form: an absent amount coerces to it in most languages, so a mandate
+that never named a figure satisfies `0 <= cap` and `0 == 0` and persists a
+0-cent settlement. `settled_amount_cents` on a `pay` response is positive for
+the same reason -- it exists only for a completed capture.
+
 ### 11.2 Binding rules
 
 `cart.intent_mandate_id` **MUST** equal the intent's `id`; the cart total **MUST
