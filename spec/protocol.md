@@ -329,6 +329,18 @@ to authenticate and bind: `challenge_url`, `register_url`, `login_url`,
 `revoke_url` (Section 5), and `device_authorization_url`, `claim_url` (Section 6). Each is an
 absolute URL derived from `endpoint`.
 
+**All six are REQUIRED, including of an operator that does not serve the binding
+module of Section 6.** Publishing the auth block is CORE DISCOVERY (Section 16.1
+item 1); implementing the ceremony reached through the last two URLs is the
+OPTIONAL module (Section 16.1 item 7). The two are deliberately separate, and
+making the pair conditional would not be the smaller rule it looks like:
+`capabilities` carries no `binding` member, so a conditional pair would become
+the one field in this document an AI assistant could read as a capability probe
+-- and the non-discoverable modules of Section 16.1 announce themselves in a
+RESPONSE rather than here, which is exactly the reading that would break. An AI
+assistant whose human already holds an operator account therefore STARTS the
+ceremony and branches on the answer, rather than looking for a flag first.
+
 ### 4.4 JWKS
 
 An operator **MUST** publish its token-signing public keys as a JWKS document
@@ -1853,7 +1865,10 @@ the discovery document, and are absent from `capabilities` for that reason:
    session-authenticated verify page that names the access being handed over, and
    the possession-proof token poll) and/or the link-code redeem, with fresh/rebind
    semantics -- reputation carries over a rebind, it is not reset -- and unlink
-   (Section 6.3).
+   (Section 6.3). PUBLISHING `device_authorization_url` and `claim_url` is not
+   part of this module: the auth block is core discovery (item 1) and carries all
+   six URLs on every conformant origin (Section 4.3), whether or not the operator
+   serves what the last two reach.
 8. **Module KYC** (Section 12): the attestation endpoint, verifying the
    attestation's issuer, `aud`, `sub`, `exp` and `level` (Section 12.1), plus the
    OPTIONAL named anonymized `attributes` booleans (Section 12.2) and the
