@@ -904,6 +904,26 @@ The query-string encoding is:
    accepted, never declared in a verb's `input_schema`.
 7. **Absent is not empty.** `?title=` decodes to the empty string, not to an
    absent parameter.
+8. **A query-string `integer` is an integer LITERAL; a body `integer` is a JSON
+   integer VALUE. The two differ, and the difference is deliberate.** A query
+   string is text and carries no types of its own, so for a parameter a verb
+   declares `{"type": "integer"}` the declared type IS the grammar its spelling
+   must match: `?party_size=2` is that spelling, and an operator **MUST** refuse
+   every other one with `400 bad_request` naming the parameter (rule 5) --
+   `?party_size=2.0` included, exactly as `?party_size=four` is refused. One
+   declared type admits one spelling, which is the same reason a declared
+   boolean is `true`/`false` on the wire and never `1`, `on` or `yes`. In an
+   action's JSON **body** the value arrives already typed, and JSON Schema
+   decides `integer` by the VALUE rather than by how it was written, so
+   `{"party_size": 2.0}` carries the integer 2 and an operator **MUST NOT**
+   refuse it for its spelling alone: refusing it would put the operator at odds
+   with the `input_schema` it publishes as its own authoritative input contract
+   (Section 8.3). `2.5` is not an integer on either half, and both refuse it.
+   An AI assistant that sends the plainest spelling of a whole number -- `2` --
+   is correct on both channels and needs no per-operator knowledge to be.
+   **A field that may legitimately hold a fraction is not an `integer` field:**
+   an operator declares it `{"type": "number"}`, and both halves then accept
+   `2` and `2.5` alike.
 
 ### 8.2 Response shape
 
