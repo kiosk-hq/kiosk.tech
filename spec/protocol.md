@@ -2077,11 +2077,17 @@ conformance suite does not exist yet (Tier 3, deferred).
 ## 17. JSON Schemas
 
 Machine-readable schemas live in [`./schemas/`](./schemas/) (JSON Schema draft
-2020-12). **This table is the list.** Where the sections above say "every wire
-object", they mean the objects enumerated here plus the residue named below --
-an unqualified "every" was carried on this page for months while Sections 5 and
-6 had no schema at all, so the anchor now points at an inventory a reader can
-check rather than at a promise they cannot.
+2020-12). **The table below is the list.** Where the sections above say "every
+wire object", they mean the objects enumerated in it -- an unqualified "every"
+was carried on this page for months while Sections 5 and 6 had no schema at
+all, so the anchor now points at an inventory a reader can check rather than at
+a promise they cannot.
+
+The rest of this section accounts for **everything else that travels on this
+wire**, in three further lists: documents another standard governs, documents
+with no oracle here at all, and the verb-shaped objects an OPERATOR declares.
+Between them the four lists are exhaustive, and they are lists rather than
+counts on purpose -- see the count note below.
 
 | Object | Schema |
 |---|---|
@@ -2099,8 +2105,24 @@ names, and the example payloads under `./schemas/examples/` -- including a
 `rejected/` set the schemas MUST refuse -- are validated in CI on every change
 under `spec/`.
 
-**What is deliberately NOT covered, and why.** Two objects on the wire have no
-schema here, and neither is an oversight:
+**Documents on this wire that a standard OTHER THAN this one governs.** They are
+listed here rather than left off, because a reader who finds a document on the
+wire and not in this section reads the omission as an oversight -- which is
+exactly what happened: the two rows below were in neither the table nor the
+residue for as long as both existed, while this section said the residue was
+two objects.
+
+| Object | Governed by |
+|---|---|
+| JWKS document, Section 4.4 (REQUIRED) | [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517) -- the member set is the JWK standard's, and Section 4.4 narrows it (`kty`, `use`, `alg`, `kid`, `n`/`e` only) |
+| OpenAPI description, Section 4.6 (OPTIONAL) | [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) -- the document IS a description, and Section 4.6 derives it from the catalog rather than describing its shape |
+| `/.well-known/api-catalog`, Section 4.5 (OPTIONAL) | [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) |
+| `agents.txt`, `agents.json`, `/.well-known/agent-configuration`, `/auth.md`, Section 4.5 (OPTIONAL) | the agent-web conventions each is named for. Section 4.5 binds their CONTENT to `kiosk.json` -- they are envelopes around it and MUST NOT drift from it -- so what this document has to say about them is a non-drift rule, not a shape |
+
+**What has no oracle here at all, and why.** No count is written in this
+paragraph: the list below IS the count, because a numeral typed beside a list is
+a second source of truth for it, and the numeral that used to stand here said
+TWO while the wire had more.
 
 1. **The `POST /oauth/device_authorization` request** (Section 6.1 step 1) and
 2. **the `POST /oauth/token` request** (Section 6.1 step 3) are
@@ -2109,6 +2131,9 @@ schema here, and neither is an oversight:
    REQUIRED on the poll that COMPLETES the ceremony and not on the ones before
    it, which depends on server state the document being validated does not
    carry.
+3. **`agents.txt` and `/auth.md`** (Section 4.5, OPTIONAL) are not JSON either,
+   for the same reason and with the same consequence; they are in the table
+   above for what governs their content.
 
 Two more sat here until 2026-08-30 and no longer do, because in both cases the
 residue was a SENTENCE this document had failed to write rather than an object a
@@ -2124,10 +2149,13 @@ cover it. The rule those two illustrate is the one this table is for: a schema
 records a wire the prose already states, so an object with no schema is first a
 question about the PROSE.
 
-A **verb's success body** is not in this table either, and that is not a
-residue: Section 8.2 gives it no envelope, so its schema is the verb's own
-`output_schema` (Section 8.3), published by the operator in its catalog rather
-than by this document.
+**A verb's own arguments and answer are not in any of the three lists above,
+and that is not a residue.** Section 8.2 gives a success body no envelope, so
+its schema is the verb's own `output_schema` (Section 8.3); an action's request
+body and a query's arguments are held to its `input_schema` the same way
+(Section 8.1). Both are published by the OPERATOR, in its catalog, rather than
+by this document -- so the oracle exists, at a different origin, and naming a
+shape for either here would be this document inventing a second one.
 
 ---
 
