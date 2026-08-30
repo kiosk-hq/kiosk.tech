@@ -1243,6 +1243,35 @@ keeps an explicit guard returning the same typed `400`.
 > the large vendors, all reserve `404` for an ADDRESSED resource that is absent
 > and answer an empty filter result with `200` and an empty array.
 
+**THE MANDATE CHAIN IS NOT REACHED BY RULE 1, AND ANSWERS `403 forbidden`.** The
+three rules above are about ARGUMENTS -- the values a verb's `input_schema`
+describes. A mandate (Section 11) is not an argument to a verb: it is the
+AUTHORISATION the `pay` call rests on, and the question it answers is not "can
+the operator use this value" but "has this AI assistant been authorised to spend
+this money". A mandate that does not carry what a mandate must carry has
+authorised nothing, so the operator answers `403 forbidden` -- **including where
+the defect also fits rule 1**, which a negative `cap_amount_cents` plainly does.
+The whole class answers alike so that an AI assistant learns one branch rather
+than a table:
+
+- any base claim of Section 11.1 ABSENT -- `id`, `user_id`, `agent_id`, `iss`,
+  `iat`, `exp`;
+- a `user_id`/`agent_id` that is not the authenticated principal, or an `iss`
+  that is not the operator's own;
+- a mandate whose `exp` has passed, or whose signature does not verify against
+  the AI assistant's registered key;
+- an amount field ABSENT, zero or negative (Section 11.1);
+- `currency` ABSENT;
+- `line_items` ABSENT, not an array, or empty (Section 11.2);
+- any binding rule of Section 11.2 broken.
+
+**Two mandate checks are NOT in the class and DO answer `400`,** and they are
+stated rather than left to be inferred, because the boundary does not fall out
+of the reason above on its own: `iat` or `exp` that is not a NumericDate, and a
+mandate whose lifetime exceeds the operator's maximum. Neither is a claim about
+what the mandate authorises -- they ask whether it is a well-formed, bounded
+credential at all -- and they are the only mandate checks rule 1 reaches.
+
 ---
 
 ## 10. Proof-of-work
@@ -1364,6 +1393,14 @@ quieter form: an absent amount coerces to it in most languages, so a mandate
 that never named a figure satisfies `0 <= cap` and `0 == 0` and persists a
 0-cent settlement. `settled_amount_cents` on a `pay` response is positive for
 the same reason -- it exists only for a completed capture.
+
+**And the status for every one of these is `403 forbidden`, not `400`.** An
+absent, zero or negative amount is a value outside its domain, which Section 9.1
+rule 1 would otherwise make a `400`; the mandate chain is carved out of that rule
+because a mandate is AUTHORISATION rather than an argument, and one that does not
+carry what a mandate must carry has authorised nothing. Section 9.1 lists the
+whole class that answers this way, and the two mandate checks that answer `400`
+instead.
 
 ### 11.2 Binding rules
 
