@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kiosk.tech/spec/schemas/binding.schema.json",
   "title": "Kiosk account binding -- claim and link",
-  "description": "The wire objects of Section 6, the one-time ceremonies that bind an AI assistant to a human's EXISTING operator account. Two directions: claim, which the assistant starts (an RFC 8628 device grant), and link, a Kiosk extension the human starts. Both require BOTH human approval AND a valid possession proof; a failed proof binds nothing (Section 15.8). WHAT IS NOT HERE, and Section 17 says the same thing: the two /oauth/* REQUESTS are form-encoded rather than JSON, so a JSON Schema is not the oracle for them, and the /oauth/* error body is the OAuth wire's, whose code vocabulary this document does not yet state completely.",
+  "description": "The wire objects of Section 6, the one-time ceremonies that bind an AI assistant to a human's EXISTING operator account. Two directions: claim, which the assistant starts (an RFC 8628 device grant), and link, a Kiosk extension the human starts. Both require BOTH human approval AND a valid possession proof; a failed proof binds nothing (Section 15.8). WHAT IS NOT HERE, and Section 17 says the same thing: the two /oauth/* REQUESTS are form-encoded rather than JSON, so a JSON Schema is not the oracle for them. The /oauth/* error RESPONSE is here -- it was not until 2026-08-30, because the vocabulary Section 6.1 stated was short of the one its own step 1 requires, and an enum written from an incomplete list refuses conforming answers.",
   "$defs": {
     "deviceAuthorization": {
       "type": "object",
@@ -64,6 +64,30 @@
         "scope": {
           "type": "string",
           "description": "Present when -- and ONLY when -- the binding carries a role, and the type is the rule: it is omitted rather than null when there is none, so `null` is not a permitted value here. This is RFC 6749 Section 5.1's scope actually GRANTED, which here is the approving human's role and NEVER an echo of a requested one, since no role may be requested (Section 6.1 step 1). An operator whose identity system reports no role for that human omits the member, and an AI assistant MUST NOT treat its absence as an error."
+        }
+      }
+    },
+    "oauthError": {
+      "type": "object",
+      "description": "Section 6.1 -- the error answer of BOTH /oauth/* endpoints, and the one place on this wire that is not an RFC 9457 problem document. The vocabulary is CLOSED at eight: six ceremony-state codes from RFC 8628 Section 3.5 and two request-level codes from RFC 6749 Section 5.2. The two request-level ones are not decoration -- Section 6.1 step 1 REQUIRES `invalid_request` for a `scope` or `role` parameter on the device-authorization request, which is why this schema could not exist while the section's own closing list named only six. The STATUS is 400 for every code except `invalid_client`, which is 401; no schema can carry that, so it is stated in Section 6.1 and here.",
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "enum": [
+            "authorization_pending",
+            "slow_down",
+            "expired_token",
+            "access_denied",
+            "invalid_grant",
+            "invalid_client",
+            "invalid_request",
+            "unsupported_grant_type"
+          ],
+          "description": "The OAuth error code. A closed vocabulary: an operator MUST NOT emit anything outside it, or an AI assistant polling this ceremony has a branch it cannot take."
+        },
+        "error_description": {
+          "type": "string",
+          "description": "OPTIONAL human-readable detail. An AI assistant branches on `error` and never on this string."
         }
       }
     },

@@ -90,6 +90,9 @@ chk validate "${F[@]}" -s "$(ref bclreq  "$B/binding.schema.json#/\$defs/claimRe
 # pointer stopped resolving, ajv would fail here rather than shrug.
 chk validate "${F[@]}" -s "$(ref bclres  "$B/binding.schema.json#/\$defs/claimResponse")"       -r binding.schema.json -r auth.schema.json -d examples/binding.claim-response.json
 chk validate "${F[@]}" -s "$(ref bunlink "$B/binding.schema.json#/\$defs/unlinkRequest")"       -r binding.schema.json -r auth.schema.json -d examples/binding.unlink-request.json
+# K-1248: the /oauth/* error body, which had no schema while Section 6.1's closing
+# list named six codes and its own step 1 required a seventh.
+chk validate "${F[@]}" -s "$(ref boaerr  "$B/binding.schema.json#/\$defs/oauthError")"          -r binding.schema.json -r auth.schema.json -d examples/binding.oauth-error.json
 
 echo "== reject what the schemas must refuse =="
 # T-068 slice 5 / T-075 = A: `capabilities` names MODULES (schema, queries,
@@ -150,6 +153,14 @@ chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$def
 # accepted examples/mandate.cart.json with `line_items` emptied and nothing else
 # changed, so only `minItems` leaving the schema can turn it green.
 chkfail validate "${F[@]}" -s "$(ref cartempty "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.empty-line-items.json
+# K-1250: and an EMPTY `currency` is not a currency, for the same reason an empty
+# `line_items` is not a cart -- presence was the whole check on both sides, in the
+# schema and in the reference verifier, and presence is not the constraint. §11.2
+# compares the three mandates' currencies to EACH OTHER and never to a domain, so
+# `""` is internally consistent from intent to payment and reaches the PSP. This
+# example is the accepted examples/mandate.intent.json with that one value emptied
+# and nothing else changed, so only `minLength` leaving the schema can turn it green.
+chkfail validate "${F[@]}" -s "$(ref intemptycur "$B/mandates.schema.json#/\$defs/intent")" -r mandates.schema.json -d examples/rejected/mandate.intent.empty-currency.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
 # K-842: `header_nonce` is a u32 and was an unbounded integer, so the schema
@@ -189,6 +200,14 @@ chkfail validate "${F[@]}" -s "$(ref noaud "$B/auth.schema.json#/\$defs/possessi
 # exactly the constraint a later editor is most likely to loosen back toward the
 # RFC without noticing it is this document's own promise, so it gets the fixture.
 chkfail validate "${F[@]}" -s "$(ref nointerval "$B/binding.schema.json#/\$defs/deviceAuthorization")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.device-authorization.no-interval.json
+# K-1248: the /oauth/* code vocabulary is CLOSED at eight, and the closure is the
+# whole point of publishing it -- an assistant polling this ceremony branches on
+# `error`, so a code outside the list is a branch it cannot take. This example is
+# the accepted sibling with that one member set to `invalid_scope`: a REAL RFC 6749
+# code that is deliberately not on this wire, so nothing but the enum can fail it,
+# and it is exactly the value a later editor widening toward "all of RFC 6749"
+# would let back in.
+chkfail validate "${F[@]}" -s "$(ref oaerrbad "$B/binding.schema.json#/\$defs/oauthError")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.oauth-error.unknown-code.json
 
 echo "-----"
 echo "PASS=$pass FAIL=$fail"

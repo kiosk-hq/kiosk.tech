@@ -512,7 +512,12 @@ Its claims:
 Access tokens are short-lived; the durable credential is the private key. Multiple
 concurrent tokens for one identity remain valid. `POST <endpoint>/auth/revoke`
 (Bearer) stamps a per-identity "revoked-before" watermark -- every token issued
-before that instant stops verifying -- and returns a fresh token (Section 15.4). An
+before that instant stops verifying -- and answers **`200`** `{access_token}`, so
+the caller is not signed out by its own call (Section 15.4). That is Section 5.3's
+login answer exactly, member for member and status for status, which is why
+[`auth.schema.json#/$defs/token`](./schemas/auth.schema.json) is the schema for
+both; the response carries no `user_id` or `agent_id`, since revocation changes
+neither. An
 operator **MAY** price fresh-identity minting: `POST /auth/register` **MAY**
 answer `402 pow_required` (Section 10) bound to the registering public key; the AI assistant
 solves and resubmits the same `signed`, sending the proof(s) in the `Kiosk-PoW`
@@ -523,9 +528,9 @@ request header (Section 10.1). Default is no toll.
 ## 6. Account binding -- claim and link
 
 Schema: [`binding.schema.json`](./schemas/binding.schema.json). It covers this
-section's JSON objects; the two `/oauth/*` REQUESTS are form-encoded rather than
-JSON and the `/oauth/*` error body is the OAuth wire's, so neither has one --
-Section 17 says so and says why.
+section's JSON objects, including the `/oauth/*` error body; the two `/oauth/*`
+REQUESTS are form-encoded rather than JSON, so a JSON Schema is not the oracle for
+them and they have none -- Section 17 says so and says why.
 
 kiosk-pop registration creates a self-standing assistant account. When the human
 already has an operator account, Kiosk **binds** the AI assistant to it via a one-time
@@ -571,9 +576,46 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
    AI assistant **MUST NOT** treat its absence as an error. The bound principal
    itself (`user_id`, `agent_id`) rides in the JWT claims, not the body.
 
-The `/oauth/*` endpoints are the **one exception** to the Kiosk problem document: they use
-the OAuth wire, with errors `authorization_pending`, `slow_down`, `expired_token`,
-`access_denied`, `invalid_grant`, and `invalid_client` (a failed possession proof).
+**The `/oauth/*` error vocabulary.**
+The `/oauth/*` endpoints are the **one exception** to the Kiosk problem document:
+they answer on the OAuth wire, `{error, error_description}`, and `error` comes from
+a CLOSED vocabulary of **eight** codes. Six describe the state of the ceremony
+(RFC 8628 Section 3.5):
+
+- `authorization_pending` -- the human has not acted yet; poll again at `interval`.
+- `slow_down` -- the poll arrived sooner than `interval`.
+- `expired_token` -- the `device_code` has expired.
+- `access_denied` -- the human refused the binding.
+- `invalid_grant` -- the `device_code` is unknown, or already used.
+- `invalid_client` -- the possession proof failed. It binds nothing and does **NOT**
+  consume the authorization, so the AI assistant MAY fetch a fresh challenge and
+  poll again with the SAME `device_code`.
+
+The other two are RFC 6749 Section 5.2's request-level codes, and both are reachable
+here because **this section requires them**:
+
+- `invalid_request` -- a REQUIRED parameter is absent or malformed, or the request
+  carries one it **MUST NOT**: `client_id` or `public_key` absent from the
+  device-authorization request, a `public_key` that is not a loadable key of the
+  strength Section 5.3 requires, `grant_type` absent from the token request, and --
+  the case **step 1 above states normatively** -- a `scope` or `role` parameter on
+  the device-authorization request.
+- `unsupported_grant_type` -- a `grant_type` other than
+  `urn:ietf:params:oauth:grant-type:device_code`. These two endpoints complete an
+  account binding; they are not a general OAuth token service, and
+  `POST <endpoint>/auth/login` is the token-refresh path.
+
+**The status is `400` for every one of them except `invalid_client`, which is
+`401`** -- RFC 6749 Section 5.2 makes a failed client authentication the one error
+the server SHOULD signal that way. An operator **MUST NOT** answer these two
+endpoints with a problem document, and **MUST NOT** emit an `error` code outside
+this list; every other endpoint answers problem documents (Section 9).
+
+The list used to name only the first six, which contradicted step 1 of this very
+section eleven paragraphs earlier -- and the contradiction was not inert: it is why
+the `/oauth/*` error body had no schema, since one written from an incomplete
+vocabulary refuses conforming answers. Its `$def` is
+[`binding.schema.json#/$defs/oauthError`](./schemas/binding.schema.json).
 
 ### 6.2 Link (human-initiated -- Kiosk extension)
 
@@ -1261,7 +1303,7 @@ than a table:
 - a mandate whose `exp` has passed, or whose signature does not verify against
   the AI assistant's registered key;
 - an amount field ABSENT, zero or negative (Section 11.1);
-- `currency` ABSENT;
+- `currency` ABSENT, or present but not a NON-EMPTY string (Section 11.1);
 - `line_items` ABSENT, not an array, or empty (Section 11.2);
 - any binding rule of Section 11.2 broken.
 
@@ -1393,6 +1435,20 @@ quieter form: an absent amount coerces to it in most languages, so a mandate
 that never named a figure satisfies `0 <= cap` and `0 == 0` and persists a
 0-cent settlement. `settled_amount_cents` on a `pay` response is positive for
 the same reason -- it exists only for a completed capture.
+
+**And `currency` is a NON-EMPTY STRING on all three mandates.** The table above
+makes it REQUIRED and `mandates.schema.json` types it `string` and calls it an ISO
+4217 code; an operator **MUST** reject a mandate whose `currency` is absent, is not
+a string, or is empty. This is the amounts' rule in a second place and for the
+identical reason: the checks of Section 11.2 ask only whether the three mandates
+agree with EACH OTHER, never whether either value names anything, so `""` on the
+intent, the cart and the payment passes every one of them, reaches the PSP as the
+currency of a real charge, and becomes the key the spent-to-date tally of
+Section 11.5 is scoped by. Presence was the whole check in the reference until
+2026-08-30, and presence is not the constraint. **This document does not close the
+domain further:** which spellings of a code an operator accepts, and whether it
+compares them case-insensitively, is the operator's own rule and is not stated
+here.
 
 **And the status for every one of these is `403 forbidden`, not `400`.** An
 absent, zero or negative amount is a value outside its domain, which Section 9.1
@@ -2002,8 +2058,8 @@ names, and the example payloads under `./schemas/examples/` -- including a
 `rejected/` set the schemas MUST refuse -- are validated in CI on every change
 under `spec/`.
 
-**What is deliberately NOT covered, and why.** Four objects on the wire have no
-schema here, and none of the four is an oversight:
+**What is deliberately NOT covered, and why.** Two objects on the wire have no
+schema here, and neither is an oversight:
 
 1. **The `POST /oauth/device_authorization` request** (Section 6.1 step 1) and
 2. **the `POST /oauth/token` request** (Section 6.1 step 3) are
@@ -2012,19 +2068,20 @@ schema here, and none of the four is an oversight:
    REQUIRED on the poll that COMPLETES the ceremony and not on the ones before
    it, which depends on server state the document being validated does not
    carry.
-3. **The `/oauth/*` error body.** Section 6.1 makes these endpoints the one
-   exception to the Kiosk problem document -- they answer on the OAuth wire --
-   and the code vocabulary this document states for them is not yet complete
-   (`invalid_request`, which Section 6.1 step 1 itself requires, is absent from
-   the list at the end of that section). A schema written from an incomplete
-   vocabulary would refuse conforming answers, so none is published until the
-   list is settled.
-4. **The `POST /auth/revoke` response.** Section 5.5 says the call returns a
-   fresh token and never names the object's members, so there is nothing here
-   to transcribe. Writing the members into a schema would be this document
-   deciding a wire shape rather than recording one, which is the opposite of
-   what a schema is for; the sentence gets fixed first and the schema follows
-   it.
+
+Two more sat here until 2026-08-30 and no longer do, because in both cases the
+residue was a SENTENCE this document had failed to write rather than an object a
+schema could not describe. The `/oauth/*` **error body** was uncovered because the
+code vocabulary at the end of Section 6.1 named six codes while requiring a
+seventh, `invalid_request`, in its own step 1; the vocabulary is now stated
+complete and closed, at eight, and the object is
+`binding.schema.json#/$defs/oauthError`. The **`POST /auth/revoke` response** was
+uncovered because Section 5.5 said the call "returns a fresh token" and never named
+a member; Section 5.5 now names the object, which is Section 5.3's login answer
+exactly, so `auth.schema.json#/$defs/token` covers both and nothing was invented to
+cover it. The rule those two illustrate is the one this table is for: a schema
+records a wire the prose already states, so an object with no schema is first a
+question about the PROSE.
 
 A **verb's success body** is not in this table either, and that is not a
 residue: Section 8.2 gives it no envelope, so its schema is the verb's own
