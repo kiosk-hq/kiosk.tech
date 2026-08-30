@@ -1502,6 +1502,21 @@ required, insufficient funds, or a processor timeout -- `pay` answers `402` with
 `code: "payment_failed"` (Section 9), carrying a message the operator has
 already made safe to show a human: it **MUST NOT** relay raw PSP internals.
 
+**`currency` on that response is the OPERATOR's spelling of the cart's currency,
+and it MAY differ byte for byte from the spelling the AI assistant signed.**
+Section 11.1 leaves the currency DOMAIN open, and Section 11.5 obliges an
+operator that accepts two spellings of one code to treat them as ONE currency --
+so an operator that folds spellings settles, records and answers in its own
+canonical form. An assistant that signs `"EUR"` throughout can therefore be
+answered `"eur"`, and that is a CONFORMING answer: both name the same ISO 4217
+code, and the code is what the two sides are agreeing about. An operator that
+folds nothing echoes the cart's bytes unchanged, and that is conforming too.
+An AI assistant therefore **MUST NOT** treat a byte-for-byte difference between
+the `currency` it sent and the `currency` it is answered as a failed or
+mismatched payment; it **MUST** compare the two as currency CODES, by the same
+rule Section 11.5 puts on the tally. What an operator **MUST NOT** do is answer
+a DIFFERENT currency: the spelling may move, the code may not.
+
 ### 11.4 Card setup
 
 Payment uses the PSP's card-on-file (SetupIntent) model. An AI assistant **SHOULD** call
@@ -1539,6 +1554,11 @@ spelling it can find, and `currency` is a value the assistant itself signs into 
 mandate, so alternating the spelling from one chain to the next is a bypass it can
 drive unaided. The cap the operator published is then not the cap it enforces --
 that is the MUST above being false, not a detail of how the sum is written.
+
+The fold that rule licenses is visible on the wire, and Section 11.3 states its
+consequence NORMATIVELY rather than leaving it to this note: the `currency` a
+`pay` response carries is the operator's canonical spelling of the cart's
+currency, not the sender's.
 
 > *Reference note (non-normative).* The Ruby reference enforces this via the
 > `config.spending_cap` pay-hook seam and ships a column-backed default
