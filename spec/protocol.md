@@ -1447,8 +1447,9 @@ currency of a real charge, and becomes the key the spent-to-date tally of
 Section 11.5 is scoped by. Presence was the whole check in the reference until
 2026-08-30, and presence is not the constraint. **This document does not close the
 domain further:** which spellings of a code an operator accepts, and whether it
-compares them case-insensitively, is the operator's own rule and is not stated
-here.
+compares them case-insensitively under Section 11.2, is the operator's own rule and
+is not stated here. What is NOT left open is the consequence of accepting more than
+one spelling -- Section 11.5 states it, because it is where the money is counted.
 
 **And the status for every one of these is `403 forbidden`, not `400`.** An
 absent, zero or negative amount is a value outside its domain, which Section 9.1
@@ -1505,9 +1506,29 @@ wire. Enforcement is per-`pay` and best-effort: under concurrent captures an
 assistant's settled total can overshoot the cap, and a stronger atomic guarantee
 is deferred.
 
+**The tally is per CURRENCY, and a currency is not a string.** Cents are not
+fungible across currencies, so the settled total a cap is measured against is the
+total IN THE CAP'S OWN CURRENCY; summing across currencies would let a 4999 USD
+history erode a 5000 EUR cap, which is the same reason Section 11.2 refuses a cart
+priced in one currency under an intent capped in another. Section 11.1 deliberately
+leaves the currency DOMAIN open, so an operator may well accept both `"eur"` and
+`"EUR"` -- and where it does, **the tally MUST key on the CURRENCY and not on its
+spelling: an operator that accepts two spellings of one code MUST count them as
+one.** A tally keyed on the raw bytes hands the AI assistant a FRESH CAP for every
+spelling it can find, and `currency` is a value the assistant itself signs into the
+mandate, so alternating the spelling from one chain to the next is a bypass it can
+drive unaided. The cap the operator published is then not the cap it enforces --
+that is the MUST above being false, not a detail of how the sum is written.
+
 > *Reference note (non-normative).* The Ruby reference enforces this via the
 > `config.spending_cap` pay-hook seam and ships a column-backed default
-> (`agents.spending_cap_cents`) editable from the manage-assistants page.
+> (`agents.spending_cap_cents`) editable from the manage-assistants page. It takes
+> the Section 11.1 rule that is the operator's to take by CANONICALISING `currency`
+> at the point a signed mandate becomes a verified value -- trimmed and lower-cased
+> -- so the Section 11.2 comparisons, the persisted mandate and settlement rows, the
+> PSP call and this tally are keyed on one value by construction rather than by
+> everyone remembering to fold. Lower case because that is the spelling its shipped
+> payment adapter's API documents.
 
 ### 11.6 Idempotency -- the mandate chain IS the key
 
