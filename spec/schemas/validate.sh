@@ -40,6 +40,12 @@ chk compile "${F[@]}" -s problem.schema.json -r pow.schema.json
 chk compile "${F[@]}" -s schema-descriptor.schema.json
 chk compile "${F[@]}" -s mandates.schema.json
 chk compile "${F[@]}" -s kyc.schema.json
+chk compile "${F[@]}" -s auth.schema.json
+# binding's `claimResponse` is a cross-file `$ref` into auth.schema.json, so the
+# compile needs `-r` exactly as problem.schema.json's does into pow. That `$ref`
+# is deliberate -- Section 6.2's claim answer IS Section 5.3's register answer,
+# and restating it is how two copies of one shape drift apart.
+chk compile "${F[@]}" -s binding.schema.json -r auth.schema.json
 
 echo "== validate examples =="
 chk validate "${F[@]}" -s discovery.schema.json -d examples/discovery.json
@@ -65,6 +71,25 @@ chk validate "${F[@]}" -s "$(ref payreq  "$B/mandates.schema.json#/\$defs/payReq
 chk validate "${F[@]}" -s "$(ref settle  "$B/mandates.schema.json#/\$defs/settlement")" -r mandates.schema.json -d examples/settlement.json
 chk validate "${F[@]}" -s "$(ref att     "$B/kyc.schema.json#/\$defs/attestation")"     -r kyc.schema.json -d examples/kyc.attestation.json
 chk validate "${F[@]}" -s "$(ref kycreq  "$B/kyc.schema.json#/\$defs/request")"         -r kyc.schema.json -d examples/kyc.request.json
+# T-149: Sections 5 and 6. One example per `$def`, because the claim these
+# schemas exist to make honest is per-OBJECT, not per-file: a file that compiles
+# while one of its six objects is a typo'd `$def` nobody validates against is the
+# same fiction as no file at all.
+chk validate "${F[@]}" -s "$(ref achal   "$B/auth.schema.json#/\$defs/challenge")"         -r auth.schema.json -d examples/auth.challenge.json
+chk validate "${F[@]}" -s "$(ref aproof  "$B/auth.schema.json#/\$defs/possessionProof")"   -r auth.schema.json -d examples/auth.possession-proof.json
+chk validate "${F[@]}" -s "$(ref acred   "$B/auth.schema.json#/\$defs/credentialRequest")" -r auth.schema.json -d examples/auth.credential-request.json
+chk validate "${F[@]}" -s "$(ref areg    "$B/auth.schema.json#/\$defs/registration")"      -r auth.schema.json -d examples/auth.registration.json
+chk validate "${F[@]}" -s "$(ref atok    "$B/auth.schema.json#/\$defs/token")"             -r auth.schema.json -d examples/auth.token.json
+chk validate "${F[@]}" -s "$(ref aclaims "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/auth.access-token-claims.json
+chk validate "${F[@]}" -s "$(ref bda     "$B/binding.schema.json#/\$defs/deviceAuthorization")" -r binding.schema.json -r auth.schema.json -d examples/binding.device-authorization.json
+chk validate "${F[@]}" -s "$(ref bdtok   "$B/binding.schema.json#/\$defs/deviceTokenResponse")" -r binding.schema.json -r auth.schema.json -d examples/binding.device-token.json
+chk validate "${F[@]}" -s "$(ref blink   "$B/binding.schema.json#/\$defs/linkCode")"            -r binding.schema.json -r auth.schema.json -d examples/binding.link-code.json
+chk validate "${F[@]}" -s "$(ref bclreq  "$B/binding.schema.json#/\$defs/claimRequest")"        -r binding.schema.json -r auth.schema.json -d examples/binding.claim-request.json
+# The one that exercises the cross-file `$ref`: this document is checked against
+# `binding`'s claimResponse, which is nothing but a pointer into `auth`. If the
+# pointer stopped resolving, ajv would fail here rather than shrug.
+chk validate "${F[@]}" -s "$(ref bclres  "$B/binding.schema.json#/\$defs/claimResponse")"       -r binding.schema.json -r auth.schema.json -d examples/binding.claim-response.json
+chk validate "${F[@]}" -s "$(ref bunlink "$B/binding.schema.json#/\$defs/unlinkRequest")"       -r binding.schema.json -r auth.schema.json -d examples/binding.unlink-request.json
 
 echo "== reject what the schemas must refuse =="
 # T-068 slice 5 / T-075 = A: `capabilities` names MODULES (schema, queries,
@@ -137,6 +162,33 @@ chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-neg
 # green is the bound going away.
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.header-nonce-above-u32.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.header-nonce-negative.json
+# T-149. Six negatives, and each one is its accepted sibling with EXACTLY one
+# key changed -- generated from it rather than typed, so nothing but the
+# constraint named can be what fails them.
+#
+# `role` and `scope` are the same rule twice, and it is a real one rather than a
+# tidiness: Section 5.4 says the role claim is OMITTED, not null, when absent,
+# and Section 6.1 says the same of `scope`. An assistant that branches on
+# `"role" in claims` and an assistant that branches on truthiness disagree about
+# `null`, so a schema that admitted it would let two conforming readers of one
+# token reach two different answers about what the principal may do. `type:
+# string` is what refuses it; drop the type and these two lines go green.
+chkfail validate "${F[@]}" -s "$(ref rolenull "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/rejected/auth.access-token-claims.role-null.json
+chkfail validate "${F[@]}" -s "$(ref scopenull "$B/binding.schema.json#/\$defs/deviceTokenResponse")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.device-token.scope-null.json
+# The two `const`s. `actor` is what says a token is an AGENT's, and `token_type`
+# is what an OAuth client dispatches its Authorization header on; a soft enum in
+# either place is a schema that has stopped saying the one thing it was for.
+chkfail validate "${F[@]}" -s "$(ref actoruser "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/rejected/auth.access-token-claims.actor-user.json
+chkfail validate "${F[@]}" -s "$(ref ttmac "$B/binding.schema.json#/\$defs/deviceTokenResponse")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.device-token.token-type-mac.json
+# `aud` is the origin binding of Section 15.1 -- the single claim that makes a
+# relayed possession proof worthless. A proof without it is the phishing case,
+# not a lenient one.
+chkfail validate "${F[@]}" -s "$(ref noaud "$B/auth.schema.json#/\$defs/possessionProof")" -r auth.schema.json -d examples/rejected/auth.possession-proof.no-aud.json
+# `interval` is the member where the Kiosk contract is NARROWER than RFC 8628,
+# which makes it optional -- Section 6.1 enumerates all six as returned. That is
+# exactly the constraint a later editor is most likely to loosen back toward the
+# RFC without noticing it is this document's own promise, so it gets the fixture.
+chkfail validate "${F[@]}" -s "$(ref nointerval "$B/binding.schema.json#/\$defs/deviceAuthorization")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.device-authorization.no-interval.json
 
 echo "-----"
 echo "PASS=$pass FAIL=$fail"

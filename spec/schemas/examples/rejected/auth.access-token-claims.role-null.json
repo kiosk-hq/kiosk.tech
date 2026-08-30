@@ -1,0 +1,12 @@
+{
+  "sub": "a7f3",
+  "agent_id": "b2e9",
+  "actor": "agent",
+  "role": null,
+  "iss": "https://getgrocery.demo.kiosk.tech",
+  "aud": "https://getgrocery.demo.kiosk.tech",
+  "iat": 1751846340,
+  "nbf": 1751846340,
+  "exp": 1751849940,
+  "jti": "8c2d4f60-1a73-4e59-b0d8-6f9e3a15c274"
+}

@@ -1,0 +1,8 @@
+{
+  "device_code": "Sq7Yb3mVt1Kd9Rn5Xc2Pf8Lg4Wj6Hz0A",
+  "user_code": "WDJB-MJHT",
+  "verification_uri": "https://getgrocery.demo.kiosk.tech/kiosk/oauth/device/verify",
+  "verification_uri_complete": "https://getgrocery.demo.kiosk.tech/kiosk/oauth/device/verify?user_code=WDJB-MJHT",
+  "expires_in": 900,
+  "interval": 5
+}

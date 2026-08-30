@@ -5,7 +5,9 @@
 This is the **formal** companion to the narrative specification at
 <https://kiosk.tech/specification.html>. The narrative page is the readable
 introduction; this document is the precise, citable contract, with
-machine-readable [JSON Schemas](./schemas/) for every wire object. Where the two
+machine-readable [JSON Schemas](./schemas/) for the wire objects Section 17
+lists -- which is every JSON object on this wire except the four Section 17
+names and accounts for. Where the two
 disagree on the wire, **this document governs** and the narrative page is
 corrected (audit dimension D8).
 
@@ -443,6 +445,8 @@ pagination this specification invites.
 
 ## 5. Registration and login (kiosk-pop)
 
+Schema: [`auth.schema.json`](./schemas/auth.schema.json).
+
 Kiosk's auth scheme is **kiosk-pop**: a proof-of-possession challenge-response.
 It is **not** OAuth. A public key is public, not a credential; before issuing a
 token the operator requires proof of possession of the matching private key.
@@ -517,6 +521,11 @@ request header (Section 10.1). Default is no toll.
 ---
 
 ## 6. Account binding -- claim and link
+
+Schema: [`binding.schema.json`](./schemas/binding.schema.json). It covers this
+section's JSON objects; the two `/oauth/*` REQUESTS are form-encoded rather than
+JSON and the `/oauth/*` error body is the OAuth wire's, so neither has one --
+Section 17 says so and says why.
 
 kiosk-pop registration creates a self-standing assistant account. When the human
 already has an operator account, Kiosk **binds** the AI assistant to it via a one-time
@@ -1917,8 +1926,10 @@ proof) or a human-supplied link code redeemed with `{code, public_key, signed}`
 
 Two oracles pin behavior beyond this text:
 
-1. **JSON Schemas** (`./schemas/`) -- every wire object validates against its
-   schema. Operators and AI assistants SHOULD validate against them.
+1. **JSON Schemas** (`./schemas/`) -- every wire object Section 17 lists
+   validates against its schema, and Section 17's list is complete for this
+   document but for the four objects it names as uncovered. Operators and AI
+   assistants SHOULD validate against them.
 2. **Frozen Equihash known-answer tests** at production parameters (n=168, k=7) --
    a ported verifier MUST reproduce them.
 
@@ -1931,8 +1942,12 @@ conformance suite does not exist yet (Tier 3, deferred).
 
 ## 17. JSON Schemas
 
-Machine-readable schemas for every wire object live in
-[`./schemas/`](./schemas/) (JSON Schema draft 2020-12):
+Machine-readable schemas live in [`./schemas/`](./schemas/) (JSON Schema draft
+2020-12). **This table is the list.** Where the sections above say "every wire
+object", they mean the objects enumerated here plus the residue named below --
+an unqualified "every" was carried on this page for months while Sections 5 and
+6 had no schema at all, so the anchor now points at an inventory a reader can
+check rather than at a promise they cannot.
 
 | Object | Schema |
 |---|---|
@@ -1942,6 +1957,42 @@ Machine-readable schemas for every wire object live in
 | PoW challenge + proof | [`pow.schema.json`](./schemas/pow.schema.json) |
 | AP2 mandates | [`mandates.schema.json`](./schemas/mandates.schema.json) |
 | KYC attestation | [`kyc.schema.json`](./schemas/kyc.schema.json) |
+| Registration and login, Section 5 | [`auth.schema.json`](./schemas/auth.schema.json) |
+| Account binding, Section 6 | [`binding.schema.json`](./schemas/binding.schema.json) |
+
+Each file carries one `$def` per object; the `$def` names are the objects'
+names, and the example payloads under `./schemas/examples/` -- including a
+`rejected/` set the schemas MUST refuse -- are validated in CI on every change
+under `spec/`.
+
+**What is deliberately NOT covered, and why.** Four objects on the wire have no
+schema here, and none of the four is an oversight:
+
+1. **The `POST /oauth/device_authorization` request** (Section 6.1 step 1) and
+2. **the `POST /oauth/token` request** (Section 6.1 step 3) are
+   **form-encoded**, not JSON, so a JSON Schema is not the oracle for them. The
+   token request additionally carries a rule no schema can express: `signed` is
+   REQUIRED on the poll that COMPLETES the ceremony and not on the ones before
+   it, which depends on server state the document being validated does not
+   carry.
+3. **The `/oauth/*` error body.** Section 6.1 makes these endpoints the one
+   exception to the Kiosk problem document -- they answer on the OAuth wire --
+   and the code vocabulary this document states for them is not yet complete
+   (`invalid_request`, which Section 6.1 step 1 itself requires, is absent from
+   the list at the end of that section). A schema written from an incomplete
+   vocabulary would refuse conforming answers, so none is published until the
+   list is settled.
+4. **The `POST /auth/revoke` response.** Section 5.5 says the call returns a
+   fresh token and never names the object's members, so there is nothing here
+   to transcribe. Writing the members into a schema would be this document
+   deciding a wire shape rather than recording one, which is the opposite of
+   what a schema is for; the sentence gets fixed first and the schema follows
+   it.
+
+A **verb's success body** is not in this table either, and that is not a
+residue: Section 8.2 gives it no envelope, so its schema is the verb's own
+`output_schema` (Section 8.3), published by the operator in its catalog rather
+than by this document.
 
 ---
 
