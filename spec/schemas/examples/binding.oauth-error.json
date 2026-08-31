@@ -1,4 +1,4 @@
 {
   "error": "invalid_request",
-  "error_description": "role is not accepted here — an assistant does not choose its own role."
+  "error_description": "role is not accepted here -- an assistant does not choose its own role."
 }

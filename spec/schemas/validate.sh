@@ -169,7 +169,7 @@ chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$def
 chkfail validate "${F[@]}" -s "$(ref cartempty "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.empty-line-items.json
 # K-1250: and an EMPTY `currency` is not a currency, for the same reason an empty
 # `line_items` is not a cart -- presence was the whole check on both sides, in the
-# schema and in the reference verifier, and presence is not the constraint. §11.2
+# schema and in the reference verifier, and presence is not the constraint. Section 11.2
 # compares the three mandates' currencies to EACH OTHER and never to a domain, so
 # `""` is internally consistent from intent to payment and reaches the PSP. This
 # example is the accepted examples/mandate.intent.json with that one value emptied
