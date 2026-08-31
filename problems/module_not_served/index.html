@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <title>module_not_served &mdash; Kiosk error vocabulary</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d0d0d;color:#e0e0e0;line-height:1.7;letter-spacing:-0.01em}
+    .back{display:inline-block;font-size:13px;color:#888;text-decoration:none;margin:20px 0 0 24px}.back:hover{color:#aaa}
+    article{max-width:760px;margin:0 auto;padding:24px 24px 80px}
+    h1{font-size:26px;font-weight:800;margin-bottom:6px;font-family:'SF Mono','Fira Mono',monospace}
+    h2{font-size:17px;font-weight:700;margin:32px 0 10px;padding-top:14px;border-top:1px solid #1a1a1a}
+    p{font-size:15px;color:#bbb;margin-bottom:14px}
+    a{color:#8bc49a;text-decoration:none}a:hover{text-decoration:underline}
+    code{font-family:'SF Mono','Fira Mono',monospace;font-size:13px;background:#1a1a1a;padding:2px 6px;border-radius:4px;color:#ccc}
+    pre{margin:14px 0 24px;border-radius:10px;background:#1a1a1a;border:1px solid #252525}
+    pre code{background:none;padding:16px 20px;display:block;overflow-x:auto;font-size:13px;line-height:1.55;border-radius:10px;color:#e0e0e0}
+    table{border-collapse:collapse;width:100%;margin:16px 0 24px;font-size:14px}
+    th,td{text-align:left;padding:10px 14px;border-bottom:1px solid #1a1a1a;vertical-align:top}
+    th{color:#888;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.05em}
+    td code{font-size:12px}
+    ul{padding-left:20px;margin-bottom:16px}
+    li{font-size:15px;color:#bbb;margin-bottom:6px}
+    .status{display:inline-block;font-family:'SF Mono','Fira Mono',monospace;font-size:13px;color:#8bc49a;background:#14211a;border:1px solid #24382c;border-radius:6px;padding:2px 10px}
+    .note{font-size:13px;color:#888;border-top:1px solid #1a1a1a;margin-top:40px;padding-top:16px}
+  </style>
+</head>
+<body>
+  <a href="/problems/" class="back">&larr; All Kiosk problem types</a>
+  <article>
+    <h1>module_not_served</h1>
+    <p><span class="status">HTTP 501</span> &nbsp; <code>title</code>: Module not served</p>
+
+    <h2>What it means</h2>
+    <p><strong>This operator does not serve the optional module your request reaches</strong> &mdash; <a href="/specification.html#account-binding">account binding</a>, payment, or KYC. The URL is published and correct; there is simply no such capability at this origin.</p>
+    <p>Kiosk requires every conformant operator to publish the full auth block whether or not it serves binding, precisely so that the presence of a URL is never mistaken for a capability probe. This code is how such an origin says so out loud instead of leaving you to infer it from a 404.</p>
+    <p><strong>Why 501 and not 404.</strong> The URL is not missing. A 404 would be a false statement about it, and it would put this case back on the same status as the two genuine 404s, recreating exactly the ambiguity this code exists to remove. No 4xx means what is meant: <code>403</code> is identity-scoped and this refusal is origin-wide; <code>410 Gone</code> asserts the capability once existed; <code>405</code> is method-scoped. RFC 9110 &sect;15.6.2 defines 501 as &ldquo;the server does not support the functionality required to fulfill the request&rdquo;, and makes it cacheable by default &mdash; correct, because this is a stable property of the origin rather than of your request.</p>
+
+    <h2>What it carries</h2>
+    <ul>
+      <li><code>detail</code> &mdash; names the module that is not served.</li>
+      <li><code>hint</code> &mdash; the fallback worth taking, when there is one.</li>
+    </ul>
+
+    <h2>What to do next</h2>
+    <p><strong>Do not retry, and do not treat this as a transient server fault.</strong> It is a 5xx by HTTP semantics, not by symptom: nothing you can change about the request makes it succeed, and backing off and trying again is wasted time.</p>
+    <p>Fall back to whatever the module was for. Binding declined &rarr; register a fresh assistant account instead. Payment declined &rarr; hand the transaction to your human. KYC declined &rarr; the attribute-gated actions behind it are simply not on offer here.</p>
+
+    <h2>On the wire</h2>
+    <pre><code>{
+  "type":   "https://kiosk.tech/problems/module_not_served",
+  "title":  "Module not served",
+  "status": 501,
+  "detail": "this operator does not serve account binding",
+  "code":   "module_not_served"
+}</code></pre>
+
+    <p class="note">This page documents the RFC 9457 <code>type</code> URI
+      <code>https://kiosk.tech/problems/module_not_served</code>. The URI is an
+      <strong>identifier</strong>, not a locator a client should fetch: branch on the
+      document&rsquo;s <code>code</code> member. The normative definition lives in the
+      <a href="/specification.html#errors">error vocabulary</a> of the
+      <a href="/specification.html">Kiosk specification</a> (&sect;9 of the
+      <a href="/spec/protocol.md">formal spec</a>).</p>
+  </article>
+</body>
+</html>

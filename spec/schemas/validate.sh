@@ -52,6 +52,11 @@ chk validate "${F[@]}" -s discovery.schema.json -d examples/discovery.json
 chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.not-found.json
 chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.pow.json
 chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.method-not-allowed.json
+# The Section 9 split (T-158). Three codes answer "it is not here" and the
+# schema carries all three: an unregistered NAME, an addressed thing that is
+# absent, and a module this operator does not serve at all.
+chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.verb-not-found.json
+chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.module-not-served.json
 chk validate "${F[@]}" -s schema-descriptor.schema.json -d examples/schema-descriptor.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.proofs.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.shorthand.json
@@ -100,6 +105,11 @@ echo "== reject what the schemas must refuse =="
 # reverted to protocol 0.3's verb names, so the only thing that can make it
 # pass is the enum going soft.
 chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discovery.verb-names.json
+# The `code` vocabulary is CLOSED, and nothing proved it until T-158 widened
+# it from fifteen members to seventeen. A near-miss of the new member --
+# `module_not_found` for `module_not_served` -- is the shape a porter would
+# actually emit, and the enum must refuse it.
+chkfail validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/rejected/problem.unknown-code.json
 # T-095: `verbs` is GONE from the catalog. It rendered the same value
 # `/.well-known/kiosk.json` publishes as `capabilities` -- one value under two
 # names, not two facts -- so the field was dropped rather than reconciled.

@@ -343,6 +343,17 @@ RESPONSE rather than here, which is exactly the reading that would break. An AI
 assistant whose human already holds an operator account therefore STARTS the
 ceremony and branches on the answer, rather than looking for a flag first.
 
+**And the answer it branches on is NAMED.** An operator that does not serve the
+binding module **MUST** answer `501 module_not_served` (Section 9) at BOTH
+`device_authorization_url` and `claim_url` -- as an ordinary Kiosk problem
+document at each, which for the `/oauth/*` half is the one carve-out from
+Section 6.1's OAuth error object, argued in Section 9. An AI assistant that
+receives it **MUST** stop the ceremony and fall back to plain registration
+(Section 5); it **MUST NOT** retry, and **MUST NOT** report to its human that
+the binding failed, because nothing failed -- there is no binding here to do.
+Any other non-2xx from either URL is the error it says it is and is handled by
+its own `code`.
+
 ### 4.4 JWKS
 
 An operator **MUST** publish its token-signing public keys as a JWKS document
@@ -611,6 +622,14 @@ the server SHOULD signal that way. An operator **MUST NOT** answer these two
 endpoints with a problem document, and **MUST NOT** emit an `error` code outside
 this list; every other endpoint answers problem documents (Section 9).
 
+**ONE CARVE-OUT, AND IT IS THE ONLY ONE:** an operator that does not serve the
+binding module at all answers `501 module_not_served` -- a Kiosk problem
+document -- at both of these endpoints, because none of the eight codes above
+means it and neither RFC 6749 Section 5.2 nor RFC 8628 has one. The reasoning
+is in Section 9 and the assistant-side rule is in Section 4.3. The distinction
+holds: the eight codes are errors WITHIN a device grant this operator runs, and
+`module_not_served` says there is no device grant here to be inside of.
+
 The list used to name only the first six, which contradicted step 1 of this very
 section eleven paragraphs earlier -- and the contradiction was not inert: it is why
 the `/oauth/*` error body had no schema, since one written from an incomplete
@@ -867,10 +886,17 @@ The concrete query and action **names** are operator-defined and discovered via
 `schema`; they are not part of this specification. A name is one path segment
 matching `^[a-z][a-z0-9_]*$`.
 
+An operator **MUST** answer `404 verb_not_found` (Section 9) when the path's
+last segment names no registered verb at all, and the `hint` **SHOULD** carry
+the names that ARE registered so a mistyped name self-corrects without a
+catalogue round-trip. It is `verb_not_found` and not `not_found`: the latter
+means an ARGUMENT addressed something absent (Section 9.1 rule 2), which is a
+different fact and a different recovery.
+
 An operator **MUST** answer `405` (Section 9) with an `Allow` header when the
 path names a verb that exists but the method is the other one -- a `GET` at an
-action's path, a `POST` at a query's. It is a distinct answer from `404`
-because the resource exists.
+action's path, a `POST` at a query's. It is a distinct answer from
+`verb_not_found` because the verb exists.
 
 **Where a verb's arguments live.** A query's arguments are in the URL query
 string; an action's are in a JSON request body. There is no third channel: an
@@ -1227,8 +1253,9 @@ members it does not recognise.
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
 | `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay` (Section 11.5); the human must raise the cap. |
 | `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.3); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
-| `not_found` | 404 | Unknown query/action name, or an argument that ADDRESSES a resource which does not exist (Section 9.1); `hint` carries known names. |
-| `method_not_allowed` | 405 | The path names a verb that exists, called with the other method -- a `GET` at an action's path or a `POST` at a query's (Section 8.1). The response **MUST** carry `Allow` naming the method the verb accepts; `hint` names the call to make. Distinct from `not_found`: the resource exists. |
+| `verb_not_found` | 404 | **No verb by that NAME is registered at this operator** -- the path's last segment matches nothing in the catalogue (Section 8.1). `hint` carries the names that ARE registered, so a mistyped `listings` for `browse_listings` self-corrects without a catalogue round-trip. The AI assistant re-reads `GET <endpoint>/schema` and picks a name that exists; it **MUST NOT** report to its human that the operator cannot do the thing, because a different verb may well do it. |
+| `not_found` | 404 | **The verb exists and an argument ADDRESSES a resource which does not exist** (Section 9.1 rule 2) -- a `property_id` no property has, a login for a key nobody registered. The call was well formed and the answer is final: no retry finds it, and the AI assistant tells its human the thing is not there. Distinct from `verb_not_found`, which is about the NAME of the call rather than about what the call addressed. |
+| `method_not_allowed` | 405 | The path names a verb that exists, called with the other method -- a `GET` at an action's path or a `POST` at a query's (Section 8.1). The response **MUST** carry `Allow` naming the method the verb accepts; `hint` names the call to make. Distinct from `verb_not_found`: the verb exists. |
 | `conflict` | 409 | State conflict -- e.g. registering an already-registered key, or a `pay` re-presenting a mandate chain already recorded for this `user_id` **whose cart has not settled** (Section 11.6). A replay of a chain that DID settle is not an error at all: it answers `200` with that settlement. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
@@ -1236,6 +1263,7 @@ members it does not recognise.
 | `quota_exceeded` | 429 | A rate or volume quota the OPERATOR enforces is exhausted -- e.g. a cap on how many KYC verifications one principal may have open at once. The engine never raises it: an operator emits it from its own handler when it meters something, and it is the one refusal in this table that means "come back later" rather than "no". |
 | `action_failed` | 500 | An operator-registered action raised. |
 | `internal_error` | 500 | Catch-all server error. |
+| `module_not_served` | 501 | **This operator does not serve the OPTIONAL MODULE the request reaches** (Section 16.1 item 7) -- account binding (Section 6), payment (Section 11) or KYC (Section 12). The URL is published and correct; there is simply no such capability here. `detail` names the module. Nothing the caller can change makes this request succeed, so the AI assistant **MUST NOT** retry it and **MUST NOT** treat it as a transient server fault: it falls back to whatever the module was for -- plain registration instead of binding, a human hand-off instead of a `pay`. See below for why this is 501 and not 404. |
 
 **Three codes share HTTP 402, and only two of them are gates.** `pow_required` and
 `payment_setup_required` name a gate the caller can clear, and each carries the
@@ -1255,9 +1283,61 @@ the payment method via `payment_setup` and the call may be retried) and an
 the order's paid state through the operator's own queries before retrying, so a
 lost response cannot double-charge).
 
+**Three codes answer "it is not here", and they are three different facts.**
+Until 0.4 they were one code, and an AI assistant that got `not_found` for a
+hotel nobody has could not tell it from `not_found` for a verb nobody
+registered: it re-read the catalogue and retried, which is the right move for
+one of them and a wasted round trip plus a wrong report to its human for the
+other. `code` is the field this specification tells an AI assistant to branch
+on, so the branch has to be IN the code and not in `hint`, which is prose.
+
+- **`verb_not_found`** -- the NAME of the call is unknown here. Re-read
+  `GET <endpoint>/schema` and call something that exists.
+- **`not_found`** -- the call is real and the THING IT ADDRESSED is absent.
+  Stop; tell the human it is not there.
+- **`module_not_served`** -- the whole CAPABILITY is absent from this operator.
+  Stop; fall back to what you would do at an operator that never offered it.
+
+`verb_not_found` and `not_found` share HTTP 404 deliberately. Both are honest
+404s -- in one the target resource is the verb's own path, in the other it is
+the entity an argument addressed -- and the vocabulary already carries four
+codes at 403 and three at 402 for exactly this reason: the status says how the
+response is handled by generic HTTP machinery, and the `code` says what
+happened. A client that branches on the status alone cannot tell these two
+apart, and this specification has never allowed it to.
+
+**Why `module_not_served` is 501 and not 404.** A 404 would say the URL is not
+there, and the URL IS there: Section 4.3 requires every conformant operator to
+publish all six auth URLs whether or not it serves the binding module, and the
+`pay` and KYC paths are equally published. Answering 404 at a URL the
+operator's own discovery document advertises is a false statement about that
+URL -- and it would put all three of the situations above back on one status,
+recreating at the status layer the ambiguity the split just removed. No 4xx
+means what is meant here: `403 forbidden` is identity-scoped ("authenticated,
+but this identity may not do this") while this refusal is ORIGIN-WIDE and true
+of every caller including an anonymous one; `410 Gone` asserts the capability
+once existed and was withdrawn; `405` is method-scoped. [RFC
+9110](https://www.rfc-editor.org/rfc/rfc9110) Section 15.6.2 defines 501 as
+"the server does not support the functionality required to fulfill the
+request", which is this case exactly, and makes it cacheable by default --
+correct, because this is a stable property of the origin rather than of the
+request. **A recorded trade-off, so it is not rediscovered as a defect:** 5xx
+invites a generic client to retry with backoff, and retrying never helps here.
+That is why the table says an AI assistant **MUST NOT** retry `module_not_served`
+and **MUST NOT** read it as a transient fault; as everywhere else in this
+section, the branch is `code`, not the status class.
+
 The auth endpoints answer the same problem documents; the only exception on the
 wire is the account-binding `/oauth/*` pair, which uses the OAuth error object
-(Section 6.1).
+(Section 6.1) -- with a single carve-out, `module_not_served`. RFC 6749 Section
+5.2, which RFC 8628 Section 3.2 defers to, has no member meaning "this server
+does not offer this endpoint" (`unsupported_grant_type` is a token-endpoint
+error about a grant this server does not implement, not about an absent
+endpoint). An operator that does not serve binding therefore answers
+`501 module_not_served` as an ordinary Kiosk problem document at
+`device_authorization_url` as well as at `claim_url`: a refusal to have a
+device grant at all is not an error WITHIN a device grant, so RFC 8628's error
+object does not govern it.
 
 ### 9.1 Which status a bad argument gets
 
@@ -1825,11 +1905,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
    protocol, cut without a protocol change -- with the pre-1.0 exception of
    point 2: before 1.0 a skill PATCH may also carry a wire change, because the
-   wire itself may change in a PATCH. The current skill is **0.4.11**. Every cut
+   wire itself may change in a PATCH. The current skill is **0.4.12**. Every cut
    before it stays published, immutable and unedited, because live pins
    reference its bytes: the 0.1.1-0.3.11 cuts describe protocol 0.1-0.3 and
-   cannot transact with a 0.4 origin at all, and 0.4.0-0.4.10 describe
-   earlier 0.4 cuts that a 0.4.11 operator no longer serves. Published skill
+   cannot transact with a 0.4 origin at all, and 0.4.0-0.4.11 describe
+   earlier 0.4 cuts that a 0.4.12 operator no longer serves. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
@@ -2011,10 +2091,11 @@ the discovery document, and are absent from `capabilities` for that reason:
 3. **Core -- wire** (Section 8, Section 9): `schema` (GET, UNAUTHENTICATED and
    untolled -- Section 8.3), one endpoint per
    registered verb (GET for a query, POST for an action), the response shape,
-   the problem-document error vocabulary including the `405` + `Allow` answer
+   the problem-document error vocabulary including `404 verb_not_found` for an
+   unregistered name, the `405` + `Allow` answer
    and the bad-argument status rule (Section 9.1) -- `400` for a value outside
-   its domain, `404` for an identifier that addresses nothing, `200` with an
-   empty array for a filter that matched nothing -- the caching rules
+   its domain, `404 not_found` for an identifier that addresses nothing, `200`
+   with an empty array for a filter that matched nothing -- the caching rules
    (Section 3, point 7), the schema self-description format (Section 8.3, and
    the descriptor schema of Section 17), and the three version-handshake
    response headers on every mount-path response (Section 3, point 6).
@@ -2052,7 +2133,12 @@ the discovery document, and are absent from `capabilities` for that reason:
    (Section 6.3). PUBLISHING `device_authorization_url` and `claim_url` is not
    part of this module: the auth block is core discovery (item 1) and carries all
    six URLs on every conformant origin (Section 4.3), whether or not the operator
-   serves what the last two reach.
+   serves what the last two reach. **An operator that does not serve an OPTIONAL
+   module answers `501 module_not_served` at the published paths that module
+   would have served** (Section 9) -- for binding that is the two URLs above, for
+   `pay` and KYC the paths of items 5 and 8. This applies to items 5 to 8: an
+   optional module declined is a published path that says so in the vocabulary,
+   never a 404, never a bare 403, and never silence.
 8. **Module KYC** (Section 12): the attestation endpoint, verifying the
    attestation's issuer, `aud`, `sub`, `exp` and `level` (Section 12.1), plus the
    OPTIONAL named anonymized `attributes` booleans (Section 12.2) and the
@@ -2074,7 +2160,11 @@ be checked against.
 ### 16.2 AI assistant profile
 
 A client is a **Kiosk-compatible AI assistant** when it: branches on the problem document's `code`, never
-the HTTP status alone; pages by following the `Link` `rel="next"` target until
+the HTTP status alone -- and in particular tells the three "it is not here"
+codes of Section 9 apart, re-reading the catalogue on `verb_not_found`,
+reporting the thing absent on `not_found`, and falling back to what it would do
+at an operator that never offered the capability on `module_not_served`, which
+it never retries; pages by following the `Link` `rel="next"` target until
 it is absent, rather than by reading a body field or trusting `X-Total-Count`
 (Section 8.4); reads a verb's `reach` before it reads its rows, treating a
 descriptor that carries none as `principal` and never treating a `published`,
@@ -2208,7 +2298,8 @@ shape for either here would be this document inventing a second one.
 - RFC 8259 -- JSON
 - RFC 8288 -- Web Linking (the `Link` header and `rel="next"`, Section 8.4)
 - RFC 9110 -- HTTP semantics (`405 Method Not Allowed` and its `Allow` header;
-  `400`/`404` and the status rule of Section 9.1)
+  `400`/`404` and the status rule of Section 9.1; `501 Not Implemented`,
+  Section 15.6.2, for `module_not_served`)
 - RFC 9111 -- HTTP caching (Section 3, point 7)
 - RFC 9457 -- Problem Details for HTTP APIs (the error shape, Section 9)
 - RFC 8628 -- OAuth 2.0 Device Authorization Grant

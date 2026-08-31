@@ -2,7 +2,7 @@
   "type": "https://kiosk.tech/problems/not_found",
   "title": "Not found",
   "status": 404,
-  "detail": "unknown query 'listings'",
+  "detail": "no property with id 'prop_99999'",
   "code": "not_found",
-  "hint": "unknown query 'listings'. Available: catalog, slots, orders. Call GET .../schema for the full catalog."
+  "hint": "the verb exists and this id addresses nothing; do not retry -- there is no such property"
 }

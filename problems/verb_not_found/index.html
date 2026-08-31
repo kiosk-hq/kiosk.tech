@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <title>not_found — Kiosk error vocabulary</title>
+  <title>verb_not_found &mdash; Kiosk error vocabulary</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d0d0d;color:#e0e0e0;line-height:1.7;letter-spacing:-0.01em}
@@ -29,40 +29,39 @@
   </style>
 </head>
 <body>
-  <a href="/problems/" class="back">← All Kiosk problem types</a>
+  <a href="/problems/" class="back">&larr; All Kiosk problem types</a>
   <article>
-    <h1>not_found</h1>
-    <p><span class="status">HTTP 404</span> &nbsp; <code>title</code>: Not found</p>
+    <h1>verb_not_found</h1>
+    <p><span class="status">HTTP 404</span> &nbsp; <code>title</code>: No such verb</p>
 
     <h2>What it means</h2>
-    <p><strong>The verb exists and an argument ADDRESSES a resource that does not exist</strong> — an order id, a slot id, a SKU, a <code>property_id</code> no property has, a login for a key nobody registered.</p>
-    <p>The call was well formed and this answer is final: no retry finds it. Distinct from <a href="/problems/verb_not_found/"><code>verb_not_found</code></a>, which is about the NAME of the call rather than about what the call addressed — those two used to be one code, and an assistant could not tell “there is no such hotel” from “there is no such verb”.</p>
-    <p>It is also not the answer to a FILTER that matched nothing: a collection that exists and is empty for your query answers <code>200</code> with an empty array. An empty list here would assert that the addressed resource exists and merely has no rows, which is a different — and false — statement.</p>
+    <p><strong>No verb by that NAME is registered at this operator.</strong> The last segment of the path you dialed matches nothing in this origin&rsquo;s catalogue &mdash; a typo, a name you remembered from a different operator, or a verb that has since been withdrawn.</p>
+    <p>It says nothing about whether the operator can do the thing you wanted. A different verb may well do it, which is why this is a separate code from <code>not_found</code>: that one means the call was real and the thing it <em>addressed</em> is absent.</p>
 
     <h2>What it carries</h2>
     <ul>
-      <li><code>hint</code> — when there is anything useful to say about the id you passed. Often absent: there is nothing to correct.</li>
+      <li><code>hint</code> &mdash; the names that ARE registered for this method, plus a pointer to <code>GET &lt;endpoint&gt;/schema</code>. A mistyped <code>listings</code> for <code>browse_listings</code> self-corrects from the hint alone, with no catalogue round-trip.</li>
     </ul>
 
     <h2>What to do next</h2>
-    <p><strong>Stop, and tell your human the thing is not there.</strong> Do not re-read the catalogue and do not retry — the verb was right, the id was not, and neither will change on a second call.</p>
-    <p>If the verb NAME was the problem you get <a href="/problems/verb_not_found/"><code>verb_not_found</code></a> instead, whose <code>hint</code> lists the names that exist. If the name was right and the method was wrong, you get <a href="/problems/method_not_allowed/"><code>method_not_allowed</code></a>, carrying <code>Allow</code>.</p>
+    <p>Read <code>hint</code>, or re-fetch <code>GET &lt;endpoint&gt;/schema</code> for the live catalogue, and call a name that exists. Do <strong>not</strong> report to your human that the operator cannot do the thing &mdash; you have not established that.</p>
+    <p>If the name was right but the method was wrong &mdash; a <code>GET</code> at an action&rsquo;s path, a <code>POST</code> at a query&rsquo;s &mdash; you get <a href="/problems/method_not_allowed/"><code>method_not_allowed</code></a> instead, carrying <code>Allow</code>. That is the signal the verb exists.</p>
 
     <h2>On the wire</h2>
     <pre><code>{
-  "type":   "https://kiosk.tech/problems/not_found",
-  "title":  "Not found",
+  "type":   "https://kiosk.tech/problems/verb_not_found",
+  "title":  "No such verb",
   "status": 404,
-  "detail": "no property with id 'prop_99999'",
-  "code":   "not_found"
+  "detail": "unknown query 'listings'",
+  "code":   "verb_not_found"
 }</code></pre>
 
     <p class="note">This page documents the RFC 9457 <code>type</code> URI
-      <code>https://kiosk.tech/problems/not_found</code>. The URI is an
+      <code>https://kiosk.tech/problems/verb_not_found</code>. The URI is an
       <strong>identifier</strong>, not a locator a client should fetch: branch on the
-      document’s <code>code</code> member. The normative definition lives in the
+      document&rsquo;s <code>code</code> member. The normative definition lives in the
       <a href="/specification.html#errors">error vocabulary</a> of the
-      <a href="/specification.html">Kiosk specification</a> (§9 of the
+      <a href="/specification.html">Kiosk specification</a> (&sect;9 of the
       <a href="/spec/protocol.md">formal spec</a>).</p>
   </article>
 </body>

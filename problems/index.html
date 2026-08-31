@@ -34,7 +34,7 @@
     <h1 style="font-family:inherit">Kiosk problem types</h1>
   <p>Every error Kiosk puts on the wire is an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document, and its <code>type</code> member is one of the URIs below — <code>https://kiosk.tech/problems/&lt;code&gt;</code>, one per vocabulary entry. These pages are what those URIs dereference to.</p>
   <p><strong>The URI is a name, not the contract.</strong> An AI assistant <strong>MUST</strong> branch on the problem document’s <code>code</code> member and <strong>MUST NOT</strong> parse <code>type</code> to recover it. The normative definition of every code is the <a href="/specification.html#errors">error vocabulary in the specification</a> and <a href="/spec/protocol.md">§9 of the formal spec</a>; these pages restate it for a human who pasted the URI into a browser.</p>
-  <p>The vocabulary is <strong>closed</strong>: these fifteen codes are the whole of it, and a schema-validating client rejects anything else. Adding one is a wire change, and the spec goes first.</p>
+  <p>The vocabulary is <strong>closed</strong>: these seventeen codes are the whole of it, and a schema-validating client rejects anything else. Adding one is a wire change, and the spec goes first.</p>
 
     <table>
       <tr><th>type</th><th>HTTP</th><th>title</th></tr>
@@ -47,12 +47,14 @@
     <tr><td><a href="/problems/rls_denied/"><code>rls_denied</code></a></td><td>403</td><td>Row-level security denied the statement</td></tr>
     <tr><td><a href="/problems/spending_cap_exceeded/"><code>spending_cap_exceeded</code></a></td><td>403</td><td>Spending cap exceeded</td></tr>
     <tr><td><a href="/problems/kyc_required/"><code>kyc_required</code></a></td><td>403</td><td>KYC attestation required</td></tr>
+    <tr><td><a href="/problems/verb_not_found/"><code>verb_not_found</code></a></td><td>404</td><td>No such verb</td></tr>
     <tr><td><a href="/problems/not_found/"><code>not_found</code></a></td><td>404</td><td>Not found</td></tr>
     <tr><td><a href="/problems/method_not_allowed/"><code>method_not_allowed</code></a></td><td>405</td><td>Method not allowed</td></tr>
     <tr><td><a href="/problems/conflict/"><code>conflict</code></a></td><td>409</td><td>State conflict</td></tr>
     <tr><td><a href="/problems/quota_exceeded/"><code>quota_exceeded</code></a></td><td>429</td><td>Quota exceeded</td></tr>
     <tr><td><a href="/problems/action_failed/"><code>action_failed</code></a></td><td>500</td><td>Action failed</td></tr>
     <tr><td><a href="/problems/internal_error/"><code>internal_error</code></a></td><td>500</td><td>Internal error</td></tr>
+    <tr><td><a href="/problems/module_not_served/"><code>module_not_served</code></a></td><td>501</td><td>Module not served</td></tr>
     </table>
   </article>
 </body>

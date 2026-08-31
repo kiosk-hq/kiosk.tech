@@ -1,0 +1,7 @@
+{
+  "type": "https://kiosk.tech/problems/module_not_found",
+  "title": "Module not found",
+  "status": 501,
+  "detail": "the vocabulary is CLOSED: module_not_found is a plausible near-miss for module_not_served and is not a member",
+  "code": "module_not_found"
+}

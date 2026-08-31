@@ -652,6 +652,33 @@ HISTORY_PAGE = "specification.html"
 # so the re-spelling makes the arm's «matches NOTHING» fire (EXIT 1).
 CHAIN_SPAN = /(\d+(?:\.\d+){2,})\s*(?:→|-+>)\s*(\d+(?:\.\d+){2,})/
 
+# R7's ESCAPE, and the only one it has (T-158, K-1280). R7 requires the newest
+# cut to appear at the end of a same-wire chain. That is unsatisfiable BY A TRUE
+# SENTENCE the moment the newest cut OPENS a new wire group, because a chain
+# needs two elements and the two candidates are both wrong: `0.4.12 = 0.4.12` is
+# not a contiguous run of two published cuts and fails R7's own contiguity test
+# (MEASURED), while `0.4.11 = 0.4.12` passes every test R7 has and SAYS THE
+# FALSE THING -- that the cut which changed the wire describes the same wire as
+# the one before it. R7's own failure message tells the author to "REWRITE the
+# note if it opens a new group", and before this pattern existed there was no
+# rewrite that both told the truth and left the gate green.
+#
+# So the reach requirement is satisfied by a chain ending at the newest cut OR
+# by this sentence naming the newest cut, and NOTHING ELSE IS LOOSENED: every
+# chain still has to be a contiguous run of published cuts, and the escape is
+# itself a claim ABOUT THE NEWEST CUT, so it goes stale on the next cut exactly
+# as the chain does. When 0.4.13 joins 0.4.12's group the chain `0.4.12 = 0.4.13`
+# reaches the newest and the escape is not needed; when 0.4.13 opens a group of
+# its own the sentence must name 0.4.13 or R7 fires. Either way a wave that
+# moves nothing comes out red, which is the whole property K-1232 bought.
+#
+# DELIBERATELY NOT IN VACUITY_RULES. The vacuity arm exists for rules that GATE
+# -- a gating pattern with no subject is a gate switched off. This one is an
+# ESCAPE: with no subject anywhere, R7 is simply in full force, which is the
+# safe direction. Requiring it to match would demand this sentence in a
+# repository that has never opened a second wire group.
+NEW_GROUP = /\b(\d+(?:\.\d+){2,})\s+opens\s+a\s+new\s+wire\s+group\b/i
+
 # R9's subject: one cut-table row naming exactly ONE cut, split into its version,
 # its protocol cell and its body. The collapsed range rows («`skill-v0.3.0.md` …
 # `skill-v0.3.11.md`») deliberately do not match: they describe a whole series
@@ -734,13 +761,19 @@ def chain_failures(path, text, ctx)
 
   reach = chains.map { _1.scan(/\d+(?:\.\d+)+/).max_by { |v| version_order(v) } }
                 .max_by { |v| version_order(v) }
-  unless reach == ctx.newest_version
+  # The escape: a cut that OPENS a new wire group cannot end a chain truthfully,
+  # so an explicit sentence naming it satisfies the reach requirement instead.
+  # See NEW_GROUP for why this is not a loosening.
+  opens_new_group = text.scan(NEW_GROUP).flatten.include?(ctx.newest_version)
+  unless reach == ctx.newest_version || opens_new_group
     fails << "#{path}: the furthest a \"same wire\" chain reaches is #{reach}, but the newest cut " \
              "is #{ctx.newest_version} (#{ctx.newest_cut}). This note is the published answer to " \
              "\"can this cut talk to this operator\", so the newest cut must appear in it: extend " \
-             "the chain if #{ctx.newest_version} describes the same wire, and REWRITE the note if " \
-             "it does not — a cut that changes the wire opens a new group, and the sentence around " \
-             "the chain is stale either way. Relinking is PART of a skill change (K-847 rule 2)."
+             "the chain if #{ctx.newest_version} describes the same wire, and if it does NOT, say " \
+             "so in as many words — \"#{ctx.newest_version} opens a new wire group\" — which is the " \
+             "one sentence this rule accepts in place of a chain, because a new group's first cut " \
+             "cannot end one without claiming it is the same wire as its predecessor. Relinking is " \
+             "PART of a skill change (K-847 rule 2)."
   end
 
   [fails, chains.size]
@@ -892,6 +925,15 @@ def prose_failures(path, raw, ctx)
     fails.concat(history_clause_failures(path, clauses, ctx))
   end
 
+  # R10 gets R7's escape, on the same reasoning and TIGHTER (T-158, K-1280).
+  # When the newest cut opens a new wire group, the span describing the group
+  # that just CLOSED truthfully ends one cut short, and demanding it reach the
+  # newest would demand a false sentence. But the escape does not admit any
+  # stale span: the span must end at the cut IMMEDIATELY BEFORE the newest, so a
+  # span left at 0.4.9 while 0.4.12 opens a group is still red. R7 needs no such
+  # bound because its chains are contiguity-checked already.
+  opens_new_group = claim_text.scan(NEW_GROUP).flatten.include?(ctx.newest_version)
+  predecessor     = ctx.all_versions[-2]
   claim_text.scan(CHAIN_SPAN) do |(from, to)|
     claims += 1
     hits |= [:chain_span]
@@ -899,12 +941,14 @@ def prose_failures(path, raw, ctx)
     if !unknown.empty?
       fails << "#{path}: the same-wire span \"#{from} → #{to}\" names #{unknown.join(", ")}, " \
                "which no published cut carries."
-    elsif to != ctx.newest_version
+    elsif to != ctx.newest_version && !(opens_new_group && to == predecessor)
       fails << "#{path}: the same-wire span \"#{from} → #{to}\" stops at #{to}, but the newest " \
                "cut is #{ctx.newest_version} (#{ctx.newest_cut}). A span written this way is the " \
                "same published claim as the \"=\" chain R7 reads — \"these cuts describe one " \
                "wire\" — so it must reach the newest cut: extend it if #{ctx.newest_version} " \
-               "describes that same wire, and REWRITE the sentence if it opens a new group."
+               "describes that same wire, and if it does NOT, say \"#{ctx.newest_version} opens " \
+               "a new wire group\" in the same file and end this span at #{predecessor}, the cut " \
+               "the closing group actually reaches."
     end
   end
 
@@ -1095,6 +1139,23 @@ end
 # — which is the whole of what K-1227 got wrong.
 def self_test_prose_cases
   [
+    # T-158/K-1280: R7's escape. FIXTURE_CUTS' newest is 0.4.10, so a chain that
+    # stops at 0.4.9 is stale — red on its own, green only when the file also
+    # says the newest cut opened a new group, and red again when that sentence
+    # names the WRONG cut. Without the third case the escape would be a phrase
+    # that turns R7 off rather than a claim that goes stale like every other.
+    ["R7 chain short of the newest cut, no new-group sentence",
+     "skills.md", "0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9.", :red],
+    ["R7 chain short of the newest cut, but 0.4.10 opens a new wire group",
+     "skills.md", "0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9, and 0.4.10 opens a new wire group.", :green],
+    ["R7 new-group sentence naming a cut that is NOT the newest",
+     "skills.md", "0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9, and 0.4.9 opens a new wire group.", :red],
+    ["R10 span one cut short with no new-group sentence",
+     "skills.md", "the chain runs 0.4.3 → 0.4.9 only.", :red],
+    ["R10 span ending at the predecessor, with 0.4.10 opening a new wire group",
+     "skills.md", "the chain runs 0.4.3 → 0.4.9 only, because 0.4.10 opens a new wire group.", :green],
+    ["R10 span TWO cuts short even though 0.4.10 opens a new wire group",
+     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.10 opens a new wire group.", :red],
     ["R1 current-skill sentence, stale",
      "spec/protocol.md", "The current skill is **0.4.9**.", :red],
     ["R1 current-skill sentence, at head",

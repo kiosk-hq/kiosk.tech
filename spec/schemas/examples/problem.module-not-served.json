@@ -1,0 +1,8 @@
+{
+  "type": "https://kiosk.tech/problems/module_not_served",
+  "title": "Module not served",
+  "status": 501,
+  "detail": "this operator does not serve account binding",
+  "code": "module_not_served",
+  "hint": "register a fresh assistant account instead (Section 5); retrying this call will never succeed"
+}
