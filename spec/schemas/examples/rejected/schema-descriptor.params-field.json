@@ -1,0 +1,49 @@
+{
+  "queries": [
+    {
+      "name": "catalog",
+      "description": "Browse everything on offer. The whole catalogue comes back in one call, so this is the cheap way to see what exists before narrowing.",
+      "reach": "principal",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      },
+      "output_schema": {
+        "type": "array",
+        "description": "Every item on offer, one row each. Not paginated.",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sku",
+            "name",
+            "price_cents",
+            "currency"
+          ],
+          "properties": {
+            "sku": {
+              "type": "string",
+              "description": "Stable item handle -- reference items by this, never by a numeric id."
+            },
+            "name": {
+              "type": "string",
+              "description": "Display name."
+            },
+            "price_cents": {
+              "type": "integer",
+              "description": "EUR cents."
+            },
+            "currency": {
+              "type": "string",
+              "description": "eur."
+            }
+          }
+        }
+      },
+      "params": null
+    }
+  ],
+  "actions": []
+}

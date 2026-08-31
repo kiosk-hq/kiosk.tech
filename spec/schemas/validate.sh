@@ -123,6 +123,20 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # accepted sibling's first query with that one word substituted, so nothing but
 # the enum can be what fails it.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.bad-reach.json
+# K-1275: `params` is WITHDRAWN, and until this line the withdrawal was prose
+# only. T-085 deleted the property declaration, and deleting a declaration from
+# an OPEN object does not forbid the key -- it unconstrains it. Measured then and
+# re-measured when this fixture landed: `"params": null` validated at exit 0 with
+# the property gone, and the wave LOOSENED the document by one step, because while
+# the property was declared `["object","null"]` a `"params": 42` was refused and
+# afterwards it was not. The remedy is deliberately the narrowest one that closes
+# it -- `{"not": {}}`, the object spelling of the `false` schema, on that one key
+# -- rather than `additionalProperties: false` on the whole descriptor, which
+# would also refuse operator-defined members no prose surface has ever forbidden
+# (unsettled; K-1278). This example is the accepted sibling's first query with the
+# withdrawn key added back at the only value a 0.3 origin ever published, so
+# nothing but that key can be what fails it.
+chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.params-field.json
 # K-839: `indices` items are u64. The description said so from the start; only
 # the bound makes the schema REFUSE what a conforming verifier refuses.
 # `pack("Q<")` truncates mod 2**64, so without the upper bound `idx` and
