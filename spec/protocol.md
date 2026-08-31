@@ -1467,11 +1467,31 @@ agree with EACH OTHER, never whether either value names anything, so `""` on the
 intent, the cart and the payment passes every one of them, reaches the PSP as the
 currency of a real charge, and becomes the key the spent-to-date tally of
 Section 11.5 is scoped by. Presence was the whole check in the reference until
-2026-08-30, and presence is not the constraint. **This document does not close the
-domain further:** which spellings of a code an operator accepts, and whether it
-compares them case-insensitively under Section 11.2, is the operator's own rule and
-is not stated here. What is NOT left open is the consequence of accepting more than
-one spelling -- Section 11.5 states it, because it is where the money is counted.
+2026-08-30, and presence is not the constraint.
+
+**And the DOMAIN is closed, on ISO 4217 alpha-3.** `currency` **MUST** be an ISO
+4217 **alpha-3** code, and an operator **MUST** reject a mandate whose `currency`
+is not three ASCII letters -- `"Euro"`, `"US"`, `"978"` and a currency SYMBOL are
+each a refusal. Three boundaries, because each is somewhere a second
+implementation would otherwise have to guess:
+
+- **Alpha-3 only, not numeric-3.** ISO 4217 publishes a three-DIGIT code beside
+  every three-letter one (`978` for the euro). This wire does not accept it. That
+  is narrower than "an ISO 4217 code" read literally, and it is deliberate: the
+  payment providers this chain terminates at take the letters.
+- **Three letters is the operator's MINIMUM refusal, not the whole domain.**
+  Three letters that name no currency (`"xyz"`) satisfy the form. An operator is
+  **NOT** required to carry a list of the world's currencies to be conformant --
+  a conformant operator **MAY** refuse further, and most will, because a payment
+  provider supports a narrower set than ISO 4217 does and refuses the rest one
+  call later. An AI assistant **MUST** therefore be ready for a currency one
+  operator accepts and another refuses, and **MUST NOT** read such a refusal as a
+  defect in the mandate it signed.
+- **Case is not part of the code.** Which spellings of a code an operator accepts,
+  and whether it compares them case-insensitively under Section 11.2, remains the
+  operator's own rule. What is NOT left open is the consequence of accepting more
+  than one spelling -- Section 11.5 states it, because it is where the money is
+  counted.
 
 **And the status for every one of these is `403 forbidden`, not `400`.** An
 absent, zero or negative amount is a value outside its domain, which Section 9.1

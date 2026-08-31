@@ -175,6 +175,20 @@ chkfail validate "${F[@]}" -s "$(ref cartempty "$B/mandates.schema.json#/\$defs/
 # example is the accepted examples/mandate.intent.json with that one value emptied
 # and nothing else changed, so only `minLength` leaving the schema can turn it green.
 chkfail validate "${F[@]}" -s "$(ref intemptycur "$B/mandates.schema.json#/\$defs/intent")" -r mandates.schema.json -d examples/rejected/mandate.intent.empty-currency.json
+# T-159 / K-1252: and a currency NAME is not a currency either. Phil closed the
+# domain on ISO 4217 on 2026-08-31 ("accept iso codes"), so `currency` now carries
+# `pattern: ^[A-Za-z]{3}$` -- three ASCII letters, either case -- and "Euro", "US"
+# and the numeric-3 spelling "978" that ISO 4217 also publishes are all refusals.
+# Until then the reference accepted "Euro", canonicalised it to "euro", signed it
+# into the chain and handed it to the PSP, so the human was told a card had failed
+# when nothing was wrong with the card. Three letters that name no currency still
+# pass, and that is stated in Section 11.1 rather than hidden here: the pattern is
+# the operator's MINIMUM refusal, and no list this repository could ship would do
+# better, because the vendored PSP client documents a server-side supported set and
+# enumerates nothing. This example is the accepted examples/mandate.intent.json
+# with that one value replaced by the name of the same currency and nothing else
+# changed, so only the `pattern` leaving the schema can turn it green.
+chkfail validate "${F[@]}" -s "$(ref intcurname "$B/mandates.schema.json#/\$defs/intent")" -r mandates.schema.json -d examples/rejected/mandate.intent.currency-name.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
 # K-842: `header_nonce` is a u32 and was an unbounded integer, so the schema
