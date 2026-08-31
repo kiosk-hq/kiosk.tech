@@ -4,7 +4,6 @@
       "name": "catalog",
       "description": "Browse everything on offer. The whole catalogue comes back in one call, so this is the cheap way to see what exists before narrowing.",
       "reach": "principal",
-      "params": null,
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -48,7 +47,6 @@
       "name": "search_hotels",
       "description": "Find hotels matching what the human actually asked for; narrow with the filters this verb declares rather than pulling the whole catalogue. A row is a SUMMARY of one property, priced at its cheapest nightly rate and not at a total for the stay. The result is one PAGE of the matching set: when more hotels match, the response carries a `Link` header with rel=\"next\" -- follow it, because stopping at the first page answers from a partial list. `limit` and `cursor` are reserved parameter names this verb deliberately does not declare (Section 8.1 item 6); the wire accepts them anyway.",
       "reach": "principal",
-      "params": null,
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -120,7 +118,6 @@
       "name": "browse_listings",
       "description": "Browse the classifieds board across ALL sellers -- this is the open board, not the caller's own corner of it. The rows carry an owner and this operator publishes them to every principal ON PURPOSE, which is what `reach: published` says; a seller is named by an opaque, stable pseudonym and never by an address.",
       "reach": "published",
-      "params": null,
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -229,7 +226,6 @@
       "name": "payment_setup",
       "description": null,
       "reach": "principal",
-      "params": null,
       "input_schema": {
         "type": "object",
         "additionalProperties": false,

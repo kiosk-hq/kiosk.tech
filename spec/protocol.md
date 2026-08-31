@@ -1027,14 +1027,16 @@ NOT** also appear in `actions`, since `GET` and `POST` at that path would
 otherwise reach two different verbs and the `405` of Section 8.1 could never be
 right for it.
 
-`params` -- a free-form operator-defined hint object (by convention a map of
-parameter name -> type-hint string) or `null` -- is **RETIRED**. It was never a
-validation contract (the operator validates arguments server-side), and it is no
-longer the input contract either. A descriptor SHOULD publish `params: null` and
-MAY omit the key; the slot stays on the wire so descriptors written before the
-retirement remain valid. An AI assistant MUST prefer `input_schema` wherever one
-is published, and MAY fall back to reading a non-null `params` as a prose hint
-only for a verb that publishes none.
+`params` -- the free-form operator-defined hint object (by convention a map of
+parameter name -> type-hint string) that descriptors carried through 0.3 -- is
+**GONE from the wire**. It was never a validation contract (the operator
+validates arguments server-side), ADR-0023 retired it as the input contract, and
+0.4 now removes the key rather than carry a slot whose only remaining legal
+value was `null`. A descriptor **MUST NOT** publish it, and an AI assistant
+reads a verb's inputs from `input_schema` alone -- **REQUIRED** on every verb
+(below), so nothing is left for a hint to stand in for. The withdrawal happens
+here because it can: before 1.0 a PATCH may change the wire (Section 14.2), and
+after 1.0 a published slot could only be deprecated, never removed.
 
 `reach` -- **REQUIRED** -- is the verb's answer to "whose rows may this touch?",
 and it is `principal`, `published`, `consented` or `role` (Section 7.2).
@@ -1054,7 +1056,7 @@ carry two examples:
 - `input_schema` (**REQUIRED**) -- a JSON Schema (draft 2020-12) for that
   verb's INPUTS (names, required/optional, types, enums, ranges). It is the
   AUTHORITATIVE input contract: the one place a parameter name is declared, and
-  it wins over a `params` hint or a `description` sentence that disagrees with
+  it wins over a `description` sentence that disagrees with
   it. A verb that takes NO arguments still declares the closed empty object
   `{"type": "object", "additionalProperties": false, "properties": {},
   "required": []}` -- "this verb takes nothing" is then a published fact rather
@@ -1803,11 +1805,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
    protocol, cut without a protocol change -- with the pre-1.0 exception of
    point 2: before 1.0 a skill PATCH may also carry a wire change, because the
-   wire itself may change in a PATCH. The current skill is **0.4.10**. Every cut
+   wire itself may change in a PATCH. The current skill is **0.4.11**. Every cut
    before it stays published, immutable and unedited, because live pins
    reference its bytes: the 0.1.1-0.3.11 cuts describe protocol 0.1-0.3 and
-   cannot transact with a 0.4 origin at all, and 0.4.0-0.4.9 describe
-   earlier 0.4 cuts that a 0.4.10 operator no longer serves. Published skill
+   cannot transact with a 0.4 origin at all, and 0.4.0-0.4.10 describe
+   earlier 0.4 cuts that a 0.4.11 operator no longer serves. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
@@ -1911,8 +1913,7 @@ The operator-authored strings an AI assistant reads are, for this protocol:
 
 - **the catalog** (Section 8.3) -- a verb's `description`; every `title`,
   `description`, `$comment`, `default` and `enum` member inside its
-  `input_schema` and `output_schema`; `example_params` and `example_row`; and a
-  non-null `params` hint on a descriptor written before the retirement;
+  `input_schema` and `output_schema`; and `example_params` and `example_row`;
 - **the discovery document** (Section 4.1) -- `owner` and `min_client`;
 - **a problem document** (Section 9) -- `title`, `detail`, `hint`, and any
   extension member the operator adds;

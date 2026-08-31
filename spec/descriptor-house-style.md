@@ -2,15 +2,14 @@
 
 **Companion to** the formal specification's Section 8.3 (the `schema` verb) --
 <https://kiosk.tech/spec/protocol.md>. A descriptor carries `description`,
-`input_schema`, `output_schema`, `example_params` and `example_row` (plus, on
-descriptors written before its retirement, a free-text `params` hint); this
-document says how to write them WELL -- and tells you not to write the last one
--- so a cold AI assistant can drive your origin from the `schema` catalog
-alone, with no hardcoded knowledge and no call-and-observe probing.
+`input_schema`, `output_schema`, `example_params` and `example_row`; this
+document says how to write them WELL, so a cold AI assistant can drive your
+origin from the `schema` catalog alone, with no hardcoded knowledge and no
+call-and-observe probing.
 
 **What the PROTOCOL requires, and what this guide adds.** Section 8.3 makes
 `description`, `input_schema` and `output_schema` REQUIRED on every verb, and
-`params` RETIRED; Section 8.1 fixes how a query's arguments travel and which
+the 0.3 `params` hint GONE; Section 8.1 fixes how a query's arguments travel and which
 argument names a verb may never declare; Section 8.2 fixes the answer shape.
 Those are wire contract, and this page restates them only so it can be read on
 its own -- where a rule below is normative it says so and cites its section.
@@ -254,19 +253,20 @@ falls back to the caller's own rows for a role that was not granted the reach.
 If you find yourself reaching for a fifth value, the verb probably wants
 splitting into two -- one scoped, one declared.
 
-### 4. `params` -- do not write one
+### 4. `params` -- there is no such field
 
-The free-text `params` name-to-hint hash is **RETIRED by the protocol**
+The free-text `params` name-to-hint hash is **GONE from the wire**
 (Section 8.3), not merely discouraged here. What a hint used to say is either a constraint -- it belongs in `input_schema` -- or a
 meaning -- it belongs in `description`; there is no third thing, and a second
 place to state a name is exactly what drifts away from the handler. The
 controller mixin ships no macro for it, so in the declared shape there is
 nothing you could write.
 
-The wire slot still exists for descriptors written before this rule: a
-descriptor declared without a `params` hint publishes `"params": null`, which
-the descriptor schema accepts -- it no longer requires the field at all, so a
-descriptor that omits the key entirely is equally valid. Leave it null.
+Nor is there a slot to leave null any more. Through 0.3 the key survived on
+every descriptor carrying the one value it was still allowed -- `null` -- and
+0.4 withdrew it; the descriptor schema no longer declares it and a conformant
+descriptor does not publish it. If you are porting a 0.3 descriptor, delete the
+key rather than nulling it.
 
 ### 5. `example_params` -- a copyable starting call
 
@@ -470,8 +470,8 @@ Before shipping a query or an action, confirm:
       authorises it (`published` / `consented` / `role`), `consented` is
       preferred wherever it is true, and no `published` row carries an
       identifier your accounts authenticate with.
-- [ ] No `params` hint hash -- every param name appears in `input_schema` and
-      nowhere else.
+- [ ] No `params` key at all -- the field is gone from the wire, and every
+      param name appears in `input_schema` and nowhere else.
 - [ ] Nothing in `description`, a per-property `description`, an `enum` member
       or an error `hint` addresses the ASSISTANT's own policy, its human, or a
       protocol gate -- these fields describe YOUR SERVICE (Section 15.9).

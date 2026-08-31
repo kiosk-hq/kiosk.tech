@@ -25,7 +25,7 @@
       "claim_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/claim"
     },
     "skill": {
-      "url": "https://kiosk.tech/skill-v0.4.10.md",
+      "url": "https://kiosk.tech/skill-v0.4.11.md",
       "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     }
   }
