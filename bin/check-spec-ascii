@@ -1,0 +1,595 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# check-spec-ascii -- the formal spec is pure ASCII, asked LOCALLY (K-1279).
+#
+# THE RULE IS OLD; WHAT IS NEW IS THAT ANYTHING OUTSIDE CI CAN ASK IT.
+# `spec/` -- protocol.md, the JSON Schemas and their example payloads -- is an
+# RFC-style contract for adopters and porters, and it is published as bytes
+# other people round-trip. So it may contain no byte above 0x7F, and every file
+# in it must decode as UTF-8 (which, given the first half, means US-ASCII).
+#
+# WHY THIS FILE EXISTS RATHER THAN THE RULE JUST LIVING IN THE WORKFLOW. The
+# rule shipped as one inline `grep` step inside `.github/workflows/spec-schemas.yml`
+# and nowhere else. That step is path-filtered on `spec/**`, so it fires ONLY on
+# a push, and this repository is pushed in bursts: the class went red twice, and
+# the second time (K-1279) three characters sat at head for fifteen commits with
+# every local gate in the workspace at exit 0. A rule that a session cannot run
+# is a rule that is checked on publication day.
+#
+# AND IT COULD NOT SIMPLY BE TYPED BY HAND EITHER, which is the half that made
+# the CI-only home actively dangerous rather than merely inconvenient:
+#
+#   * The workflow's spelling is a GNU `grep -rlP` over a PCRE byte class. `-P`
+#     is a GNU extension; BSD `grep` -- what a macOS checkout has -- does not take
+#     it, and `\x` is not a BRE escape there either. So the hand-run of the CI
+#     line is not a weaker check, it is a DIFFERENT one, and its clean answer
+#     means nothing at all.
+#   * An interactive `grep` in this project's development shell is not `grep(1)`
+#     but a wrapper that honours `.gitignore` and skips files it decides are
+#     binary. Both exemptions are invisible in the output, and the second is
+#     exactly wrong here: a file with a NUL in it is still published bytes.
+#
+# So this guard does NOT reproduce the CI line's implementation. It reproduces
+# its INTENT with a method that cannot be defeated by any of the above: it walks
+# every byte of every file itself, in Ruby, with no pattern engine and no
+# file-type guessing anywhere in the path.
+#
+# THE FILE SET, stated because a local guard that checks a different set than CI
+# hands out a green that means nothing. CI runs its grep over a fresh
+# `actions/checkout`, whose working tree is exactly the tracked files at that
+# commit. This guard's set is `git ls-files -- spec` in the repository it lives
+# in, read from the WORKING TREE. On a clean tree the two sets are identical --
+# measured at the commit that introduced this file, 59 files either way. The two
+# deliberate differences:
+#
+#   * An UNTRACKED file under `spec/` is not checked, because CI cannot see one
+#     either. It is COUNTED AND NAMED in a note line, so the "green locally, red
+#     in CI the moment I `git add` it" surprise is visible before the add rather
+#     than after the push.
+#   * A file that is tracked but absent from the working tree (deleted, not yet
+#     staged) is counted and named the same way. CI would read the committed
+#     bytes; this run has none to read, and saying so is better than silently
+#     shrinking the file set.
+#
+# WHAT IS CHECKED -- two arms, both bans, both over the same set:
+#
+#   ASCII  No file may contain a codepoint above U+007F. Reported by path, line,
+#          column, codepoint and, where it is one of the usual offenders, the
+#          ASCII spelling to write instead.
+#   UTF8   Every file must decode as UTF-8. This is a separate arm because an
+#          undecodable file is a separate defect and, more to the point, because
+#          a naive walker CRASHES on one. A byte sequence that is not UTF-8 is
+#          reported by offset with its hex context and reddens the run.
+#
+# THE VACUITY QUESTION, and its answer is not the usual one. Every other guard in
+# this workspace that carries a self-test asserts that its patterns still MATCH
+# something in the live tree, because those guards look for a required shape and
+# a pattern matching nothing is coverage that has silently lapsed. This guard is
+# the opposite kind: it is a BAN, and a ban whose violations match nothing is the
+# ban being OBEYED. Demanding a live subject here would demand the defect. So
+# liveness is asserted on the MECHANISM instead:
+#
+#   * The walk must REACH files. `FILE_FLOOR` below is a floor on the size of the
+#     file set, and a run that finds fewer says so and exits 1 rather than
+#     announcing a clean spec. An empty or near-empty set is what a wrong
+#     pathspec, a wrong working directory or a moved checkout produces, and it is
+#     indistinguishable from a clean tree by exit code alone.
+#   * A planted violation of each arm must be CAUGHT, which is what the
+#     `--self-test` fixtures do -- including one planted in a file with NUL bytes
+#     in it and one planted in a file `.gitignore` names, the two shapes the tools
+#     this guard replaces drop without saying so.
+#
+# THIS FILE IS ITSELF PURE ASCII, deliberately, although it lives in `bin/` and
+# is therefore outside its own file set -- the self-test's planted characters are
+# written as `\u` escapes for that reason. So is everything it prints: a finding
+# renders the offending line with every non-ASCII character replaced by
+# `<U+XXXX>`, so the report of an encoding problem can never itself be an
+# encoding problem in somebody's log.
+#
+# WHY NOT AN ARM OF AN EXISTING GUARD, since this repository has three and adding
+# a fourth script needs an argument:
+#
+#   * `bin/check-publication-paths` is the closest structural fit -- a line-level
+#     content ban over `git ls-files`, with a self-test harness already built.
+#     It is also BYTE-IDENTICAL in both published repositories by construction
+#     (it re-digests itself against a recorded twin digest), and the sibling
+#     repository has a `spec/` directory of its own holding conformance manifests
+#     with 1574 non-ASCII characters in them. An ASCII-over-`spec/` arm there is
+#     red in the twin the day it is written. Measured, not assumed.
+#   * `bin/check-problem-pages` compares the error vocabulary against the
+#     published problem pages, has no self-test harness at all, and shares
+#     neither subject nor file set.
+#   * `bin/check-skill-immutability` is about published skill cuts.
+#
+# And the deciding argument is not really about fit. The DEFECT was that the rule
+# had two homes with one implementation between them; the repair is one
+# implementation with the workflow CALLING it, so CI and a local session can no
+# longer disagree about the file set, the method or the message. That only works
+# if the thing CI calls is a script.
+#
+# Stdlib only: no bundle, no services, no network. It reads files and shells out
+# to `git ls-files`. It writes nothing, anywhere. Usage:
+#
+#   bin/check-spec-ascii              # exit 0 = pure ASCII, 1 = a violation
+#   bin/check-spec-ascii --self-test  # prove it reddens on a plant of each arm
+#   bin/check-spec-ascii --list       # print the file set and byte count, check nothing
+
+require "open3"
+require "tmpdir"
+require "fileutils"
+require "rbconfig"
+
+# Realpath first: the self-test runs a COPY of this file out of a temporary
+# directory, and on macOS that path is under a symlink, so an `__dir__`-based
+# expand_path computes a root that never matches and switches the scan off.
+SELF_PATH = File.realpath(__FILE__)
+REPO      = File.dirname(File.dirname(SELF_PATH))
+SUBTREE   = "spec"
+
+# See "THE VACUITY QUESTION" above. 59 files are tracked under `spec/` at the
+# commit that introduced this guard; 40 is far below any legitimate shrink and
+# far above the 0 or 1 that a broken pathspec produces.
+FILE_FLOOR = 40
+
+# The usual offenders, with the ASCII spelling the rest of `spec/` already uses.
+# This table is a convenience for the repair message and NOT the rule: the rule
+# is every codepoint above U+007F, and one that is not in this table is reported
+# just the same, with no suggestion.
+REPAIRS = {
+  0x00A0 => ["NO-BREAK SPACE",                    "a plain space"],
+  0x00A7 => ["SECTION SIGN",                      "the word `Section`"],
+  0x00AB => ["LEFT DOUBLE ANGLE QUOTATION MARK",  "a plain `\"`"],
+  0x00B7 => ["MIDDLE DOT",                        "`*` or `.`"],
+  0x00BB => ["RIGHT DOUBLE ANGLE QUOTATION MARK", "a plain `\"`"],
+  0x00D7 => ["MULTIPLICATION SIGN",               "`x`"],
+  0x2013 => ["EN DASH",                           "`-`"],
+  0x2014 => ["EM DASH",                           "`--`"],
+  0x2018 => ["LEFT SINGLE QUOTATION MARK",        "`'`"],
+  0x2019 => ["RIGHT SINGLE QUOTATION MARK",       "`'`"],
+  0x201C => ["LEFT DOUBLE QUOTATION MARK",        "`\"`"],
+  0x201D => ["RIGHT DOUBLE QUOTATION MARK",       "`\"`"],
+  0x2022 => ["BULLET",                            "`*`"],
+  0x2026 => ["HORIZONTAL ELLIPSIS",               "`...`"],
+  0x2192 => ["RIGHTWARDS ARROW",                  "`->`"],
+  0x2500 => ["BOX DRAWINGS LIGHT HORIZONTAL",     "`-`"],
+  0x2550 => ["BOX DRAWINGS DOUBLE HORIZONTAL",    "`=`"],
+  0xFFFD => ["REPLACEMENT CHARACTER",             "the character that was lost; this is a decoding " \
+                                                  "accident, not a typo"],
+}.freeze
+
+MAX_PER_FILE = 3
+MAX_PRINTED  = 40
+
+# -- the walk ----------------------------------------------------------------
+
+# Renders a line so the REPORT is ASCII whatever the line was. Every character
+# above U+007F becomes `<U+XXXX>`; a byte that is not part of a valid sequence
+# becomes `<0xNN>`.
+def ascii_render(str)
+  out = +""
+  str.each_char do |ch|
+    out << if !ch.valid_encoding?
+             ch.bytes.map { |b| format("<0x%02X>", b) }.join
+           elsif ch.ord > 0x7F
+             format("<U+%04X>", ch.ord)
+           elsif ch.ord == 9
+             "\t"
+           elsif ch.ord < 32
+             format("<0x%02X>", ch.ord)
+           else
+             ch
+           end
+  end
+  out
+end
+
+def tracked_files(repo)
+  out, err, st = Open3.capture3("git", "-C", repo, "ls-files", "-z", "--", SUBTREE)
+  unless st.success?
+    warn "check-spec-ascii: `git ls-files -- #{SUBTREE}` failed in #{repo}: #{err.strip}"
+    return nil
+  end
+  out.split("\0").reject(&:empty?).sort
+end
+
+# Byte offset of the first byte that is not part of a valid UTF-8 sequence.
+# Ruby's own decoder does the deciding: `each_char` over an invalid string yields
+# the offending bytes as characters that answer `valid_encoding?` false, so this
+# needs no hand-rolled UTF-8 table to get wrong.
+def first_invalid_offset(data)
+  off = 0
+  data.dup.force_encoding(Encoding::UTF_8).each_char do |ch|
+    return off unless ch.valid_encoding?
+
+    off += ch.bytesize
+  end
+  0
+end
+
+# Walks one file's bytes. Returns [kind, payload, bytesize].
+def walk_file(rel, abs)
+  data = File.binread(abs)
+  return [:ok, [], data.bytesize] if data.each_byte.none? { |b| b > 0x7F }
+
+  text = data.dup.force_encoding(Encoding::UTF_8)
+  unless text.valid_encoding?
+    offset = first_invalid_offset(data)
+    ctx    = data.byteslice([offset - 4, 0].max, 9).to_s.bytes.map { |b| format("%02x", b) }.join(" ")
+    return [:badutf8, { rel: rel, offset: offset, byte: data.getbyte(offset), context: ctx },
+            data.bytesize]
+  end
+
+  hits = []
+  text.each_line.with_index(1) do |line, lineno|
+    col = 0
+    line.each_char do |ch|
+      col += 1
+      next unless ch.ord > 0x7F
+
+      hits << { rel: rel, line: lineno, col: col, cp: ch.ord,
+                bytes: ch.bytes.map { |b| format("%02x", b) }.join(" "),
+                text: line.chomp }
+    end
+  end
+  [:ok, hits, data.bytesize]
+end
+
+Scan = Struct.new(:files, :bytes, :hits, :badutf8, :untracked, :missing, :fatal)
+
+def scan(repo)
+  dir = File.join(repo, SUBTREE)
+  unless File.directory?(dir)
+    return Scan.new(0, 0, [], [], [], [],
+                    "there is no `#{SUBTREE}/` directory in #{repo}. The formal spec is the whole " \
+                    "subject of this guard, so its absence is a moved checkout, not a clean tree.")
+  end
+
+  rels = tracked_files(repo)
+  return Scan.new(0, 0, [], [], [], [], "`git ls-files` failed in #{repo}") if rels.nil?
+
+  files = 0
+  bytes = 0
+  hits  = []
+  bad   = []
+  missing = []
+
+  rels.each do |rel|
+    abs = File.join(repo, rel)
+    unless File.file?(abs)
+      missing << rel
+      next
+    end
+
+    kind, payload, size = walk_file(rel, abs)
+    files += 1
+    bytes += size.to_i
+    kind == :badutf8 ? bad << payload : hits.concat(payload)
+  end
+
+  out, _err, st = Open3.capture3("git", "-C", repo, "ls-files", "-z", "--others",
+                                 "--exclude-standard", "--", SUBTREE)
+  untracked = st.success? ? out.split("\0").reject(&:empty?).sort : []
+
+  Scan.new(files, bytes, hits, bad, untracked, missing, nil)
+end
+
+# -- reporting ---------------------------------------------------------------
+
+def report(scanned, quiet: false)
+  say = ->(line) { puts line unless quiet }
+
+  if scanned.fatal
+    problems = [["MECHANISM", scanned.fatal]]
+    return emit_failures(problems)
+  end
+
+  say.call("check-spec-ascii: walked #{scanned.files} tracked file(s) / #{scanned.bytes} byte(s) " \
+           "under `#{SUBTREE}/` in #{REPO}, byte by byte (git ls-files; no pattern engine, no " \
+           "binary detection, floor #{FILE_FLOOR}).")
+
+  unless scanned.untracked.empty?
+    say.call("  note: #{scanned.untracked.length} UNTRACKED file(s) under `#{SUBTREE}/` were NOT " \
+             "checked, because a CI checkout cannot see one either. They join the file set the " \
+             "moment they are staged: #{scanned.untracked.first(10).join(', ')}")
+  end
+  unless scanned.missing.empty?
+    say.call("  note: #{scanned.missing.length} tracked file(s) are absent from the working tree and " \
+             "were NOT read; CI would read their committed bytes: " \
+             "#{scanned.missing.first(10).join(', ')}")
+  end
+
+  problems = []
+
+  if scanned.files < FILE_FLOOR
+    problems << ["MECHANISM",
+                 "the walk reached #{scanned.files} file(s) under `#{SUBTREE}/`, below the floor of " \
+                 "#{FILE_FLOOR}. An empty or near-empty file set passes every content rule it " \
+                 "carries and reads exactly like a clean spec, so it is reported as a failure of " \
+                 "this guard rather than as a pass. Either the checkout moved, or `#{SUBTREE}/` " \
+                 "genuinely shrank -- in which case lower FILE_FLOOR in the same commit and say why."]
+  end
+
+  scanned.badutf8.each do |b|
+    problems << ["UTF8",
+                 "#{b[:rel]}: byte #{b[:offset]} (0x#{format('%02x', b[:byte])}) is not valid " \
+                 "UTF-8 -- context #{b[:context]}. The formal spec is published bytes an " \
+                 "implementer round-trips; a file that does not decode has no defensible encoding."]
+  end
+
+  unless scanned.hits.empty?
+    by_file = scanned.hits.group_by { |h| h[:rel] }
+    printed = 0
+    by_file.each do |rel, hits|
+      hits.first(MAX_PER_FILE).each do |h|
+        break if printed >= MAX_PRINTED
+
+        name, repair = REPAIRS[h[:cp]]
+        detail = name ? "#{name}; write #{repair} instead" : "no ASCII spelling suggested -- remove it or spell it out"
+        problems << ["ASCII",
+                     "#{rel}:#{h[:line]}:#{h[:col]}: U+#{format('%04X', h[:cp])} " \
+                     "(utf-8 #{h[:bytes]}) -- #{detail}\n      | #{ascii_render(h[:text])}"]
+        printed += 1
+      end
+      next unless hits.length > MAX_PER_FILE
+
+      problems << ["ASCII", "#{rel}: ... and #{hits.length - MAX_PER_FILE} more non-ASCII " \
+                            "character(s) in this file"]
+    end
+    problems << ["ASCII", "(#{scanned.hits.length} non-ASCII character(s) in #{by_file.length} " \
+                          "file(s) in total)"] if scanned.hits.length > printed
+  end
+
+  if problems.empty?
+    say.call("check-spec-ascii: OK -- `#{SUBTREE}/` is pure ASCII and every file decodes as UTF-8 " \
+             "(#{scanned.files} file(s), #{scanned.bytes} byte(s), 0 characters above U+007F).")
+    return 0
+  end
+
+  emit_failures(problems)
+end
+
+def emit_failures(problems)
+  $stdout.flush
+  warn ""
+  warn "check-spec-ascii: FAIL -- #{problems.length} problem(s) under `#{SUBTREE}/`."
+  problems.each { |arm_id, msg| warn "  [#{arm_id}] #{msg}" }
+  warn ""
+  warn "The formal spec is an RFC-style contract for adopters and porters: it is read, quoted and"
+  warn "round-tripped as bytes, so it carries no encoding surprises. Repair the characters -- do NOT"
+  warn "relax this guard or the workflow step that calls it."
+  1
+end
+
+def run_check(quiet: false)
+  report(scan(REPO), quiet: quiet)
+end
+
+# -- self-test ---------------------------------------------------------------
+#
+# One arm per rule, plus the mechanism-liveness arms this guard has INSTEAD of a
+# "the pattern still matches something" arm (see THE VACUITY QUESTION above).
+# Every arm is a subprocess run of a COPY of this file against a throwaway git
+# repository, so what is proved is the guard as an executable and not a method
+# call inside this process.
+
+def git(dir, *args)
+  _o, e, st = Open3.capture3("git", "-C", dir, *args)
+  raise "git #{args.join(' ')} failed in #{dir}: #{e}" unless st.success?
+end
+
+def build_fixture(dir, file_count)
+  FileUtils.mkdir_p(File.join(dir, "bin"))
+  FileUtils.mkdir_p(File.join(dir, SUBTREE, "schemas", "examples"))
+  FileUtils.cp(SELF_PATH, File.join(dir, "bin", "check-spec-ascii"))
+  FileUtils.chmod(0o755, File.join(dir, "bin", "check-spec-ascii"))
+  file_count.times do |i|
+    File.binwrite(File.join(dir, SUBTREE, "schemas", "examples", format("ok-%03d.json", i)),
+                  "{\n  \"note\": \"plain ASCII, file #{i}\"\n}\n")
+  end
+  git(dir, "init", "-q")
+  git(dir, "add", "-A")
+end
+
+def plant(dir, rel, bytes)
+  path = File.join(dir, rel)
+  FileUtils.mkdir_p(File.dirname(path))
+  File.binwrite(path, bytes)
+end
+
+def run_guard_in(dir)
+  Open3.capture3(RbConfig.ruby, File.join(dir, "bin", "check-spec-ascii"), chdir: dir)
+end
+
+def arm(failures, label)
+  ok, detail = yield
+  if ok
+    puts "  #{label} -- OK"
+  else
+    failures << "#{label}: #{detail}"
+  end
+end
+
+def self_test_ascii_arms(dir, failures)
+  # The two codepoints K-1279 actually shipped, written as escapes so THIS file
+  # stays ASCII. The planted lines deliberately avoid the words the repair
+  # message uses, so an arm cannot pass on its own fixture's text.
+  [["#{SUBTREE}/protocol.md",
+    "Clause 11.2 is normative \u00A7 and this is the offender.\n", 1, 0x00A7, "SECTION SIGN"],
+   ["#{SUBTREE}/schemas/examples/binding.oauth-error.json",
+    "{\n  \"error_description\": \"unknown code \u2014 rejected\"\n}\n", 2, 0x2014, "EM DASH"]].each do |rel, body, lineno, cp, name|
+    plant(dir, rel, body)
+    git(dir, "add", "-A")
+    arm(failures, "ASCII plant U+#{format('%04X', cp)} in #{rel} reddens, by path/line/column") do
+      out, err, st = run_guard_in(dir)
+      c = "#{out}#{err}"
+      if st.exitstatus.zero?      then [false, "the guard stayed green\n#{c}"]
+      elsif !c.include?("#{rel}:#{lineno}:") then [false, "fired but did not name #{rel} with line:column\n#{c}"]
+      elsif !c.include?("U+#{format('%04X', cp)}") then [false, "fired but did not name the codepoint\n#{c}"]
+      elsif !c.include?(name)     then [false, "fired but named no character and no repair\n#{c}"]
+      else [true, nil]
+      end
+    end
+    FileUtils.rm_f(File.join(dir, rel))
+    git(dir, "add", "-A")
+  end
+end
+
+def self_test_blindspot_arms(dir, failures)
+  # The two shapes the tools this guard replaces drop silently.
+  nul_rel = "#{SUBTREE}/schemas/with-nul.bin"
+  plant(dir, nul_rel, "header\x00\x00binary-ish\x00 \u00A7 marker\n")
+  git(dir, "add", "-A")
+  arm(failures, "a file with NUL bytes is still walked (the binary-skip hazard)") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [!st.exitstatus.zero? && c.include?(nul_rel) && c.include?("U+00A7"), "exit #{st.exitstatus}\n#{c}"]
+  end
+  FileUtils.rm_f(File.join(dir, nul_rel))
+  git(dir, "add", "-A")
+
+  ign_rel = "#{SUBTREE}/schemas/generated.json"
+  File.binwrite(File.join(dir, ".gitignore"), "#{ign_rel}\n")
+  plant(dir, ign_rel, "{ \"hint\": \"em dash \u2014 here\" }\n")
+  git(dir, "add", "-A")
+  git(dir, "add", "-f", "--", ign_rel)
+  arm(failures, "a TRACKED file that `.gitignore` also names is still walked") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [!st.exitstatus.zero? && c.include?(ign_rel), "exit #{st.exitstatus}\n#{c}"]
+  end
+  FileUtils.rm_f(File.join(dir, ign_rel))
+  FileUtils.rm_f(File.join(dir, ".gitignore"))
+  git(dir, "add", "-A")
+end
+
+def self_test_utf8_arm(dir, failures)
+  # Valid bytes, not valid UTF-8. The point is that it is CAUGHT and NAMED under
+  # its own arm -- a Ruby backtrace is also a non-zero exit, and would pass a
+  # test that only looked at the code.
+  bad_rel = "#{SUBTREE}/schemas/examples/latin1.json"
+  plant(dir, bad_rel, "{\n  \"hint\": \"caf\xE9 \xC3\x28 not utf-8\"\n}\n".b)
+  git(dir, "add", "-A")
+  arm(failures, "an invalid-UTF-8 file is reported by offset, not crashed on") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    if st.exitstatus.zero?                 then [false, "the guard stayed green\n#{c}"]
+    elsif c.match?(/check-spec-ascii:\d+:in /) then [false, "the guard raised instead of reporting\n#{c}"]
+    elsif !c.include?("[UTF8]") || !c.include?(bad_rel) then [false, "not reported under the UTF8 arm by path\n#{c}"]
+    else [true, nil]
+    end
+  end
+  FileUtils.rm_f(File.join(dir, bad_rel))
+  git(dir, "add", "-A")
+end
+
+def self_test_untracked_arm(dir, failures)
+  # An UNTRACKED violation must NOT redden -- CI cannot see one -- but must be
+  # NAMED, so the file-set choice is a stated one rather than a silent hole.
+  unt_rel = "#{SUBTREE}/scratch-note.md"
+  plant(dir, unt_rel, "a working note with an em dash \u2014 in it\n")
+  arm(failures, "an UNTRACKED violation stays green and is NAMED (CI's set, stated)") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [st.exitstatus.zero? && c.include?(unt_rel) && c.include?("UNTRACKED"), "exit #{st.exitstatus}\n#{c}"]
+  end
+  FileUtils.rm_f(File.join(dir, unt_rel))
+end
+
+def run_self_test
+  failures = []
+
+  Dir.mktmpdir("check-spec-ascii") do |dir|
+    build_fixture(dir, FILE_FLOOR + 5)
+
+    arm(failures, "green fixture tree (#{FILE_FLOOR + 5} ASCII files) exits 0") do
+      out, err, st = run_guard_in(dir)
+      [st.exitstatus.zero?, "exited #{st.exitstatus}\n#{out}#{err}"]
+    end
+
+    self_test_ascii_arms(dir, failures)
+    self_test_blindspot_arms(dir, failures)
+    self_test_utf8_arm(dir, failures)
+    self_test_untracked_arm(dir, failures)
+
+    arm(failures, "the fixture tree returns to exit 0 once every plant is removed") do
+      out, err, st = run_guard_in(dir)
+      [st.exitstatus.zero?, "exited #{st.exitstatus}\n#{out}#{err}"]
+    end
+  end
+
+  # MECHANISM liveness, arm 1: a file set below the floor must FAIL, not pass.
+  Dir.mktmpdir("check-spec-ascii-thin") do |dir|
+    build_fixture(dir, 2)
+    arm(failures, "a `#{SUBTREE}/` of 2 ASCII files (below the floor) FAILS instead of reading clean") do
+      out, err, st = run_guard_in(dir)
+      c = "#{out}#{err}"
+      [!st.exitstatus.zero? && c.include?("[MECHANISM]"), "exit #{st.exitstatus}\n#{c}"]
+    end
+  end
+
+  # MECHANISM liveness, arm 2: no `spec/` at all is a moved checkout, not a pass.
+  Dir.mktmpdir("check-spec-ascii-none") do |dir|
+    build_fixture(dir, 2)
+    FileUtils.rm_rf(File.join(dir, SUBTREE))
+    git(dir, "add", "-A")
+    arm(failures, "no `#{SUBTREE}/` directory at all FAILS instead of reading clean") do
+      out, err, st = run_guard_in(dir)
+      c = "#{out}#{err}"
+      [!st.exitstatus.zero? && c.include?("no `#{SUBTREE}/` directory"), "exit #{st.exitstatus}\n#{c}"]
+    end
+  end
+
+  # MECHANISM liveness, arm 3: over the REAL repository. Reported by number so
+  # non-vacuity can be read off the run rather than believed.
+  scanned = scan(REPO)
+  arm(failures, "the real `#{SUBTREE}/` is non-vacuous (files >= #{FILE_FLOOR}, bytes > 0)") do
+    [scanned.fatal.nil? && scanned.files >= FILE_FLOOR && scanned.bytes.positive?,
+     "walked #{scanned.files} file(s) / #{scanned.bytes} byte(s)#{scanned.fatal ? " -- #{scanned.fatal}" : ''}"]
+  end
+  puts "  real tree: #{scanned.files} tracked file(s), #{scanned.bytes} byte(s) walked"
+
+  arm(failures, "the guard is green over this repository") do
+    code = run_check(quiet: true)
+    [code.zero?, "exit #{code}"]
+  end
+
+  if failures.empty?
+    puts
+    puts "check-spec-ascii --self-test: OK -- red on a planted non-ASCII character (including inside " \
+         "a NUL-carrying file and inside a file `.gitignore` names), red on a file that is not valid " \
+         "UTF-8, red when the walk reaches too few files or no `#{SUBTREE}/` at all, green on an " \
+         "untracked violation it names rather than hides, and non-vacuous over this repository."
+    return 0
+  end
+
+  $stdout.flush
+  warn ""
+  warn "check-spec-ascii --self-test: FAIL -- #{failures.length} arm(s)."
+  failures.each { |f| warn "  #{f}" }
+  1
+end
+
+# -- entry point -------------------------------------------------------------
+
+code =
+  case ARGV[0]
+  when nil then run_check
+  when "--self-test" then run_self_test
+  when "--list"
+    s = scan(REPO)
+    if s.fatal
+      warn "check-spec-ascii: #{s.fatal}"
+      1
+    else
+      puts "check-spec-ascii --list: #{s.files} tracked file(s), #{s.bytes} byte(s) under " \
+           "`#{SUBTREE}/` (floor #{FILE_FLOOR})"
+      tracked_files(REPO).to_a.each { |rel| puts "  #{rel}" }
+      s.untracked.each { |rel| puts "  #{rel}  (untracked -- not checked, see the header)" }
+      0
+    end
+  else
+    warn "usage: check-spec-ascii [--self-test|--list]"
+    2
+  end
+exit code

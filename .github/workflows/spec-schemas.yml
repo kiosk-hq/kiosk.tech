@@ -3,15 +3,28 @@ name: spec-schemas
 # Lints the formal-spec JSON Schemas and validates their example payloads
 # (kiosk.tech/spec/schemas) on every change. Keeps the machine-readable
 # contract honest and consistent with the narrative specification.html.
+#
+# The ASCII rule used to live here as an inline `grep -rlP` and NOWHERE ELSE,
+# and that is what K-1279 was about. A rule with no local spelling can only be
+# asked by a push: it went red twice, and the second time three characters sat
+# at head for fifteen commits while every gate a local session can run was at
+# exit 0. Worse, the inline line could not be reproduced by hand on the machine
+# these files are edited on — `-P` is a GNU extension that BSD grep does not
+# take, so a hand-run answers a different question and answers it clean. The
+# rule now lives in bin/check-spec-ascii, which walks every byte itself, and
+# this workflow CALLS it: one implementation, so CI and a local session cannot
+# disagree about the file set, the method or the message.
 
 on:
   push:
     paths:
       - "spec/**"
+      - "bin/check-spec-ascii"
       - ".github/workflows/spec-schemas.yml"
   pull_request:
     paths:
       - "spec/**"
+      - "bin/check-spec-ascii"
       - ".github/workflows/spec-schemas.yml"
 
 jobs:
@@ -19,15 +32,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      # The runner's preinstalled Ruby. The guard is stdlib-only and shells out
+      # to git; there is no Gemfile and no Ruby toolchain anywhere in this repo,
+      # so pinning a version here would be a version to maintain for no gain.
+      #
+      # The self-test is a step of its own for the reason publication-paths.yml
+      # already records: the failure mode of a scan aimed at the wrong tree is an
+      # EMPTY FILE SET, which exits 0 and reads exactly like a clean spec. The
+      # guard proves it reddens on a planted character, on a file that is not
+      # valid UTF-8, and on a file set that has collapsed, before a green run
+      # from it means anything.
+      - name: The ASCII guard is red on a plant, and non-vacuous here
+        run: ruby bin/check-spec-ascii --self-test
+
       # The formal spec (protocol.md + schemas + examples) MUST be pure ASCII —
       # an RFC-style contract for adopters/porters, no encoding surprises.
       - name: Formal spec is ASCII
-        run: |
-          if grep -rlP '[^\x00-\x7F]' spec/; then
-            echo "::error::Non-ASCII byte(s) found in spec/ — the formal spec must be pure ASCII (see the files above)."
-            exit 1
-          fi
-          echo "spec/ is pure ASCII."
+        run: ruby bin/check-spec-ascii
+
       - uses: actions/setup-node@v7
         with:
           node-version: "20"
