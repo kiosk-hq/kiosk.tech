@@ -1,0 +1,59 @@
+name: derived-counts
+
+# A cardinal typed into a published page must equal the number this repository
+# derives for the thing it counts (K-1281).
+#
+# WHY THIS RUNS IN CI RATHER THAN BEING REMEMBERED. The error vocabulary grew
+# from fifteen members to seventeen and three sentences saying "fifteen" were
+# moved by hand in one wave. Planting a faithful stale count back into
+# problems/index.html -- the public dereference target for every problem `type`
+# URI on the wire -- left the problem-page guard, the publication-paths guard,
+# the skill-immutability guard and the sibling repository's own prose-count
+# guard ALL at exit 0. Four gates, four greens. The sibling's guard was built
+# for exactly this class and its file set is that repository, so nothing here
+# was in any corpus it walks; and no job in that repository's CI checks out this
+# one, so extending it across the workspace would have produced a rule that runs
+# on a laptop and silently no-ops in every CI job.
+#
+# NO PATH FILTER, on purpose, and for the reason publication-paths.yml and
+# skill-immutability.yml each record for themselves: the guard reads EVERY
+# tracked .md/.html/.json, and its sites already span specification.html,
+# onboarding.html, index.html, skills.md's neighbours, spec/protocol.md,
+# problems/**/index.html and three JSON Schemas. A filter would be a list of
+# paths to get subtly wrong, and the one it missed would be the one that ships a
+# number the page below it disproves. It costs ~2 s.
+#
+# Its own workflow rather than a job in spec-schemas.yml: that one is
+# path-filtered on `spec/**` and installs Node and ajv this needs none of, and
+# one invariant deserves one exit code and one name in the checks list.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  derived-counts:
+    name: every held cardinal equals what the tree derives (bin/check-derived-counts)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The runner's preinstalled Ruby. The guard is stdlib-only (json, open3,
+      # tmpdir, fileutils, rbconfig) and shells out to git; there is no Gemfile
+      # and no Ruby toolchain anywhere in this repo, so pinning a version here
+      # would be a version to maintain for no gain.
+      #
+      # The self-test is a step of its own, and it runs FIRST, for the reason
+      # publication-paths.yml records: this guard is regular expressions over
+      # prose, and the way one fails is by matching NOTHING and exiting 0, which
+      # is indistinguishable from a clean repository. It is a DERIVATION check,
+      # not a ban, so a rule with no live subject is a rule holding nothing --
+      # the self-test plants a stale cardinal in every rule, proves each comes
+      # back red naming the file and both numbers, and asserts every rule still
+      # has a live subject here before a green run below means anything.
+      - name: The guard is red on a plant of every rule, and non-vacuous here
+        run: ruby bin/check-derived-counts --self-test
+
+      - name: Every cardinal in a published page equals what this tree derives
+        run: ruby bin/check-derived-counts

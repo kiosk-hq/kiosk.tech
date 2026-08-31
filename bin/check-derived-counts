@@ -1,0 +1,958 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# check-derived-counts -- a cardinal typed into a published page must equal the
+# number THIS repository derives for the thing it counts (K-1281).
+#
+# THE DEFECT, measured rather than argued. A count typed into prose is a claim
+# with no owner: it is true the day it is written and nothing notices when the
+# population moves. On 2026-08-31 the wire's closed error vocabulary grew from
+# fifteen members to seventeen, and three sentences saying "fifteen" were moved
+# by hand in the same wave. To find out whether anything would have noticed, a
+# faithful stale count was planted -- `problems/index.html`'s "these seventeen
+# codes are the whole of it" reverted to "fifteen" -- and every gate that could
+# plausibly see it was run: `bin/check-problem-pages` 0, `bin/check-publication-paths`
+# 0, `bin/check-skill-immutability` 0, and the sibling repository's own
+# prose-count guard 0. Four gates, four greens, on the page that is the public
+# dereference target for every problem `type` URI on the wire. The same plant in
+# `onboarding.html` gave the same four greens.
+#
+# THE CAUSE WAS NOT THAT THE CLASS HAD NO GUARD -- IT WAS THAT THE GUARD COULD
+# NOT REACH. The reference repository has carried a prose-count guard since
+# T-143; its file set is that repository and nothing here is in any corpus it
+# walks. Extending it across the workspace was considered and REJECTED on a
+# measurement: that repository's CI has one workflow file and it contains no
+# `repository:` key at all, so no job in it ever checks out this repository. A
+# cross-repo reach would run on a developer's machine and silently no-op in
+# every CI job -- which is the same "green that means nothing" the plant above
+# already demonstrated, one layer up.
+#
+# WHY A NEW SCRIPT HERE AND NOT AN ARM OF AN EXISTING ONE. Three were weighed
+# and each rejected for a reason that can be checked:
+#
+#   * `bin/check-publication-paths` is BYTE-IDENTICAL in both published
+#     repositories and re-digests itself against a recorded twin digest. Every
+#     derivation below reads a file that exists only here: the sibling has no
+#     `specification.html`, no `problems/` and a `spec/` holding three TSVs.
+#     An arm added there is 100% vacuous in the twin -- and this guard's
+#     liveness rule fails a rule with no live subject, so the twin would be RED
+#     the day it was written. That is K-1279's argument on a new subject.
+#   * `bin/check-problem-pages` is the closest fit -- it already parses the
+#     vocabulary table, so the number is one line from where it is needed -- but
+#     it has NO self-test harness (zero occurrences of the string in it), and its
+#     workflow is path-filtered to `specification.html`, `problems/**` and its
+#     own two files. Sites held below live in `onboarding.html`, `index.html`,
+#     `spec/protocol.md` and `spec/schemas/*.json`, none of which would trigger
+#     it. Widening that filter is "a list of paths to get subtly wrong", which
+#     two workflows in this repository already reject by name.
+#   * `bin/check-skill-immutability` is about published skill cuts.
+#
+# So: a fourth guard with its own unfiltered workflow, the shape K-1279 settled
+# on for the same reason -- the thing CI calls has to be a script if a local
+# session is to ask the identical question.
+#
+# WHAT A RULE IS. A rule names a DERIVATION -- a population this repository can
+# count -- and one or more PATTERNS, each with a single capture group holding a
+# cardinal. Every match anywhere in the gated file set must carry the derived
+# number. The derivation is the single source of truth; the sentence is a copy
+# of it. Nothing here is ever compared to a second typed number, because that
+# moves the defect rather than closing it.
+#
+# THE FILE SET, and the exemptions are decisions rather than oversights:
+#
+#   GATED    tracked `.md`, `.html` and `.json` -- what a reader of this site,
+#            an operator following the onboarding page and an implementer
+#            reading a JSON Schema `description` are shown.
+#   EXEMPT   `skill.md` and every `skill-vX.Y.Z.md`: frozen published artefacts
+#            whose bytes live pins verify. Editing one invalidates the pins,
+#            fail-closed and invisibly, so they may not be repaired and must not
+#            be gated.
+#   EXEMPT   `CHANGELOG.md`: append-only history. An entry records the tree AS
+#            IT WAS -- "the vocabulary grows from fifteen members to seventeen"
+#            is correct forever and gating it would demand a lie.
+#   EXEMPT   `CLAUDE.md`: removed whole at publication; not shipped content.
+#   REPORTED `bin/**`, `.github/**` and `spec/schemas/validate.sh` -- source and
+#            CI comments. K-1281 named this exclusion explicitly: a `#` line is a
+#            note to the next maintainer and is no more a published claim than
+#            one in any other source file. Their cardinals are COUNTED and the
+#            number printed, so the ungated half is a figure on every run rather
+#            than a belief.
+#
+# WHAT THIS CANNOT CATCH, so nothing here is overtrusted:
+#
+#   * A count with no numeral -- "all of them", "both", "each of the above".
+#   * A numeral whose ENUMERATION beside it is wrong: "the four codes -- a, b, c,
+#     d" where d is not one. The count is derived; the list beside it is not.
+#   * A cardinal counting something whose population lives in the OTHER
+#     repository. `onboarding.html` says the install generator emits six
+#     migrations; that number is derivable there and nowhere here, and the
+#     cross-repo reach is the shape rejected above. It is filed rather than
+#     silently gated.
+#   * A split of a population that nothing records: the `/oauth/*` vocabulary is
+#     eight, and the prose splits it six-from-one RFC and two-from-another. No
+#     schema labels which code came from which, so the only source for the split
+#     is a second hand-typed list. Holding it would move the defect.
+#   * A derivation that measures the WRONG population. Consistency, never truth.
+#
+# THE VACUITY QUESTION, and the KIND was chosen first. This is a DERIVATION
+# check, not a ban: a rule exists to hold live sentences to a number, so a rule
+# whose patterns match NOTHING is a rule holding nothing -- and that is exactly
+# how a relink rule one repository over covered no live sentence for its entire
+# existence without anything saying so. Here "the pattern must still match
+# something" is therefore the RIGHT direction, and it is asserted in BOTH places:
+# the bare run fails when any rule has zero live subjects or when a derivation
+# cannot be computed, and `--self-test` re-asserts it over this repository after
+# planting a break in every rule. A sentence that legitimately goes away is a
+# rule that must be deleted in the same commit, with the reason written down.
+#
+# Stdlib only: no bundle, no services, no network. It reads files and shells out
+# to `git ls-files`. It writes nothing outside its own temporary directories.
+#
+#   bin/check-derived-counts              # exit 0 = every held cardinal derives
+#   bin/check-derived-counts --list       # every rule, its number and its sites
+#   bin/check-derived-counts --self-test  # red on a plant of every rule
+
+require "json"
+require "open3"
+require "tmpdir"
+require "fileutils"
+require "rbconfig"
+
+# Realpath first: the self-test runs a COPY of this file out of a temporary
+# directory, and on macOS that path is under a symlink, so an `__dir__`-based
+# expand_path computes a root that never matches and switches the scan off.
+SELF_PATH = File.realpath(__FILE__)
+REPO      = File.dirname(File.dirname(SELF_PATH))
+
+WORD_VALUE = {
+  "zero" => 0, "one" => 1, "two" => 2, "three" => 3, "four" => 4, "five" => 5,
+  "six" => 6, "seven" => 7, "eight" => 8, "nine" => 9, "ten" => 10,
+  "eleven" => 11, "twelve" => 12, "thirteen" => 13, "fourteen" => 14,
+  "fifteen" => 15, "sixteen" => 16, "seventeen" => 17, "eighteen" => 18,
+  "nineteen" => 19, "twenty" => 20, "twenty-one" => 21, "twenty-two" => 22,
+}.freeze
+VALUE_WORD = WORD_VALUE.invert.freeze
+
+# A cardinal as it may be written: an English number word or a small numeral.
+CARD = '([A-Za-z]+(?:-[A-Za-z]+)?|\d{1,3})'
+
+# The floor on the gated file set. How many files are gated TODAY is not written
+# here -- every run prints it, derived from the tree in front of it, because a
+# hand-typed count inside the guard whose whole subject is hand-typed counts is
+# the joke this file exists to stop telling (K-1242). The floor is a floor: far
+# below any legitimate shrink of this site and far above the 0 or 1 a wrong
+# working directory produces.
+FILE_FLOOR = 20
+
+class Blind < StandardError; end
+
+# -- reading -----------------------------------------------------------------
+
+def slurp(rel)
+  path = File.join(REPO, rel)
+  raise Blind, "#{rel} is not in the working tree" unless File.file?(path)
+
+  File.read(path, encoding: "UTF-8")
+end
+
+def json(rel)
+  JSON.parse(slurp(rel))
+rescue JSON::ParserError => e
+  raise Blind, "#{rel} does not parse as JSON: #{e.message}"
+end
+
+def dig!(obj, rel, *path)
+  found = obj.dig(*path)
+  raise Blind, "#{rel} has nothing at #{path.join('/')}; the schema moved" if found.nil?
+
+  found
+end
+
+# Prose as a reader meets it: markup out, one line, so a WRAPPED sentence is one
+# sentence. `spec/protocol.md` wraps at the margin and three of the sites below
+# are split across a newline -- a line-based scan is blind to every one of them.
+def normalise(body)
+  body.gsub(/<[^>]+>/, " ")
+      .gsub(/&nbsp;|&#160;/, " ")
+      .gsub(/&mdash;/, "--")
+      .gsub(/&ldquo;|&rdquo;|&quot;/, '"')
+      .gsub(/[*`]/, "")
+      .gsub(/\\\n/, " ")
+      .gsub(/\s+/, " ")
+end
+
+# -- derivations -------------------------------------------------------------
+#
+# Each returns an Integer counted from a single source of truth in this tree, or
+# raises Blind when that source has moved. Blind is a FAILURE, never a pass: a
+# derivation that cannot be computed is a guard that has gone blind, and a blind
+# guard reads exactly like a clean repository.
+
+SPEC_HTML   = "specification.html"
+BINDING_JSON = "spec/schemas/binding.schema.json"
+DISCOVERY_JSON = "spec/schemas/discovery.schema.json"
+PROBLEM_JSON   = "spec/schemas/problem.schema.json"
+INDEX_HTML  = "index.html"
+ONBOARD_HTML = "onboarding.html"
+
+# The same row shape `bin/check-problem-pages` parses, deliberately: two guards
+# reading the vocabulary two ways is two sources of truth again.
+VOCAB_ROW = %r{<tr><td><code>([a-z_]+)</code></td><td>(\d{3})</td>}.freeze
+
+def vocabulary
+  @vocabulary ||= begin
+    rows = slurp(SPEC_HTML).scan(VOCAB_ROW).to_h { |code, status| [code, status.to_i] }
+    if rows.size < 10
+      raise Blind, "#{SPEC_HTML}: parsed only #{rows.size} vocabulary row(s); the table's markup " \
+                   "changed and every count below is blind"
+    end
+
+    # THE VOCABULARY HAS TWO MACHINE-READABLE SPELLINGS -- the narrative table
+    # above and the formal spec's `code` enum -- and this guard cannot say what
+    # "the tree says" while they disagree. It reads the NARRATIVE one, because
+    # that is normative and it is the one `bin/check-problem-pages` parses, and
+    # it refuses to answer at all when the two are not the same set.
+    enum = dig!(json(PROBLEM_JSON), PROBLEM_JSON, "properties", "code", "enum")
+    only_table = rows.keys - enum
+    only_enum  = enum - rows.keys
+    unless only_table.empty? && only_enum.empty?
+      raise Blind, "the vocabulary has two spellings and they disagree: #{SPEC_HTML}'s table has " \
+                   "#{rows.size} row(s), #{PROBLEM_JSON}'s `code` enum has #{enum.length}" \
+                   "#{only_table.empty? ? '' : "; only in the table: #{only_table.join(', ')}"}" \
+                   "#{only_enum.empty? ? '' : "; only in the enum: #{only_enum.join(', ')}"}. " \
+                   "Every count below derives from the table, so this guard refuses to answer " \
+                   "until one number is the tree's number."
+    end
+    rows
+  end
+end
+
+def vocabulary_at(status)
+  n = vocabulary.count { |_code, s| s == status }
+  raise Blind, "#{SPEC_HTML}: no vocabulary row answers HTTP #{status}" if n.zero?
+
+  n
+end
+
+DERIVATIONS = {
+  "ERROR_VOCAB" => {
+    what: "members of the wire's closed error `code` vocabulary",
+    from: "#{SPEC_HTML} -- rows of the vocabulary table",
+    fn: -> { vocabulary.size },
+  },
+  "VOCAB_AT_403" => {
+    what: "vocabulary members answering HTTP 403",
+    from: "#{SPEC_HTML} -- vocabulary rows whose status column is 403",
+    fn: -> { vocabulary_at(403) },
+  },
+  "VOCAB_AT_402" => {
+    what: "vocabulary members answering HTTP 402",
+    from: "#{SPEC_HTML} -- vocabulary rows whose status column is 402",
+    fn: -> { vocabulary_at(402) },
+  },
+  "VOCAB_AT_404" => {
+    what: "vocabulary members answering HTTP 404",
+    from: "#{SPEC_HTML} -- vocabulary rows whose status column is 404",
+    fn: -> { vocabulary_at(404) },
+  },
+  "NOT_HERE_CODES" => {
+    what: %(vocabulary members that answer "it is not here" -- the 404s plus the 501),
+    from: "#{SPEC_HTML} -- vocabulary rows at 404 plus rows at 501",
+    fn: -> { vocabulary_at(404) + vocabulary_at(501) },
+  },
+  "VOCAB_402_OTHERS" => {
+    what: "the OTHER 402 members, as a page about one of them counts them",
+    from: "#{SPEC_HTML} -- vocabulary rows at 402, less the page's own code",
+    fn: -> { vocabulary_at(402) - 1 },
+  },
+  "OAUTH_VOCAB" => {
+    what: "codes in the closed `/oauth/*` error vocabulary",
+    from: "#{BINDING_JSON} -- the oauthError `error` enum",
+    fn: -> { dig!(json(BINDING_JSON), BINDING_JSON,
+                  "$defs", "oauthError", "properties", "error", "enum").length },
+  },
+  "AUTH_URLS" => {
+    what: "URLs every conformant origin publishes in its `kiosk.auth` block",
+    from: "#{DISCOVERY_JSON} -- the auth block's `required` list, less `kind`",
+    fn: -> {
+      req = dig!(json(DISCOVERY_JSON), DISCOVERY_JSON,
+                 "properties", "kiosk", "properties", "auth", "required")
+      (req - ["kind"]).length
+    },
+  },
+  "CAPABILITIES" => {
+    what: "DISCOVERABLE modules -- exactly the members of `capabilities`",
+    from: "#{DISCOVERY_JSON} -- the capabilities item enum",
+    fn: -> {
+      dig!(json(DISCOVERY_JSON), DISCOVERY_JSON,
+           "properties", "kiosk", "properties", "capabilities", "items", "enum").length
+    },
+  },
+  "LANDING_DEMOS" => {
+    what: "live operator demos the landing page links",
+    from: %(#{INDEX_HTML} -- elements carrying class="demo-card"),
+    fn: -> {
+      n = slurp(INDEX_HTML).scan(/class="demo-card"/).length
+      raise Blind, %(#{INDEX_HTML}: no class="demo-card" element; the tile markup moved) if n.zero?
+
+      n
+    },
+  },
+  "LANDING_HOW" => {
+    what: %(moving parts the landing page's "How it works" list enumerates),
+    from: %(#{INDEX_HTML} -- list items in the ordered list under id="how"),
+    fn: -> {
+      block = slurp(INDEX_HTML)[%r{id="how".*?<ol[^>]*>(.*?)</ol>}m, 1]
+      raise Blind, %(#{INDEX_HTML}: found no ordered list under id="how") if block.nil?
+
+      block.scan(/<li[\s>]/).length
+    },
+  },
+  "DISCOVERY_DOCS" => {
+    what: "machine-readable discovery documents served at the origin root",
+    from: "#{ONBOARD_HTML} -- the paths in the copyable `for p in ...; do` probe loop",
+    fn: -> {
+      loop_body = slurp(ONBOARD_HTML)[/for p in (.*?); do/m, 1]
+      raise Blind, "#{ONBOARD_HTML}: found no `for p in ...; do` probe loop" if loop_body.nil?
+
+      loop_body.split(/\s+/).count { |t| t.start_with?("/") }
+    },
+  },
+}.freeze
+
+# -- rules -------------------------------------------------------------------
+#
+# `patterns` each carry ONE capture group, matched against the normalised prose
+# of every gated file. `fixture` renders the rule's sentence for a given
+# cardinal word: the self-test writes the correct one into a throwaway
+# repository and then plants a wrong one, so a rule with no way to demonstrate
+# it cannot be added here at all.
+
+RULES = [
+  {
+    id: "DC-1", derivation: "ERROR_VOCAB",
+    what: "a cardinal counting the whole error vocabulary",
+    patterns: [/these #{CARD} codes are the whole of it/,
+               /vocabulary is a closed table of #{CARD}/],
+    fixture: ->(w) { "The vocabulary is closed: these #{w} codes are the whole of it." },
+  },
+  {
+    id: "DC-2", derivation: "VOCAB_AT_403",
+    what: "a cardinal counting the vocabulary members that answer 403",
+    patterns: [/carries #{CARD} codes at 403/,
+               /#{CARD} codes share the status/,
+               /#{CARD} codes share 403/],
+    fixture: ->(w) { "The generic 403 of the vocabulary -- #{w} codes share the status." },
+  },
+  {
+    id: "DC-3", derivation: "VOCAB_AT_402",
+    what: "a cardinal counting the vocabulary members that answer 402",
+    patterns: [/codes at 403 and #{CARD} at 402/,
+               /#{CARD} codes share HTTP 402/,
+               /share 403, #{CARD} share 402/],
+    fixture: ->(w) { "#{w.capitalize} codes share HTTP 402, and only two of them are gates." },
+  },
+  {
+    id: "DC-4", derivation: "VOCAB_402_OTHERS",
+    what: "a 402 page counting the OTHER codes that share its status",
+    patterns: [/#{CARD} other codes share it/],
+    fixture: ->(w) { "Do not branch on the 402 status: #{w} other codes share it." },
+  },
+  {
+    id: "DC-5", derivation: "OAUTH_VOCAB",
+    what: "a cardinal counting the closed `/oauth/*` error vocabulary",
+    patterns: [/vocabulary of #{CARD} codes/,
+               /none of the #{CARD} codes above/,
+               /the #{CARD} codes are errors WITHIN/,
+               /complete and closed, at #{CARD}/,
+               /vocabulary is CLOSED at #{CARD}/],
+    fixture: ->(w) { "The error comes from a CLOSED vocabulary of #{w} codes." },
+  },
+  {
+    id: "DC-6", derivation: "AUTH_URLS",
+    what: "a cardinal counting the URLs the `kiosk.auth` block publishes",
+    patterns: [/the #{CARD} URLs an AI assistant needs/,
+               /all #{CARD} auth URLs/,
+               /carries all #{CARD} URLs/],
+    fixture: ->(w) { "Every conformant operator publishes all #{w} auth URLs." },
+  },
+  {
+    id: "DC-7", derivation: "CAPABILITIES",
+    what: "a cardinal counting the DISCOVERABLE modules",
+    patterns: [/one of the #{CARD} DISCOVERABLE groupings/,
+               /#{CARD} of those modules are DISCOVERABLE/],
+    fixture: ->(w) { "Module -- one of the #{w} DISCOVERABLE groupings a deployment advertises." },
+  },
+  {
+    id: "DC-8", derivation: "LANDING_DEMOS",
+    what: "a cardinal counting the live demos the landing page links",
+    patterns: [/#{CARD} live operators/, /#{CARD} live demos above/,
+               /All #{CARD} serve, right now/],
+    fixture: ->(w) { "#{w.capitalize} live operators, each showing a different capability." },
+  },
+  {
+    id: "DC-9", derivation: "LANDING_HOW",
+    what: %(a cardinal counting the landing page's "How it works" steps),
+    patterns: [/#{CARD} moving parts/],
+    fixture: ->(w) { "#{w.capitalize} moving parts, on the wire." },
+  },
+  {
+    id: "DC-10", derivation: "DISCOVERY_DOCS",
+    what: "a cardinal counting the discovery documents at the origin root",
+    patterns: [/Discovery is #{CARD} documents/,
+               /All #{CARD} discovery documents/,
+               /200 for all #{CARD}\./,
+               /All #{CARD} come from kiosk-server/,
+               /the #{CARD} machine-readable documents/],
+    fixture: ->(w) { "Discovery is #{w} documents, and the mount draws the ceremony too." },
+  },
+  {
+    id: "DC-11", derivation: "VOCAB_AT_404",
+    what: "a cardinal counting the vocabulary members that answer 404",
+    patterns: [/and #{CARD} share 404/,
+               /The #{CARD} 404s are the split/,
+               /first #{CARD} share HTTP 404/,
+               /the #{CARD} genuine 404s/],
+    fixture: ->(w) { "The #{w} 404s are the split of the addressed-thing rule." },
+  },
+  {
+    id: "DC-12", derivation: "NOT_HERE_CODES",
+    what: %(a cardinal counting the codes that answer "it is not here"),
+    patterns: [/#{CARD} codes answer "it is not here"/],
+    fixture: ->(w) { %(#{w.capitalize} codes answer "it is not here", and they are different facts.) },
+  },
+].freeze
+
+# -- the file set ------------------------------------------------------------
+
+FROZEN_CUT = /\Askill(-v\d+\.\d+\.\d+)?\.md\z/.freeze
+
+def gated?(rel)
+  base = File.basename(rel)
+  return false if base =~ FROZEN_CUT
+  return false if base == "CHANGELOG.md" || base == "CLAUDE.md"
+  return false if rel.start_with?("bin/", ".github/")
+
+  rel.end_with?(".md", ".html", ".json")
+end
+
+def reported?(rel)
+  return false if gated?(rel)
+  return false if File.basename(rel) =~ FROZEN_CUT
+
+  rel.end_with?(".sh", ".py", ".yml", ".yaml") || rel.start_with?("bin/")
+end
+
+def tracked
+  out, err, st = Open3.capture3("git", "-C", REPO, "ls-files", "-z")
+  raise Blind, "`git ls-files` failed in #{REPO}: #{err.strip}" unless st.success?
+
+  out.split("\0").reject(&:empty?).sort
+end
+
+# The residue: a cardinal in front of a plural-looking word that no rule reaches.
+# Printed, never gated -- an honest number about the blind spot is worth more
+# than a rule nobody can maintain.
+BROAD = /\b(?:#{WORD_VALUE.keys.reject { |w| w == 'zero' }.join('|')})\s+([a-z][a-z-]{3,}s)\b/i.freeze
+
+Site = Struct.new(:rule, :rel, :typed, :word, :excerpt)
+
+def excerpt_for(text, match)
+  from = [match.begin(0) - 90, 0].max
+  to   = [match.end(0) + 90, text.length].min
+  "#{from.positive? ? '...' : ''}#{text[from...to].strip}#{to < text.length ? '...' : ''}"
+end
+
+Scan = Struct.new(:sites, :gated_files, :reported_files, :residue, :missing)
+
+def scan_sites
+  sites   = []
+  gated   = 0
+  rep     = 0
+  residue = 0
+  missing = []
+
+  tracked.each do |rel|
+    abs = File.join(REPO, rel)
+    if gated?(rel)
+      unless File.file?(abs)
+        missing << rel
+        next
+      end
+      gated += 1
+      text = normalise(File.read(abs, encoding: "UTF-8"))
+      covered = []
+      RULES.each do |rule|
+        rule[:patterns].each do |re|
+          text.to_enum(:scan, re).each do
+            m = Regexp.last_match
+            covered << [m.begin(0), m.end(0)]
+            sites << Site.new(rule, rel, m[1], m[1], excerpt_for(text, m))
+          end
+        end
+      end
+      text.to_enum(:scan, BROAD).each do
+        m = Regexp.last_match
+        next if covered.any? { |b, e| m.begin(0) < e && b < m.end(0) }
+
+        residue += 1
+      end
+    elsif reported?(rel) && File.file?(abs)
+      rep += 1
+      residue += normalise(File.read(abs, encoding: "UTF-8")).scan(BROAD).length
+    end
+  end
+
+  Scan.new(sites, gated, rep, residue, missing)
+end
+
+# -- the run -----------------------------------------------------------------
+
+def derive_all
+  values = {}
+  blind  = []
+  DERIVATIONS.each do |name, d|
+    values[name] = d[:fn].call
+  rescue Blind => e
+    blind << [name, e.message]
+  end
+  [values, blind]
+end
+
+def report(quiet: false)
+  say = ->(line) { puts line unless quiet }
+  problems = []
+
+  begin
+    scanned = scan_sites
+  rescue Blind => e
+    return emit(["MECHANISM", e.message])
+  end
+
+  values, blind = derive_all
+  blind.each do |name, msg|
+    problems << ["MECHANISM",
+                 "derivation #{name} (#{DERIVATIONS[name][:what]}) could not be computed: #{msg}. " \
+                 "A derivation that cannot be read is a guard that has gone blind, and a blind " \
+                 "guard reads exactly like a clean repository -- so it FAILS here."]
+  end
+
+  by_rule = scanned.sites.group_by { |s| s.rule[:id] }
+
+  say.call("check-derived-counts: #{scanned.gated_files} gated file(s) " \
+           "(.md/.html/.json, tracked, less the frozen skill cuts, CHANGELOG.md and CLAUDE.md), " \
+           "#{RULES.length} rule(s) over #{DERIVATIONS.length} derivation(s), " \
+           "#{scanned.sites.length} live site(s).")
+  RULES.each do |rule|
+    n = (by_rule[rule[:id]] || []).length
+    v = values[rule[:derivation]]
+    say.call(format("  %-6s %-17s = %-4s %2d site(s)  <- %s",
+                    rule[:id], rule[:derivation], v.nil? ? "??" : v.to_s, n,
+                    DERIVATIONS[rule[:derivation]][:from]))
+  end
+
+  unless scanned.missing.empty?
+    say.call("  note: #{scanned.missing.length} tracked file(s) absent from the working tree, not " \
+             "read: #{scanned.missing.first(10).join(', ')}")
+  end
+  say.call("  REPORTED, NOT GATED: #{scanned.residue} cardinal-plus-plural hit(s) no rule reaches, " \
+           "over the gated set plus #{scanned.reported_files} source/CI file(s) whose comments are " \
+           "out of scope by decision (K-1281).")
+
+  if scanned.gated_files < FILE_FLOOR
+    problems << ["MECHANISM",
+                 "the scan reached #{scanned.gated_files} gated file(s), below the floor of " \
+                 "#{FILE_FLOOR}. A collapsed file set matches no pattern and reads exactly like a " \
+                 "clean repository. Either the checkout moved, or the site genuinely shrank -- in " \
+                 "which case lower FILE_FLOOR in the same commit and say why."]
+  end
+
+  RULES.each do |rule|
+    next unless (by_rule[rule[:id]] || []).empty?
+
+    problems << ["VACUITY",
+                 "#{rule[:id]} (#{rule[:what]}) matches NOTHING in this repository. This is a " \
+                 "DERIVATION check, so a rule with no live subject is a rule holding nothing and " \
+                 "it can no longer lapse quietly. Either the sentence moved -- repair the pattern " \
+                 "-- or it is genuinely gone, in which case delete #{rule[:id]} in the same commit " \
+                 "and say why. Patterns: #{rule[:patterns].map(&:source).join(' | ')}"]
+  end
+
+  scanned.sites.each do |s|
+    expected = values[s.rule[:derivation]]
+    next if expected.nil? # already reported as MECHANISM
+
+    typed = WORD_VALUE[s.typed.downcase] || (s.typed =~ /\A\d+\z/ ? s.typed.to_i : nil)
+    if typed.nil?
+      problems << ["STALE",
+                   "#{s.rel}: #{s.rule[:id]} matched \"#{s.typed}\", which is not a cardinal this " \
+                   "guard can read. Spell it as a number word or a numeral.\n      | #{s.excerpt}"]
+      next
+    end
+    next if typed == expected
+
+    problems << ["STALE",
+                 "#{s.rel}: #{s.rule[:id]} -- the page says #{s.typed.upcase} (#{typed}), the tree " \
+                 "says #{expected} (#{VALUE_WORD[expected] || expected}).\n" \
+                 "      | #{s.excerpt}\n" \
+                 "      derived from: #{DERIVATIONS[s.rule[:derivation]][:from]}\n" \
+                 "      counting:     #{DERIVATIONS[s.rule[:derivation]][:what]}"]
+  end
+
+  if problems.empty?
+    say.call("check-derived-counts: OK -- every held cardinal equals the number this repository " \
+             "derives for what it counts.")
+    return 0
+  end
+
+  emit(*problems)
+end
+
+def emit(*problems)
+  $stdout.flush
+  warn ""
+  warn "check-derived-counts: FAIL -- #{problems.length} problem(s)."
+  problems.each { |arm, msg| warn "  [#{arm}] #{msg}" }
+  warn ""
+  warn "A cardinal in a published page is a copy of something this tree can count. Move the"
+  warn "sentence to the derived number -- do NOT relax the rule, and never hold one typed"
+  warn "number to another."
+  1
+end
+
+# -- --list ------------------------------------------------------------------
+
+def run_list
+  values, blind = derive_all
+  blind.each { |name, msg| warn "  BLIND #{name}: #{msg}" }
+  scanned = scan_sites
+  by_rule = scanned.sites.group_by { |s| s.rule[:id] }
+  RULES.each do |rule|
+    v = values[rule[:derivation]]
+    puts "#{rule[:id]}  #{rule[:derivation]} = #{v.nil? ? '??' : v}  -- #{rule[:what]}"
+    puts "      from: #{DERIVATIONS[rule[:derivation]][:from]}"
+    (by_rule[rule[:id]] || []).each { |s| puts "      #{s.rel}: \"#{s.typed}\" | #{s.excerpt}" }
+    puts "      (no live site)" if (by_rule[rule[:id]] || []).empty?
+  end
+  puts "gated files: #{scanned.gated_files} (floor #{FILE_FLOOR}); " \
+       "sites: #{scanned.sites.length}; ungated residue: #{scanned.residue}"
+  blind.empty? ? 0 : 1
+end
+
+# -- self-test ---------------------------------------------------------------
+#
+# One arm per rule, plus the mechanism arms. Every arm is a subprocess run of a
+# COPY of this file against a throwaway git repository, so what is proved is the
+# guard as an executable rather than a method call inside this process. The
+# fixture's populations are DELIBERATELY different from this repository's, so an
+# arm cannot pass by accidentally agreeing with the real numbers.
+
+FIX = {
+  "ERROR_VOCAB" => 11, "VOCAB_AT_403" => 3, "VOCAB_AT_402" => 2,
+  "VOCAB_AT_404" => 4, "NOT_HERE_CODES" => 5, "VOCAB_402_OTHERS" => 1,
+  "OAUTH_VOCAB" => 5, "AUTH_URLS" => 4, "CAPABILITIES" => 2,
+  "LANDING_DEMOS" => 3, "LANDING_HOW" => 2, "DISCOVERY_DOCS" => 4,
+}.freeze
+
+# Code NAMES are letters and underscores only, because that is what the row
+# pattern accepts -- a fixture code with a digit in it parses as zero rows and
+# the whole fixture reads blind.
+def fixture_codes
+  tag  = ->(i) { ("a".."z").to_a[i] }
+  codes = []
+  FIX["VOCAB_AT_403"].times { |i| codes << ["forbidden_#{tag.call(i)}", 403] }
+  FIX["VOCAB_AT_402"].times { |i| codes << ["gated_#{tag.call(i)}", 402] }
+  FIX["VOCAB_AT_404"].times { |i| codes << ["absent_#{tag.call(i)}", 404] }
+  (FIX["NOT_HERE_CODES"] - FIX["VOCAB_AT_404"]).times { |i| codes << ["unserved_#{tag.call(i)}", 501] }
+  (FIX["ERROR_VOCAB"] - codes.length).times { |i| codes << ["other_#{tag.call(i)}", 400 + i] }
+  codes
+end
+
+def fixture_spec_html
+  rows = fixture_codes.map { |c, s| "<tr><td><code>#{c}</code></td><td>#{s}</td><td>x</td></tr>" }
+  "<html><body><table>\n#{rows.join("\n")}\n</table></body></html>\n"
+end
+
+def fixture_problem_json
+  JSON.pretty_generate("properties" => { "code" => { "enum" => fixture_codes.map(&:first) } }) + "\n"
+end
+
+def fixture_index_html
+  cards = Array.new(FIX["LANDING_DEMOS"]) { |i| %(<div class="demo-card"><a>demo #{i}</a></div>) }
+  steps = Array.new(FIX["LANDING_HOW"]) { |i| "<li><strong>Part #{i}.</strong> text</li>" }
+  "<html><body>\n<div id=\"try\">#{cards.join("\n")}</div>\n" \
+    "<div id=\"how\"><ol class=\"demo-steps\">\n#{steps.join("\n")}\n</ol></div>\n</body></html>\n"
+end
+
+def fixture_onboarding_html
+  paths = Array.new(FIX["DISCOVERY_DOCS"]) { |i| "/doc-#{i}.txt" }
+  "<html><body>\n<pre><code>for p in #{paths.join(' ')}; do\n  echo $p\ndone</code></pre>\n</body></html>\n"
+end
+
+def fixture_binding_json
+  codes = Array.new(FIX["OAUTH_VOCAB"]) { |i| "code_#{i}" }
+  JSON.pretty_generate("$defs" => { "oauthError" =>
+    { "properties" => { "error" => { "enum" => codes } } } }) + "\n"
+end
+
+def fixture_discovery_json
+  urls = Array.new(FIX["AUTH_URLS"]) { |i| "url_#{i}" }
+  caps = Array.new(FIX["CAPABILITIES"]) { |i| "cap_#{i}" }
+  JSON.pretty_generate("properties" => { "kiosk" => { "properties" => {
+    "auth" => { "required" => ["kind"] + urls },
+    "capabilities" => { "items" => { "enum" => caps } },
+  } } }) + "\n"
+end
+
+# One correct sentence per rule, so the green fixture is non-vacuous by the same
+# rule the real run applies. `skip` renders every rule but that one.
+def fixture_prose(skip: nil, wrong: nil)
+  lines = ["# sample prose", ""]
+  RULES.each do |rule|
+    next if rule[:id] == skip
+
+    n = FIX[rule[:derivation]]
+    n += 1 if rule[:id] == wrong
+    lines << rule[:fixture].call(VALUE_WORD[n] || n.to_s)
+    lines << ""
+  end
+  "#{lines.join("\n")}\n"
+end
+
+def git(dir, *args)
+  _o, e, st = Open3.capture3("git", "-C", dir, *args)
+  raise "git #{args.join(' ')} failed in #{dir}: #{e}" unless st.success?
+end
+
+def build_fixture(dir, padding)
+  FileUtils.mkdir_p(File.join(dir, "bin"))
+  FileUtils.mkdir_p(File.join(dir, "spec", "schemas"))
+  FileUtils.cp(SELF_PATH, File.join(dir, "bin", "check-derived-counts"))
+  FileUtils.chmod(0o755, File.join(dir, "bin", "check-derived-counts"))
+  File.write(File.join(dir, SPEC_HTML), fixture_spec_html)
+  File.write(File.join(dir, INDEX_HTML), fixture_index_html)
+  File.write(File.join(dir, ONBOARD_HTML), fixture_onboarding_html)
+  File.write(File.join(dir, BINDING_JSON), fixture_binding_json)
+  File.write(File.join(dir, PROBLEM_JSON), fixture_problem_json)
+  File.write(File.join(dir, DISCOVERY_JSON), fixture_discovery_json)
+  File.write(File.join(dir, "sample.md"), fixture_prose)
+  padding.times { |i| File.write(File.join(dir, format("pad-%03d.md", i)), "filler #{i}\n") }
+  git(dir, "init", "-q")
+  git(dir, "add", "-A")
+end
+
+def run_guard_in(dir, *args)
+  Open3.capture3(RbConfig.ruby, File.join(dir, "bin", "check-derived-counts"), *args, chdir: dir)
+end
+
+def arm(failures, label)
+  ok, detail = yield
+  if ok
+    puts "  #{label} -- OK"
+  else
+    failures << "#{label}: #{detail}"
+  end
+end
+
+def rewrite_prose(dir, **kwargs)
+  File.write(File.join(dir, "sample.md"), fixture_prose(**kwargs))
+  git(dir, "add", "-A")
+end
+
+def self_test_rule_arms(dir, failures)
+  RULES.each do |rule|
+    good = FIX[rule[:derivation]]
+    bad  = good + 1
+    rewrite_prose(dir, wrong: rule[:id])
+    arm(failures, "#{rule[:id]} reddens on a stale cardinal, naming the file and BOTH numbers") do
+      out, err, st = run_guard_in(dir)
+      c = "#{out}#{err}"
+      if st.exitstatus.zero?           then [false, "the guard stayed green\n#{c}"]
+      elsif !c.include?("[STALE]")     then [false, "fired, but not under the STALE arm\n#{c}"]
+      elsif !c.include?("sample.md: #{rule[:id]}") then [false, "fired but did not name the file and rule\n#{c}"]
+      elsif !c.include?("says #{(VALUE_WORD[bad] || bad).to_s.upcase} (#{bad})") then [false, "did not print the TYPED number\n#{c}"]
+      elsif !c.include?("the tree says #{good}") then [false, "did not print the DERIVED number\n#{c}"]
+      else [true, nil]
+      end
+    end
+  end
+  rewrite_prose(dir)
+end
+
+def self_test_vacuity_arms(dir, failures)
+  rule = RULES.first
+  rewrite_prose(dir, skip: rule[:id])
+  arm(failures, "a rule with NO live subject FAILS (#{rule[:id]} deleted) rather than reading clean") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [!st.exitstatus.zero? && c.include?("[VACUITY]") && c.include?(rule[:id]),
+     "exit #{st.exitstatus}\n#{c}"]
+  end
+  rewrite_prose(dir)
+end
+
+def self_test_blind_arms(dir, failures)
+  # A derivation source that has moved must FAIL, not silently stop checking.
+  saved = File.read(File.join(dir, BINDING_JSON))
+  File.write(File.join(dir, BINDING_JSON), JSON.pretty_generate("$defs" => {}))
+  git(dir, "add", "-A")
+  arm(failures, "a derivation whose source moved FAILS as MECHANISM, not as a pass") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [!st.exitstatus.zero? && c.include?("[MECHANISM]") && c.include?("OAUTH_VOCAB"),
+     "exit #{st.exitstatus}\n#{c}"]
+  end
+  File.write(File.join(dir, BINDING_JSON), saved)
+  git(dir, "add", "-A")
+
+  # A vocabulary table whose markup changed must FAIL for the same reason -- this
+  # is the hole `bin/check-problem-pages` closes with the same floor.
+  saved_spec = File.read(File.join(dir, SPEC_HTML))
+  File.write(File.join(dir, SPEC_HTML), "<html><body><p>no table here</p></body></html>\n")
+  git(dir, "add", "-A")
+  arm(failures, "a vocabulary table this guard can no longer parse FAILS") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [!st.exitstatus.zero? && c.include?("[MECHANISM]") && c.include?("vocabulary row"),
+     "exit #{st.exitstatus}\n#{c}"]
+  end
+  File.write(File.join(dir, SPEC_HTML), saved_spec)
+  git(dir, "add", "-A")
+
+  # Two machine-readable spellings of one vocabulary that disagree: the guard
+  # must refuse to answer rather than pick one and read clean.
+  saved_problem = File.read(File.join(dir, PROBLEM_JSON))
+  File.write(File.join(dir, PROBLEM_JSON),
+             JSON.pretty_generate("properties" => { "code" =>
+               { "enum" => fixture_codes.map(&:first) + ["invented_extra_code"] } }))
+  git(dir, "add", "-A")
+  arm(failures, "the narrative table and the formal enum disagreeing FAILS, never picks one") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [!st.exitstatus.zero? && c.include?("[MECHANISM]") && c.include?("invented_extra_code"),
+     "exit #{st.exitstatus}\n#{c}"]
+  end
+  File.write(File.join(dir, PROBLEM_JSON), saved_problem)
+  git(dir, "add", "-A")
+end
+
+def self_test_exempt_arms(dir, failures)
+  # A frozen cut may NOT be gated: its bytes are what live pins verify, so a
+  # stale cardinal in one is unrepairable by construction and gating it would
+  # demand an edit this workspace forbids. Same for append-only history.
+  stale = fixture_prose(wrong: RULES.first[:id])
+  { "skill-v0.4.12.md" => "a frozen skill cut", "CHANGELOG.md" => "append-only history" }
+    .each do |rel, why|
+    File.write(File.join(dir, rel), stale)
+    git(dir, "add", "-A")
+    arm(failures, "a stale cardinal in #{rel} stays GREEN (#{why})") do
+      out, err, st = run_guard_in(dir)
+      [st.exitstatus.zero?, "exit #{st.exitstatus}\n#{out}#{err}"]
+    end
+    FileUtils.rm_f(File.join(dir, rel))
+    git(dir, "add", "-A")
+  end
+
+  # A wrapped sentence must still be seen: `spec/protocol.md` wraps at the
+  # margin and three real sites are split across a newline.
+  wrapped = RULES.first[:fixture].call(VALUE_WORD[FIX["ERROR_VOCAB"] + 1])
+  File.write(File.join(dir, "wrapped.md"), wrapped.sub(/ /, "\n").sub(/ codes/, "\ncodes"))
+  git(dir, "add", "-A")
+  arm(failures, "a sentence WRAPPED across a newline is still read as one sentence") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [!st.exitstatus.zero? && c.include?("wrapped.md"), "exit #{st.exitstatus}\n#{c}"]
+  end
+  FileUtils.rm_f(File.join(dir, "wrapped.md"))
+  git(dir, "add", "-A")
+end
+
+def run_self_test
+  failures = []
+
+  Dir.mktmpdir("check-derived-counts") do |dir|
+    build_fixture(dir, FILE_FLOOR)
+
+    arm(failures, "the green fixture tree exits 0 with every rule non-vacuous") do
+      out, err, st = run_guard_in(dir)
+      [st.exitstatus.zero?, "exited #{st.exitstatus}\n#{out}#{err}"]
+    end
+
+    self_test_rule_arms(dir, failures)
+    self_test_vacuity_arms(dir, failures)
+    self_test_blind_arms(dir, failures)
+    self_test_exempt_arms(dir, failures)
+
+    arm(failures, "the fixture tree returns to exit 0 once every plant is removed") do
+      out, err, st = run_guard_in(dir)
+      [st.exitstatus.zero?, "exited #{st.exitstatus}\n#{out}#{err}"]
+    end
+  end
+
+  # MECHANISM liveness: a collapsed file set must FAIL rather than read clean.
+  Dir.mktmpdir("check-derived-counts-thin") do |dir|
+    build_fixture(dir, 0)
+    Dir.glob(File.join(dir, "pad-*.md")).each { |f| FileUtils.rm_f(f) }
+    git(dir, "add", "-A")
+    arm(failures, "a gated set below FILE_FLOOR FAILS instead of reading clean") do
+      out, err, st = run_guard_in(dir)
+      c = "#{out}#{err}"
+      [!st.exitstatus.zero? && c.include?("[MECHANISM]") && c.include?("below the floor"),
+       "exit #{st.exitstatus}\n#{c}"]
+    end
+  end
+
+  # VACUITY over the REAL repository, per rule, reported by number so
+  # non-vacuity can be read off the run rather than believed.
+  begin
+    scanned = scan_sites
+    by_rule = scanned.sites.group_by { |s| s.rule[:id] }
+    RULES.each do |rule|
+      n = (by_rule[rule[:id]] || []).length
+      arm(failures, "#{rule[:id]} has a live subject in THIS repository (#{n} site(s))") do
+        [n.positive?, "0 sites -- the rule holds nothing"]
+      end
+    end
+    values, blind = derive_all
+    arm(failures, "every derivation reads its source in THIS repository") do
+      [blind.empty?, blind.map { |n, m| "#{n}: #{m}" }.join("; ")]
+    end
+    puts "  real tree: #{scanned.gated_files} gated file(s), #{scanned.sites.length} site(s), " \
+         "#{values.map { |k, v| "#{k}=#{v}" }.join(' ')}"
+  rescue Blind => e
+    failures << "real-tree scan: #{e.message}"
+  end
+
+  arm(failures, "the guard is green over this repository") do
+    code = report(quiet: true)
+    [code.zero?, "exit #{code}"]
+  end
+
+  if failures.empty?
+    puts
+    puts "check-derived-counts --self-test: OK -- red on a planted stale cardinal in every rule " \
+         "(naming the file, the sentence and both numbers), red when a rule loses its last live " \
+         "subject, red when a derivation source moves, red on a collapsed file set, green on the " \
+         "frozen skill cuts and on append-only history, and non-vacuous over this repository."
+    return 0
+  end
+
+  $stdout.flush
+  warn ""
+  warn "check-derived-counts --self-test: FAIL -- #{failures.length} arm(s)."
+  failures.each { |f| warn "  #{f}" }
+  1
+end
+
+# -- entry point -------------------------------------------------------------
+
+code =
+  case ARGV[0]
+  when nil then report
+  when "--self-test" then run_self_test
+  when "--list" then run_list
+  else
+    warn "usage: check-derived-counts [--self-test|--list]"
+    2
+  end
+exit code
