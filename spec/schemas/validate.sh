@@ -141,12 +141,27 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # the property was declared `["object","null"]` a `"params": 42` was refused and
 # afterwards it was not. The remedy is deliberately the narrowest one that closes
 # it -- `{"not": {}}`, the object spelling of the `false` schema, on that one key
-# -- rather than `additionalProperties: false` on the whole descriptor, which
-# would also refuse operator-defined members no prose surface has ever forbidden
-# (unsettled; K-1278). This example is the accepted sibling's first query with the
-# withdrawn key added back at the only value a 0.3 origin ever published, so
-# nothing but that key can be what fails it.
+# -- rather than `additionalProperties: false` on the whole descriptor, because
+# whether a descriptor may carry operator-defined members at all was UNSETTLED
+# then and closing the object would have answered it by accident. This example is
+# the accepted sibling's first query with the withdrawn key added back at the only
+# value a 0.3 origin ever published, so nothing but that key can be what fails it.
+# **THE OBJECT IS CLOSED SINCE T-167 AND THIS LINE IS NOT REDUNDANT.**
+# `additionalProperties` does not reach a key `properties` names, so `params` is
+# still refused by its own `{"not": {}}` and by nothing else: remove that keyword
+# and this fixture goes green while the closed object shrugs at it. The two
+# refusals are different sentences on purpose -- this one names a withdrawal, the
+# one below names an unknown member.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.params-field.json
+# T-167 / K-1278: the DESCRIPTOR object is closed -- Phil, 2026-09-03, "limit the
+# keys to only the known to specification on that level". The catalog ROOT was
+# closed from the start (the `verbs-field` fixture above) and each ELEMENT of its
+# two arrays was not, so an operator could publish `"x_internal_sla": "4h"` on a
+# verb and validate clean. This example is generated from the ACCEPTED
+# examples/schema-descriptor.json with exactly that one member added to its first
+# query and nothing else changed, so only `additionalProperties: false` leaving
+# `$defs.descriptor` can turn it green -- watched, and it does.
+chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.unknown-member.json
 # K-839: `indices` items are u64. The description said so from the start; only
 # the bound makes the schema REFUSE what a conforming verifier refuses.
 # `pack("Q<")` truncates mod 2**64, so without the upper bound `idx` and

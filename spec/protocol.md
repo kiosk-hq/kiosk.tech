@@ -1131,6 +1131,21 @@ carry two examples:
 Examples ILLUSTRATE the contract and are not the contract: where an example and
 a schema disagree, the schema is right.
 
+**A descriptor carries the members named above and NO OTHERS.** The verb
+description is CLOSED, exactly as the catalog body around it is: a descriptor
+**MUST NOT** publish a member this specification does not name at that level --
+an `x_internal_sla`, a `ttl`, an operator's internal owner -- and a catalog
+carrying one is not conformant. `$defs.descriptor` in
+`schema-descriptor.schema.json` refuses it rather than admitting it silently, so
+the rule is machine-checkable and not only stated here. An operator that wants a
+field on a verb **MUST** propose it for the protocol rather than publish it: a
+name taken privately is a name a later revision can no longer claim, and only a
+closed object lets an AI assistant, an auditor or a conformance sweep tell an
+unintended key from an intended one. What closes here is the DESCRIPTOR and
+nothing else -- a problem document still carries whatever extension members its
+operator adds (Section 9), which is that object's own rule rather than an
+exception to this one.
+
 **Why both are REQUIRED rather than encouraged.** A verb that publishes no
 `input_schema` gives an assistant nothing to shape a call from and gives the
 operator nothing to validate against, so an invalid argument becomes
