@@ -583,8 +583,10 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
    only when -- the binding carries a role: `scope` is RFC 6749 Section 5.1's
    scope actually GRANTED, which here is the approving human's role and never an
    echo of a requested one, since no role may be requested (item 1). An operator
-   whose identity system reports no role for that human omits the member, and an
-   AI assistant **MUST NOT** treat its absence as an error. The bound principal
+   that assigns no roles at all omits the member -- role resolution is TOTAL
+   (Section 6.3), so "this human has no role" is not a case at an operator that
+   assigns roles -- and an AI assistant **MUST NOT** treat its absence as an
+   error. The bound principal
    itself (`user_id`, `agent_id`) rides in the JWT claims, not the body.
 
 **The `/oauth/*` error vocabulary.**
@@ -662,12 +664,34 @@ in BOTH directions of the ceremony: the operator captures it from its own
 identity system -- for the link direction when the human mints the code, for the
 claim direction when the human approves at the verify page -- and never from
 anything the AI assistant sends, on either the authorization request or the
-claim body. Where the operator's identity system reports no role for that human,
-the binding carries none and the AI assistant's role is whatever the operator
-would otherwise assign at registration. It follows that a ceremony can never
+claim body.
+
+**Role resolution MUST be TOTAL over an operator's humans.** An operator that
+assigns roles at all **MUST** resolve a role for EVERY human who can approve a
+binding. A role for staff and nothing for customers is NOT a supported
+configuration: it is a misconfiguration of the operator's identity system, and
+the operator repairs it by naming a role for the humans that have none -- there
+**MUST** be a role for customers. The other supported shape is an operator that
+assigns roles to NOBODY: it declares no role vocabulary, its bindings carry no
+role, its tokens omit the `role` claim (Section 5.4) and its ceremony responses
+omit `scope` (Section 6.1). Both shapes are total. The MIXTURE is what this
+paragraph forbids, and it is forbidden because the two properties below are
+false without it.
+
+Under that contract both properties hold without a caveat. A ceremony can never
 mint a privilege its approver does not hold, which is what makes an approval
-meaningful; it also follows that the ROLE, like the principal, changes on a
-rebind (below).
+meaningful; and because the role is the human's and every human has one, the
+ROLE, like the principal, changes on a rebind (below).
+
+**Outside the contract the second property is gone, and this specification does
+not define what replaces it.** A ceremony that carries no role, at an operator
+that does assign roles, has no role to move: an implementation **MAY** leave the
+AI assistant's existing role as it stands, and **MAY** instead assign whatever it
+would assign that assistant at registration. The reference does the first, which
+is why the mixture matters -- an AI assistant can keep a privileged role while
+its principal changes to a human who holds none. Neither behaviour is something
+to rely on: the input is a configuration this section forbids, and the repair
+belongs in the operator's identity system rather than in the ceremony.
 
 A key the operator has never seen becomes a **linked assistant account** under the
 human's `user_id`. A key that already had a self-standing account is **rebound**:
@@ -2130,7 +2154,10 @@ the discovery document, and are absent from `capabilities` for that reason:
    session-authenticated verify page that names the access being handed over, and
    the possession-proof token poll) and/or the link-code redeem, with fresh/rebind
    semantics -- reputation carries over a rebind, it is not reset -- and unlink
-   (Section 6.3). PUBLISHING `device_authorization_url` and `claim_url` is not
+   (Section 6.3). An operator serving this module and assigning roles at all
+   resolves a role for EVERY human who can approve a binding (Section 6.3): a
+   partial identity system -- a role for staff, nothing for customers -- is a
+   misconfiguration this profile excludes, not a variant it permits. PUBLISHING `device_authorization_url` and `claim_url` is not
    part of this module: the auth block is core discovery (item 1) and carries all
    six URLs on every conformant origin (Section 4.3), whether or not the operator
    serves what the last two reach. **An operator that does not serve an OPTIONAL

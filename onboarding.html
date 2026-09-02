@@ -91,6 +91,11 @@ openssl genrsa 2048 | base64
   c.handlers = %w[Kiosk::CatalogController Kiosk::OrdersController]
 
   c.issuer = ENV.fetch("KIOSK_ISSUER", "https://your-domain.com")
+  # Role vocabulary your authz branches on. If you declare roles at all, your
+  # identity system MUST name one for EVERY human who can approve an assistant
+  # binding — a role for staff and nothing for customers is not a supported
+  # configuration (see "Roles are total" below). Declaring none is the other
+  # supported shape: then no binding carries a role and no token has one.
   c.roles  = %i[customer]
   c.owner  = { name: "Your Business", support: "help@your-domain.com" }
 
@@ -160,6 +165,8 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
     <li><strong>KYC attestation</strong> — <code>POST /kiosk/agents/kyc</code>, where an agent presents a broker-signed identity fact. Drawn unconditionally for the same reason as <code>pay</code>: with no KYC key configured the verifier rejects with a <code>403</code> problem document, and a provider that never advertises KYC loses nothing.</li>
     <li><strong>The account-binding ceremony</strong> — how an assistant gets attached to a human's <em>existing</em> account instead of a fresh assistant account. That is the RFC 8628 claim wire (<code>POST /kiosk/oauth/device_authorization</code>, <code>POST /kiosk/oauth/token</code>), the link/claim/unlink endpoints (<code>POST /kiosk/auth/link</code>, <code>/kiosk/auth/claim</code>, <code>/kiosk/auth/unlink</code>), and two human-facing HTML pages: the consent page at <code>/kiosk/oauth/device/verify</code>, which shows the key's fingerprint and when it asked, and «Link an assistant» at <code>/kiosk/auth/assistants</code> with its link/update/unlink form posts. Both pages are session-authenticated through your own <code>user_idp</code> — approving a binding is the human channel's job, not the agent's — and both render minimal engine views you override by shipping same-named templates under <code>app/views/kiosk/server/</code>.</li>
   </ul>
+
+  <blockquote><strong>Roles are total, or you have none.</strong> The role a binding carries is the approving human's — the engine reads it from your <code>user_idp</code> and never from anything the assistant sent. So if you declare <code>c.roles</code> at all, your identity system MUST name a role for <em>every</em> human who can approve a binding. A role for staff and nothing for customers is not a supported configuration: on an origin with more than one role, an assistant that already holds the privileged one <em>keeps</em> it while its principal changes to a human who holds none. Declaring no roles at all is the other supported shape — then no binding carries a role and no token has one. If you write <code>#kiosk_role</code> on your user model, make it total: return your least-privileged declared role rather than <code>nil</code>. kiosk-server cannot check this at boot — whether a method is total over your humans is not something a configuration file says — so it warns in your log the first time a ceremony resolves no role on a multi-role origin, and <a href="/spec/protocol.md">§6.3 of the protocol</a> states the requirement.</blockquote>
 
   <p>The same line also installs the <strong>discovery documents</strong>, which live at the <em>origin root</em> rather than under the prefix — the agents.txt v1.0 standard and RFC 8615 put them there, outside any mount:</p>
   <ul>
