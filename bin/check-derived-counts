@@ -84,10 +84,17 @@
 #   * A numeral whose ENUMERATION beside it is wrong: "the four codes -- a, b, c,
 #     d" where d is not one. The count is derived; the list beside it is not.
 #   * A cardinal counting something whose population lives in the OTHER
-#     repository. `onboarding.html` says the install generator emits six
-#     migrations; that number is derivable there and nowhere here, and the
-#     cross-repo reach is the shape rejected above. It is filed rather than
-#     silently gated.
+#     repository. This bullet used to end "`onboarding.html` says the install
+#     generator emits six migrations", and that sentence IS GONE -- T-164
+#     removed the numeral from all three sites rather than reaching across the
+#     repository boundary for it, because a derivation that only ever runs on a
+#     laptop is not a guard. Measured when that was decided:
+#     `reference/.github/workflows/` is one file with 0 `repository:` keys and
+#     this repository's five workflows have 0 between them, so no job anywhere
+#     checks the other repository out. The CLASS is unchanged and is why this
+#     bullet stays: a number whose population lives one repository over cannot
+#     be derived here, so the answer is to stop claiming it -- not to hold it
+#     against a second hand-typed copy, which moves the defect (K-1281).
 #   * A split of a population that nothing records: the `/oauth/*` vocabulary is
 #     eight, and the prose splits it six-from-one RFC and two-from-another. No
 #     schema labels which code came from which, so the only source for the split
