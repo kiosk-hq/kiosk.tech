@@ -273,6 +273,57 @@ chkfail validate "${F[@]}" -s "$(ref nointerval "$B/binding.schema.json#/\$defs/
 # would let back in.
 chkfail validate "${F[@]}" -s "$(ref oaerrbad "$B/binding.schema.json#/\$defs/oauthError")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.oauth-error.unknown-code.json
 
+echo "== mutation arms: a rule that a NEIGHBOURING rule would still refuse for =="
+# K-1287. A negative fixture proves that SOMETHING refuses the document. It does
+# not prove that the rule it was written for is the thing doing the refusing, and
+# the difference is invisible for exactly as long as a second rule happens to
+# cover the same document.
+#
+# That is what happened to `schema-descriptor.params-field.json`. K-1275 added
+# `params: {"not": {}}` to `$defs.descriptor` and recorded a watched fail: delete
+# the declaration and this suite went red. Three days later T-167 closed the same
+# object with `additionalProperties: false`, and the closure refuses an UNDECLARED
+# key -- so with the declaration deleted, `params` becomes undeclared and the
+# closure catches it instead. MEASURED at head 2026-09-04 from a `cp` copy:
+# deleting the `params` declaration left this script at PASS=61 FAIL=0. No wire
+# behaviour was at risk -- a descriptor publishing `params` is refused twice over
+# -- but the RULE was held by nothing, and the sentence that says WHAT was
+# withdrawn and WHEN could have left the schema without a single line going red.
+#
+# So the arm validates against a MUTATED COPY of the schema with the neighbouring
+# rule removed, which is the only shape that can tell the two apart. Three arms,
+# because a mutation arm has two ways to be vacuous and both of them read green:
+# the copy could be broken (then `chkfail` passes because ajv errored, not because
+# the schema refused), and the mutation could have silently no-opped (then the arm
+# is just the ordinary fixture again). The first two arms close those.
+MUT="$TMP/descriptor-open.schema.json"
+if ruby -rjson -e '
+  src = ARGV[0]; dst = ARGV[1]
+  d = JSON.parse(File.read(src))
+  o = d.fetch("$defs").fetch("descriptor")
+  unless o.key?("additionalProperties")
+    abort("$defs.descriptor declares no additionalProperties -- there is nothing to remove, " \
+          "so this arm would prove nothing. If the T-167 closure was deliberately withdrawn, " \
+          "delete these arms and say so; do not leave one that cannot fail.")
+  end
+  o.delete("additionalProperties")
+  File.write(dst, JSON.pretty_generate(d) + "\n")
+' schema-descriptor.schema.json "$MUT"; then
+  # 1. The mutated copy is a working schema, so a refusal below is a refusal and
+  #    not an ajv error about the copy itself.
+  chk validate "${F[@]}" -s "$MUT" -d examples/schema-descriptor.json
+  # 2. The mutation is REAL: with `additionalProperties` gone the descriptor is
+  #    open, so the unknown-member fixture -- which T-167 wrote for that very
+  #    keyword -- must now be ACCEPTED. If this arm fails, the mutation no-opped
+  #    and arm 3 is measuring nothing.
+  chk validate "${F[@]}" -s "$MUT" -d examples/rejected/schema-descriptor.unknown-member.json
+  # 3. And `params` is STILL refused, by its own declaration and by nothing else.
+  #    Delete that declaration and this line -- alone in the whole suite -- goes red.
+  chkfail validate "${F[@]}" -s "$MUT" -d examples/rejected/schema-descriptor.params-field.json
+else
+  fail=$((fail+1)); echo "FAIL (mutation arm could not be built): schema-descriptor.schema.json"
+fi
+
 echo "-----"
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
