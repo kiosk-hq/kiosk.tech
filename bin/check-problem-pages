@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Problem-type page guard (K-793).
+# Problem-type page guard (K-793), and since K-1286 the code→status derivation.
 #
 # WHAT THIS ENFORCES
 # ------------------
@@ -21,16 +21,57 @@
 # vocabulary in the OTHER repo silently acquires a dead URI, and the only
 # symptom is on a stranger's screen.
 #
+# THE STATUS BESIDE THE NAME, AND WHY THE SCHEMA IS NOW THE SOURCE (K-1286)
+# ------------------------------------------------------------------------
+# The `code`→HTTP-status mapping used to live in four hand-kept copies with
+# nothing comparing them: the vocabulary table in `specification.html`, the
+# Section 9 table in `spec/protocol.md`, the seventeen `problems/<code>/`
+# pages, and `Errors::CODES` in the reference implementation, which sits in a
+# DIFFERENT REPOSITORY. The formal schema carried only the seventeen NAMES —
+# an `enum` and nothing about which status each name means — so the name set
+# could not drift across the boundary (`bin/check-spec-schemas` compares the
+# vendored copy) while the status beside it could, and did so silently.
+# MEASURED before this pass existed: publishing `conflict` as 410 on all three
+# kiosk.tech surfaces while the engine kept 409 left THIRTEEN gates at exit 0,
+# and moving it in `spec/protocol.md` ALONE left every gate in this repository
+# green — this guard included, because it read `specification.html` and had
+# never heard of the formal table.
+#
+# So `spec/schemas/problem.schema.json` now carries the mapping as data: an
+# `allOf` of per-code `if`/`then` branches, which is machine-readable in the
+# ordinary sense AND enforced by every validator that touches a problem
+# document — `spec/schemas/validate.sh` here, and `e2e/schema_conformance.rb`
+# in the reference repository, against that origin's LIVE wire bytes. This
+# guard derives the map from that file and holds all three prose surfaces
+# against it, so there is ONE source of truth rather than a second hand-kept
+# copy to compare the first one with.
+#
+# WHAT THIS STILL CANNOT SEE, said plainly rather than implied: the reference
+# implementation's copy is held against the VENDORED schema by a spec in that
+# repository, and vendored-equals-published is `bin/check-spec-schemas`, which
+# needs both checkouts and therefore runs in NEITHER repository's CI (measured
+# 2026-09-04: zero `repository:` keys across this repo's five workflows and the
+# reference repo's one). The cross-repo link is closed in the umbrella
+# workspace, not on a runner. That is better than the nothing it replaces and
+# it is not the same as CI-enforced; do not report it as though it were.
+#
 # WHAT IS COMPARED
 # ----------------
-# The vocabulary table in `specification.html` (the narrative spec — normative,
-# and the document the pages themselves point back to) against the directory
-# listing of `problems/`. Every code in the table MUST have
-# `problems/<code>/index.html`, and every published page MUST correspond to a
-# code in the table — an orphan page is a URI the wire will never mint, which
-# is the same defect pointing the other way. Each page must also state its own
-# code and its own HTTP status, so a page copy-pasted from its neighbour and
-# not edited fails here rather than on a reader.
+# 1. `spec/schemas/problem.schema.json`: its `code` enum and its status
+#    branches must name the SAME set — a code with no branch is a status
+#    nothing pins, a branch for a code not in the enum is a rule for a wire
+#    value that cannot occur.
+# 2. The vocabulary table in `specification.html` (the narrative spec —
+#    normative, and the document the pages themselves point back to) against
+#    that map: same codes, same statuses.
+# 3. The Section 9 table in `spec/protocol.md` (the formal spec) against the
+#    same map.
+# 4. The directory listing of `problems/`. Every code must have
+#    `problems/<code>/index.html`, and every published page must correspond to
+#    a code in the map — an orphan page is a URI the wire will never mint,
+#    which is the same defect pointing the other way. Each page must also state
+#    its own code and its own HTTP status, so a page copy-pasted from its
+#    neighbour and not edited fails here rather than on a reader.
 #
 # The extension-less URI resolves because GitHub Pages serves `<dir>/index.html`
 # for a directory request; that is why the pages are directories and not
@@ -38,61 +79,184 @@
 # resolve — the wire is pinned to it in the gem, the schema and the e2e
 # harness, and site-side is the end that is cheap to move.
 #
-# Usage: bin/check-problem-pages     (exit 0 = clean, 1 = drift)
+# THE VACUITY QUESTION, AND THE KIND WAS CHOSEN FIRST. This is a DERIVATION
+# check, not a ban: it asserts that a value typed into a published page equals
+# the value the schema declares. The way a derivation check fails is by having
+# nothing to derive FROM or nothing to compare TO — an empty `allOf`, a table
+# whose markup changed so it parses zero rows, a `problems/` directory that
+# went missing — and every one of those reads exactly like a clean repository
+# if the guard only reports disagreements. So each source has a floor and a
+# collapsed source is a FAILURE with its own label, never silence; and
+# `--self-test` re-asserts over THIS repository that every source still has a
+# live subject, printing the counts so non-vacuity can be read off the run
+# rather than believed.
+#
+# Usage: bin/check-problem-pages                (exit 0 = clean, 1 = drift)
+#        bin/check-problem-pages --self-test    (red on a plant of every rule)
 
-REPO = File.expand_path("..", __dir__)
-SPEC = File.join(REPO, "specification.html")
-DIR  = File.join(REPO, "problems")
+require "json"
+require "rbconfig"
+require "fileutils"
+require "open3"
+require "tmpdir"
 
-spec_html = File.read(SPEC)
+# A vocabulary this size is not a spec; it is a parse that stopped working.
+# Both prose tables and the schema map are held to it independently, because
+# they are three different parsers over three different markups.
+VOCAB_FLOOR = 10
 
-# The vocabulary rows: <tr><td><code>NAME</code></td><td>STATUS</td>…
-vocabulary = spec_html
-             .scan(%r{<tr><td><code>([a-z_]+)</code></td><td>(\d{3})</td>})
-             .to_h { |code, status| [code, status.to_i] }
+# ── derivation ──────────────────────────────────────────────────────────────
 
-if vocabulary.size < 10
-  warn "check-problem-pages: FAIL — parsed only #{vocabulary.size} vocabulary rows " \
-       "out of specification.html; the table's markup changed and this check is blind."
-  exit 1
+# The schema's per-code status branches:
+#   { "if":   { "required": ["code"], "properties": { "code":   { "const": X } } },
+#     "then": {                       "properties": { "status": { "const": N } } } }
+def schema_map(schema)
+  Array(schema["allOf"]).each_with_object({}) do |branch, map|
+    code   = branch.dig("if", "properties", "code", "const")
+    status = branch.dig("then", "properties", "status", "const")
+    next if code.nil? || status.nil?
+
+    map[code] = status
+  end
 end
 
-# A code is PUBLISHED when its page exists — not when its DIRECTORY does.
-# Reading directory names alone was a hole with a green face on it (K-977):
-# delete `problems/conflict/index.html` and leave the directory behind, and
-# this check printed "15 codes in the vocabulary, 15 pages published, no
-# orphans" while https://kiosk.tech/problems/conflict served a 404. Git hides
-# the difference on a fresh checkout — an emptied directory is not tracked, so
-# CI would have caught it — which is exactly why the local run must not
-# disagree with the CI run about what is published.
-published = Dir.children(DIR)
-              .select { |e| File.file?(File.join(DIR, e, "index.html")) }
-              .sort
-
-errors = []
-
-(vocabulary.keys.sort - published).each do |code|
-  errors << "MISSING  problems/#{code}/index.html — " \
-            "https://kiosk.tech/problems/#{code} would 404"
+# The narrative table: <tr><td><code>NAME</code></td><td>STATUS</td>…
+def html_vocabulary(html)
+  html.scan(%r{<tr><td><code>([a-z_]+)</code></td><td>(\d{3})</td>})
+      .to_h { |code, status| [code, status.to_i] }
 end
 
-(published - vocabulary.keys).each do |code|
-  errors << "ORPHAN   problems/#{code}/ — no such code in the specification's " \
-            "error vocabulary, so nothing on the wire ever mints that URI"
+# The formal table: | `name` | STATUS | prose |
+def markdown_vocabulary(md)
+  md.scan(/^\|\s*`([a-z_]+)`\s*\|\s*(\d{3})\s*\|/)
+    .to_h { |code, status| [code, status.to_i] }
 end
 
-vocabulary.each do |code, status|
-  page = File.join(DIR, code, "index.html")
-  next unless File.file?(page)
+# ── the check ───────────────────────────────────────────────────────────────
 
-  body = File.read(page)
-  errors << "STALE    problems/#{code}/index.html does not name its own code" \
-    unless body.include?("<h1>#{code}</h1>")
-  errors << "STALE    problems/#{code}/index.html does not state HTTP #{status}" \
-    unless body.include?("HTTP #{status}")
-  errors << "STALE    problems/#{code}/index.html does not carry its own type URI" \
-    unless body.include?("https://kiosk.tech/problems/#{code}")
+# rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+def collect(repo)
+  errors = []
+  schema_path = File.join(repo, "spec/schemas/problem.schema.json")
+  spec_path   = File.join(repo, "specification.html")
+  proto_path  = File.join(repo, "spec/protocol.md")
+  dir         = File.join(repo, "problems")
+
+  unless File.file?(schema_path)
+    return ["BLIND    spec/schemas/problem.schema.json is missing — the code→status " \
+            "map has no source and every comparison below would pass by having nothing to do"]
+  end
+
+  begin
+    schema = JSON.parse(File.read(schema_path))
+  rescue JSON::ParserError => e
+    return ["BLIND    spec/schemas/problem.schema.json does not parse (#{e.message}) — " \
+            "the map has no source"]
+  end
+
+  map  = schema_map(schema)
+  enum = Array(schema.dig("properties", "code", "enum"))
+
+  if map.size < VOCAB_FLOOR
+    errors << "VACUITY  spec/schemas/problem.schema.json binds only #{map.size} code(s) to a " \
+              "status (floor #{VOCAB_FLOOR}) — the `allOf` branches are the ONLY machine-readable " \
+              "copy of the mapping, so an empty one makes every check below vacuously green"
+  end
+  if enum.size < VOCAB_FLOOR
+    errors << "VACUITY  spec/schemas/problem.schema.json's `code` enum has only #{enum.size} " \
+              "member(s) (floor #{VOCAB_FLOOR}) — the closed vocabulary has gone soft"
+  end
+  return errors unless errors.empty?
+
+  (enum - map.keys).sort.each do |code|
+    errors << "MAPPING  spec/schemas/problem.schema.json lists #{code} in the `code` enum but " \
+              "binds it to no status — the vocabulary entry exists and nothing says what it means"
+  end
+  (map.keys - enum).sort.each do |code|
+    errors << "MAPPING  spec/schemas/problem.schema.json binds #{code} to a status but does not " \
+              "list it in the `code` enum — a rule for a value the wire can never carry"
+  end
+
+  # ── the two prose tables against the schema ───────────────────────────────
+  {
+    "specification.html" => [spec_path, ->(b) { html_vocabulary(b) }],
+    "spec/protocol.md"   => [proto_path, ->(b) { markdown_vocabulary(b) }],
+  }.each do |label, (path, parser)|
+    unless File.file?(path)
+      errors << "BLIND    #{label} is missing — its vocabulary table cannot be compared"
+      next
+    end
+
+    table = parser.call(File.read(path))
+    if table.size < VOCAB_FLOOR
+      errors << "BLIND    #{label} — parsed only #{table.size} vocabulary row(s) (floor " \
+                "#{VOCAB_FLOOR}); the table's markup changed and this comparison is blind"
+      next
+    end
+
+    (map.keys - table.keys).sort.each do |code|
+      errors << "MISSING  #{label} has no vocabulary row for #{code}, which " \
+                "spec/schemas/problem.schema.json binds to #{map[code]}"
+    end
+    (table.keys - map.keys).sort.each do |code|
+      errors << "ORPHAN   #{label} publishes a row for #{code}, which is not in " \
+                "spec/schemas/problem.schema.json's `code` enum"
+    end
+    (map.keys & table.keys).sort.each do |code|
+      next if table[code] == map[code]
+
+      errors << "STATUS   #{label} publishes #{code} as HTTP #{table[code]}; " \
+                "spec/schemas/problem.schema.json binds it to #{map[code]}"
+    end
+  end
+
+  # ── the published pages against the schema ────────────────────────────────
+  unless File.directory?(dir)
+    errors << "BLIND    problems/ is missing — no page can be checked"
+    return errors
+  end
+
+  # A code is PUBLISHED when its page exists — not when its DIRECTORY does.
+  # Reading directory names alone was a hole with a green face on it (K-977):
+  # delete `problems/conflict/index.html` and leave the directory behind, and
+  # this check printed "15 codes in the vocabulary, 15 pages published, no
+  # orphans" while https://kiosk.tech/problems/conflict served a 404. Git hides
+  # the difference on a fresh checkout — an emptied directory is not tracked, so
+  # CI would have caught it — which is exactly why the local run must not
+  # disagree with the CI run about what is published.
+  published = Dir.children(dir)
+                 .select { |e| File.file?(File.join(dir, e, "index.html")) }
+                 .sort
+
+  (map.keys.sort - published).each do |code|
+    errors << "MISSING  problems/#{code}/index.html — " \
+              "https://kiosk.tech/problems/#{code} would 404"
+  end
+
+  (published - map.keys).each do |code|
+    errors << "ORPHAN   problems/#{code}/ — no such code in spec/schemas/problem.schema.json's " \
+              "`code` enum, so nothing on the wire ever mints that URI"
+  end
+
+  map.each do |code, status|
+    page = File.join(dir, code, "index.html")
+    next unless File.file?(page)
+
+    body = File.read(page)
+    errors << "STALE    problems/#{code}/index.html does not name its own code" \
+      unless body.include?("<h1>#{code}</h1>")
+    errors << "STATUS   problems/#{code}/index.html does not state HTTP #{status}, which is what " \
+              "spec/schemas/problem.schema.json binds #{code} to" \
+      unless body.include?("HTTP #{status}")
+    errors << "STALE    problems/#{code}/index.html does not carry its own type URI" \
+      unless body.include?("https://kiosk.tech/problems/#{code}")
+  end
+
+  errors.concat(envelope_errors(repo))
+  errors.concat(index_errors(dir, map))
+  errors
 end
+# rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
 # THE 0.3 ENVELOPE MUST NOT SURVIVE IN A COPYABLE EXAMPLE (K-866)
 # ----------------------------------------------------------------
@@ -112,11 +276,10 @@ end
 # The published `skill-v*.md` cuts are EXEMPT and must stay so: they are frozen
 # artefacts describing the protocol they were cut against, and the 0.3 ones
 # legitimately show the 0.3 envelope. CHANGELOG.md is history, same reason.
-ENVELOPE_SURFACES = (
-  %w[specification.html index.html onboarding.html skill.md skills.md
-     spec/protocol.md spec/descriptor-house-style.md] +
-  Dir.glob("problems/**/index.html", base: REPO)
-).freeze
+ENVELOPE_SURFACES = %w[
+  specification.html index.html onboarding.html skill.md skills.md
+  spec/protocol.md spec/descriptor-house-style.md
+].freeze
 
 def example_blocks(path, body)
   if path.end_with?(".md")
@@ -126,38 +289,251 @@ def example_blocks(path, body)
   end
 end
 
-ENVELOPE_SURFACES.each do |rel|
-  path = File.join(REPO, rel)
-  next unless File.file?(path)
+def envelope_errors(repo)
+  surfaces = ENVELOPE_SURFACES + Dir.glob("problems/**/index.html", base: repo)
+  surfaces.each_with_object([]) do |rel, errors|
+    path = File.join(repo, rel)
+    next unless File.file?(path)
 
-  example_blocks(rel, File.read(path)).each do |block|
-    next unless block.match?(/"ok"\s*:/) || block.match?(/"error"\s*:\s*\{/)
+    example_blocks(rel, File.read(path)).each do |block|
+      next unless block.match?(/"ok"\s*:/) || block.match?(/"error"\s*:\s*\{/)
 
-    offending = block.lines.find { |l| l.match?(/"ok"\s*:/) || l.match?(/"error"\s*:\s*\{/) }
-    errors << "ENVELOPE #{rel} publishes the retired 0.3 error envelope in a " \
-              "COPYABLE example: #{offending.strip.inspect} — 0.4 answers a flat " \
-              "RFC 9457 problem document (`code` at the top level, no `ok` flag)"
+      offending = block.lines.find { |l| l.match?(/"ok"\s*:/) || l.match?(/"error"\s*:\s*\{/) }
+      errors << "ENVELOPE #{rel} publishes the retired 0.3 error envelope in a " \
+                "COPYABLE example: #{offending.strip.inspect} — 0.4 answers a flat " \
+                "RFC 9457 problem document (`code` at the top level, no `ok` flag)"
+    end
   end
 end
 
-index = File.join(DIR, "index.html")
-errors << "MISSING  problems/index.html — the per-code pages all link back to it" \
-  unless File.file?(index)
+def index_errors(dir, map)
+  index = File.join(dir, "index.html")
+  return ["MISSING  problems/index.html — the per-code pages all link back to it"] \
+    unless File.file?(index)
 
-if File.file?(index)
-  index_body = File.read(index)
-  vocabulary.each_key do |code|
+  body = File.read(index)
+  map.each_key.with_object([]) do |code, errors|
     errors << "STALE    problems/index.html does not list #{code}" \
-      unless index_body.include?("/problems/#{code}/")
+      unless body.include?("/problems/#{code}/")
   end
 end
 
-if errors.empty?
-  puts "check-problem-pages: OK — #{vocabulary.size} codes in the vocabulary, " \
-       "#{vocabulary.size} pages published, no orphans."
-  exit 0
+def report(repo)
+  errors = collect(repo)
+  if errors.empty?
+    schema = JSON.parse(File.read(File.join(repo, "spec/schemas/problem.schema.json")))
+    n = schema_map(schema).size
+    puts "check-problem-pages: OK — #{n} codes bound to a status by " \
+         "spec/schemas/problem.schema.json; specification.html, spec/protocol.md and " \
+         "#{n} published pages all agree with it."
+    return 0
+  end
+
+  warn "check-problem-pages: FAIL"
+  errors.each { |e| warn "  #{e}" }
+  1
 end
 
-warn "check-problem-pages: FAIL"
-errors.each { |e| warn "  #{e}" }
-exit 1
+# ── self-test ───────────────────────────────────────────────────────────────
+#
+# One arm per rule plus the vacuity arms. Every arm runs a COPY of this file
+# against a throwaway tree, so what is proved is the guard as an executable
+# rather than a method call inside this process — and the fixture's codes and
+# statuses are DELIBERATELY unlike this repository's, so no arm can pass by
+# accidentally agreeing with the real vocabulary.
+
+FIXTURE_CODES = {
+  "alpha_absent" => 404, "bravo_absent" => 404, "charlie_gated" => 402,
+  "delta_gated" => 402, "echo_denied" => 403, "foxtrot_denied" => 403,
+  "golf_denied" => 403, "hotel_bad" => 400, "india_stale" => 409,
+  "juliet_burst" => 429, "kilo_unserved" => 501,
+}.freeze
+
+def fixture_schema(map, enum: nil)
+  JSON.pretty_generate(
+    "properties" => { "code" => { "enum" => (enum || map.keys) } },
+    "allOf" => map.map do |code, status|
+      { "if" => { "required" => ["code"], "properties" => { "code" => { "const" => code } } },
+        "then" => { "properties" => { "status" => { "const" => status } } } }
+    end,
+  ) + "\n"
+end
+
+def fixture_spec_html(map)
+  rows = map.map { |c, s| "<tr><td><code>#{c}</code></td><td>#{s}</td><td>prose</td></tr>" }
+  "<html><body><table>\n#{rows.join("\n")}\n</table></body></html>\n"
+end
+
+def fixture_protocol_md(map)
+  rows = map.map { |c, s| "| `#{c}` | #{s} | prose |" }
+  "# Section 9\n\n| code | status | meaning |\n|---|---|---|\n#{rows.join("\n")}\n"
+end
+
+def fixture_page(code, status)
+  "<html><body><h1>#{code}</h1>\n" \
+    "<p><span class=\"status\">HTTP #{status}</span></p>\n" \
+    "<p><code>https://kiosk.tech/problems/#{code}</code></p></body></html>\n"
+end
+
+def build_fixture(dir, map: FIXTURE_CODES, enum: nil, spec: nil, proto: nil, pages: nil)
+  FileUtils.mkdir_p([File.join(dir, "bin"), File.join(dir, "spec/schemas"),
+                     File.join(dir, "problems")])
+  FileUtils.cp(File.realpath(__FILE__), File.join(dir, "bin/check-problem-pages"))
+  FileUtils.chmod(0o755, File.join(dir, "bin/check-problem-pages"))
+  File.write(File.join(dir, "spec/schemas/problem.schema.json"), fixture_schema(map, enum: enum))
+  File.write(File.join(dir, "specification.html"), fixture_spec_html(spec || map))
+  File.write(File.join(dir, "spec/protocol.md"), fixture_protocol_md(proto || map))
+  (pages || map).each do |code, status|
+    FileUtils.mkdir_p(File.join(dir, "problems", code))
+    File.write(File.join(dir, "problems", code, "index.html"), fixture_page(code, status))
+  end
+  links = map.keys.map { |c| "<a href=\"/problems/#{c}/\">#{c}</a>" }.join("\n")
+  File.write(File.join(dir, "problems/index.html"), "<html><body>\n#{links}\n</body></html>\n")
+end
+
+def run_guard_in(dir)
+  Open3.capture3(RbConfig.ruby, File.join(dir, "bin/check-problem-pages"))
+end
+
+def arm(failures, label)
+  ok, detail = yield
+  if ok
+    puts "  ok   #{label}"
+  else
+    failures << "#{label} — #{detail}"
+    puts "  FAIL #{label}"
+  end
+end
+
+def red_arm(failures, label, needle)
+  arm(failures, label) do
+    _out, err, st = run_guard_in(yield)
+    if st.exitstatus.zero?      then [false, "the guard stayed green\n#{err}"]
+    elsif !err.include?(needle) then [false, "fired, but not with #{needle.inspect}\n#{err}"]
+    else [true, nil]
+    end
+  end
+end
+
+# rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+def run_self_test
+  failures = []
+
+  Dir.mktmpdir("check-problem-pages") do |dir|
+    build_fixture(dir)
+    arm(failures, "the green fixture tree exits 0") do
+      out, err, st = run_guard_in(dir)
+      [st.exitstatus.zero?, "exited #{st.exitstatus}\n#{out}#{err}"]
+    end
+
+    drift = FIXTURE_CODES.merge("india_stale" => 410)
+
+    red_arm(failures, "a status moved in specification.html ALONE reddens",
+            "specification.html publishes india_stale as HTTP 410") do
+      build_fixture(dir, spec: drift)
+      dir
+    end
+
+    red_arm(failures, "a status moved in spec/protocol.md ALONE reddens (the K-1286 hole)",
+            "spec/protocol.md publishes india_stale as HTTP 410") do
+      build_fixture(dir, proto: drift)
+      dir
+    end
+
+    red_arm(failures, "a status moved in a problem PAGE alone reddens",
+            "problems/india_stale/index.html does not state HTTP 409") do
+      build_fixture(dir, pages: drift)
+      dir
+    end
+
+    red_arm(failures, "a status moved in the SCHEMA alone reddens on all three surfaces",
+            "specification.html publishes india_stale as HTTP 409") do
+      build_fixture(dir, map: drift, spec: FIXTURE_CODES, proto: FIXTURE_CODES,
+                         pages: FIXTURE_CODES)
+      dir
+    end
+
+    red_arm(failures, "a code in the enum with NO status branch reddens",
+            "lists zulu_extra in the `code` enum but binds it to no status") do
+      build_fixture(dir, enum: FIXTURE_CODES.keys + ["zulu_extra"])
+      dir
+    end
+
+    red_arm(failures, "a status branch for a code outside the enum reddens",
+            "binds india_stale to a status but does not list it in the `code` enum") do
+      build_fixture(dir, enum: FIXTURE_CODES.keys - ["india_stale"])
+      dir
+    end
+
+    red_arm(failures, "an emptied `allOf` FAILS under VACUITY rather than reading clean",
+            "VACUITY") do
+      build_fixture(dir)
+      path = File.join(dir, "spec/schemas/problem.schema.json")
+      doc = JSON.parse(File.read(path))
+      doc["allOf"] = []
+      File.write(path, JSON.pretty_generate(doc) + "\n")
+      dir
+    end
+
+    red_arm(failures, "a prose table whose markup collapsed FAILS as BLIND, not as clean",
+            "spec/protocol.md — parsed only 0 vocabulary row(s)") do
+      build_fixture(dir)
+      File.write(File.join(dir, "spec/protocol.md"), "# Section 9\n\nno table here\n")
+      dir
+    end
+
+    build_fixture(dir)
+    arm(failures, "the fixture tree returns to exit 0 once every plant is removed") do
+      out, err, st = run_guard_in(dir)
+      [st.exitstatus.zero?, "exited #{st.exitstatus}\n#{out}#{err}"]
+    end
+  end
+
+  # NON-VACUITY over the REAL repository, printed as numbers so it can be read
+  # off the run rather than believed.
+  schema = JSON.parse(File.read(File.join(REPO, "spec/schemas/problem.schema.json")))
+  map    = schema_map(schema)
+  spec_n  = html_vocabulary(File.read(File.join(REPO, "specification.html"))).size
+  proto_n = markdown_vocabulary(File.read(File.join(REPO, "spec/protocol.md"))).size
+  pages_n = Dir.children(File.join(REPO, "problems"))
+               .count { |e| File.file?(File.join(REPO, "problems", e, "index.html")) }
+  {
+    "the schema binds codes to statuses here" => map.size,
+    "specification.html's table parses here" => spec_n,
+    "spec/protocol.md's table parses here" => proto_n,
+    "problems/ publishes pages here" => pages_n,
+  }.each do |label, n|
+    arm(failures, "#{label} (#{n})") { [n >= VOCAB_FLOOR, "#{n} — below the floor #{VOCAB_FLOOR}"] }
+  end
+
+  arm(failures, "the guard is green over this repository") do
+    [collect(REPO).empty?, collect(REPO).join("\n")]
+  end
+
+  if failures.empty?
+    puts
+    puts "check-problem-pages --self-test: OK — red on a status moved in each of the four " \
+         "surfaces independently, red on a code the schema binds to nothing and on a binding " \
+         "for a code the enum does not carry, red rather than clean when the map or a table " \
+         "collapses, and non-vacuous over this repository."
+    return 0
+  end
+
+  warn ""
+  warn "check-problem-pages --self-test: FAIL — #{failures.length} arm(s)."
+  failures.each { |f| warn "  #{f}" }
+  1
+end
+# rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+
+REPO = File.expand_path("..", __dir__)
+
+code =
+  case ARGV[0]
+  when nil then report(REPO)
+  when "--self-test" then run_self_test
+  else
+    warn "usage: check-problem-pages [--self-test]"
+    2
+  end
+exit code

@@ -1,8 +1,9 @@
 name: problem-pages
 
 # Every error code the specification defines has a published page at
-# problems/<code>/, and every published page is a code the specification
-# defines (K-793, T-106).
+# problems/<code>/, every published page is a code the specification defines
+# (K-793, T-106), and since K-1286 every one of them states the HTTP status
+# that spec/schemas/problem.schema.json binds that code to.
 #
 # WHY THIS RUNS IN CI RATHER THAN BEING REMEMBERED. The vocabulary is defined
 # in the OTHER repo's terms and published here, and the two move in separate
@@ -11,37 +12,53 @@ name: problem-pages
 # bin/check-problem-pages has existed and passed since K-793 with nothing
 # running it, which is the state a vocabulary drifts from.
 #
+# THE PATH FILTER IS GONE, and its removal is the K-1286 half of this job.
+# The filter listed `specification.html` and `problems/**`, which was the guard's
+# whole input when it was written and stopped being so twice over: the envelope
+# pass already read index.html, onboarding.html, skill.md, skills.md and two
+# files under spec/, and the status derivation now reads spec/protocol.md and
+# spec/schemas/problem.schema.json. Measured 2026-09-04, before this change:
+# moving `conflict` from 409 to 410 in spec/protocol.md ALONE left every gate in
+# this repository at exit 0 — and even once the guard could see that file, a
+# push touching only spec/ would not have started this job. A filter here is a
+# list of paths to get subtly wrong, and the one it misses is exactly the one
+# that ships a status the document beside it disproves. It costs ~1 s. This is
+# the same reasoning derived-counts.yml, publication-paths.yml and
+# skill-immutability.yml each record for themselves.
+#
 # ITS OWN WORKFLOW, not a step in spec-schemas.yml, for the reason
 # skill-immutability.yml already records for itself: that workflow is
-# path-filtered on `spec/**` while these inputs are specification.html and
-# problems/** at the repo root, it installs Node and ajv this check does not
-# need, and one invariant deserves one exit code and one name in the checks
-# list.
+# path-filtered on `spec/**` while these inputs span the repo root, it installs
+# Node and ajv this check does not need, and one invariant deserves one exit
+# code and one name in the checks list.
 
 on:
   push:
-    paths:
-      - "specification.html"
-      - "problems/**"
-      - "bin/check-problem-pages"
-      - ".github/workflows/problem-pages.yml"
   pull_request:
-    paths:
-      - "specification.html"
-      - "problems/**"
-      - "bin/check-problem-pages"
-      - ".github/workflows/problem-pages.yml"
 
 jobs:
   problem-pages:
-    name: every error code has a page, and every page has a code (bin/check-problem-pages)
+    name: every error code has a page, and every page has the schema's status (bin/check-problem-pages)
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v7
 
-      # The runner's preinstalled Ruby. The script requires nothing at all —
-      # no Gemfile, no bundle, no Ruby toolchain anywhere in this repo — so
-      # pinning a version here would be a version to maintain for no gain.
-      - name: The published problem pages match the specification's vocabulary
+      # The runner's preinstalled Ruby. The script is stdlib-only (json,
+      # rbconfig, fileutils, open3, tmpdir) — no Gemfile, no bundle, no Ruby
+      # toolchain anywhere in this repo — so pinning a version here would be a
+      # version to maintain for no gain.
+      #
+      # The self-test is a step of its own, and it runs FIRST, for the reason
+      # publication-paths.yml records: this guard COMPARES populations, and the
+      # way a comparison fails is by having nothing to compare — an emptied
+      # `allOf`, a table whose markup changed so it parses zero rows — which
+      # exits 0 and reads exactly like a clean repository. So the guard proves
+      # it is red on a status moved in each of the four surfaces independently,
+      # red rather than clean when a source collapses, and non-vacuous over this
+      # tree, before a green run below means anything.
+      - name: The guard is red on a plant in every surface, and non-vacuous here
+        run: ruby bin/check-problem-pages --self-test
+
+      - name: The published problem pages match the schema's code-to-status map
         run: ruby bin/check-problem-pages

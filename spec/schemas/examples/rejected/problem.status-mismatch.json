@@ -1,0 +1,8 @@
+{
+  "type": "https://kiosk.tech/problems/conflict",
+  "title": "State conflict",
+  "status": 410,
+  "detail": "this public key is already registered",
+  "code": "conflict",
+  "hint": "use /auth/login"
+}

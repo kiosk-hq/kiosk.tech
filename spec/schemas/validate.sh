@@ -110,6 +110,17 @@ chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discove
 # `module_not_found` for `module_not_served` -- is the shape a porter would
 # actually emit, and the enum must refuse it.
 chkfail validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/rejected/problem.unknown-code.json
+# K-1286: and the STATUS beside the code is closed too. Until this line the schema
+# carried the seventeen NAMES and nothing about which HTTP status each one means,
+# so the mapping lived in hand-kept copies on both sides of the repository
+# boundary -- the specification table, the Section 9 table, the seventeen problem
+# pages, and the implementation's own table -- with nothing comparing them across
+# it. Measured then: publishing `conflict` as 410 on all three kiosk.tech surfaces
+# while the engine kept 409 left thirteen gates at exit 0, this one among them.
+# The `allOf` in problem.schema.json binds each code to exactly one status, and
+# this example is the accepted shape of a `conflict` with that one number moved to
+# 410, so nothing but that branch leaving the schema can turn it green.
+chkfail validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/rejected/problem.status-mismatch.json
 # T-095: `verbs` is GONE from the catalog. It rendered the same value
 # `/.well-known/kiosk.json` publishes as `capabilities` -- one value under two
 # names, not two facts -- so the field was dropped rather than reconciled.
