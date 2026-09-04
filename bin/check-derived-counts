@@ -315,6 +315,16 @@ DERIVATIONS = {
       block.scan(/<li[\s>]/).length
     },
   },
+  "LANDING_MAYBE" => {
+    what: %(runtimes the landing page lists as potentially-working -- documented, never run),
+    from: %(#{INDEX_HTML} -- links carrying class="maybe-link"),
+    fn: -> {
+      n = slurp(INDEX_HTML).scan(/class="maybe-link"/).length
+      raise Blind, %(#{INDEX_HTML}: no class="maybe-link" link; the potentially-works list moved) if n.zero?
+
+      n
+    },
+  },
   "DISCOVERY_DOCS" => {
     what: "machine-readable discovery documents served at the origin root",
     from: "#{ONBOARD_HTML} -- the paths in the copyable `for p in ...; do` probe loop",
@@ -427,6 +437,12 @@ RULES = [
     what: %(a cardinal counting the codes that answer "it is not here"),
     patterns: [/#{CARD} codes answer "it is not here"/],
     fixture: ->(w) { %(#{w.capitalize} codes answer "it is not here", and they are different facts.) },
+  },
+  {
+    id: "DC-13", derivation: "LANDING_MAYBE",
+    what: "a cardinal counting the runtimes the landing lists as potentially-working",
+    patterns: [/None of these #{CARD} has been run against the demos/],
+    fixture: ->(w) { "None of these #{w} has been run against the demos." },
   },
 ].freeze
 
@@ -659,6 +675,7 @@ FIX = {
   "VOCAB_AT_404" => 4, "NOT_HERE_CODES" => 5, "VOCAB_402_OTHERS" => 1,
   "OAUTH_VOCAB" => 5, "AUTH_URLS" => 4, "CAPABILITIES" => 2,
   "LANDING_DEMOS" => 3, "LANDING_HOW" => 2, "DISCOVERY_DOCS" => 4,
+  "LANDING_MAYBE" => 6,
 }.freeze
 
 # Code NAMES are letters and underscores only, because that is what the row
@@ -687,8 +704,10 @@ end
 def fixture_index_html
   cards = Array.new(FIX["LANDING_DEMOS"]) { |i| %(<div class="demo-card"><a>demo #{i}</a></div>) }
   steps = Array.new(FIX["LANDING_HOW"]) { |i| "<li><strong>Part #{i}.</strong> text</li>" }
+  maybe = Array.new(FIX["LANDING_MAYBE"]) { |i| %(<li><a class="maybe-link">runtime #{i}</a></li>) }
   "<html><body>\n<div id=\"try\">#{cards.join("\n")}</div>\n" \
-    "<div id=\"how\"><ol class=\"demo-steps\">\n#{steps.join("\n")}\n</ol></div>\n</body></html>\n"
+    "<div id=\"how\"><ol class=\"demo-steps\">\n#{steps.join("\n")}\n</ol></div>\n" \
+    "<ul class=\"maybe-list\">\n#{maybe.join("\n")}\n</ul>\n</body></html>\n"
 end
 
 def fixture_onboarding_html
