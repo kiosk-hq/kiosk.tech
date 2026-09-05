@@ -688,7 +688,7 @@ Authorization: Bearer &lt;jwt&gt;
   <p>Reputation is operator-local; a keypair is unique per domain, so there is no cross-operator identifier. The <code>kiosk-reputation</code> gem provides policy hooks for the reputation→proof-count function.</p>
 
   <div class="todo">
-    <strong>TODO:</strong> Operator-sent events. Currently the protocol is AI-assistant-initiated: the AI assistant polls for state changes. A future version will add server-sent events or webhooks so the operator can push updates (order status changes, delivery notifications) to the AI assistant without polling.
+    <strong>ROADMAP — operator-sent events.</strong> Every exchange this specification describes is AI-assistant-initiated: an AI assistant that wants to know whether an order shipped asks again. A future version will let an operator push such updates instead. <strong>This page names no transport for it, deliberately.</strong> It used to name two — server-sent events and webhooks — and that sentence outlived the choice behind it: neither is what the transport question was settled on, and a reader had no way to tell, because a roadmap sentence looks the same whether or not anyone still means it. Nothing about events is normative until this page carries the wire itself, and no member, field or value is reserved for it today.
   </div>
 
   <h2>Conformance — port Kiosk</h2>

@@ -324,6 +324,68 @@ else
   fail=$((fail+1)); echo "FAIL (mutation arm could not be built): schema-descriptor.schema.json"
 fi
 
+echo "== cross-document arm: an example's min_client is the wire's, not a vintage =="
+# K-1297. ajv cannot see this class at all and never could: `min_client` is a
+# bare `type: string` in the schema, so ANY version validates -- and the two
+# discovery examples published here declared `0.2.0` against a wire at `0.4.0`,
+# three minors stale, on a NORMATIVE surface, for as long as it took someone to
+# read them. Section 4.1 makes the rule a MUST: when `kiosk.min_client` is
+# present it MUST equal the `Kiosk-Min-Client` response header. So the header
+# table in protocol.md is the derivation and every example is a copy of it,
+# which is the shape that cannot go stale one file at a time.
+#
+# NOT A SECOND TYPED NUMBER: nothing below compares one literal to another. The
+# expected value is READ from the specification, and an arm that cannot find it
+# FAILS rather than skipping -- a derivation that quietly matches nothing is how
+# a gate reads green over a document it stopped examining.
+#
+# WHAT THIS DOES NOT COVER, said because the sibling defect in the same examples
+# is not covered by anything: the `owner` SHAPE. These examples taught
+# `{email: ...}` where the reference implementation emits `{name:, support:}`,
+# and this repository cannot derive that -- the emitting code is in the other
+# repository, whose own version guard deliberately reads no sibling checkout
+# because a sibling-dependent check SKIPS in public CI. The examples are
+# corrected; the shape is held by review, and this paragraph is the honest
+# statement of it rather than a silence.
+if ruby -rjson -e '
+  spec = "../protocol.md"
+  unless File.exist?(spec)
+    abort("cannot read #{spec}: the header table is the derivation, and an arm that " \
+          "cannot read its source must fail rather than pass over nothing")
+  end
+  want = File.read(spec)[/^\s*\|\s*`Kiosk-Min-Client`\s*\|\s*`([0-9]+\.[0-9]+\.[0-9]+)`/, 1]
+  if want.nil?
+    abort("protocol.md: found no `Kiosk-Min-Client` row with a version in the header table. " \
+          "The table moved or was reformatted; re-point this arm rather than deleting it.")
+  end
+  files = Dir.glob("examples/**/*.json").sort
+  abort("examples/: no JSON documents found at all") if files.empty?
+  seen = 0
+  bad  = []
+  files.each do |f|
+    doc = JSON.parse(File.read(f)) rescue next
+    next unless doc.is_a?(Hash) && doc["kiosk"].is_a?(Hash)
+    got = doc["kiosk"]["min_client"]
+    next if got.nil?
+    seen += 1
+    bad << "#{f}: min_client #{got.inspect}, protocol.md says #{want.inspect}" if got != want
+  end
+  if seen.zero?
+    abort("no published example declares kiosk.min_client, so this arm examined nothing. " \
+          "If the member was withdrawn, delete this arm and say so; do not leave one that " \
+          "cannot fail.")
+  end
+  unless bad.empty?
+    warn(bad.map { |b| "   #{b}" }.join("\n"))
+    abort("#{bad.length} of #{seen} example(s) pin a min_client the specification does not state")
+  end
+  warn("   #{seen} example(s) carry min_client, all #{want}, derived from protocol.md")
+'; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL: examples/**/*.json min_client vs protocol.md"
+fi
+
 echo "-----"
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
