@@ -216,7 +216,9 @@ module DeliverySlots
   FIRST_HOUR   = 8               # slot 1 opens at 08:00
   WINDOW_HOURS = 2               # each window is two hours
   COUNT        = 6               # so slot 6 (18:00-20:00) is the last
-  ZONE_NAME    = "Europe/Dublin" # YOUR locale, a real IANA zone so DST is handled
+  ZONE_NAME    = "Europe/Dublin" # the zone of the PLACE THE SERVICE HAPPENS —
+                                 # not automatically yours; read the note below.
+                                 # A real IANA zone, so DST is handled
 
   module_function
 
@@ -224,15 +226,16 @@ module DeliverySlots
     Time.find_zone!(ZONE_NAME)
   end
 
-  # "Now" in YOUR locale — the reference point for every date question below.
-  # Never `Date.today`, which reads the server process's zone: around midnight
-  # a server-zone answer differs from the operator-zone one, and then
-  # delivery_slots refuses a day create_order still accepts.
+  # "Now" at the service place — the reference point for every date question
+  # below. Never `Date.today`, which reads the SERVER PROCESS's zone: around
+  # midnight a server-zone answer differs from the service-place one, and then
+  # delivery_slots refuses a day create_order still accepts. The process zone
+  # is a property of the box you deployed to, and nobody chose it.
   def now
     zone.now
   end
 
-  # THE DAY A PUBLISHED EXAMPLE NAMES: tomorrow, in YOUR locale.
+  # THE DAY A PUBLISHED EXAMPLE NAMES: tomorrow, at the service place.
   #
   # `example_params` says "copy this verbatim", so a calendar literal written
   # there stops being true on a day nobody notices — a date before today is
@@ -248,9 +251,12 @@ module DeliverySlots
     zone.local(date.year, date.month, date.day, hour, 0)
   end
 
+  # The window a HUMAN is read out, with the zone it is written in beside it.
+  # `slot_at` carries the resolved offset and is unambiguous already; nobody
+  # says an offset out loud, so the zone goes where the wall clock goes.
   def label(slot_id)
     hour = FIRST_HOUR + (slot_id.to_i - 1) * WINDOW_HOURS
-    format("%02d:00-%02d:00", hour, hour + WINDOW_HOURS)
+    format("%02d:00-%02d:00 (%s)", hour, hour + WINDOW_HOURS, ZONE_NAME)
   end
 
   # Still-bookable windows for a date: all of them on a later day; on TODAY only
@@ -260,6 +266,11 @@ module DeliverySlots
     (1..COUNT).reject { |slot_id| slot_at(date, slot_id) &lt;= now }
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <blockquote><strong>Which zone is <code>ZONE_NAME</code>? The place the service happens — which is not always yours.</strong> The rule is one line: <em>the time of the service, at the place the service happens.</em> For a table, a room, a chair, a workshop bay, the service is rendered at <strong>your</strong> address, and your own zone is the whole answer. For a delivery, a pickup window, a shared reminder, a personal task list, the service is rendered at the <strong>customer's</strong> door or on the customer's own day, and your zone is merely where your warehouse sits. Answer the question before you copy the constant; the two cases produce different code, and only one of them is the line above.
+  <br><br>getgrocery is the first kind by accident rather than by rule: it delivers only inside Dublin, so the door and the shop are in one zone and <code>Europe/Dublin</code> is right whichever way you read it. An operator whose customers are somewhere else does not get that for free.
+  <br><br><strong>Two things follow, and both are cheap.</strong> <em>Publish the zone beside every wall clock a human is read out</em> — <code>08:00-10:00 (Europe/Dublin)</code>, never a bare <code>08:00-10:00</code> — because the offset inside <code>slot_at</code> is already unambiguous and nobody says an offset out loud; the field a customer actually hears is the label. And <em>never compute "today" from the server process's zone</em>, which is what <code>now</code> above exists for: a box in another zone rolls its date over at a different moment from the place the service happens, and no environment variable is a statement about where your tables are.
+  <br><br>What a caller's <em>own</em> zone should do to a request — reading a <code>date</code> an assistant sends on the caller's calendar rather than on yours — is not something this protocol defines yet. Until it does, read dates on your service clock and let the row say which clock it is, exactly as the code here does.</blockquote>
 
   <p><code>app/controllers/kiosk/catalog_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/catalog_controller.rb
