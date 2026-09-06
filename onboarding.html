@@ -50,7 +50,7 @@
 <a href="/" class="back">← kiosk.tech</a>
 <article>
   <h1>Operator onboarding — from install to agent-ready</h1>
-  <p class="intro">A step-by-step guide for adding Kiosk to an existing Rails app, based on the <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a> demo provider.</p>
+  <p class="intro">A step-by-step guide for adding Kiosk to an existing Rails app. The controller shape below is kiosk-server's own — the two class names <code>rails generate kiosk:install</code> writes into your initializer as its worked example — and the domain it is worked through is the <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a> demo provider's: a grocery catalogue, delivery windows, a settlement-gated reschedule.</p>
   <p>Two scopes, assuming a working Rails + Postgres app you already know:</p>
   <ul>
     <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, mount the routes, declare a couple of read-only queries in a controller by adapting the examples below, name that controller in the initializer, and verify discovery + one query. That's the minimal agent-ready surface.</li>
@@ -222,6 +222,25 @@ module DeliverySlots
     Time.find_zone!(ZONE_NAME)
   end
 
+  # "Now" in YOUR locale — the reference point for every date question below.
+  # Never `Date.today`, which reads the server process's zone: around midnight
+  # a server-zone answer differs from the operator-zone one, and then
+  # delivery_slots refuses a day create_order still accepts.
+  def now
+    zone.now
+  end
+
+  # THE DAY A PUBLISHED EXAMPLE NAMES: tomorrow, in YOUR locale.
+  #
+  # `example_params` says "copy this verbatim", so a calendar literal written
+  # there stops being true on a day nobody notices — a date before today is
+  # refused, so a frozen literal ages into a 400. Tomorrow rather than today
+  # because every window of a future day is still bookable, and because
+  # tomorrow is what an omitted date already means to the write verbs.
+  def example_date
+    now.to_date + 1
+  end
+
   def slot_at(date, slot_id)
     hour = FIRST_HOUR + (slot_id.to_i - 1) * WINDOW_HOURS
     zone.local(date.year, date.month, date.day, hour, 0)
@@ -236,7 +255,7 @@ module DeliverySlots
   # the ones that have not started, so an assistant is never offered a window it
   # cannot actually have.
   def bookable_ids(date)
-    (1..COUNT).reject { |slot_id| slot_at(date, slot_id) &lt;= zone.now }
+    (1..COUNT).reject { |slot_id| slot_at(date, slot_id) &lt;= now }
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -275,51 +294,92 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
   # SAME name that action takes — so the assistant copies it straight through
   # instead of guessing that your `id` is its `delivery_slot_id`.
   kind :query
-  description "Offer the delivery windows still bookable on a day. Whichever window the " \
-              "human picks is booked as part of the order itself, so get their choice " \
-              "before ordering, not after. A window that has already started today is " \
-              "not offered — if a day comes back empty the earliest delivery is later."
+  description "Get the delivery windows still bookable on a chosen day at a chosen " \
+              "address. Whichever window the human picks is booked as part of the order " \
+              "itself, so get their choice before ordering, not after. OMIT the date for " \
+              "the soonest day this operator can deliver — you cannot work that out " \
+              "yourself, because the day rolls over in the operator's locale and not in " \
+              "yours; send one only when your human named a day. An EMPTY array means " \
+              "every window on that day has already begun: ask for a later one. Get the " \
+              "REAL address from your human before calling — create_order needs the same " \
+              "address again, so an invented one books a delivery to nowhere."
   input_schema type: "object", additionalProperties: false,
                properties: {
-                 date: { type: "string", format: "date",
-                         description: "The delivery day, YYYY-MM-DD." },
+                 date:             { type: "string", format: "date",
+                                     description: "OPTIONAL. Delivery day, YYYY-MM-DD. " \
+                                                  "OMIT IT for the soonest day this " \
+                                                  "operator can deliver. TODAY or later; " \
+                                                  "an earlier date is refused." },
+                 delivery_address: { type: "string",
+                                     description: "Where to deliver — the same address " \
+                                                  "create_order will be given." },
                },
-               required: ["date"]
+               required: ["delivery_address"]
   output_schema type: "array",
                 items: { type: "object",
                          properties: { delivery_slot_id: { type: "integer" },
                                        date:    { type: "string", format: "date" },
                                        slot_at: { type: "string", format: "date-time" },
                                        label:   { type: "string" } } }
-  example_params({ date: "2026-08-12" })
-  example_row({ delivery_slot_id: 3, date: "2026-08-12",
-                slot_at: "2026-08-12T12:00:00+01:00", label: "12:00-14:00" })
+  # THE DAY IS RESOLVED, NOT WRITTEN DOWN. A `Proc` in a declaration is called
+  # lazily, memoized and re-resolved as the day rolls over, so a published
+  # example stays correct every morning with no deploy. A calendar literal here
+  # would be a `date` this very verb refuses, on a day nobody is watching.
+  example_params({ delivery_address: "42 Camden Street, Dublin 2",
+                   date: -&gt; { DeliverySlots.example_date.iso8601 } })
+  example_row({ delivery_slot_id: 3,
+                date:    -&gt; { DeliverySlots.example_date.iso8601 },
+                slot_at: -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 3).iso8601 },
+                label:   "12:00-14:00" })
   def delivery_slots
-    # The wire has ALREADY validated these params against `input_schema`
-    # above — `date` is present and is a `format: "date"` string, or the call
-    # never reached this method. What a schema cannot say is that the string
-    # names a real calendar day (2026-02-31 passes `format: "date"` under
-    # draft 2020-12), so the SEMANTIC check stays the handler's job.
-    # `params.require` raises the ParameterMissing Rails already knows a 400
-    # for, and the rescue seam the include installs answers a typed
-    # `bad_request` the assistant can correct.
-    raw_date = params.require(:date)
+    # ADDRESS-UPFRONT, asked BEFORE the date: it is what forces the assistant to
+    # obtain the address from its human before it can see any window at all, so
+    # the address that got slots is the address create_order will be handed.
+    address = params[:delivery_address].to_s
+    return reject_bad_request("missing param: delivery_address") if address.strip.empty?
+
+    # `date` IS OPTIONAL, AND OMITTING IT IS THE CORRECT CALL for "the soonest
+    # you can deliver". The caller cannot compute YOUR today: you deliver in
+    # your own locale, and for an hour either side of midnight the assistant's
+    # own date is a different day. Requiring the field makes that gap the
+    # CALLER's problem and gives it no way to solve one — it would have to trust
+    # a timezone named in a description string, carry tzdata, and still race the
+    # boundary. You know your own date, so use it. One step is enough: every
+    # window of a future day is still bookable, so the day after today always
+    # has slots.
+    unless params.key?(:date)
+      soonest = DeliverySlots.now.to_date
+      soonest += 1 if DeliverySlots.bookable_ids(soonest).empty?
+      return render json: slot_rows(soonest)
+    end
+
+    # A date that IS sent is validated exactly as before, past dates included:
+    # "deliver on Friday" is a different request from "deliver as soon as you
+    # can", and only the caller knows which one it is making. The wire has
+    # ALREADY checked this against `input_schema` above — it is a
+    # `format: "date"` string or the call never reached this method. What a
+    # schema cannot say is that the string names a real calendar day (a
+    # February 31st passes `format: "date"` under draft 2020-12), so the
+    # SEMANTIC check stays the handler's job.
     date = begin
-      Date.parse(raw_date.to_s)
+      Date.parse(params[:date].to_s)
     rescue Date::Error
       # A malformed date is the agent's mistake, not your server's — answer a
       # typed 400, never a Date::Error 500 that just points at your logs.
-      return render json: { error: { code: "bad_request",
-                                     message: "invalid date: #{raw_date} — use YYYY-MM-DD" } },
-                    status: :bad_request
+      return reject_bad_request("invalid date: #{params[:date]} — use YYYY-MM-DD")
     end
 
-    render json: DeliverySlots.bookable_ids(date).map { |slot_id|
-      { delivery_slot_id: slot_id,
-        date:    date.iso8601,
-        slot_at: DeliverySlots.slot_at(date, slot_id).iso8601,
-        label:   DeliverySlots.label(slot_id) }
-    }
+    # A day already gone is outside this verb's DOMAIN, so it is refused by
+    # name rather than answered `200 []` — an empty list for a past date is
+    # byte-identical to the honest empty answer for today once the last window
+    # has begun, and the assistant cannot tell the two apart.
+    today = DeliverySlots.now.to_date
+    if date &lt; today
+      return reject_bad_request("date #{date.iso8601} is in the past — " \
+                                "this operator delivers from #{today.iso8601} onwards")
+    end
+
+    render json: slot_rows(date)
   end
 
   # The agent can check its own orders
@@ -340,7 +400,8 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
                                        slot_at:     { type: "string", format: "date-time" } } }
   example_params({})
   example_row({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e", status: "created",
-                total_cents: 1287, slot_at: "2026-08-12T12:00:00+01:00" })
+                total_cents: 1287,
+                slot_at: -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 3).iso8601 } })
   def my_orders
     # Name the fields rather than `map(&amp;:attributes)`: what the wire publishes
     # is a decision this handler makes, and `output_schema` above is the
@@ -351,6 +412,28 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
                       .map { |o| { order_id: o.id, status: o.status,
                                    total_cents: o.total_cents,
                                    slot_at: o.slot_at.iso8601 } }
+  end
+
+  private
+
+  # ONE place that renders a slot row, because the date-supplied and the
+  # date-omitted paths must answer in exactly the same shape: a caller that
+  # omitted the date is not getting a lesser response, it is getting the same
+  # one for the day you picked. `date` on each row is what create_order books,
+  # so it is how that caller learns which day it got.
+  def slot_rows(date)
+    DeliverySlots.bookable_ids(date).map { |slot_id|
+      { delivery_slot_id: slot_id,
+        date:    date.iso8601,
+        slot_at: DeliverySlots.slot_at(date, slot_id).iso8601,
+        label:   DeliverySlots.label(slot_id) }
+    }
+  end
+
+  # The one guard idiom for this controller, same as the orders one next door.
+  def reject_bad_request(message)
+    render json: { error: { code: "bad_request", message: message } },
+           status: :bad_request
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -449,13 +532,19 @@ class Kiosk::OrdersController &lt; ApplicationController
                               total_cents: { type: "integer", description: "EUR cents." },
                               currency:    { type: "string" },
                               slot_at:     { type: "string", format: "date-time" } }
+  # Resolved rather than written down, for delivery_slots' reason: a literal
+  # here would publish a `delivery_date` this action refuses as past. `slot_at`
+  # derives from the SAME day and the slot id beside it, so the two examples
+  # cannot drift apart either.
   example_params({
     items: [{ sku: "sourdough-bread", qty: 2 }, { sku: "greek-yogurt", qty: 1 }],
-    delivery_slot_id: 3, delivery_date: "2026-08-12",
+    delivery_slot_id: 3,
+    delivery_date:    -&gt; { DeliverySlots.example_date.iso8601 },
     delivery_address: "42 Camden Street, Dublin 2",
   })
   example_row({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e", total_cents: 1287,
-                currency: "eur", slot_at: "2026-08-12T12:00:00+01:00" })
+                currency: "eur",
+                slot_at: -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 3).iso8601 } })
   def create_order
     # Wire input again — guard before use (see the delivery_slots note): typed
     # 400s the assistant can correct, never a NoMethodError/Date::Error 500.
@@ -465,7 +554,9 @@ class Kiosk::OrdersController &lt; ApplicationController
     lines = items.map do |item|
       sku = item[:sku].to_s
       return reject_bad_request("each item needs a sku") if sku.empty?
-      qty = item[:qty].to_i
+      # `whole_number`, never `.to_i` — see the note beside it below.
+      qty = whole_number(item[:qty])
+      return reject_bad_request("qty must be a whole number >= 1 — got #{item[:qty].inspect}") if qty.nil?
       return reject_bad_request("qty must be >= 1") if qty &lt; 1
       # An unknown sku is a bad cart line, not a missing page: answer the typed
       # 400. (A find_by! would answer `not_found` — true, but useless to an
@@ -477,7 +568,8 @@ class Kiosk::OrdersController &lt; ApplicationController
 
     delivery_address = params[:delivery_address].to_s
     return reject_bad_request("missing param: delivery_address") if delivery_address.strip.empty?
-    slot_id = params[:delivery_slot_id].to_i
+    slot_id = whole_number(params[:delivery_slot_id])
+    return reject_bad_request("delivery_slot_id must be a whole number 1-#{DeliverySlots::COUNT} — got #{params[:delivery_slot_id].inspect}") if slot_id.nil?
     return reject_bad_request("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
     delivery_date = begin
       Date.parse(params[:delivery_date].to_s)
@@ -523,10 +615,12 @@ class Kiosk::OrdersController &lt; ApplicationController
   output_schema type: "object",
                 properties: { order_id:       { type: "string", format: "uuid" },
                               rescheduled_at: { type: "string", format: "date-time" } }
+  # Resolved for the reason DeliverySlots.example_date gives.
   example_params({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e",
-                   delivery_slot_id: 5, delivery_date: "2026-08-13" })
+                   delivery_slot_id: 5,
+                   delivery_date: -&gt; { DeliverySlots.example_date.iso8601 } })
   example_row({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e",
-                rescheduled_at: "2026-08-13T16:00:00+01:00" })
+                rescheduled_at: -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 5).iso8601 } })
   def reschedule_delivery
     # This id names a row: check its shape first, so a malformed one is a
     # typed 400 with the fix in the message — not a database error.
@@ -557,7 +651,8 @@ class Kiosk::OrdersController &lt; ApplicationController
     end
 
     # Same wire-input guards as create_order: a bad window is a typed 400.
-    slot_id = params[:delivery_slot_id].to_i
+    slot_id = whole_number(params[:delivery_slot_id])
+    return reject_bad_request("delivery_slot_id must be a whole number 1-#{DeliverySlots::COUNT} — got #{params[:delivery_slot_id].inspect}") if slot_id.nil?
     return reject_bad_request("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
     new_date = begin
       Date.parse(params[:delivery_date].to_s)
@@ -581,6 +676,31 @@ class Kiosk::OrdersController &lt; ApplicationController
   def reject_bad_request(message)
     render json: { error: { code: "bad_request", message: message } },
            status: :bad_request
+  end
+
+  # JSON Schema's `integer`, in Ruby — and NOTHING LOOSER. This is the whole of
+  # why the obvious `params[:delivery_slot_id].to_i` is not above.
+  #
+  # `.to_i` answers every String, Integer and Float, and it DISAGREES with the
+  # `{type: "integer", minimum: 1, maximum: 6}` declared in front of it:
+  # `"1.5".to_i` is 1, so a fractional slot comes out of that line INSIDE the
+  # declared range and is quietly booked as slot 1 rather than refused. Every
+  # other hostile shape collapses to 0 and the range check catches it, which is
+  # exactly what makes `.to_i` feel safe — the one value it gets wrong is the
+  # one nothing else is looking at. A guard that only holds while the layer in
+  # front of it holds is not a second layer at all.
+  #
+  # NOT `is_a?(Integer)` either, and the difference is measurable rather than
+  # academic: draft 2020-12 defines `integer` NUMERICALLY, not by wire type, so
+  # a JSON `2.0` IS a valid integer and your published schema accepts it. A bare
+  # class test would refuse a call your own contract allows. JSON parsing yields
+  # Integer or Float and nothing else, so those are the two cases; nil, booleans,
+  # strings, arrays, hashes and every fractional Float are not quantities.
+  def whole_number(raw)
+    return raw if raw.is_a?(Integer)
+    return nil unless raw.is_a?(Float) &amp;&amp; raw.finite?
+
+    raw == raw.truncate ? raw.truncate : nil
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -656,16 +776,25 @@ curl -s http://localhost:3000/kiosk/catalog \
 #      "price_cents": 449, "currency": "eur" }
 
 # Arguments travel in the QUERY STRING, checked against the input_schema
-# before your handler runs:
-curl -s "http://localhost:3000/kiosk/delivery_slots?date=2026-08-25" \
-  -H "Authorization: Bearer $TOKEN" | jq 'length'
+# before your handler runs. `date` is OPTIONAL here: omit it and the operator
+# answers for the soonest day IT can deliver — the answer you want, and the one
+# a caller cannot work out for itself. Keep the row you get back.
+SLOT=$(curl -s -G http://localhost:3000/kiosk/delivery_slots \
+  --data-urlencode "delivery_address=42 Camden Street, Dublin 2" \
+  -H "Authorization: Bearer $TOKEN" | jq '.[0]')
+echo "$SLOT"
+# => { "delivery_slot_id": 1, "date": "…", "slot_at": "…", "label": "08:00-10:00" }
 
-# An action is a POST at its own name, with a JSON body:
+# An action is a POST at its own name, with a JSON body. The window comes
+# STRAIGHT from the row above — never a day you typed here, which ages into a
+# 400 the morning after you wrote it.
 curl -s -X POST http://localhost:3000/kiosk/create_order \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"items":[{"sku":"sourdough-bread","qty":2}],
-       "delivery_slot_id":3,"delivery_date":"2026-08-25",
-       "delivery_address":"42 Camden Street, Dublin 2"}'</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  -d "$(jq -n --argjson slot "$SLOT" \
+        '{items: [{sku: "sourdough-bread", qty: 2}],
+          delivery_slot_id: $slot.delivery_slot_id,
+          delivery_date:    $slot.date,
+          delivery_address: "42 Camden Street, Dublin 2"}')"</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <blockquote><strong>Got an empty catalog back?</strong> Your controllers are not named in <code>c.handlers</code> — Step 2's line, repeated at the end of Step 5. That is the state where a booted app serves no verbs: every <code>/kiosk/&lt;name&gt;</code> answers a <code>404</code> problem document whose <code>hint</code> lists what IS registered, and the <code>capabilities</code> you checked above come back without <code>schema</code>, <code>queries</code> or <code>actions</code>. kiosk-server says the same thing on the log at boot when nothing at all is registered.</blockquote>
   <blockquote><strong>Two shapes worth seeing once.</strong> A <strong>long list</strong> paginates by <a href="https://www.rfc-editor.org/rfc/rfc8288">RFC 8288</a>: the body is still a bare array, the total is in <code>X-Total-Count</code>, and a truncated page carries <code>Link: &lt;…&gt;; rel="next"</code>. <em>The absence of that link is the only signal there is no more</em> — there is no <code>next</code> field in the body. And a <strong>GET at an action's name</strong> (or a POST at a query's) is a <code>405 method_not_allowed</code> that tells you which method to use — a different fact from "no such verb", which is a <code>404</code>. Add <code>-i</code> to any call above to see both.</blockquote>
   <blockquote>The full register → order → <strong>pay</strong> flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow scripted end-to-end, run <code>rake demo</code> in <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>. The <code>pay</code> leg additionally needs a real <code>sk_test_…</code> Stripe key and a saved card on file.</blockquote>
@@ -736,7 +865,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
     <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#mount-the-routes">kiosk-server — mount the routes</a> — the engine behind Step 3's one line: everything it draws under the mount, the root-relative discovery documents it installs, and the hand-drawing escape hatch</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Handler</code> mixin this page's controllers use: the full macro list, the <code>c.handlers</code> line that puts them on the wire, the dispatch mechanics, and the error seam</li>
-    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end over plain <code>Net::HTTP</code>, printing one JSON line the rake task asserts on. Its handlers are the controller shape this page shows.</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>script/getgrocery_flow.rb</code> (<code>rake demo</code>) drives the entire register → order → pay flow end-to-end over plain <code>Net::HTTP</code>, printing one JSON line the rake task asserts on. Read it as the runnable original rather than as a copy of the code above: its own handler classes are named for its domain — <code>Kiosk::StorefrontController</code> carries the read half, not the <code>Kiosk::CatalogController</code> the generator's example names — and it factors the argument guards this page inlines into one shared <code>WireArguments</code> module. Same shape, different names, a different factoring.</li>
   </ul>
 </article>
 
