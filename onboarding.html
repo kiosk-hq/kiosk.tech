@@ -51,7 +51,8 @@
 <article>
   <h1>Operator onboarding — from install to agent-ready</h1>
   <p class="intro">A step-by-step guide for adding Kiosk to an existing Rails app. The controller shape below is kiosk-server's own — the two class names <code>rails generate kiosk:install</code> writes into your initializer as its worked example — and the domain it is worked through is the <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a> demo provider's: a grocery catalogue, delivery windows, a settlement-gated reschedule.</p>
-  <p>Two scopes, assuming a working Rails + Postgres app you already know:</p>
+  <p><strong>Check this first.</strong> <code>kiosk-server</code> declares <code>railties</code>, <code>actionpack</code>, <code>activerecord</code> and <code>activesupport</code> at <code>~&gt; 8.1</code>, so this integration needs <strong>Rails 8.1</strong>: <strong>Rails 7.x and 8.0.x are excluded</strong> and bundler will refuse to resolve against an app on either. Older Rails lines are untested, so they are not claimed. You also need <strong>Ruby 3.2.0 or newer</strong> — the floor every Kiosk gemspec declares — and <strong>PostgreSQL</strong>, which is the only database Kiosk supports.</p>
+  <p>Two scopes, assuming a working Rails 8.1 + Postgres app you already know:</p>
   <ul>
     <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, mount the routes, declare a couple of read-only queries in a controller by adapting the examples below, name that controller in the initializer, and verify discovery + one query. That's the minimal agent-ready surface.</li>
     <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> table/model and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
@@ -59,6 +60,7 @@
   <p>The steps below walk the full payments integration <em>assuming you already have the accounts and keys in hand</em>; they don't cover Stripe signup, or debugging your own catalog's queries.</p>
 
   <h2>Step 1: Add the gems</h2>
+  <p><strong>These lines install from git, and that is not a preference.</strong> No Kiosk gem is on RubyGems yet, so <code>bundle add kiosk-all</code> and a bare <code>gem "kiosk-all"</code> do not resolve. Publication status and the canonical install are stated once, in the reference monorepo's <a href="https://github.com/kiosk-hq/kiosk#install">Install</a> section; when the gems ship, that is where the <code>github:</code> qualifier comes off.</p>
   <pre><code class="language-ruby"># Gemfile
 gem "kiosk-all",        github: "kiosk-hq/kiosk"   # meta-gem: kiosk-core + kiosk-server
 gem "kiosk-pay-stripe", github: "kiosk-hq/kiosk"   # Stripe card-on-file payment adapter (this walkthrough uses it)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
