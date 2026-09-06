@@ -1882,6 +1882,20 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    and pays the corresponding toll. Shedding a reputation therefore costs at least
    as much work as complying and forfeits accrued standing -- whitewashing is
    priced, not prevented.
+3. **A policy decides per CALL KIND, and the write kind is named `run`.** An
+   operator DECLARES a handler as a *query* or an *action* (Section 8.1), but a
+   policy is asked about a call in the gate's own coarse vocabulary --
+   `query`, `run`, `pay` -- in which an *action* arrives as **`run`**, and `pay`
+   is a kind of its own rather than a write. `query` is the one word spelled
+   identically in both vocabularies, and that is what makes the difference easy
+   to miss: a policy branching on `action` is never wrong out loud. It matches
+   nothing, so it declines to toll every write, and declining is the ordinary
+   "this call is free" answer -- no error, no log line, and nothing a passing
+   test would see. An implementation that exposes such a hook **SHOULD** state
+   which vocabulary it hands the policy, and an operator writing one **SHOULD**
+   exercise its write branch against a running origin rather than reading it:
+   the failure mode is a toll that silently never applies, in the direction
+   that matters most.
 
 ---
 
