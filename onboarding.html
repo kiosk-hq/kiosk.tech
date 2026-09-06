@@ -524,11 +524,12 @@ class Kiosk::OrdersController &lt; ApplicationController
                  delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
                                      description: "The delivery_slot_id of a row delivery_slots returned." },
                  delivery_date:    { type: "string", format: "date",
-                                     description: "The date of that same delivery_slots row, YYYY-MM-DD." },
+                                     description: "The date of that same delivery_slots row, YYYY-MM-DD. " \
+                                                  "Optional; omitting it books tomorrow." },
                  delivery_address: { type: "string",
                                      description: "Where to deliver it." },
                },
-               required: ["items", "delivery_slot_id", "delivery_date", "delivery_address"]
+               required: ["items", "delivery_slot_id", "delivery_address"]
   output_schema type: "object",
                 properties: { order_id:    { type: "string", format: "uuid" },
                               total_cents: { type: "integer", description: "EUR cents." },
@@ -554,6 +555,17 @@ class Kiosk::OrdersController &lt; ApplicationController
     return reject_bad_request("items must be a non-empty array") unless items.is_a?(Array) &amp;&amp; items.any?
 
     lines = items.map do |item|
+      # SHAPE BEFORE CONTENT. `items` is declared as an array of OBJECTS, and
+      # the next line indexes one — so a well-formed request carrying the wrong
+      # shape (`items: ["bread"]`, which an assistant does write) would raise
+      # inside your handler and reach the agent as a 500 about your server. It
+      # is the agent's mistake and it deserves the agent's error: a typed 400
+      # naming the shape you wanted. `additionalProperties`/`required` in the
+      # schema above constrain the OBJECT's members; nothing there makes the
+      # element an object at all once the array itself validated.
+      return reject_bad_request("each item must be a {sku, qty} object — got " \
+                                "#{item.class}; e.g. {\"sku\": \"sourdough-bread\", \"qty\": 2}") unless item.is_a?(Hash)
+
       sku = item[:sku].to_s
       return reject_bad_request("each item needs a sku") if sku.empty?
       # `whole_number`, never `.to_i` — see the note beside it below.
@@ -573,10 +585,21 @@ class Kiosk::OrdersController &lt; ApplicationController
     slot_id = whole_number(params[:delivery_slot_id])
     return reject_bad_request("delivery_slot_id must be a whole number 1-#{DeliverySlots::COUNT} — got #{params[:delivery_slot_id].inspect}") if slot_id.nil?
     return reject_bad_request("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
-    delivery_date = begin
-      Date.parse(params[:delivery_date].to_s)
-    rescue Date::Error
-      return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD from the delivery_slots row you chose")
+    # `delivery_date` IS OPTIONAL, for delivery_slots' reason one verb over: the
+    # caller cannot compute YOUR today, so a blank one means TOMORROW in your
+    # locale — the same day `DeliverySlots.example_date` publishes, so an
+    # assistant that copies the example gets exactly what omitting the argument
+    # would have given it. Requiring it here while `delivery_slots` leaves its
+    # own `date` optional would make the two verbs disagree about the same
+    # question, which is the drift this page exists not to teach.
+    delivery_date = if params[:delivery_date].to_s.strip.empty?
+      DeliverySlots.now.to_date + 1
+    else
+      begin
+        Date.parse(params[:delivery_date].to_s)
+      rescue Date::Error
+        return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD from the delivery_slots row you chose")
+      end
     end
 
     slot_at = DeliverySlots.slot_at(delivery_date, slot_id)
@@ -609,11 +632,12 @@ class Kiosk::OrdersController &lt; ApplicationController
                  delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
                                      description: "The delivery_slot_id of the new window." },
                  delivery_date:    { type: "string", format: "date",
-                                     description: "The date of that new window, YYYY-MM-DD." },
+                                     description: "The date of that new window, YYYY-MM-DD. " \
+                                                  "Optional; omitting it books tomorrow." },
                  delivery_address: { type: "string",
                                      description: "A new address; the order keeps its current one when omitted." },
                },
-               required: ["order_id", "delivery_slot_id", "delivery_date"]
+               required: ["order_id", "delivery_slot_id"]
   output_schema type: "object",
                 properties: { order_id:       { type: "string", format: "uuid" },
                               rescheduled_at: { type: "string", format: "date-time" } }
@@ -656,10 +680,15 @@ class Kiosk::OrdersController &lt; ApplicationController
     slot_id = whole_number(params[:delivery_slot_id])
     return reject_bad_request("delivery_slot_id must be a whole number 1-#{DeliverySlots::COUNT} — got #{params[:delivery_slot_id].inspect}") if slot_id.nil?
     return reject_bad_request("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
-    new_date = begin
-      Date.parse(params[:delivery_date].to_s)
-    rescue Date::Error
-      return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD")
+    # Optional here too, and it means the same thing: blank books tomorrow.
+    new_date = if params[:delivery_date].to_s.strip.empty?
+      DeliverySlots.now.to_date + 1
+    else
+      begin
+        Date.parse(params[:delivery_date].to_s)
+      rescue Date::Error
+        return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD")
+      end
     end
     slot_at = DeliverySlots.slot_at(new_date, slot_id)
 
