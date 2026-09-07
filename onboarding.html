@@ -568,6 +568,20 @@ class Kiosk::OrdersController &lt; ApplicationController
                  # Declare a `format` when the handler is exactly that strict,
                  # and not as decoration: an assistant reads the declaration as
                  # the contract, and the strictest of the two is what it meets.
+                 #
+                 # AND KNOW WHAT YOU ARE LEAVING OPEN, because `Date.parse`
+                 # SCANS for a date rather than validating a format, and the
+                 # loose set is wider than the basic-ISO spelling above.
+                 # Measured: `"09/01/2026"` parses as 9 January, not the
+                 # 1 September an assistant sending it means; a dashed date
+                 # with junk glued to either end parses to the date inside it;
+                 # and `"Tue"`, `"sep"` and `"1st"` are COMPLETED FROM
+                 # THE SERVER'S OWN CLOCK, so the accepted set depends on the
+                 # day the call arrives and there is no set to name in a
+                 # description. If any of that is not what you want to accept
+                 # on a verb that books something, pair a `\A\d{4}-\d{2}-\d{2}\z`
+                 # check with `Date.iso8601` and declare `format: "date"` —
+                 # the strict handler and the strict declaration go together.
                  delivery_date:    { type: "string",
                                      description: "The date of that same delivery_slots row, YYYY-MM-DD. " \
                                                   "Optional; omitting it books tomorrow." },
