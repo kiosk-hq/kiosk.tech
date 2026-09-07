@@ -530,7 +530,15 @@ class Kiosk::OrdersController &lt; ApplicationController
                      type: "object", additionalProperties: false,
                      properties: {
                        sku: { type: "string", description: "A sku from the catalog query." },
-                       qty: { type: "integer", minimum: 1, description: "How many of it." },
+                       # THE CEILING IS DECLARED, because a refusal the published
+                       # schema does not predict is its own defect. `order_items.qty`
+                       # is a PostgreSQL `integer`, so this is that column's own width
+                       # and not an invented basket size: declare it and an oversized
+                       # quantity is a schema 400 the assistant can correct, leave it
+                       # out and the same value reaches `create!` and comes back as a
+                       # 500 about your database.
+                       qty: { type: "integer", minimum: 1, maximum: 2_147_483_647,
+                              description: "How many of it." },
                      },
                      required: ["sku", "qty"],
                    },
@@ -650,7 +658,14 @@ class Kiosk::OrdersController &lt; ApplicationController
               "to the operator."
   input_schema type: "object", additionalProperties: false,
                properties: {
+                 # `pattern` BESIDE `format`, and both deliberately. ORDER_ID_FORMAT
+                 # above is a Ruby Regexp no declaration can name, so the same
+                 # 8-4-4-4-12 shape is written out here in the language a schema
+                 # speaks — which is what makes your handler's guard a PUBLISHED
+                 # contract rather than a private one, and lets the wire refuse a
+                 # malformed id before your handler is reached at all.
                  order_id:         { type: "string", format: "uuid",
+                                     pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                                      description: "The order_id create_order returned (my_orders lists them too)." },
                  delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
                                      description: "The delivery_slot_id of the new window." },
