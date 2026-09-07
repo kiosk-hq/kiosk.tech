@@ -251,6 +251,32 @@ module DeliverySlots
     now.to_date + 1
   end
 
+  # A PARTIAL DATE IS COMPLETED AT THE SERVICE PLACE TOO. `Date.parse` accepts
+  # values that name only part of a date — "Tue", "sep", "1st" — and fills the
+  # rest in from `Date.today`, the very clock `now` above exists to keep out of
+  # this module. A value carrying its own year cannot depend on any clock and is
+  # handed straight to `Date.parse`; anything else is completed from `now`, so
+  # the day a caller gets is the day at the place the van drives to. If you take
+  # the strict route instead (`Date.iso8601` + a `format: "date"` declaration —
+  # see create_order's schema below) you need none of this, because a strict
+  # value is never partial.
+  def parse_date(raw)
+    frags = Date._parse(raw)
+    return Date.parse(raw) if frags.key?(:year) || frags.key?(:cwyear)
+    raise Date::Error, "no date in #{raw.inspect}" if (frags.keys &amp; %i[mon mday wday yday cweek cwday]).empty?
+
+    today = now.to_date
+    if frags[:yday]
+      Date.ordinal(today.year, frags[:yday])
+    elsif frags[:cweek]
+      Date.commercial(today.cwyear, frags[:cweek], frags[:cwday] || 1)
+    elsif frags[:mon] || frags[:mday]
+      Date.new(today.year, frags[:mon] || today.month, frags[:mday] || 1)
+    else
+      today - today.wday + frags[:wday]
+    end
+  end
+
   def slot_at(date, slot_id)
     hour = FIRST_HOUR + (slot_id.to_i - 1) * WINDOW_HOURS
     zone.local(date.year, date.month, date.day, hour, 0)
@@ -380,7 +406,7 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
     # February 31st passes `format: "date"` under draft 2020-12), so the
     # SEMANTIC check stays the handler's job.
     date = begin
-      Date.parse(params[:date].to_s)
+      DeliverySlots.parse_date(params[:date].to_s)
     rescue Date::Error
       # A malformed date is the agent's mistake, not your server's — answer a
       # typed 400, never a Date::Error 500 that just points at your logs.
@@ -577,10 +603,12 @@ class Kiosk::OrdersController &lt; ApplicationController
                  # Measured: `"09/01/2026"` parses as 9 January, not the
                  # 1 September an assistant sending it means; a dashed date
                  # with junk glued to either end parses to the date inside it;
-                 # and `"Tue"`, `"sep"` and `"1st"` are COMPLETED FROM
-                 # THE SERVER'S OWN CLOCK, so the accepted set depends on the
-                 # day the call arrives and there is no set to name in a
-                 # description. If any of that is not what you want to accept
+                 # and `"Tue"`, `"sep"` and `"1st"` are COMPLETED FROM A
+                 # CLOCK rather than read out of the value, so the accepted set
+                 # depends on the day the call arrives and there is no set to
+                 # name in a description. `DeliverySlots.parse_date` at least
+                 # makes that clock the SERVICE PLACE's — `Date.parse` on its
+                 # own would use the box's, which nobody chose. If any of that is not what you want to accept
                  # on a verb that books something, pair a `\A\d{4}-\d{2}-\d{2}\z`
                  # check with `Date.iso8601` and declare `format: "date"` —
                  # the strict handler and the strict declaration go together.
@@ -657,7 +685,7 @@ class Kiosk::OrdersController &lt; ApplicationController
       DeliverySlots.now.to_date + 1
     else
       begin
-        Date.parse(params[:delivery_date].to_s)
+        DeliverySlots.parse_date(params[:delivery_date].to_s)
       rescue Date::Error
         return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD from the delivery_slots row you chose")
       end
@@ -793,7 +821,7 @@ class Kiosk::OrdersController &lt; ApplicationController
       DeliverySlots.now.to_date + 1
     else
       begin
-        Date.parse(params[:delivery_date].to_s)
+        DeliverySlots.parse_date(params[:delivery_date].to_s)
       rescue Date::Error
         return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD")
       end

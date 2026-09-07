@@ -36,7 +36,7 @@
 
     <h2>What it means</h2>
     <p><strong>The verb exists and an argument ADDRESSES a resource that does not exist</strong> — an order id, a slot id, a SKU, a <code>property_id</code> no property has, a login for a key nobody registered.</p>
-    <p>The call was well formed and this answer is final: no retry finds it. Distinct from <a href="/problems/verb_not_found/"><code>verb_not_found</code></a>, which is about the NAME of the call rather than about what the call addressed — those two used to be one code, and an assistant could not tell “there is no such hotel” from “there is no such verb”.</p>
+    <p>The call was well formed and this answer is final: no retry finds it. Distinct from <a href="/problems/verb_not_found/"><code>verb_not_found</code></a>, which is about the NAME of the call rather than about what the call addressed; without that split an assistant cannot tell “there is no such hotel” from “there is no such verb”.</p>
     <p>It is also not the answer to a FILTER that matched nothing: a collection that exists and is empty for your query answers <code>200</code> with an empty array. An empty list here would assert that the addressed resource exists and merely has no rows, which is a different — and false — statement.</p>
 
     <h2>What it carries</h2>
