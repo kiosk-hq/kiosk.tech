@@ -479,6 +479,15 @@ class Kiosk::OrdersController &lt; ApplicationController
   # typed 400 — not whatever your database says to a bad uuid.
   ORDER_ID_FORMAT = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
 
+  # The widest total one order can carry: the width of PostgreSQL `integer`,
+  # which is the type `orders.total_cents` is declared with. THE BOUND IS THE
+  # COLUMN'S, not a basket size you invented — it refuses exactly the carts that
+  # cannot be REPRESENTED and leaves every one that can. `qty` gets the same
+  # width as a declared `maximum` below, because `order_items.qty` is the same
+  # column type; a different number reaches each of them, which is why both are
+  # here. See the guard in create_order.
+  MAX_TOTAL_CENTS = 2_147_483_647
+
   # Check/setup saved payment card. A verb that takes nothing still declares the
   # empty closed object — "this verb takes no arguments" then becomes a published
   # fact instead of an absence the assistant has to interpret.
@@ -520,7 +529,9 @@ class Kiosk::OrdersController &lt; ApplicationController
               "this operator can fulfil, so get both from the human first. The order " \
               "comes back UNPAID and nothing is charged here: paying is a separate step, " \
               "with a cart mandate that mirrors this order. Once it is paid, " \
-              "reschedule_delivery moves the delivery without a second payment."
+              "reschedule_delivery moves the delivery without a second payment. A cart " \
+              "whose catalogue total is larger than this operator can put on one order " \
+              "is refused outright, naming the maximum, rather than partly taken."
   input_schema type: "object", additionalProperties: false,
                properties: {
                  items: {
@@ -538,7 +549,10 @@ class Kiosk::OrdersController &lt; ApplicationController
                        # out and the same value reaches `create!` and comes back as a
                        # 500 about your database.
                        qty: { type: "integer", minimum: 1, maximum: 2_147_483_647,
-                              description: "How many of it." },
+                              description: "How many of it. The order's total — each " \
+                                           "line's catalogue price times its qty, summed " \
+                                           "— is bounded too; a cart too large to price " \
+                                           "is refused, not partly taken." },
                      },
                      required: ["sku", "qty"],
                    },
@@ -633,9 +647,31 @@ class Kiosk::OrdersController &lt; ApplicationController
       end
     end
 
+    # A CART NOBODY CAN PRICE IS A 400, NOT A 500 — and it is a SECOND bound,
+    # not a restatement of the `maximum` on `qty` above. Every quantity that
+    # declaration calls valid is a body the wire hands you, and the ORDER'S
+    # TOTAL is a different number: `price_cents * qty` summed over the cart
+    # passes `orders.total_cents` while every single line is still well inside
+    # its own ceiling. Leave it unguarded and `create!` raises
+    # ActiveModel::RangeError in RUBY, before any SQL — which reaches the
+    # assistant as a 500 about your server for an argument it simply got wrong.
+    #
+    # WHY THIS ONE IS NOT IN `input_schema`, where `qty`'s ceiling is: the bound
+    # is on a SUM of YOUR OWN catalogue prices, and no per-property JSON Schema
+    # keyword can express one. So the published contract splits — the schema
+    # declares the half it can, and the verb description above states this half
+    # in words, so no refusal is one your contract failed to predict. Ask it as
+    # soon as the prices are resolved and BEFORE anything is written.
+    total_cents = lines.sum { |l| l[:product].price_cents * l[:qty] }
+    if total_cents &gt; MAX_TOTAL_CENTS
+      return reject_bad_request("this cart totals #{total_cents} cents, more than this " \
+                                "operator can put on one order (max #{MAX_TOTAL_CENTS}) — " \
+                                "order fewer units, or split the cart across several orders")
+    end
+
     slot_at = DeliverySlots.slot_at(delivery_date, slot_id)
     order = Order.create!(user_id: kiosk_identity.user_id, status: "created",
-                          total_cents: lines.sum { |l| l[:product].price_cents * l[:qty] },
+                          total_cents: total_cents,
                           slot_at: slot_at, address: delivery_address)
     lines.each { |line| order.order_items.create!(product: line[:product], qty: line[:qty]) }
 
