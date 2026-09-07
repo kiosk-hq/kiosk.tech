@@ -647,6 +647,25 @@ class Kiosk::OrdersController &lt; ApplicationController
       end
     end
 
+    # A DAY THAT HAS GONE, AND A WINDOW THAT HAS BEGUN, ARE TWO REFUSALS — and
+    # this verb owes both even though `delivery_slots` above already hides
+    # both. The offer and the booking are separate calls minutes apart: nothing
+    # stops an assistant sending a day it read yesterday, or a window that
+    # started while its human was deciding. Skip these and you book a slot your
+    # own read verb would never have offered, and nobody finds out until a van
+    # does not arrive. The DAY first, because "that day is gone" is the more
+    # useful sentence than "that window has started" when both are true.
+    if delivery_date &lt; DeliverySlots.now.to_date
+      return reject_bad_request("delivery_date is in the past: #{delivery_date.iso8601} — " \
+                                "choose a current/future delivery slot")
+    end
+    slot_at = DeliverySlots.slot_at(delivery_date, slot_id)
+    if slot_at &lt;= DeliverySlots.now
+      return reject_bad_request("delivery slot #{slot_id} on #{delivery_date.iso8601} has already " \
+                                "started (#{slot_at.iso8601}) — choose a later slot; call " \
+                                "delivery_slots again for the still-bookable windows")
+    end
+
     # A CART NOBODY CAN PRICE IS A 400, NOT A 500 — and it is a SECOND bound,
     # not a restatement of the `maximum` on `qty` above. Every quantity that
     # declaration calls valid is a body the wire hands you, and the ORDER'S
@@ -669,7 +688,6 @@ class Kiosk::OrdersController &lt; ApplicationController
                                 "order fewer units, or split the cart across several orders")
     end
 
-    slot_at = DeliverySlots.slot_at(delivery_date, slot_id)
     order = Order.create!(user_id: kiosk_identity.user_id, status: "created",
                           total_cents: total_cents,
                           slot_at: slot_at, address: delivery_address)
@@ -764,7 +782,21 @@ class Kiosk::OrdersController &lt; ApplicationController
         return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD")
       end
     end
+    # The SAME two refusals create_order takes, for the same reason: a move is
+    # a booking too, and moving a paid order onto a day that is gone or a
+    # window that has started is the one outcome nobody can undo without
+    # touching the money. Repeating the pair per verb rather than sharing a
+    # helper is this page's shape, not a recommendation — in your own app put
+    # them in one place and call it from both.
+    if new_date &lt; DeliverySlots.now.to_date
+      return reject_bad_request("delivery_date is in the past: #{new_date.iso8601}")
+    end
     slot_at = DeliverySlots.slot_at(new_date, slot_id)
+    if slot_at &lt;= DeliverySlots.now
+      return reject_bad_request("delivery slot #{slot_id} on #{new_date.iso8601} has already " \
+                                "started (#{slot_at.iso8601}) — choose a later slot; call " \
+                                "delivery_slots again for the still-bookable windows")
+    end
 
     order.update!(status: "rescheduled", slot_at: slot_at,
                   address: params[:delivery_address].to_s.presence || order.address)
