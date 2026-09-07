@@ -205,6 +205,9 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
  "detail":"unknown sku(s): nope","code":"bad_request"}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   Your <code>message</code> becomes <code>detail</code>, your <code>code</code> stays <code>code</code>, and <code>type</code> is <code>https://kiosk.tech/problems/&lt;code&gt;</code> — an identifier, not a page to fetch. An assistant branches on <code>code</code>.</blockquote>
 
+  <blockquote><strong>On the raise-and-map path the CODE travels and the exception's own SENTENCE does not.</strong> That branch exists for exceptions you did not author &mdash; &ldquo;no Kiosk error classes in handler code&rdquo; is its whole purpose &mdash; so its message would be some library's wording (actionpack's &ldquo;param is missing or the value is empty or invalid: sku&rdquo; is what <code>params.require</code> used to put on a 400) and it moves when a dependency moves. What the assistant receives instead is this engine's own sentence for the code the seam decided, plus a <code>hint</code> &mdash; for <code>bad_request</code>, <code>check the arguments against this verb's input_schema — GET .../schema publishes it.</code> &mdash; while the exception's class, message and backtrace go to your <code>Rails.logger</code>, where the diagnosis belongs and where the assistant could not have acted on it anyway.
+  <br><br><strong>So when you mean to say something to the assistant, say it deliberately.</strong> Two routes never reach that branch and carry your words verbatim: <em>render the envelope</em> with your own <code>message</code>, or <em>raise a <code>Kiosk::Server::Errors</code> class</em> with your own <code>message:</code> and <code>hint:</code> &mdash; the seam re-raises those untouched. &ldquo;No Kiosk error classes in handler code&rdquo; is the default, not a prohibition: it is what you write when you have nothing of your own to say.</blockquote>
+
   <p>Delivery slots come up in both a query and an action below, so the arithmetic that says what a slot id <em>means</em> lives in one place — <code>app/models/delivery_slots.rb</code>, a plain Ruby module Rails autoloads; nothing to <code>require</code>:</p>
   <pre><code class="language-ruby"># app/models/delivery_slots.rb
 #
@@ -534,7 +537,16 @@ class Kiosk::OrdersController &lt; ApplicationController
                  },
                  delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
                                      description: "The delivery_slot_id of a row delivery_slots returned." },
-                 delivery_date:    { type: "string", format: "date",
+                 # NO `format: "date"` on this one, and the omission is the
+                 # declaration. The handler below parses it with `Date.parse`,
+                 # which accepts a bare "20260101" as readily as the dashed
+                 # spelling every row of `delivery_slots` hands you —
+                 # so declaring the keyword would make the WIRE refuse, with a
+                 # schema 400, a value your own handler was written to take.
+                 # Declare a `format` when the handler is exactly that strict,
+                 # and not as decoration: an assistant reads the declaration as
+                 # the contract, and the strictest of the two is what it meets.
+                 delivery_date:    { type: "string",
                                      description: "The date of that same delivery_slots row, YYYY-MM-DD. " \
                                                   "Optional; omitting it books tomorrow." },
                  delivery_address: { type: "string",
@@ -642,7 +654,7 @@ class Kiosk::OrdersController &lt; ApplicationController
                                      description: "The order_id create_order returned (my_orders lists them too)." },
                  delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
                                      description: "The delivery_slot_id of the new window." },
-                 delivery_date:    { type: "string", format: "date",
+                 delivery_date:    { type: "string",
                                      description: "The date of that new window, YYYY-MM-DD. " \
                                                   "Optional; omitting it books tomorrow." },
                  delivery_address: { type: "string",
