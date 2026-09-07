@@ -1206,6 +1206,18 @@ an offset, a keyset token, or any scheme it likes. An assistant that builds the
 next request itself rather than following the link **MUST** copy the `cursor`
 parameter's value byte for byte.
 
+**Opaque is that CONTRACT, not a property of the token, and this document
+requires nothing of a cursor's bytes.** A cursor **MAY** be a clear-text integer
+offset -- the reference implementation's helper publishes exactly that -- and an
+operator is **NOT** required to sign one, encrypt one, or make one unguessable.
+It follows that a cursor **MUST NOT** be treated as an authorization token: an
+operator **MUST** scope a page by the requesting principal's own entitlement, so
+that a forged or replayed cursor can reach no row the same request could not have
+reached by following links, and **MUST NOT** widen a result on the strength of a
+cursor alone. An operator that refuses a cursor it did not issue **SHOULD** answer
+`400 bad_request` naming the parameter rather than silently serving the first
+page, which reads to an assistant as a valid answer to a request it did not make.
+
 **`X-Total-Count` is the number of matching rows.** It carries how many rows
 **MATCH** the query across ALL pages -- not how many this response returned, and
 the two differ on every page but the last.
@@ -1499,7 +1511,20 @@ the request with the **identical** body plus a `Kiosk-PoW` request header
 carrying the proof(s) as **raw JSON** (Section 10.1). The proof travels in the
 header, not the body, so the body -- and hence the request fingerprint the
 challenge binds to -- is unchanged on retry, and a query, which is a `GET` and
-has no body-proof channel, can carry its proof too (Section 10.1). `nonce` is `{indices: [u64, ...], header_nonce?: u32}`; each index **MUST** be an
+has no body-proof channel, can carry its proof too (Section 10.1).
+
+**A proof's `nonce` is the ALGORITHM's shape, not this protocol's.** The
+challenge carries `{alg, params}` precisely so that an operator **MAY** serve a
+backend this specification does not define, and such a backend brings its own
+solution encoding with it; `alg` is an open string for that reason. So
+`pow.schema.json` types `nonce` **conditionally on `alg`** rather than typing it
+outright: for `equihash` it requires the shape below, and for any other `alg` it
+constrains nothing, leaving the encoding to the backend that named itself and the
+refusal of an unknown `alg` to the verifier. An operator **MUST NOT** refuse a
+proof on its nonce's shape for an algorithm they do not implement; the honest
+refusal there is of the ALGORITHM.
+
+For `alg` `equihash`, `nonce` is `{indices: [u64, ...], header_nonce?: u32}`; each index **MUST** be an
 integer in `[0, 2**64)` -- a verifier packs it as a little-endian u64, so an
 out-of-range value would silently alias another index; `pow.schema.json` states
 that same range as an INCLUSIVE `maximum` of `2**64 - 1` rather than an exclusive
