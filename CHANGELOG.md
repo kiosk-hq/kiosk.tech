@@ -1,7 +1,17 @@
 # Changelog
 
-Significant changes only (CLAUDE.md rule 5): one line per change, 1–2
-sentences — essence and intent, not content.
+**What this file is: this repository's dated engineering journal, newest entry
+first.** One entry per significant change to a published surface, saying what was
+wrong, what changed, and the intent, written for someone who was not there.
+Entries are as long as that takes. MEASURED 2026-09-07 over its 209 entries:
+median 688 characters, longest 1844, and **14 of them — seven per cent — short
+enough to be the «one line, 1–2 sentences» this header used to ask for.** A
+header its own file contradicts on ninety-three per cent of its lines teaches a
+reader to skip headers, so it says what is true instead. The concise release-note
+form rule 5 asks for is kept where it belongs and ships: the per-gem changelogs
+in the reference repository. This correction is the sibling of the one made to
+that repository's root changelog the day before; the defect was in both files and
+only one was fixed, which is the miss this entry records.
 
 - 2026-09-07: **the onboarding guide taught «raise what you would raise anyway» and no longer said what that costs (K-1341).** The sentence was never false — it claims only that an exception's STATUS maps to a Kiosk error code, and it still does — but the engine stopped publishing the exception's own message on that path, and the page went on describing the raise-and-map move as the whole recovery. An operator reading it learned neither half of what changed: not that the sentence they raised with is dropped in favour of this protocol's own wording and a `hint` (the message, class and backtrace go to their `Rails.logger`, where the diagnosis belongs and where an assistant could not have acted on it anyway), and not that rendering the envelope or raising a `Kiosk::Server::Errors` class is how they speak to the assistant on purpose. Both are now on the page, with the sentence the wire actually sends quoted verbatim, and «no Kiosk error classes in handler code» is stated as the default rather than a prohibition — it is what you write when you have nothing of your own to say. The pair is held by a new derivation rule in the reference repository, so the quoted sentence and the named class come from the engine rather than from a second copy of them here. Intent: a published instruction that has become half the story is worse than one that was never written, because the reader believes they have finished reading.
 
