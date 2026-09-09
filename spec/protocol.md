@@ -929,7 +929,7 @@ The query-string encoding is:
 
 1. **Scalars** are `name=value`. Strings are UTF-8, percent-encoded; booleans
    are the literals `true` / `false`; numbers are JSON number literals; dates
-   are `YYYY-MM-DD`.
+   are `YYYY-MM-DD` and nothing else (rule 9).
 2. **Arrays of scalars** are repeated `name[]=value`, percent-encoded on the
    wire as `name%5B%5D=value`. A bare repeated `name=` is **NOT** an array for
    a parameter `input_schema` does not declare as an array, and a server
@@ -974,6 +974,40 @@ The query-string encoding is:
    **A field that may legitimately hold a fraction is not an `integer` field:**
    an operator declares it `{"type": "number"}`, and both halves then accept
    `2` and `2.5` alike.
+9. **A calendar date is `YYYY-MM-DD` on BOTH channels, and every other
+   spelling is refused.** JSON has no date type, so a date travels as a string
+   in a query string and in a body alike, and nothing about the transport
+   narrows it: what an operator accepts is decided entirely by what it chooses
+   to parse. Rule 8's principle settles it -- one declared type admits one
+   spelling. A parameter declared `{"type": "string", "format": "date"}` accepts
+   four digits, a hyphen, two digits, a hyphen and two digits, naming a day that
+   exists; an operator **MUST** answer `400 bad_request` naming the parameter
+   for anything else, and that refusal **MUST** name what IS accepted, because
+   the value it sent is the only thing the caller can correct.
+
+   Every one of these is refused, and each is a spelling some date library
+   takes: the rest of the ISO 8601 family (`20260901` basic, `2026-W36-2` week,
+   `2026-244` ordinal, and a full timestamp, which carries an hour a calendar
+   day has nowhere to put); the slash forms; a month NAME; an unpadded
+   `2026-9-1`; a value with a real date somewhere inside it; and a PARTIAL value
+   an operator could only finish by reading a clock (`Tue`, `sep`, `1st`).
+   `09/01/2026` is the value the rule is decided on: it is the ninth of January
+   to a day-first reader and the first of September to a month-first one, the
+   two readings are eight months apart, and an operator that accepts it cannot
+   tell the caller which reading it took -- so a delivery, a stay or a booking
+   silently lands on the wrong day and nobody is told. An AI ASSISTANT is on the
+   other end of this wire, not a person filling in a form: it is answering about
+   a day the operator itself put in a row it already sent, so a second spelling
+   buys it nothing, and every extra one an operator accepts buys a silent wrong
+   answer for a convenience nobody needed.
+
+   **A well-shaped value that is not a day is refused too** (`2026-02-30`,
+   `2026-13-01`). `format` asserts a SHAPE; whether the shape names a real day
+   is the operator's own check, and it owes it.
+
+   **A field that carries an instant rather than a calendar day is not a `date`
+   field:** an operator declares it `{"format": "date-time"}` and takes an
+   RFC 3339 timestamp there, where an hour and an offset mean something.
 
 ### 8.2 Response shape
 

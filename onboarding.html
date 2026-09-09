@@ -274,29 +274,36 @@ module DeliverySlots
     now.to_date + 1
   end
 
-  # A PARTIAL DATE IS COMPLETED AT THE SERVICE PLACE TOO. `Date.parse` accepts
-  # values that name only part of a date — "Tue", "sep", "1st" — and fills the
-  # rest in from `Date.today`, the very clock `now` above exists to keep out of
-  # this module. A value carrying its own year cannot depend on any clock and is
-  # handed straight to `Date.parse`; anything else is completed from `now`, so
-  # the day a caller gets is the day at the place the van drives to. If you take
-  # the strict route instead (`Date.iso8601` + a `format: "date"` declaration —
-  # see create_order's schema below) you need none of this, because a strict
-  # value is never partial.
-  def parse_date(raw)
-    frags = Date._parse(raw)
-    return Date.parse(raw) if frags.key?(:year) || frags.key?(:cwyear)
-    raise Date::Error, "no date in #{raw.inspect}" if (frags.keys &amp; %i[mon mday wday yday cweek cwday]).empty?
+  # A DATE ON THE WIRE IS `YYYY-MM-DD`, AND NOTHING ELSE. One declared type
+  # admits one spelling — the same rule the wire already applies to an
+  # `integer` and to a `boolean`, and the reason every verb here that takes a
+  # day declares `format: "date"`. A machine is on the other end of the call and
+  # every row you hand it carries the day in this spelling, so a second way to
+  # write one buys nothing and costs the ambiguous case: `09/01/2026` is
+  # day-first to some senders and month-first to others.
+  #
+  # `Date.iso8601` BEHIND the pattern and not instead of it. ISO 8601 is a
+  # FAMILY: the basic form with no separators, a full datetime, an ISO week
+  # date and an ordinal date all parse through it, so on its own it would accept
+  # four spellings your description does not name — and one of them silently
+  # discards an hour the sender may have meant. What the parse is still for is
+  # the value that has the right shape and is not a day: a 30th of February.
+  #
+  # Nil rather than an exception, because the caller owns the sentence: each
+  # verb names the row an assistant gets a right value from, and those are
+  # different rows. Note what this method does NOT read: any clock. A partial
+  # value has nowhere to get the rest of itself from, so it is refused rather
+  # than completed, and the same string means the same day on every server.
+  ISO_DATE = /\A\d{4}-\d{2}-\d{2}\z/
 
-    today = now.to_date
-    if frags[:yday]
-      Date.ordinal(today.year, frags[:yday])
-    elsif frags[:cweek]
-      Date.commercial(today.cwyear, frags[:cweek], frags[:cwday] || 1)
-    elsif frags[:mon] || frags[:mday]
-      Date.new(today.year, frags[:mon] || today.month, frags[:mday] || 1)
-    else
-      today - today.wday + frags[:wday]
+  def iso_date(raw)
+    value = raw.to_s
+    return nil unless ISO_DATE.match?(value)
+
+    begin
+      Date.iso8601(value)
+    rescue ArgumentError, TypeError
+      nil
     end
   end
 
@@ -428,9 +435,8 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
     # schema cannot say is that the string names a real calendar day (a
     # February 31st passes `format: "date"` under draft 2020-12), so the
     # SEMANTIC check stays the handler's job.
-    date = begin
-      DeliverySlots.parse_date(params[:date].to_s)
-    rescue Date::Error
+    date = DeliverySlots.iso_date(params[:date])
+    if date.nil?
       # A malformed date is the agent's mistake, not your server's — answer a
       # typed 400, never a Date::Error 500 that just points at your logs.
       return reject_bad_request("invalid date: #{params[:date]} — use YYYY-MM-DD")
@@ -610,32 +616,23 @@ class Kiosk::OrdersController &lt; ApplicationController
                  },
                  delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
                                      description: "The delivery_slot_id of a row delivery_slots returned." },
-                 # NO `format: "date"` on this one, and the omission is the
-                 # declaration. The handler below parses it with `Date.parse`,
-                 # which accepts a bare "20260101" as readily as the dashed
-                 # spelling every row of `delivery_slots` hands you —
-                 # so declaring the keyword would make the WIRE refuse, with a
-                 # schema 400, a value your own handler was written to take.
-                 # Declare a `format` when the handler is exactly that strict,
-                 # and not as decoration: an assistant reads the declaration as
-                 # the contract, and the strictest of the two is what it meets.
+                 # `format: "date"` because the handler behind it is exactly
+                 # that strict, and the two go together: an assistant reads the
+                 # declaration as the contract, and the strictest of the two
+                 # layers is what it actually meets. Declare a `format` when it
+                 # is true, never as decoration — a keyword stricter than the
+                 # handler makes the WIRE refuse values your own code accepts,
+                 # and a handler stricter than the keyword refuses values you
+                 # told the assistant to send.
                  #
-                 # AND KNOW WHAT YOU ARE LEAVING OPEN, because `Date.parse`
-                 # SCANS for a date rather than validating a format, and the
-                 # loose set is wider than the basic-ISO spelling above.
-                 # Measured: `"09/01/2026"` parses as 9 January, not the
-                 # 1 September an assistant sending it means; a dashed date
-                 # with junk glued to either end parses to the date inside it;
-                 # and `"Tue"`, `"sep"` and `"1st"` are COMPLETED FROM A
-                 # CLOCK rather than read out of the value, so the accepted set
-                 # depends on the day the call arrives and there is no set to
-                 # name in a description. `DeliverySlots.parse_date` at least
-                 # makes that clock the SERVICE PLACE's — `Date.parse` on its
-                 # own would use the box's, which nobody chose. If any of that is not what you want to accept
-                 # on a verb that books something, pair a `\A\d{4}-\d{2}-\d{2}\z`
-                 # check with `Date.iso8601` and declare `format: "date"` —
-                 # the strict handler and the strict declaration go together.
-                 delivery_date:    { type: "string",
+                 # WHAT THE KEYWORD STILL CANNOT SAY, and why the handler
+                 # checks anyway: `format: "date"` says the string is shaped
+                 # like a calendar date, not that it names a real day (a
+                 # 30th of February passes it) and not that the day is still
+                 # bookable — a horizon that rolls forward every midnight is
+                 # not expressible in a declaration. Both are
+                 # `DeliverySlots.iso_date` and the two floors below.
+                 delivery_date:    { type: "string", format: "date",
                                      description: "The date of that same delivery_slots row, YYYY-MM-DD. " \
                                                   "Optional; omitting it books tomorrow." },
                  delivery_address: { type: "string",
@@ -707,11 +704,11 @@ class Kiosk::OrdersController &lt; ApplicationController
     delivery_date = if params[:delivery_date].to_s.strip.empty?
       DeliverySlots.now.to_date + 1
     else
-      begin
-        DeliverySlots.parse_date(params[:delivery_date].to_s)
-      rescue Date::Error
+      day = DeliverySlots.iso_date(params[:delivery_date])
+      if day.nil?
         return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD from the delivery_slots row you chose")
       end
+      day
     end
 
     # A DAY THAT HAS GONE, AND A WINDOW THAT HAS BEGUN, ARE TWO REFUSALS — and
@@ -790,7 +787,8 @@ class Kiosk::OrdersController &lt; ApplicationController
                                      description: "The order_id create_order returned (my_orders lists them too)." },
                  delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
                                      description: "The delivery_slot_id of the new window." },
-                 delivery_date:    { type: "string",
+                 # Same declaration as create_order's, for the same reason.
+                 delivery_date:    { type: "string", format: "date",
                                      description: "The date of that new window, YYYY-MM-DD. " \
                                                   "Optional; omitting it books tomorrow." },
                  delivery_address: { type: "string",
@@ -843,11 +841,11 @@ class Kiosk::OrdersController &lt; ApplicationController
     new_date = if params[:delivery_date].to_s.strip.empty?
       DeliverySlots.now.to_date + 1
     else
-      begin
-        DeliverySlots.parse_date(params[:delivery_date].to_s)
-      rescue Date::Error
+      day = DeliverySlots.iso_date(params[:delivery_date])
+      if day.nil?
         return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD")
       end
+      day
     end
     # The SAME two refusals create_order takes, for the same reason: a move is
     # a booking too, and moving a paid order onto a day that is gone or a
