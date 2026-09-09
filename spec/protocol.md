@@ -910,17 +910,31 @@ The concrete query and action **names** are operator-defined and discovered via
 `schema`; they are not part of this specification. A name is one path segment
 matching `^[a-z][a-z0-9_]*$`.
 
-An operator **MUST** answer `404 verb_not_found` (Section 9) when the path's
-last segment names no registered verb at all, and the `hint` **SHOULD** carry
-the names that ARE registered so a mistyped name self-corrects without a
-catalogue round-trip. It is `verb_not_found` and not `not_found`: the latter
-means an ARGUMENT addressed something absent (Section 9.1 rule 2), which is a
-different fact and a different recovery.
+**A path that names no verb this operator serves has no defined answer, and an
+assistant is not entitled to one.** The catalogue at `schema` is the contract:
+it publishes every name this origin serves and which kind each is, so a client
+that read it has no business dialing a name that is not in it, or dialing one
+with the method its kind does not take. An operator **MAY** therefore answer
+such a request with whatever its web framework answers for an unrouted path --
+typically a bare `404` with no problem document at all -- and that is
+conforming. The reference implementation does exactly that: it draws one route
+per registered verb and nothing else, so an unknown name and a wrong method are
+both an ordinary `404`, carrying the Section 3.6 version headers (which are
+stamped above the router) and nothing else.
 
-An operator **MUST** answer `405` (Section 9) with an `Allow` header when the
-path names a verb that exists but the method is the other one -- a `GET` at an
-action's path, a `POST` at a query's. It is a distinct answer from
-`verb_not_found` because the verb exists.
+An operator that WANTS to be more helpful **MAY** answer the two codes Section 9
+reserves for this, and if it does they mean what Section 9 says:
+`404 verb_not_found` when the path's last segment names no registered verb at
+all -- `verb_not_found` and not `not_found`, the latter meaning an ARGUMENT
+addressed something absent (Section 9.1 rule 2), which is a different fact and a
+different recovery -- with a `hint` carrying the names that ARE registered; and
+`405` when the path names a verb that exists but the method is the other one, in
+which case the response **MUST** carry an `Allow` header naming the method the
+verb accepts. Both remain in the closed vocabulary of Section 9, and a client
+**MUST** understand them; neither is required of a server.
+
+A client **MUST NOT** depend on either. Re-reading `schema` is the recovery for
+a name that did not work, whatever the origin answered.
 
 **Where a verb's arguments live.** A query's arguments are in the URL query
 string; an action's are in a JSON request body. There is no third channel: an
@@ -2203,8 +2217,7 @@ the discovery document, and are absent from `capabilities` for that reason:
 3. **Core -- wire** (Section 8, Section 9): `schema` (GET, UNAUTHENTICATED and
    untolled -- Section 8.3), one endpoint per
    registered verb (GET for a query, POST for an action), the response shape,
-   the problem-document error vocabulary including `404 verb_not_found` for an
-   unregistered name, the `405` + `Allow` answer
+   the problem-document error vocabulary
    and the bad-argument status rule (Section 9.1) -- `400` for a value outside
    its domain, `404 not_found` for an identifier that addresses nothing, `200`
    with an empty array for a filter that matched nothing -- the caching rules

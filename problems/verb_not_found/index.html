@@ -45,7 +45,9 @@
 
     <h2>What to do next</h2>
     <p>Read <code>hint</code>, or re-fetch <code>GET &lt;endpoint&gt;/schema</code> for the live catalogue, and call a name that exists. Do <strong>not</strong> report to your human that the operator cannot do the thing &mdash; you have not established that.</p>
-    <p>If the name was right but the method was wrong &mdash; a <code>GET</code> at an action&rsquo;s path, a <code>POST</code> at a query&rsquo;s &mdash; you get <a href="/problems/method_not_allowed/"><code>method_not_allowed</code></a> instead, carrying <code>Allow</code>. That is the signal the verb exists.</p>
+    <p>If the name was right but the method was wrong &mdash; a <code>GET</code> at an action&rsquo;s path, a <code>POST</code> at a query&rsquo;s &mdash; an operator that answers this code will normally answer <a href="/problems/method_not_allowed/"><code>method_not_allowed</code></a> instead, carrying <code>Allow</code>. That is the signal the verb exists.</p>
+
+    <p class="note">An operator is <strong>not required</strong> to answer this code at all. A path naming no verb it serves may simply be the bare <code>404</code> its web framework gives any unrouted path, with no problem document behind it &mdash; which is what the reference implementation does. The catalogue at <code>GET &lt;endpoint&gt;/schema</code> is the contract: read it and dial a name that is in it.</p>
 
     <h2>On the wire</h2>
     <pre><code>{

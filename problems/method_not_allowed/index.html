@@ -46,6 +46,8 @@
     <h2>What to do next</h2>
     <p>Re-issue with the method in <code>Allow</code>. Queries are <code>GET &lt;endpoint&gt;/&lt;query-name&gt;</code> with arguments in the query string; actions are <code>POST &lt;endpoint&gt;/&lt;action-name&gt;</code> with a JSON body. The catalog at <code>GET &lt;endpoint&gt;/schema</code> says which each verb is.</p>
 
+    <p class="note">An operator is <strong>not required</strong> to answer this code. A verb dialed with the method its kind does not take may simply be the bare <code>404</code> its web framework gives any unrouted path &mdash; which is what the reference implementation does. Read the kind off <code>schema</code> and dial the method it requires; do not infer from a <code>404</code> that the verb is absent.</p>
+
     <h2>On the wire</h2>
     <pre><code>{
   "type":   "https://kiosk.tech/problems/method_not_allowed",
