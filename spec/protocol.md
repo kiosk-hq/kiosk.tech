@@ -167,11 +167,14 @@ proof-of-work gate.
    a request header -- so the cache rules are part of the response contract,
    not a deployment detail.
 
-   1. An operator **MUST** send `Vary: Authorization, Kiosk-PoW` on every verb
-      response. Without `Authorization` a cache keyed on the URL serves one
-      identity's payload to another; without `Kiosk-PoW` it serves a paid `200`
-      to an unpaid retry -- defeating the toll -- or a stale `402` to a paid
-      one, which is a retry loop the AI assistant cannot break.
+   1. An operator **MUST** send `Vary: Authorization, Kiosk-PoW,
+      Kiosk-Timezone` on every verb response. Without `Authorization` a cache
+      keyed on the URL serves one identity's payload to another; without
+      `Kiosk-PoW` it serves a paid `200` to an unpaid retry -- defeating the
+      toll -- or a stale `402` to a paid one, which is a retry loop the AI
+      assistant cannot break; without `Kiosk-Timezone` it serves an answer
+      computed for one caller's calendar day to a caller on another clock that
+      sent the identical URL (point 8).
    2. A `402` **MUST** carry `Cache-Control: no-store`. A proof-of-work
       challenge is single-use, request-bound and expiring (Section 10); storing
       one is never correct.
@@ -205,6 +208,84 @@ proof-of-work gate.
    5. Conditional requests (`ETag` / `If-None-Match`) are permitted and useful,
       but an operator **MUST** run the toll gate BEFORE the freshness check. A
       `304` is a served response; revalidating a tolled resource costs a proof.
+8. **Times, and whose clock they are in.** A time on this wire is either a
+   CALENDAR DAY or an INSTANT, and the two obey different rules. Which one a
+   field is, is declared by its `format` (Section 8.1 rule 9).
+
+   1. **An operator renders a time at the PLACE THE SERVICE HAPPENS.** A table
+      is served at the restaurant, a room-night at the property, a chair in the
+      salon, a delivery at the customer's door. That zone is a property of the
+      **serviced resource** and **MUST NOT** be a single constant per operator:
+      one operator may run many stores in many zones, and an answer read off
+      the operator is right only for as long as it happens to run one store.
+   2. **An operator reads an ARGUMENT in the CALLER's clock, which the caller
+      states.** A human has one clock; an operator has as many as it has
+      addresses. An AI assistant that sends a bare `YYYY-MM-DD` means a day on
+      its human's calendar, and at 23:05 on the sixth in one place it is
+      already the seventh three hours east. The assistant declares its clock in
+      an OPTIONAL request header:
+
+      | Header | Example | Meaning |
+      |---|---|---|
+      | `Kiosk-Timezone` | `Europe/Istanbul` | The clock of the human the AI assistant is acting for, as an IANA `Area/Location` identifier or the literal `UTC`. |
+
+      It is a header rather than an argument because it is a fact about the
+      CALLER and not about the verb: as an argument it would have to be
+      declared in every time-bearing `input_schema` in every catalogue, and a
+      descriptor is a closed object (Section 8.3), so each of those would be a
+      published slot an operator could spell differently.
+   3. **An IANA name, never a UTC offset.** `Kiosk-Timezone: +03:00` is
+      refused: an offset cannot carry a DST transition, so an operator holding
+      one cannot say which side of a boundary a FUTURE date falls on. A value
+      the operator cannot read is `400 bad_request` naming the header and what
+      is accepted (Section 9.1 rule 1) -- never a silent fallback, because an
+      answer produced from a zone nobody chose is shaped exactly like a right
+      one.
+   4. **An AI assistant MUST take the zone from the HUMAN it acts for, and
+      MUST NOT read it off the machine it runs on** -- its locale, its
+      hostname, or the geolocation of its IP. An assistant commonly runs
+      nowhere near the person it serves. This is the same rule Section 15.9's
+      neighbours already state for a delivery address.
+   5. **When the caller declares no zone, the operator reads the argument on
+      the SERVICE PLACE's clock and says so in the row.** That is a declared
+      default, not a guess. And an operator **MUST NOT** source the caller's
+      zone from anywhere else -- not from the access token, not from
+      `Accept-Language`, not from IP geolocation, not from the TCP peer.
+      Either the caller declared it or it did not: an unfalsifiable guess is
+      worse than a declared default, because the client cannot see it happen.
+   6. **A CALENDAR DAY is never converted, in either direction, by anyone.** A
+      room-night is a day at the property; attaching an offset to one is not
+      more precise, it invites a conversion that sells the night before. An
+      operator echoes a `format: "date"` argument back byte-identical.
+   7. **An INSTANT carries its offset, and a zoneless one is refused.** A field
+      declared `{"format": "date-time"}` takes an RFC 3339 timestamp whose
+      offset is REQUIRED; a value without one is not an RFC 3339 timestamp, and
+      an operator **MUST** answer `400 bad_request` naming the field rather
+      than completing it from any clock. One declared type admits one spelling,
+      exactly as in Section 8.1 rules 8 and 9.
+   8. **The same bare date means two things in the two directions.** In an
+      ARGUMENT a bare `YYYY-MM-DD` is a day on the CALLER's calendar; in a ROW
+      it is a day at the SERVICE PLACE. The direction of travel disambiguates
+      it. This is stated rather than inferred because it is the most confusable
+      sentence in this document.
+   9. **Wherever a row publishes a wall-clock rendering it MUST publish, in the
+      same row, the IANA zone that rendering is in.** A window rendered
+      `08:00-10:00` with no zone anywhere is read by every human as their own
+      08:00. An operator publishes ONE rendering per row and not two: a second
+      wall clock in the caller's zone is a field pair that can disagree, for
+      arithmetic the caller can already do from the offset it was handed.
+   10. **A verb that spans resources answers per resource, and that includes
+       its date arithmetic.** "Is this check-in in the past" is a question
+       about one property's clock, so one call listing properties in two zones
+       MAY legitimately report the first bookable and the second not, for the
+       same `check_in`. That is surprising, so it is specified rather than
+       discovered: the row's own zone is what an AI assistant reads, never an
+       origin-wide one.
+   11. **Machine timestamps are not service times and this point does not
+       touch them** -- `iat`/`nbf`/`exp` on a token, a proof-of-work
+       challenge's expiry, a Unix-seconds deadline, a relative `expires_in` in
+       seconds, a stored `created_at`. The rules above are about times a HUMAN
+       is told about.
 
 ---
 
@@ -1021,7 +1102,10 @@ The query-string encoding is:
 
    **A field that carries an instant rather than a calendar day is not a `date`
    field:** an operator declares it `{"format": "date-time"}` and takes an
-   RFC 3339 timestamp there, where an hour and an offset mean something.
+   RFC 3339 timestamp there, where an hour and an offset mean something -- and
+   the offset is REQUIRED, so a zoneless timestamp is refused rather than
+   completed from a clock (Section 3, point 8, rule 7). Which CLOCK a date or
+   an instant is in, in each direction, is that point's subject.
 
 ### 8.2 Response shape
 
@@ -1291,8 +1375,8 @@ and never declares:
 
 **Caching.** A page is a per-caller answer to a per-caller question, so
 Section 3 point 7 applies to it unchanged: `private, no-store` by default,
-`Vary: Authorization, Kiosk-PoW`, and never `public`, `s-maxage` or
-`must-revalidate`. No pagination surface is ever one of that rule's
+`Vary: Authorization, Kiosk-PoW, Kiosk-Timezone`, and never `public`,
+`s-maxage` or `must-revalidate`. No pagination surface is ever one of that rule's
 public, shared-cacheable exceptions -- those are the self-description and
 discovery surfaces named in Section 3 point 7 rule 3 (`GET <endpoint>/schema`,
 `GET <endpoint>/openapi.json` where served, and the unauthenticated discovery
@@ -2221,9 +2305,15 @@ the discovery document, and are absent from `capabilities` for that reason:
    and the bad-argument status rule (Section 9.1) -- `400` for a value outside
    its domain, `404 not_found` for an identifier that addresses nothing, `200`
    with an empty array for a filter that matched nothing -- the caching rules
-   (Section 3, point 7), the schema self-description format (Section 8.3, and
-   the descriptor schema of Section 17), and the three version-handshake
-   response headers on every mount-path response (Section 3, point 6).
+   (Section 3, point 7), the time rules (Section 3, point 8) -- every row that
+   publishes a wall clock names the IANA zone it is rendered in, that zone is
+   the SERVICED RESOURCE's and never one constant per operator, an argument is
+   read in the caller's declared zone or, absent one, on the service place's
+   clock, and the caller's zone is never INFERRED from the token, the language
+   header, the IP or the peer -- the schema self-description format (Section
+   8.3, and the descriptor schema of Section 17), and the three
+   version-handshake response headers on every mount-path response (Section 3,
+   point 6).
    An operator that paginates additionally emits the `Link` `rel="next"`
    header of Section 8.4 and no `next` body field.
 4. **Core -- identity binding** (Section 7): the identity resolved from the token
@@ -2297,7 +2387,10 @@ it is absent, rather than by reading a body field or trusting `X-Total-Count`
 (Section 8.4); reads a verb's `reach` before it reads its rows, treating a
 descriptor that carries none as `principal` and never treating a `published`,
 `consented` or `role` verb's rows as its own human's data; fills the proof
-`aud` from the origin it dialed; solves
+`aud` from the origin it dialed; declares its human's clock in `Kiosk-Timezone`
+on every time-bearing call and takes that zone FROM THE HUMAN rather than from
+the machine it runs on, reads a row's own `timezone` before relaying any time to
+a human, and never converts a bare `YYYY-MM-DD` (Section 3, point 8); solves
 every challenge in a `pow_required` list and retries the identical request --
 same method, same path, same query string, same body -- with the proof(s) in the
 `Kiosk-PoW` request header; runs `payment_setup` and hands `setup_url` to the human rather than
