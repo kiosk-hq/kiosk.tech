@@ -268,6 +268,16 @@ proof-of-work gate.
       it is a day at the SERVICE PLACE. The direction of travel disambiguates
       it. This is stated rather than inferred because it is the most confusable
       sentence in this document.
+
+      **The one exception is an argument that ECHOES a row**, and it follows
+      from the same sentence rather than qualifying it: where a verb takes back
+      a value the operator itself published -- the `date` of a window the caller
+      is now booking -- that value is read on the clock it was PUBLISHED on,
+      because it is the row's day and not a day the caller named. An operator
+      **MUST** say which of the two a time-bearing argument is, in that
+      argument's own `description`. Re-reading an echoed day in the caller's
+      calendar would break the round trip: the caller hands back the day it was
+      offered and is booked onto a different one.
    9. **Wherever a row publishes a wall-clock rendering it MUST publish, in the
       same row, the IANA zone that rendering is in.** A window rendered
       `08:00-10:00` with no zone anywhere is read by every human as their own

@@ -244,8 +244,11 @@ module DeliverySlots
   FIRST_HOUR   = 8               # slot 1 opens at 08:00
   WINDOW_HOURS = 2               # each window is two hours
   COUNT        = 6               # so slot 6 (18:00-20:00) is the last
-  ZONE_NAME    = "Europe/Dublin" # the zone of the PLACE THE SERVICE HAPPENS —
-                                 # not automatically yours; read the note below.
+  ZONE_NAME    = "Europe/Dublin" # the zone of the PLACE THE SERVICE HAPPENS.
+                                 # A DEFAULT, not the answer: the clock belongs
+                                 # to the thing being SERVED, so the moment you
+                                 # serve two places you record it per place and
+                                 # this is only what fills that column.
                                  # A real IANA zone, so DST is handled
 
   module_function
@@ -328,10 +331,11 @@ module DeliverySlots
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>Which zone is <code>ZONE_NAME</code>? The place the service happens — which is not always yours.</strong> The rule is one line: <em>the time of the service, at the place the service happens.</em> For a table, a room, a chair, a workshop bay, the service is rendered at <strong>your</strong> address, and your own zone is the whole answer. For a delivery, a pickup window, a shared reminder, a personal task list, the service is rendered at the <strong>customer's</strong> door or on the customer's own day, and your zone is merely where your warehouse sits. Answer the question before you copy the constant; the two cases produce different code, and only one of them is the line above.
-  <br><br>getgrocery is the first kind by accident rather than by rule: it delivers only inside Dublin, so the door and the shop are in one zone and <code>Europe/Dublin</code> is right whichever way you read it. An operator whose customers are somewhere else does not get that for free.
-  <br><br><strong>Two things follow, and both are cheap.</strong> <em>Publish the zone beside every wall clock a human is read out</em> — <code>08:00-10:00 (Europe/Dublin)</code>, never a bare <code>08:00-10:00</code> — because the offset inside <code>slot_at</code> is already unambiguous and nobody says an offset out loud; the field a customer actually hears is the label. And <em>never compute "today" from the server process's zone</em>, which is what <code>now</code> above exists for: a box in another zone rolls its date over at a different moment from the place the service happens, and no environment variable is a statement about where your tables are.
-  <br><br>What a caller's <em>own</em> zone should do to a request — reading a <code>date</code> an assistant sends on the caller's calendar rather than on yours — is not something this protocol defines yet. Until it does, read dates on your service clock and let the row say which clock it is, exactly as the code here does.</blockquote>
+  <blockquote><strong>Which zone is <code>ZONE_NAME</code>? The place the service happens — and that place is a property of the thing being served, not of you.</strong> The rule is one line: <em>the time of the service, at the place the service happens.</em> For a table, a room, a chair, a workshop bay, the service is rendered at the address of <strong>that</strong> restaurant, hotel or salon. For a delivery it is rendered at the <strong>customer's</strong> door, and your zone is merely where your warehouse sits. Answer the question before you copy the constant.
+  <br><br><strong>A constant is only ever a default, and it stops being right the day you serve a second place.</strong> The specification is explicit: an operator <strong>MUST NOT</strong> answer from one zone configured on the origin, because an operator may run many stores in many time zones. So record the zone against the thing it belongs to — a <code>timezone</code> column on your restaurants, properties or served districts, <code>NOT NULL</code>, backfilled from the constant you already have — and read it off the row you are answering about. If you serve exactly one place today, you have one zone by arithmetic rather than by design, and the column costs you one migration now instead of a silent wrong answer later. <strong>Never DERIVE it</strong> from a city string, a postcode or a lat/long: a guess nobody wrote down is one nobody can check from the other side of the wire.
+  <br><br>getgrocery delivers only inside Dublin, so its map of served districts to clocks has one value in it today. What matters is that it is a map.
+  <br><br><strong>Two more things follow, and both are cheap.</strong> <em>Publish the zone in every row that carries a wall clock</em> — a <code>timezone</code> field, and the IANA name inside the label too (<code>08:00-10:00 (Europe/Dublin)</code>, never a bare <code>08:00-10:00</code>) — because the offset inside <code>slot_at</code> is already unambiguous and nobody says an offset out loud; the field a customer actually hears is the label. And <em>never compute "today" from the server process's zone</em>, which is what <code>now</code> above exists for: a box in another zone rolls its date over at a different moment from the place the service happens, and no environment variable is a statement about where your tables are.
+  <br><br><strong>And the other direction: a <code>date</code> an assistant SENDS is a day on its human's calendar.</strong> The assistant declares that calendar in the <code>Kiosk-Timezone</code> request header, as an IANA name; you read a caller-named day in it, and when the header is absent you read it on the service place's clock and say so in the row. A calendar day is an INTERVAL, so a day the caller is still IN is not "in the past" even when you have already rolled over — that is the midnight case the rule exists for. A day the caller has entirely finished is past, and is a <code>400</code> naming the earliest day you can serve.</blockquote>
 
   <p><code>app/controllers/kiosk/catalog_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/catalog_controller.rb
@@ -380,10 +384,12 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
   input_schema type: "object", additionalProperties: false,
                properties: {
                  date:             { type: "string", format: "date",
-                                     description: "OPTIONAL. Delivery day, YYYY-MM-DD. " \
-                                                  "OMIT IT for the soonest day this " \
-                                                  "operator can deliver. TODAY or later; " \
-                                                  "an earlier date is refused." },
+                                     description: "OPTIONAL. Delivery day, YYYY-MM-DD, read in " \
+                                                  "YOUR own calendar when you declare it in " \
+                                                  "`Kiosk-Timezone`. OMIT IT for the soonest day " \
+                                                  "this operator can deliver. A day you have " \
+                                                  "entirely finished is refused; every row says " \
+                                                  "which day and which clock it is for." },
                  delivery_address: { type: "string",
                                      description: "Where to deliver — the same address " \
                                                   "create_order will be given." },
@@ -392,9 +398,10 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
   output_schema type: "array",
                 items: { type: "object",
                          properties: { delivery_slot_id: { type: "integer" },
-                                       date:    { type: "string", format: "date" },
-                                       slot_at: { type: "string", format: "date-time" },
-                                       label:   { type: "string" } } }
+                                       date:     { type: "string", format: "date" },
+                                       slot_at:  { type: "string", format: "date-time" },
+                                       label:    { type: "string" },
+                                       timezone: { type: "string" } } }
   # THE DAY IS RESOLVED, NOT WRITTEN DOWN. A `Proc` in a declaration is called
   # lazily, memoized and re-resolved as the day rolls over, so a published
   # example stays correct every morning with no deploy. A calendar literal here
@@ -402,9 +409,10 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
   example_params({ delivery_address: "42 Camden Street, Dublin 2",
                    date: -&gt; { DeliverySlots.example_date.iso8601 } })
   example_row({ delivery_slot_id: 3,
-                date:    -&gt; { DeliverySlots.example_date.iso8601 },
-                slot_at: -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 3).iso8601 },
-                label:   "12:00-14:00" })
+                date:     -&gt; { DeliverySlots.example_date.iso8601 },
+                slot_at:  -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 3).iso8601 },
+                label:    "12:00-14:00 (Europe/Dublin)",
+                timezone: DeliverySlots::ZONE_NAME })
   def delivery_slots
     # ADDRESS-UPFRONT, asked BEFORE the date: it is what forces the assistant to
     # obtain the address from its human before it can see any window at all, so
@@ -497,9 +505,13 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
   def slot_rows(date)
     DeliverySlots.bookable_ids(date).map { |slot_id|
       { delivery_slot_id: slot_id,
-        date:    date.iso8601,
-        slot_at: DeliverySlots.slot_at(date, slot_id).iso8601,
-        label:   DeliverySlots.label(slot_id) }
+        date:     date.iso8601,
+        slot_at:  DeliverySlots.slot_at(date, slot_id).iso8601,
+        label:    DeliverySlots.label(slot_id),
+        # EVERY ROW THAT CARRIES A WALL CLOCK SAYS WHICH CLOCK IT IS. Read off
+        # the thing being served, never off the origin — here one served area,
+        # so one value, and a second area is a second row in that map.
+        timezone: DeliverySlots::ZONE_NAME }
     }
   end
 
