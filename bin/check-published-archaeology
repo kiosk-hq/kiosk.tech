@@ -1,0 +1,700 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# NO ARCHAEOLOGY ON A PUBLISHED PAGE (K-1491).
+#
+# This repository IS the published surface. Everything it tracks is served: the
+# landing page, the narrative specification, the formal specification and its
+# schemas, the problem-code vocabulary pages, the skill an assistant author
+# reads, and every frozen cut of that skill. Its reader holds this repository
+# and nothing else. So a sentence here that cites a row of an issue ledger, a
+# numbered architecture decision, or the judgement of a person by name, is a
+# pointer that resolves for nobody who will ever have the file — and a
+# paragraph in a language the page is not published in is the same defect one
+# layer worse, because the reader cannot even tell whether it binds them.
+#
+# WHY IT IS A GUARD AND NOT A CONVENTION. The sibling repository has held this
+# rule since T-186. This one held it nowhere. The consequence was measured
+# before this file existed: two `description` strings an assistant author reads
+# out of a JSON Schema, seventeen lines of a schema validator, thirteen
+# ledger-row citations, an architecture-decision reference in the formal
+# specification, and two attributions of a normative choice to the maintainer by
+# name — all of it drained by hand, none of it held by anything afterwards. The
+# repository whose entire purpose is to be read by strangers was the one with no
+# rule against citing what strangers cannot see.
+#
+# THIS IS NOT A TWIN. `bin/check-publication-paths` is byte-identical in both
+# published repositories and is checked as such. This file is not that: it is
+# the same RULE carried into a different repository, and it is deliberately
+# named differently so nobody tries to reconcile the two. What differs is
+# everything the rule touches — the file set, the exemptions, and which of the
+# sibling's rules can be carried at all (see NOT PORTED, below).
+#
+# ── THE SCOPE ────────────────────────────────────────────────────────────────
+#
+# `git ls-files` in the repository this script lives in, because what is
+# published is what git carries, and the run must happen INSIDE the repository:
+# a pathspec aimed at a sibling directory from one level up matches nothing and
+# exits like a clean tree.
+#
+# Minus, in order:
+#
+#   * anything that is not TEXT, decided from the BYTES rather than from a list
+#     of extensions — a file carrying a NUL, or one that is not valid UTF-8. It
+#     is not a formality: the three icons this site serves each contain a byte
+#     run that the Cyrillic rule matches, so a byte-scan of them would report
+#     three violations nobody can repair and no reader can see. The skip proves
+#     itself on every run (see THE DETECTOR ARMS): a fabricated non-text blob
+#     carrying a citation must be refused, and a valid Cyrillic sentence must be
+#     READ, because a reader that dropped non-ASCII text would switch the
+#     Cyrillic rule off while reporting a clean zero.
+#
+#   * the five declared EXEMPTIONS below, each with its reason. Every run
+#     reports how many tracked files each one covers and FAILS on one that
+#     covers none, so an exemption whose subject has left the repository says so
+#     instead of sitting here as a decision about nothing.
+#
+# ── WHAT IS EXEMPT, DECLARED WITH ITS REASON ─────────────────────────────────
+#
+#   * `bin/` — maintainer tooling, and the sibling repository's standing
+#     exemption for the same directory. A guard's header is where the reason a
+#     rule exists is written down, and the reason is frequently the row that
+#     bought it.
+#   * `.github/` — the same class one step over. A workflow file is read by a
+#     maintainer deciding whether a job earns its minutes, and its header cites
+#     what went wrong the last time the job was absent. Nothing under it is
+#     served to a reader of the site.
+#   * `CHANGELOG.md` — the sanctioned afterlife. The rule that a public artefact
+#     describes what IS carries exactly one exception, and this is it: the
+#     removed thing gets one changelog line and nothing else.
+#   * `CLAUDE.md` — a maintainer document, addressed to whoever edits this
+#     repository next rather than to whoever reads it.
+#   * `LICENSE` — verbatim third-party licence text. This repository may not
+#     edit a word of it, so a rule reaching it could only ever produce a red
+#     tree with no legal move.
+#
+# AND ONE CARVE-OUT INSIDE A RULE, rather than over a path: the site's own
+# BYLINE. A page states its author the way a package states it in a manifest
+# field, and R4 is about prose that asks a reader to trust a person instead of
+# reading a property. So a name that is the TEXT OF A LINK is a credit and is
+# not a violation; the same name in a sentence is. The carve-out is by SHAPE,
+# not by path, so it means the same on any page that grows a credit. Its
+# declared limit, because an over-claimed gate is worse than none: an
+# attribution deliberately wrapped in an anchor would pass, and this rule will
+# never see it.
+#
+# ── WHAT IS ASSERTED ─────────────────────────────────────────────────────────
+#
+#   R1  no ledger id — /\b[KT]-\d{3,4}\b/. The ledger is private and always
+#       will be; the id names nothing a reader can open.
+#   R2  no reference to a numbered architecture decision — /\bADR-\d{4}\b/.
+#       Those live in a private repository. State the rule it decided.
+#   R3  no Cyrillic — /[Ѐ-ӿ]/. This project's working language is Russian and
+#       its published language is English. Guillemets, em dashes, arrows and
+#       accented Latin are not Cyrillic and stay, so the rule cannot argue with
+#       the house punctuation.
+#   R4  no maintainer named in prose — /\bPhil\b/, outside the byline shape.
+#
+# AND ONE EXEMPTION INSIDE EVERY RULE: a line carrying a live `TODO` or `FIXME`
+# marker. The workspace rule that governs such a marker REQUIRES it to name the
+# row that will drain it, so banning the citation there would set one rule
+# against another. Zero such lines exist in this repository today; the carve-out
+# is here so that obeying one rule cannot break the other.
+#
+# ── NOT PORTED, AND THE MEASUREMENT THAT SETTLED IT ──────────────────────────
+#
+# The sibling guard carries two further rules — a ban on naming a RETIRED WIRE
+# VERSION, and a ban on a sentence NARRATING A PAST STATE. Neither is carried
+# here, and the first is not a matter of taste.
+#
+# A RETIRED WIRE VERSION IS THIS REPOSITORY'S SUBJECT MATTER. It publishes every
+# frozen cut of the skill, back through the 0.2 and 0.3 wires, and a cut names
+# the wire it speaks. MEASURED over the tracked tree with the exemptions above
+# applied: a retired-wire pattern matches in 23 files, FOURTEEN of them
+# published cuts. A published cut is frozen — its bytes are pinned by digest
+# from the sibling repository and can never be edited — so such a rule would
+# produce a permanently red tree with no legal repair in it. That is the general
+# constraint this file works under and it is worth stating on its own: A RULE
+# THAT WOULD REDDEN ON A FROZEN CUT IS A WRONG RULE, because the cut cannot
+# move. Anyone adding a rule here checks it against the cuts first.
+#
+# A PAST-STATE NARRATION BAN is a lexical proxy, and porting one needs its
+# marker set re-argued against these pages rather than inherited. MEASURED with
+# the sibling's marker set: five lines, of which at least one is a LIVE caveat a
+# reader can still meet (a verb an operator has withdrawn) and would be a false
+# red. The class is real on two of the others and both are recorded as candidate
+# findings rather than fixed here; a ban whose marker set has not been argued
+# against the corpus it will run over is a ban that gets switched off.
+#
+# ── THE DETECTOR ARMS, AND THE POLARITY THEY EXIST FOR ───────────────────────
+#
+# THIS IS A BAN, SO ITS COUNT IS PERMANENTLY ZERO WHEN IT WORKS. «No violations»
+# and «this rule stopped matching anything» print the same clean zero, forever,
+# and no census of the tree can separate them.
+#
+# THE SIBLING'S ANSWER DOES NOT WORK HERE, and that is a measurement, not an
+# opinion. It re-runs each pattern over a corpus that is OUTSIDE the ban and
+# cannot honestly drain — its journal and its tooling — and requires a match.
+# The same corpus in this repository (the five exemptions above) carries 171
+# ledger ids, 21 architecture-decision references and 14 mentions of the
+# maintainer, and ZERO Cyrillic characters: this repository's journal is written
+# in English. So a corpus arm would hold three rules and silently hold nothing
+# for the fourth, which is the exact shape it was built to prevent.
+#
+# SO EACH RULE RE-PROVES ITS OWN DETECTOR, ON EVERY RUN, AGAINST FIXTURES THAT
+# ARE NOT IN THE TREE AT ALL. Every rule declares two of them beside its
+# pattern: a PROBE, one spelling of the shape people actually write, which the
+# rule MUST flag; and a FOIL, the nearest thing that is not a violation, which
+# it must NOT. A pattern edited into something that no longer matches real prose
+# fails its probe; one widened until it swallows a lookalike fails its foil.
+# Neither answer depends on the tree, so neither can be manufactured by an
+# obeyed ban — which is what the corpus arm could not promise.
+#
+# THE FIXTURES ARE INDEPENDENT OF THE PATTERNS ON PURPOSE. A probe derived from
+# the rule it tests moves whenever the rule does and proves nothing; these are
+# written out as literal sentences, so editing the pattern is what breaks them.
+# That is also why the corpus census below is PRINTED and never red: it is worth
+# reading, and it is not what holds anything.
+#
+# The remaining arms are about the guard looking at something real: the file set
+# is non-empty, each exemption covers at least one tracked file, each published
+# SURFACE CLASS is reached, and the frozen cuts are in scope.
+#
+# Usage:
+#   bin/check-published-archaeology              # exit 0 clean, 1 on any violation
+#   bin/check-published-archaeology --list       # print the scope and the exemptions
+#   bin/check-published-archaeology --self-test  # plant one violation per rule, in
+#                                                # every place one can hide, and prove
+#                                                # each is caught and each lookalike is not
+#
+# Stdlib only: no bundle, no services, no network.
+
+require "open3"
+
+REPO = File.expand_path("..", __dir__)
+
+# ── the rules ────────────────────────────────────────────────────────────────
+#
+# One spelling of each shape, so there is a single thing to be wrong about.
+
+LEDGER_ID_RE  = /\b[KT]-\d{3,4}\b/
+ADR_RE        = /\bADR-\d{4}\b/
+CYRILLIC_RE   = /[Ѐ-ӿ]/
+MAINTAINER_RE = /\bPhil\b/
+
+# A page's credit slot: the name as the TEXT of a link. See the header for why
+# this is a shape rather than a path, and for the limit it declares.
+BYLINE_RE = %r{<a\b[^>]*\bhref\s*=[^>]*>[^<]*\bPhil\b[^<]*</a>}i
+
+# A live TODO/FIXME is REQUIRED to carry the id of the row that drains it.
+TODO_RE = /\b(?:TODO|FIXME)\b/
+
+RULES = [
+  {
+    id: "R1",
+    re: LEDGER_ID_RE,
+    what: "a ledger id",
+    none: "no ledger id",
+    remedy: "the ledger it names is private and a reader cannot open it. Drop the citation and " \
+            "keep the sentence that states the rule",
+    probe: "The past-slot filter refuses a booking whose start has gone by (K-480), and T-1027 " \
+           "widened it.",
+    foil: "OK-1234 is a fixture id, RFC 8628 is a standard, CVE-2021-0001 is neither, and K-12 " \
+          "has too few digits to be a row.",
+  },
+  {
+    id: "R2",
+    re: ADR_RE,
+    what: "a reference to a numbered architecture decision",
+    none: "no architecture-decision reference",
+    remedy: "the decision records live in a private repository. State the rule the decision " \
+            "settled, in the present tense",
+    probe: "The refusal shape is the one fixed by ADR-0018 and restated here.",
+    foil: "ADR-12 is too short and ADR-99999 too long to be one of those references.",
+  },
+  {
+    id: "R3",
+    re: CYRILLIC_RE,
+    what: "Cyrillic prose",
+    none: "no Cyrillic",
+    remedy: "this site publishes in English. Say the same thing in English, as a statement about " \
+            "the protocol rather than as a quotation",
+    probe: "The ruling, verbatim: «убери из демок всю археологию».",
+    foil: "The window is said out loud — «08:00-10:00 (Europe/Dublin)» — and a naive reader gets " \
+          "the same bytes. Arrows and currency travel too: <- -> OK, EUR 200.",
+  },
+  {
+    id: "R4",
+    re: MAINTAINER_RE,
+    exempt: BYLINE_RE,
+    what: "the maintainer named in prose",
+    none: "no maintainer named in prose",
+    remedy: "naming a person asks a stranger to trust a judgement instead of reading a rule. " \
+            "State what the rule IS and what follows from it",
+    probe: "Phil accepted this control's weakness openly, and the page says so.",
+    foil: %(    Built by <a href="https://example.invalid">Phil Pirozhkov</a>.),
+  },
+].freeze
+
+# ── the exemptions ───────────────────────────────────────────────────────────
+#
+# Each is a decision, so each is declared with the reason it was granted. Every
+# run reports the number of tracked files it covers and fails on a zero: an
+# exemption whose subject has left the repository is not a decision any more.
+
+EXEMPTIONS = [
+  {
+    id: "X1",
+    what: "bin/",
+    why: "maintainer tooling. A guard's header is where the reason a rule exists is written " \
+         "down, and the reason is frequently the row that bought it",
+    match: ->(rel) { rel.start_with?("bin/") },
+  },
+  {
+    id: "X2",
+    what: ".github/",
+    why: "continuous-integration tooling, the same class as bin/. A workflow is read by a " \
+         "maintainer deciding whether a job earns its minutes, and nothing under it is served",
+    match: ->(rel) { rel.start_with?(".github/") },
+  },
+  {
+    id: "X3",
+    what: "CHANGELOG.md",
+    why: "the sanctioned afterlife. A removed endpoint, key or wire element gets one changelog " \
+         "line and nothing else; this is that one line's home",
+    match: ->(rel) { rel == "CHANGELOG.md" },
+  },
+  {
+    id: "X4",
+    what: "CLAUDE.md",
+    why: "a maintainer document, addressed to whoever edits this repository next rather than to " \
+         "whoever reads it",
+    match: ->(rel) { rel == "CLAUDE.md" },
+  },
+  {
+    id: "X5",
+    what: "LICENSE",
+    why: "verbatim third-party licence text. This repository may not edit a word of it, so a " \
+         "rule reaching it could only produce a red tree with no legal move",
+    match: ->(rel) { rel == "LICENSE" },
+  },
+].freeze
+
+def exempt_for(rel) = EXEMPTIONS.find { |x| x[:match].call(rel) }
+
+# ── the published surface classes ────────────────────────────────────────────
+#
+# A FLOOR, not an inventory. Each is a kind of thing this site serves; the guard
+# fails when the scope stops reaching one, because a glob that quietly narrows
+# reports the same clean zero an obeyed ban does. It says nothing about how many
+# files of each kind there are, so the site may grow without an edit here.
+
+SURFACES = [
+  ["a page a browser renders",        ->(r) { r.end_with?(".html") }],
+  ["a document a reader reads",       ->(r) { r.end_with?(".md") }],
+  ["a formal-specification file",     ->(r) { r.start_with?("spec/") }],
+  ["a JSON Schema or example",        ->(r) { r.end_with?(".json") }],
+  ["a frozen published skill cut",    ->(r) { r.match?(/\Askill-v\d+\.\d+\.\d+\.md\z/) }],
+  ["the working skill alias",         ->(r) { r == "skill.md" }],
+].freeze
+
+def frozen_cut?(rel) = rel.match?(/\Askill-v\d+\.\d+\.\d+\.md\z/)
+
+# ── reading the tree ─────────────────────────────────────────────────────────
+
+def tracked_files(root)
+  out, err, status = Open3.capture3("git", "-C", root, "ls-files", "-z")
+  raise "check-published-archaeology: `git ls-files` failed in #{root}: #{err.strip}" unless status.success?
+
+  out.split("\0").reject(&:empty?).sort
+end
+
+# TEXT is decided from the bytes, never from an extension. Returns nil for
+# anything this guard must not read as prose. See the header: the three icons
+# this site serves each carry a byte run the Cyrillic rule matches.
+def readable_text(bytes)
+  return nil if bytes.include?("\0".b)
+
+  text = bytes.dup.force_encoding(Encoding::UTF_8)
+  text.valid_encoding? ? text : nil
+end
+
+def read_text(abs)
+  readable_text(File.binread(abs))
+rescue SystemCallError
+  nil
+end
+
+# ── the scan ─────────────────────────────────────────────────────────────────
+
+Hit = Struct.new(:path, :line, :rule, :where, :text)
+
+def violates?(rule, line)
+  return false unless line.match?(rule[:re])
+  return false if rule[:exempt] && line.match?(rule[:exempt])
+
+  true
+end
+
+# WHERE the reader meets it. There is no lexer here and none is needed: this
+# repository publishes documents, not a library, so the whole file is the
+# artefact. The one distinction worth drawing is inside a SCRIPT, where a
+# leading `#` separates a sentence from an argument — the same conservative
+# reading the sibling guard gives a shell file.
+def where_of(rel, line)
+  case File.extname(rel)
+  when ".html"        then :page
+  when ".md", ".txt"  then :doc
+  when ".json"        then :data
+  when ".sh", ".py"   then (line.match?(/^\s*#/) ? :comment : :code)
+  else :text
+  end
+end
+
+WHERE = {
+  page:    "on a page a browser renders",
+  doc:     "in a document a reader reads",
+  data:    "in a machine-readable file an implementer parses",
+  comment: "in a comment a reader of the script reads",
+  code:    "in a line of script that RUNS",
+  text:    "in prose a reader reads",
+}.freeze
+
+def scan_text(rel, text, rules = RULES)
+  hits = []
+  text.each_line.with_index(1) do |line, lineno|
+    next if line.match?(TODO_RE)
+
+    rules.each do |rule|
+      next unless violates?(rule, line)
+
+      hits << Hit.new(rel, lineno, rule, where_of(rel, line), line.strip[0, 120])
+    end
+  end
+  hits
+end
+
+# ── the detector arms: every rule re-proves itself, on every run ─────────────
+
+def rule_detector_faults
+  faults = []
+  RULES.each do |rule|
+    unless violates?(rule, rule[:probe])
+      faults << "#{rule[:id]}: its PROBE — one spelling of #{rule[:what]}, written out as a " \
+                "sentence rather than derived from the pattern — is no longer flagged, so this " \
+                "rule would pass over every occurrence in the tree and report a clean zero"
+    end
+    if violates?(rule, rule[:foil])
+      faults << "#{rule[:id]}: its FOIL — the nearest thing that is NOT #{rule[:what]} — is now " \
+                "flagged, so this rule reddens on correct text and will be switched off"
+    end
+  end
+  faults
+end
+
+# THE NON-TEXT SKIP, proved in both directions on every run. Neither fixture is
+# stored: both are built here, in memory, out of bytes this repository does not
+# have to contain.
+def text_reader_faults
+  faults = []
+
+  nul_blob = "\x89PNG\r\n\x1a\n".b + "K-1035".b + "\0".b
+  if readable_text(nul_blob)
+    faults << "the non-text skip accepts a blob carrying a NUL byte, so a citation-shaped byte " \
+              "run inside an icon would be reported as a violation nobody can repair"
+  end
+
+  invalid_blob = "\xFF\xFE".b + "K-1035".b + "\xC3".b
+  if readable_text(invalid_blob)
+    faults << "the non-text skip accepts bytes that are not valid UTF-8, so a byte run inside a " \
+              "compressed image would be read as prose"
+  end
+
+  # The other direction, and it is the sharper one: a reader that dropped
+  # non-ASCII TEXT would switch R3 off entirely while printing a clean zero.
+  cyrillic = "The ruling, verbatim: «убери из демок всю археологию».\n"
+  got = readable_text(cyrillic.dup.b)
+  if got.nil? || got != cyrillic
+    faults << "the non-text skip refuses a valid UTF-8 sentence containing Cyrillic, so R3 would " \
+              "never see the very thing it bans and would report a clean zero forever"
+  end
+
+  faults
+end
+
+# ── the scope arms ───────────────────────────────────────────────────────────
+
+Scope = Struct.new(:files, :skipped, :exempted, :faults)
+
+def build_scope
+  faults    = []
+  files     = {}
+  skipped   = []
+  exempted  = Hash.new { |h, k| h[k] = [] }
+
+  tracked = tracked_files(REPO)
+  faults << "`git ls-files` names no file — this guard is not looking at a repository" if tracked.empty?
+
+  tracked.each do |rel|
+    abs = File.join(REPO, rel)
+    next unless File.file?(abs)
+
+    if (x = exempt_for(rel))
+      exempted[x[:id]] << rel
+      next
+    end
+
+    text = read_text(abs)
+    if text.nil?
+      skipped << rel
+      next
+    end
+
+    files[rel] = text
+  end
+
+  faults << "every tracked file is exempt or non-text — the ban covers nothing" if files.empty?
+
+  EXEMPTIONS.each do |x|
+    next unless exempted[x[:id]].empty?
+
+    faults << "#{x[:id]} (#{x[:what]}) covers no tracked file. An exemption whose subject has " \
+              "left the repository has stopped being a decision: delete it, or re-point it at " \
+              "wherever that content went"
+  end
+
+  SURFACES.each do |label, pred|
+    next if files.keys.any? { |r| pred.call(r) }
+
+    faults << "the scope reaches no #{label} — a file set that has quietly narrowed reports the " \
+              "same clean zero an obeyed ban does"
+  end
+
+  cuts = files.keys.count { |r| frozen_cut?(r) }
+  if cuts.zero?
+    faults << "no frozen published cut is in scope. Those bytes are what an assistant author " \
+              "actually reads and they can never be edited, so holding them is the whole point " \
+              "of the rule reaching them"
+  end
+
+  Scope.new(files, skipped, exempted, faults)
+end
+
+# ── output ───────────────────────────────────────────────────────────────────
+
+def print_scope(scope)
+  puts "SCOPE — `git ls-files` in this repository, minus the exemptions and anything not text"
+  puts "  in scope       : #{scope.files.size} file(s), " \
+       "#{scope.files.keys.count { |r| frozen_cut?(r) }} of them frozen published cut(s)"
+  SURFACES.each do |label, pred|
+    puts "    #{label.ljust(32)}: #{scope.files.keys.count { |r| pred.call(r) }}"
+  end
+  puts "  not text       : #{scope.skipped.size} file(s) — decided from the bytes, not from an " \
+       "extension#{scope.skipped.empty? ? '' : " (#{scope.skipped.join(', ')})"}"
+  puts "  exempt         :"
+  EXEMPTIONS.each do |x|
+    puts "    #{x[:id]} #{x[:what].ljust(14)} #{scope.exempted[x[:id]].size} file(s) — #{x[:why]}"
+  end
+  puts "  and, inside R4, a name that is the TEXT OF A LINK: a page states its author the way a " \
+       "package manifest does"
+  puts "  and, inside every rule, a line carrying a live TODO/FIXME marker, which is required to " \
+       "name the row that drains it"
+end
+
+def print_census(scope)
+  puts
+  puts "CENSUS over the exempt corpus — PRINTED, NEVER RED. It is worth reading and it is not " \
+       "what holds anything:"
+  corpus = EXEMPTIONS.flat_map { |x| scope.exempted[x[:id]] }
+  texts  = corpus.filter_map { |rel| read_text(File.join(REPO, rel)) }
+  RULES.each do |rule|
+    n = texts.sum { |t| t.each_line.count { |l| violates?(rule, l) } }
+    puts "  #{rule[:id]} #{rule[:what].ljust(48)} #{n} line(s) in #{corpus.size} exempt file(s)"
+  end
+  puts "  A ZERO ON THIS TABLE IS NOT A FAULT and is the reason the census is not the vacuity " \
+       "mechanism: R3 sits at zero here because this repository's journal is written in English."
+end
+
+def run_check
+  scope = build_scope
+  print_scope(scope)
+  puts
+
+  failed = false
+
+  faults = rule_detector_faults + text_reader_faults + scope.faults
+  unless faults.empty?
+    failed = true
+    puts "FAIL — the guard cannot answer its own question:"
+    faults.each { |f| puts "  x #{f}" }
+    puts
+  end
+
+  RULES.each do |rule|
+    hits = scope.files.flat_map { |rel, text| scan_text(rel, text, [rule]) }
+    if hits.empty?
+      puts "#{rule[:id]}. #{rule[:none]} on any published surface — OK (#{scope.files.size} files, " \
+           "detector re-proved on this run)"
+      next
+    end
+
+    failed = true
+    puts "#{rule[:id]}. #{rule[:what]} on a published surface — #{hits.size} occurrence(s):"
+    hits.each do |h|
+      cut = frozen_cut?(h.path) ? " [FROZEN CUT — the bytes cannot move, so the RULE is wrong]" : ""
+      puts "  FAIL #{h.path}:#{h.line}#{cut} — #{rule[:what]} #{WHERE[h.where]} — " \
+           "#{rule[:remedy]}: #{h.text}"
+    end
+  end
+
+  print_census(scope)
+
+  puts
+  if failed
+    puts "check-published-archaeology FAILED"
+    1
+  else
+    puts "check-published-archaeology: OK — #{RULES.size} rules over #{scope.files.size} published " \
+         "file(s); every rule re-proved its own detector against fixtures that are not in this tree"
+    0
+  end
+end
+
+def run_list
+  scope = build_scope
+  print_scope(scope)
+  puts
+  puts "FILES IN SCOPE"
+  scope.files.keys.each { |rel| puts "  #{rel}" }
+  puts
+  print_census(scope)
+  scope.faults.empty? ? 0 : 1
+end
+
+# ── self-test ────────────────────────────────────────────────────────────────
+
+def self_test
+  failures = []
+  check = lambda do |name, ok|
+    puts(ok ? "  ok   #{name}" : "  FAIL #{name}")
+    failures << name unless ok
+  end
+
+  # ── one planted RED arm per rule, in each surface a citation can hide ──────
+  [
+    ["R1 in a narrative page",
+     "specification.html", "  <p>The wire error contract (T-054) is closed.</p>\n", "R1", :page],
+    ["R1 in the formal specification",
+     "spec/protocol.md", "This clause was widened by K-1035.\n", "R1", :doc],
+    ["R1 in a JSON Schema description",
+     "spec/schemas/x.schema.json", "{ \"description\": \"the toll, K-512\" }\n", "R1", :data],
+    ["R1 in a shell comment",
+     "spec/schemas/validate.sh", "#!/usr/bin/env bash\n# the rejected corpus, T-192.\n", "R1", :comment],
+    ["R1 in a line of shell that runs",
+     "spec/schemas/validate.sh", "echo \"see K-1035\"\n", "R1", :code],
+    ["R1 in the skill an assistant author reads",
+     "skill.md", "The refusal is the one described in K-1035.\n", "R1", :doc],
+    ["R2 in the formal specification",
+     "spec/protocol.md", "The refusal shape is fixed by ADR-0018.\n", "R2", :doc],
+    ["R2 in a narrative page",
+     "specification.html", "  <p>Decided in ADR-0007.</p>\n", "R2", :page],
+    ["R3 quoted Russian in a narrative page",
+     "specification.html", "  <p>«пусть будет 1m».</p>\n", "R3", :page],
+    ["R3 Cyrillic in the formal specification",
+     "spec/protocol.md", "Убери из демок всю археологию.\n", "R3", :doc],
+    ["R3 Cyrillic in a JSON Schema description",
+     "spec/schemas/x.schema.json", "{ \"description\": \"это паблик\" }\n", "R3", :data],
+    ["R4 the maintainer named in prose on a page",
+     "index.html", "  <p>Phil accepted this control's weakness openly.</p>\n", "R4", :page],
+    ["R4 the maintainer named in the formal specification",
+     "spec/protocol.md", "Phil ruled that a bare offset is refused.\n", "R4", :doc],
+  ].each do |name, rel, body, rule_id, expected_where|
+    hits = scan_text(rel, body)
+    mine = hits.select { |h| h.rule[:id] == rule_id }
+    check.call("detects #{name}", !mine.empty?)
+    next if mine.empty?
+
+    check.call("…and places it #{expected_where}", mine.first.where == expected_where)
+  end
+
+  # ── the carve-outs, and each pattern's own boundaries ─────────────────────
+  check.call("does NOT flag the site's BYLINE — a name that is the text of a link is a credit, " \
+             "the way a package manifest states its author",
+             scan_text("index.html",
+                       %(    Built by <a href="https://example.invalid">Phil Pirozhkov</a>.\n)).empty?)
+  check.call("…and DOES flag the same name in a sentence on the same page",
+             !scan_text("index.html", "  <p>Phil ruled that a bare offset is refused.</p>\n").empty?)
+  check.call("does NOT flag a live TODO carrying the row it names",
+             scan_text("spec/protocol.md", "TODO(K-1099): widen the clause.\n").empty?)
+  check.call("does NOT flag a live FIXME carrying the row it names",
+             scan_text("spec/protocol.md", "FIXME: T-186 — narrow this.\n").empty?)
+  check.call("does NOT flag OK-1234, RFC 8628 or CVE-2021-0001 (no word boundary before the K)",
+             scan_text("spec/protocol.md",
+                       "OK-1234 is a fixture id, RFC 8628 a standard, CVE-2021-0001 neither.\n").empty?)
+  check.call("does NOT flag too-few-digit or too-many-digit lookalikes",
+             scan_text("spec/protocol.md", "K-12, T-9, ADR-12 and ADR-99999 are not citations.\n").empty?)
+  check.call("does NOT flag guillemets, en dashes, accented Latin, arrows or a currency name",
+             scan_text("specification.html",
+                       "  <p>«08:00-10:00 (Europe/Dublin)», naive, <- ->, EUR 200.</p>\n").empty?)
+  check.call("does NOT flag a word that merely CONTAINS the maintainer's name",
+             scan_text("spec/protocol.md",
+                       "Philately and philosophy are not attributions.\n").empty?)
+
+  # ── the detector arms themselves ─────────────────────────────────────────
+  rf = rule_detector_faults
+  check.call("every rule's PROBE is still flagged and every FOIL still is not " \
+             "(#{RULES.size} rules)#{rf.empty? ? '' : " — #{rf.join('; ')}"}", rf.empty?)
+  tf = text_reader_faults
+  check.call("the non-text skip refuses a NUL blob and invalid bytes, and READS a valid Cyrillic " \
+             "sentence#{tf.empty? ? '' : " — #{tf.join('; ')}"}", tf.empty?)
+
+  # …and the arms must be able to FAIL. A detector arm that cannot go red is
+  # the same green nothing it was built to catch, so each is driven off a
+  # deliberately broken rule rather than trusted.
+  broken_probe = { id: "RX", re: /this pattern matches nothing/, what: "a fixture", none: "-",
+                   remedy: "-", probe: "a ledger id, K-480", foil: "nothing here" }
+  check.call("a rule whose pattern stopped matching its own probe is REPORTED",
+             !violates?(broken_probe, broken_probe[:probe]))
+  broken_foil = { id: "RY", re: /\bK-\d+\b/, what: "a fixture", none: "-", remedy: "-",
+                  probe: "K-480", foil: "K-12 has too few digits" }
+  check.call("a rule widened until it swallows its own foil is REPORTED",
+             violates?(broken_foil, broken_foil[:foil]))
+
+  # ── the scope arms, against the live repository ──────────────────────────
+  scope = build_scope
+  check.call("the scope is non-empty (#{scope.files.size} published file(s))", !scope.files.empty?)
+  check.call("no exemption covers zero tracked files, and every published surface class is " \
+             "reached#{scope.faults.empty? ? '' : " — #{scope.faults.join('; ')}"}",
+             scope.faults.empty?)
+  check.call("the frozen published cuts are IN scope " \
+             "(#{scope.files.keys.count { |r| frozen_cut?(r) }} cut(s)) — those bytes are what an " \
+             "assistant author reads",
+             scope.files.keys.count { |r| frozen_cut?(r) }.positive?)
+  check.call("…and they carry no violation of any rule here. A frozen cut cannot be edited, so a " \
+             "rule that reddens on one is the wrong rule and must be dropped, never the cut",
+             scope.files.select { |rel, _| frozen_cut?(rel) }
+                  .flat_map { |rel, text| scan_text(rel, text) }.empty?)
+  check.call("the non-text skip dropped at least one tracked file (#{scope.skipped.size}) — the " \
+             "icons this site serves are why the file set is decided from the bytes",
+             !scope.skipped.empty?)
+  check.call("nothing exempt is also in scope",
+             scope.files.keys.none? { |rel| exempt_for(rel) })
+  check.call("this guard's own source is exempt — its fixtures are violations by construction, " \
+             "and a gate with a hole in the shape of its own subject is not a gate",
+             !exempt_for("bin/check-published-archaeology").nil?)
+
+  if failures.empty?
+    puts "SELF-TEST OK"
+    0
+  else
+    puts "SELF-TEST FAILED: #{failures.size} arm(s)"
+    1
+  end
+end
+
+exit(
+  if ARGV.include?("--self-test") then self_test
+  elsif ARGV.include?("--list")   then run_list
+  else run_check
+  end
+)

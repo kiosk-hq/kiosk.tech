@@ -1,0 +1,51 @@
+name: published-archaeology
+
+# Holds every published surface in this repository to the rule that a public
+# artefact describes what IS: no citation of a private issue ledger, no
+# reference to a numbered architecture decision, no Cyrillic prose, and no
+# attribution of a normative choice to a maintainer by name.
+#
+# WHY THE JOB EXISTS AT ALL (K-1491). The sibling repository has held this rule
+# since T-186. This one held it nowhere, and the consequence was measured before
+# the guard was written: two schema `description` strings an assistant author
+# reads, seventeen lines of the schema validator, thirteen ledger-row citations,
+# an architecture-decision reference in the formal specification and two
+# attributions by name had all reached the normative surfaces of the repository
+# whose entire purpose is to be read by strangers. K-1475 drained them by hand.
+# Nothing held the class afterwards, which is what this job is.
+#
+# NO PATH FILTER, DELIBERATELY. The rule is a ban over the WHOLE tracked tree,
+# so any path filter would be a promise the guard cannot keep: a citation added
+# to a page outside the filter is exactly the commit that must go red, and it is
+# the commit a filter would wave through. `problem-pages.yml` already records
+# the same reasoning after the same mistake. The guard is stdlib-only and reads
+# the tree once, so it costs seconds.
+#
+# THE SELF-TEST IS A STEP OF ITS OWN, and here that is load-bearing rather than
+# symmetry with the jobs next door. This is a BAN, so its count is permanently
+# zero when it works: «no violations» and «this rule stopped matching anything»
+# print the same clean zero forever, and no census of the tree can separate
+# them. The guard answers that by re-proving each rule's detector on every run,
+# against fixtures that are not in the tree at all — a probe it must flag and a
+# foil it must not — and the self-test drives those arms off deliberately broken
+# rules so an arm that could no longer go red would say so. A green run means
+# nothing until that step has passed.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  archaeology:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The runner's preinstalled Ruby. The guard is stdlib-only and shells out
+      # to git; there is no Gemfile and no Ruby toolchain anywhere in this repo,
+      # so pinning a version here would be a version to maintain for no gain.
+      - name: The archaeology guard is red on a plant, and non-vacuous here
+        run: ruby bin/check-published-archaeology --self-test
+
+      - name: No archaeology on any published surface
+        run: ruby bin/check-published-archaeology
