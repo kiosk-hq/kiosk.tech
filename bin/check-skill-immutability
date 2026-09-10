@@ -929,11 +929,33 @@ def prose_failures(path, raw, ctx)
   # When the newest cut opens a new wire group, the span describing the group
   # that just CLOSED truthfully ends one cut short, and demanding it reach the
   # newest would demand a false sentence. But the escape does not admit any
-  # stale span: the span must end at the cut IMMEDIATELY BEFORE the newest, so a
+  # stale span: the span must end where the closing group actually ends, so a
   # span left at 0.4.9 while 0.4.12 opens a group is still red. R7 needs no such
   # bound because its chains are contiguity-checked already.
-  opens_new_group = claim_text.scan(NEW_GROUP).flatten.include?(ctx.newest_version)
-  predecessor     = ctx.all_versions[-2]
+  #
+  # ONE CUT SHORT WAS THE SPECIAL CASE, NOT THE RULE (K-1468, 2026-09-10). The
+  # escape used to read «the span must end at the cut IMMEDIATELY BEFORE the
+  # newest», which is right only while at most ONE cut has opened a group of its
+  # own. It stopped being right the moment two did in a row: with 0.4.12 its own
+  # group and 0.4.13 opening the next, the group that closed at 0.4.11 was told
+  # to reach 0.4.12 — an edit that would have published the FALSE sentence «0.4.3
+  # → 0.4.12», i.e. that the cut which changed the wire describes the same wire
+  # as the eight before it. That is precisely the shape NEW_GROUP exists to
+  # refuse, so the guard was demanding the thing it was written to prevent. The
+  # generalisation is the same claim without the off-by-one: a span may stop at
+  # the last cut of the closing group, where the closing group ends wherever the
+  # unbroken run of «X opens a new wire group» cuts at the TOP of the list
+  # begins. Nothing is loosened — every cut in that run must be declared, IN THIS
+  # SAME FILE, so a span two cuts short with only one declaration is still red.
+  new_groups = claim_text.scan(NEW_GROUP).flatten
+  # The maximal suffix of published cuts each of which is declared to open a
+  # group of its own; the span may legally stop at the cut just below it.
+  own_group_tail = ctx.all_versions.reverse.take_while { new_groups.include?(_1) }
+  legal_end      = if own_group_tail.empty?
+                     ctx.newest_version
+                   else
+                     ctx.all_versions[ctx.all_versions.size - own_group_tail.size - 1]
+                   end
   claim_text.scan(CHAIN_SPAN) do |(from, to)|
     claims += 1
     hits |= [:chain_span]
@@ -941,14 +963,15 @@ def prose_failures(path, raw, ctx)
     if !unknown.empty?
       fails << "#{path}: the same-wire span \"#{from} → #{to}\" names #{unknown.join(", ")}, " \
                "which no published cut carries."
-    elsif to != ctx.newest_version && !(opens_new_group && to == predecessor)
+    elsif to != ctx.newest_version && to != legal_end
       fails << "#{path}: the same-wire span \"#{from} → #{to}\" stops at #{to}, but the newest " \
                "cut is #{ctx.newest_version} (#{ctx.newest_cut}). A span written this way is the " \
                "same published claim as the \"=\" chain R7 reads — \"these cuts describe one " \
                "wire\" — so it must reach the newest cut: extend it if #{ctx.newest_version} " \
                "describes that same wire, and if it does NOT, say \"#{ctx.newest_version} opens " \
-               "a new wire group\" in the same file and end this span at #{predecessor}, the cut " \
-               "the closing group actually reaches."
+               "a new wire group\" in the same file — plus the same sentence for every cut " \
+               "between — and end this span at #{legal_end}, the cut the closing group actually " \
+               "reaches."
     end
   end
 
@@ -1155,6 +1178,17 @@ def self_test_prose_cases
     ["R10 span ending at the predecessor, with 0.4.10 opening a new wire group",
      "skills.md", "the chain runs 0.4.3 → 0.4.9 only, because 0.4.10 opens a new wire group.", :green],
     ["R10 span TWO cuts short even though 0.4.10 opens a new wire group",
+     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.10 opens a new wire group.", :red],
+    # K-1468: TWO consecutive cuts each opening a group of their own. The escape
+    # used to be keyed on the newest cut's PREDECESSOR, so the span below was red
+    # and the only green edit available published the false «0.4.3 → 0.4.9».
+    ["R10 span short by two where BOTH later cuts open a new wire group (K-1468)",
+     "skills.md",
+     "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new wire group and 0.4.10 " \
+     "opens a new wire group.", :green],
+    ["R10 span short by two where only the INTERMEDIATE cut is declared (K-1468)",
+     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new wire group.", :red],
+    ["R10 span short by two where only the NEWEST of the two is declared (K-1468)",
      "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.10 opens a new wire group.", :red],
     ["R1 current-skill sentence, stale",
      "spec/protocol.md", "The current skill is **0.4.9**.", :red],
