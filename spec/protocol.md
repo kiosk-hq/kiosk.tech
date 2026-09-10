@@ -1222,7 +1222,7 @@ right for it.
 `params` -- the free-form operator-defined hint object (by convention a map of
 parameter name -> type-hint string) that descriptors carried through 0.3 -- is
 **GONE from the wire**. It was never a validation contract (the operator
-validates arguments server-side), ADR-0023 retired it as the input contract, and
+validates arguments server-side), `input_schema` is the input contract, and
 0.4 now removes the key rather than carry a slot whose only remaining legal
 value was `null`. A descriptor **MUST NOT** publish it, and an AI assistant
 reads a verb's inputs from `input_schema` alone -- **REQUIRED** on every verb
