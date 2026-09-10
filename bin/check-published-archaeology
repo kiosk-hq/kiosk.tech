@@ -94,6 +94,23 @@
 #       accented Latin are not Cyrillic and stay, so the rule cannot argue with
 #       the house punctuation.
 #   R4  no maintainer named in prose — /\bPhil\b/, outside the byline shape.
+#   R5  no sentence NARRATING A PAST STATE — `formerly`, `previously`,
+#       `historically`, `until recently`, `used to be`, `before the fix`,
+#       `cutover`. A public artefact describes what IS. See the section on R5
+#       below for the marker set, for the one marker the sibling carries that
+#       this repository may not, and for why.
+#
+# AND TWO THINGS THAT ARE COUNTED RATHER THAN BANNED. Each is a construction
+# that spells archaeology and live English with the same letters here, so each
+# gets a census a human adjudicates instead of a rule that would either redden
+# on correct prose or say nothing:
+#
+#   C1  `has since` / `have since` — PRINTED, NEVER RED. It is the marker BOTH
+#       legitimate past-tense uses on this site reach for. See below.
+#   C2  a bare `used to`, the copula excluded because R5 already owns it —
+#       PRINTED, NEVER RED. The sibling's declared gap, carried here as the
+#       sibling now carries it: as a number rather than as a sentence nobody
+#       greps for.
 #
 # AND ONE EXEMPTION INSIDE EVERY RULE: a line carrying a live `TODO` or `FIXME`
 # marker. The workspace rule that governs such a marker REQUIRES it to name the
@@ -104,8 +121,8 @@
 # ── NOT PORTED, AND THE MEASUREMENT THAT SETTLED IT ──────────────────────────
 #
 # The sibling guard carries two further rules — a ban on naming a RETIRED WIRE
-# VERSION, and a ban on a sentence NARRATING A PAST STATE. Neither is carried
-# here, and the first is not a matter of taste.
+# VERSION, and a ban on a sentence NARRATING A PAST STATE. The first is not
+# carried here and never can be; the second is carried, minus one marker, as R5.
 #
 # A RETIRED WIRE VERSION IS THIS REPOSITORY'S SUBJECT MATTER. It publishes every
 # frozen cut of the skill, back through the 0.2 and 0.3 wires, and a cut names
@@ -118,13 +135,82 @@
 # THAT WOULD REDDEN ON A FROZEN CUT IS A WRONG RULE, because the cut cannot
 # move. Anyone adding a rule here checks it against the cuts first.
 #
-# A PAST-STATE NARRATION BAN is a lexical proxy, and porting one needs its
-# marker set re-argued against these pages rather than inherited. MEASURED with
-# the sibling's marker set: five lines, of which at least one is a LIVE caveat a
-# reader can still meet (a verb an operator has withdrawn) and would be a false
-# red. The class is real on two of the others and both are recorded as candidate
-# findings rather than fixed here; a ban whose marker set has not been argued
-# against the corpus it will run over is a ban that gets switched off.
+# A PAST-STATE NARRATION BAN is a lexical proxy, so its marker set had to be
+# re-argued against these pages rather than inherited. That argument is the next
+# section, and it is where R5 and C1 come from.
+#
+# ── R5 AND C1/C2: A PUBLIC ARTEFACT DESCRIBES WHAT IS ────────────────────────
+#
+# The afterlife of a removed wire element, verb, endpoint or configuration key
+# is ONE SHORT CHANGELOG LINE and nothing else — not a paragraph on a normative
+# page, not a comment explaining what a declaration used to be. A reader
+# arriving today has no memory to correct, and being told about a version of
+# this protocol they never met, ahead of the one they did, is the page failing
+# at its only job.
+#
+# WHY THIS IS A GUARD AND NOT A CONVENTION, in this repository specifically.
+# The rule was already written down when the highest-value instance of the class
+# yet found was found HERE: the narrative specification and Section 4.2 of the
+# formal specification each opened the modules-never-verb-names rule by
+# narrating the design that preceded it, and a third instance sat in a CSS
+# comment the landing page serves in view-source. Those are the documents a
+# third party is told to build against. Nothing read a sentence on them.
+#
+#   R5 — A CONSTRUCTION THAT ANNOUNCES A PAST STATE. A LEXICAL PROXY, and
+#   written down as one: it matches a phrase, not a meaning. Every marker in it
+#   was kept because it has no reading in which a live sentence on this site
+#   needs it — a caveat a reader can still meet can always be stated in the
+#   present, and stating it in the present is the whole point.
+#
+#   WHY `has since` IS NOT IN THE SET, AND WHAT TOOK ITS PLACE. The sibling
+#   bans `has since been`. This repository may not, and the reason is a
+#   measurement rather than a preference: `has since` is the marker BOTH
+#   legitimate past-tense uses on this site reach for. MEASURED over the tracked
+#   tree with the exemptions above applied, `has since` / `have since` is FIVE
+#   lines, and FOUR of them are correct prose. Two are the PER-CUT HISTORY
+#   CLAUSE — the narrative specification's version-lines paragraph and
+#   `skills.md`'s cut table, each saying that earlier cuts describe wires that
+#   have since changed. A frozen cut is a thing a reader can still FETCH, so a
+#   past tense about one is the present tense of a permanent artefact. One is a
+#   LIVE OPERATOR CAVEAT — the `verb_not_found` page telling a client that the
+#   name it dialed may be a verb an OPERATOR has withdrawn, which is what that
+#   page is FOR. One is a live caveat on the landing page, qualifying a recorded
+#   live-assistant run as having been driven against a wire the demos have since
+#   replaced, which is the honest reading of a claim a reader can still check.
+#   The fifth is genuine narration.
+#
+#   A CARVE-OUT WAS CONSIDERED AND REFUSED. Nothing lexical separates «a verb
+#   that has since been withdrawn», said of an OPERATOR's verb, from the same
+#   clause said of ours; a carve-out that has to guess the subject is a rule
+#   that fires wrong later, on a page nobody is looking at. Four correct lines
+#   to one defect is not a ban, it is a census — so `has since` is COUNTED (C1)
+#   and the one narration row it prints is a candidate finding a human reads.
+#   This is the same shape as the frozen-cut refusal above, one layer down: a
+#   rule that reddens where nothing can honestly be repaired is a wrong rule.
+#
+#   R5 IS INERT ON THE FROZEN CUTS, WHICH IS THE FIRST THING IT WAS CHECKED
+#   AGAINST. MEASURED over `skill-v*.md` with `git grep -nIP`: the marker set
+#   matches ZERO lines, and so does `has since been`, and so does a bare
+#   `used to`. A cut describes a wire in the present tense of its own day — it
+#   does not narrate the day before. A self-test arm re-asks this on every run
+#   rather than trusting the sentence, and a hit on a cut is printed as the RULE
+#   being wrong, because the bytes cannot move.
+#
+#   C2 — A BARE `used to`. The sibling declines to ban this because it is also
+#   the ordinary passive «employed in order to», and nothing lexical forks the
+#   two. That holds here, so it is counted here. What does NOT hold here is the
+#   sibling's ratio: MEASURED in scope, 11 lines, and unlike the sibling's
+#   corpus almost none of them is the passive — this site's bare `used to` is
+#   mostly narration, in prose that is normative or close to it. That is a
+#   backlog a human drains, not a gate: 11 red lines with no repair inside the
+#   wave that would light them is exactly how a gate gets switched off. The
+#   number is printed so it can drain and so it can be seen to drain.
+#
+#   WHY THE WORD BOUNDARY AND THE HYPHEN GUARD ARE PART OF THE PATTERNS AND NOT
+#   DETAILS, both inherited from the sibling with the false rows that bought
+#   them: unbounded, `used to` also matches the tail of «ref-used to» and
+#   «ab-used to»; and `previously-claimed` is a claim earlier in THIS run, not
+#   our past. Each has its own self-test arm.
 #
 # ── THE DETECTOR ARMS, AND THE POLARITY THEY EXIST FOR ───────────────────────
 #
@@ -135,20 +221,43 @@
 # THE SIBLING'S ANSWER DOES NOT WORK HERE, and that is a measurement, not an
 # opinion. It re-runs each pattern over a corpus that is OUTSIDE the ban and
 # cannot honestly drain — its journal and its tooling — and requires a match.
-# The same corpus in this repository (the five exemptions above) carries 171
-# ledger ids, 21 architecture-decision references and 14 mentions of the
-# maintainer, and ZERO Cyrillic characters: this repository's journal is written
-# in English. So a corpus arm would hold three rules and silently hold nothing
-# for the fourth, which is the exact shape it was built to prevent.
+# The same corpus in this repository is the five exemptions above, and the run
+# PRINTS what each pattern finds in it rather than quoting a number here: an
+# integer typed into a comment is a measurement that stops being one the day
+# after it is typed, and the four this paragraph used to carry had already gone
+# stale in the commit that introduced them.
+#
+# WHAT THE TABLE SHOWS, AND IT IS WORSE FOR A CORPUS ARM THAN THE STALE
+# INTEGERS WERE. The journal carries ledger ids, architecture-decision
+# references and mentions of the maintainer in quantity, so three rules would
+# be held by a corpus arm. The Cyrillic count is not zero — but every Cyrillic
+# line in that corpus is in THIS FILE, in R3's own probe and its own self-test
+# fixtures. A corpus arm for R3 would therefore be satisfied by the rule's own
+# fixtures and by nothing else, which is not a weak arm but a CIRCULAR one:
+# exactly the "a probe derived from the rule it tests moves whenever the rule
+# does" failure this file warns about two paragraphs down. Run the guard to see
+# the table; do not read it out of this comment.
 #
 # SO EACH RULE RE-PROVES ITS OWN DETECTOR, ON EVERY RUN, AGAINST FIXTURES THAT
-# ARE NOT IN THE TREE AT ALL. Every rule declares two of them beside its
+# ARE NOT IN THE TREE AT ALL. Every rule declares two kinds of them beside its
 # pattern: a PROBE, one spelling of the shape people actually write, which the
 # rule MUST flag; and a FOIL, the nearest thing that is not a violation, which
 # it must NOT. A pattern edited into something that no longer matches real prose
 # fails its probe; one widened until it swallows a lookalike fails its foil.
 # Neither answer depends on the tree, so neither can be manufactured by an
 # obeyed ban — which is what the corpus arm could not promise.
+#
+# A RULE THAT IS AN ALTERNATION DECLARES A PROBE PER BRANCH, and R5 is why the
+# fixtures are a LIST rather than a single sentence. One probe against a
+# seven-way alternation proves one branch and reports a clean pass for the other
+# six, so a marker quietly deleted from the set would be exactly as invisible as
+# the ban it was supposed to enforce. Each of R5's markers therefore carries its
+# own sentence, and each of its two boundary conditions its own foil — as do the
+# four legitimate live sentences the marker set had to be argued against, which
+# are written out here so that a later widening of the pattern reddens THIS file
+# rather than the published page. The counted constructions carry the same
+# fixtures for the same reason: a census whose pattern has stopped matching
+# prints the same clean zero a drained backlog does.
 #
 # THE FIXTURES ARE INDEPENDENT OF THE PATTERNS ON PURPOSE. A probe derived from
 # the rule it tests moves whenever the rule does and proves nothing; these are
@@ -162,7 +271,8 @@
 #
 # Usage:
 #   bin/check-published-archaeology              # exit 0 clean, 1 on any violation
-#   bin/check-published-archaeology --list       # print the scope and the exemptions
+#   bin/check-published-archaeology --list       # print the scope, the exemptions and
+#                                                # the counted constructions, row by row
 #   bin/check-published-archaeology --self-test  # plant one violation per rule, in
 #                                                # every place one can hide, and prove
 #                                                # each is caught and each lookalike is not
@@ -181,6 +291,21 @@ LEDGER_ID_RE  = /\b[KT]-\d{3,4}\b/
 ADR_RE        = /\bADR-\d{4}\b/
 CYRILLIC_RE   = /[Ѐ-ӿ]/
 MAINTAINER_RE = /\bPhil\b/
+
+# A construction that announces a past state. A LEXICAL PROXY — see the header
+# for the marker set's argument against these pages, for the one marker the
+# sibling carries that this repository may not (`has since`, counted as C1
+# below), and for the two boundary conditions written into the pattern.
+PAST_NARRATION_RE =
+  /\b(?:formerly|previously(?!-)|historically|until\s+recently|(?<!-)used\s+to\s+be|
+       before\s+the\s+fix|cutover)\b/ix
+
+# COUNTED, NEVER BANNED. `has since` is the marker BOTH legitimate past-tense
+# uses on this site reach for; a bare `used to` is also the ordinary passive
+# «employed in order to». The copula is excluded here because R5 owns it and one
+# sentence must not be reported twice.
+HAS_SINCE_RE     = /\b(?:ha[sv]e?|had)\s+since\b/i
+BARE_USED_TO_RE  = /\b(?<!-)used\s+to\b(?!\s+be\b)/i
 
 # A page's credit slot: the name as the TEXT of a link. See the header for why
 # this is a shape rather than a path, and for the limit it declares.
@@ -233,6 +358,81 @@ RULES = [
             "State what the rule IS and what follows from it",
     probe: "Phil accepted this control's weakness openly, and the page says so.",
     foil: %(    Built by <a href="https://example.invalid">Phil Pirozhkov</a>.),
+  },
+  {
+    id: "R5",
+    re: PAST_NARRATION_RE,
+    what: "a sentence narrating a past state",
+    none: "no narration of a past state",
+    remedy: "a reader arriving today has no memory to correct. State the rule and its reason in " \
+            "the present; the removed thing gets one changelog line and nothing else",
+    # ONE PROBE PER MARKER. A single sentence against a seven-way alternation
+    # proves one branch and reports a clean pass for the other six.
+    probe: [
+      "The catalog was formerly behind a Bearer token.",
+      "A per-verb endpoint previously resolved identity before it resolved a name.",
+      "Historically the discovery document withheld the registered verb names.",
+      "Until recently the envelope carried a kind discriminator.",
+      "It used to be the other way round: the premise is retired.",
+      "Before the fix an unregistered name answered with a problem document.",
+      "The per-verb cutover moved the prose everywhere and left one example behind.",
+    ],
+    # THE FOUR LIVE SENTENCES THE MARKER SET WAS ARGUED AGAINST, plus the two
+    # boundary conditions the pattern writes down. Widening R5 to swallow any of
+    # these reddens THIS file rather than a published page.
+    foil: [
+      "0.4.10 on this same wire but describing a descriptor slot that has since been withdrawn.",
+      "0.4.0-0.4.2 describe wires that have since changed, and the same-wire chain runs on.",
+      "A typo, a name from a different operator, or a verb that has since been withdrawn.",
+      "Against the 0.3 wire these demos have since replaced; no 0.4 run is recorded yet.",
+      "Release a previously-claimed id, because that claim was made earlier in this same run.",
+      "The RSA key cross-used to be minted twice is refused, and so is the key used to sign it.",
+    ],
+  },
+].freeze
+
+# ── counted, never banned ───────────────────────────────────────────────────
+#
+# Same shape as a rule, so `scan_text` and the detector arms take them
+# unchanged; they simply never reach the exit code. A census whose pattern has
+# stopped matching prints the same clean zero a drained backlog does, so each
+# carries fixtures for exactly the reason the rules do.
+
+COUNTED = [
+  {
+    id: "C1",
+    re: HAS_SINCE_RE,
+    counted: true,
+    what: "`has since` — the marker both legitimate past-tense uses reach for",
+    none: "no `has since`",
+    remedy: "adjudicate: the per-cut history clause and a live operator caveat are CORRECT here, " \
+            "because a frozen cut can still be fetched and an operator's withdrawn verb can " \
+            "still be dialed. Anything else is narration and states its rule in the present",
+    probe: [
+      "The spec has since caught up and passed this guide.",
+      "0.4.0-0.4.2 describe wires that have since changed.",
+    ],
+    foil: [
+      "Since the catalog is public, a verb name is not a secret.",
+      "It has not changed since, and nothing has been withdrawn.",
+    ],
+  },
+  {
+    id: "C2",
+    re: BARE_USED_TO_RE,
+    counted: true,
+    what: "a bare `used to` — archaeology and the ordinary passive, spelled alike",
+    none: "no bare `used to`",
+    remedy: "adjudicate: «the key used to sign mandates» is the passive and wants nothing done, " \
+            "«the numeral that used to stand here» is narration and states the live value instead",
+    probe: [
+      "The numeral that used to stand in this section said two.",
+      "It used to name two transports, and that sentence outlived the choice behind it.",
+    ],
+    foil: [
+      "The key used to be minted twice is R5's sentence, not this census's.",
+      "A grant row this endpoint just refused to issue, and a token cross-used to mint another.",
+    ],
   },
 ].freeze
 
@@ -376,17 +576,28 @@ end
 
 # ── the detector arms: every rule re-proves itself, on every run ─────────────
 
-def rule_detector_faults
+# A rule may declare several probes and several foils, and R5 is why: a single
+# sentence against a seven-way alternation proves one branch and reports a clean
+# pass for the other six. The counted constructions are held to the same
+# standard — a census whose pattern has stopped matching prints the same clean
+# zero a drained backlog does.
+def rule_detector_faults(set = RULES + COUNTED)
   faults = []
-  RULES.each do |rule|
-    unless violates?(rule, rule[:probe])
-      faults << "#{rule[:id]}: its PROBE — one spelling of #{rule[:what]}, written out as a " \
+  set.each do |rule|
+    Array(rule[:probe]).each do |probe|
+      next if violates?(rule, probe)
+
+      faults << "#{rule[:id]}: a PROBE — one spelling of #{rule[:what]}, written out as a " \
                 "sentence rather than derived from the pattern — is no longer flagged, so this " \
-                "rule would pass over every occurrence in the tree and report a clean zero"
+                "#{rule[:counted] ? 'census' : 'rule'} would pass over every occurrence of that " \
+                "shape in the tree and report a clean zero: #{probe}"
     end
-    if violates?(rule, rule[:foil])
-      faults << "#{rule[:id]}: its FOIL — the nearest thing that is NOT #{rule[:what]} — is now " \
-                "flagged, so this rule reddens on correct text and will be switched off"
+    Array(rule[:foil]).each do |foil|
+      next unless violates?(rule, foil)
+
+      faults << "#{rule[:id]}: a FOIL — the nearest thing that is NOT #{rule[:what]} — is now " \
+                "flagged, so this #{rule[:counted] ? 'census' : 'rule'} reports correct text and " \
+                "will be switched off: #{foil}"
     end
   end
   faults
@@ -515,6 +726,25 @@ def print_census(scope)
        "mechanism: R3 sits at zero here because this repository's journal is written in English."
 end
 
+# COUNTED, NEVER BANNED. Printed in full — path, line and the sentence — because
+# a number a reader cannot attribute is not a number they can drain. The exit
+# code never moves on any of it.
+def print_counted(scope)
+  puts
+  puts "COUNTED, NEVER BANNED — over the same published files the rules run on. These two " \
+       "constructions spell archaeology and live English with the same letters, so they are a " \
+       "list a human adjudicates, never a gate:"
+  COUNTED.each do |c|
+    hits = scope.files.flat_map { |rel, text| scan_text(rel, text, [c]) }
+    puts "  #{c[:id]} #{c[:what]} — #{hits.size} line(s)"
+    hits.each { |h| puts "       #{h.path}:#{h.line} — #{h.text}" }
+    puts "       #{c[:remedy]}." unless hits.empty?
+  end
+  puts "  A ZERO HERE IS NOT A PASS AND A COUNT HERE IS NOT A FAILURE. The detector behind each " \
+       "is re-proved on every run against fixtures that are not in this tree, which is the only " \
+       "reason a zero on this table would be worth reading."
+end
+
 def run_check
   scope = build_scope
   print_scope(scope)
@@ -547,6 +777,7 @@ def run_check
     end
   end
 
+  print_counted(scope)
   print_census(scope)
 
   puts
@@ -554,8 +785,9 @@ def run_check
     puts "check-published-archaeology FAILED"
     1
   else
-    puts "check-published-archaeology: OK — #{RULES.size} rules over #{scope.files.size} published " \
-         "file(s); every rule re-proved its own detector against fixtures that are not in this tree"
+    puts "check-published-archaeology: OK — #{RULES.size} rules and #{COUNTED.size} counted " \
+         "construction(s) over #{scope.files.size} published file(s); every one of them re-proved " \
+         "its own detector against fixtures that are not in this tree"
     0
   end
 end
@@ -567,6 +799,7 @@ def run_list
   puts "FILES IN SCOPE"
   scope.files.keys.each { |rel| puts "  #{rel}" }
   puts
+  print_counted(scope)
   print_census(scope)
   scope.faults.empty? ? 0 : 1
 end
@@ -608,6 +841,27 @@ def self_test
      "index.html", "  <p>Phil accepted this control's weakness openly.</p>\n", "R4", :page],
     ["R4 the maintainer named in the formal specification",
      "spec/protocol.md", "Phil ruled that a bare offset is refused.\n", "R4", :doc],
+    ["R5 a past state narrated on the normative page",
+     "specification.html",
+     "  <p>It used to be the other way round: the catalog was behind a Bearer token.</p>\n",
+     "R5", :page],
+    ["R5 a past state narrated in the formal specification",
+     "spec/protocol.md",
+     "This is a modelling rule, and it used to be the other way round.\n", "R5", :doc],
+    ["R5 `formerly` in the formal specification",
+     "spec/protocol.md", "The published field was formerly named `zone`.\n", "R5", :doc],
+    ["R5 `previously` on a problem-code page",
+     "problems/verb_not_found/index.html",
+     "    <p>This code previously covered an unserved module as well.</p>\n", "R5", :page],
+    ["R5 a past state narrated in a JSON Schema description",
+     "spec/schemas/x.schema.json",
+     "{ \"description\": \"the toll, historically a fixed cost\" }\n", "R5", :data],
+    ["R5 a past state narrated in a shell comment",
+     "spec/schemas/validate.sh",
+     "#!/usr/bin/env bash\n# before the fix this enum carried 0.3's module names.\n",
+     "R5", :comment],
+    ["R5 `cutover` in the skill an assistant author reads",
+     "skill.md", "The per-verb cutover moved this paragraph.\n", "R5", :doc],
   ].each do |name, rel, body, rule_id, expected_where|
     hits = scan_text(rel, body)
     mine = hits.select { |h| h.rule[:id] == rule_id }
@@ -640,10 +894,81 @@ def self_test
              scan_text("spec/protocol.md",
                        "Philately and philosophy are not attributions.\n").empty?)
 
+  # ── R5's boundaries: the two legitimate past-tense uses, verbatim ─────────
+  #
+  # These are the sentences the marker set was argued against, written out here
+  # rather than read from the pages, so that a later widening of R5 reddens THIS
+  # file instead of a published document. Each is upheld deliberately: a frozen
+  # cut can still be fetched, and an operator's withdrawn verb can still be
+  # dialed, so both describe something a reader can meet.
+  r5 = ->(rel, body) { scan_text(rel, body).any? { |h| h.rule[:id] == "R5" } }
+
+  check.call("R5 does NOT flag the PER-CUT HISTORY CLAUSE on the normative page — a cut is " \
+             "frozen and published, so a past tense about one is the present tense of a " \
+             "permanent artefact",
+             !r5.call("specification.html",
+                      "  <p>0.4.10 on this same wire but describing a descriptor slot that has " \
+                      "since been withdrawn.</p>\n"))
+  check.call("R5 does NOT flag the same clause in the cut table",
+             !r5.call("skills.md",
+                      "| `skill-v0.4.3.md` | 0.4 | 0.4.0-0.4.2 describe wires that have since " \
+                      "changed. |\n"))
+  check.call("R5 does NOT flag a LIVE OPERATOR CAVEAT — a verb an OPERATOR has withdrawn is what " \
+             "the vocabulary page is FOR",
+             !r5.call("problems/verb_not_found/index.html",
+                      "    <p>a typo, or a verb that has since been withdrawn.</p>\n"))
+  check.call("R5 does NOT flag a live caveat qualifying a recorded run",
+             !r5.call("index.html",
+                      "      <p>against the 0.3 wire these demos have since replaced.</p>\n"))
+  check.call("R5 does NOT flag `previously-claimed` — a claim made earlier in THIS run, not our " \
+             "past",
+             !r5.call("spec/protocol.md",
+                      "Release a previously-claimed id with a compensating action.\n"))
+  check.call("R5 does NOT flag the tail of a HYPHENATED COMPOUND before `be`",
+             !r5.call("spec/protocol.md",
+                      "A key cross-used to be minted twice is refused.\n"))
+  check.call("R5 does NOT flag the ordinary passive `used to` — that construction is COUNTED " \
+             "(C2), never banned, because nothing lexical forks it from narration",
+             !r5.call("spec/protocol.md", "The key used to sign mandates is the origin's.\n"))
+
+  # ── the counted constructions, in both directions ────────────────────────
+  counted = ->(id, rel, body) { scan_text(rel, body, COUNTED).any? { |h| h.rule[:id] == id } }
+
+  check.call("C1 COUNTS a `has since` that is narration",
+             counted.call("C1", "spec/descriptor-house-style.md",
+                          "The spec has since caught up and passed this guide.\n"))
+  check.call("…and counts the two legitimate uses too, because it is a list a human adjudicates " \
+             "and not a gate — a census that pre-judged them would be the ban this file refused",
+             counted.call("C1", "problems/verb_not_found/index.html",
+                          "    <p>a verb that has since been withdrawn.</p>\n"))
+  check.call("C1 does NOT fire on a bare `since` with no auxiliary before it",
+             !counted.call("C1", "specification.html",
+                           "  <p>Since the catalog is public, a verb name is not a secret.</p>\n"))
+  check.call("C2 COUNTS a bare `used to` that narrates",
+             counted.call("C2", "spec/protocol.md",
+                          "The numeral that used to stand here said two.\n"))
+  check.call("C2 COUNTS the ordinary passive as well — the two are spelled alike, which is the " \
+             "whole reason this is a census",
+             counted.call("C2", "spec/protocol.md",
+                          "The key used to sign mandates is the origin's.\n"))
+  check.call("C2 does NOT double-report the copula R5 already owns",
+             !counted.call("C2", "spec/protocol.md", "It used to be the other way round.\n"))
+  check.call("C2 does NOT fire on the tail of `refused to` — the word boundary is the pattern, " \
+             "not a detail",
+             !counted.call("C2", "spec/protocol.md",
+                           "a grant row this endpoint just refused to issue\n"))
+  check.call("C2 does NOT fire on the tail of a HYPHENATED COMPOUND — `cross-used to` is one " \
+             "hyphenated verb and an infinitive",
+             !counted.call("C2", "spec/protocol.md",
+                           "being cross-used to mint anything else\n"))
+
   # ── the detector arms themselves ─────────────────────────────────────────
   rf = rule_detector_faults
-  check.call("every rule's PROBE is still flagged and every FOIL still is not " \
-             "(#{RULES.size} rules)#{rf.empty? ? '' : " — #{rf.join('; ')}"}", rf.empty?)
+  check.call("every PROBE is still flagged and every FOIL still is not, across every branch of " \
+             "every pattern (#{RULES.size} rules + #{COUNTED.size} counted, " \
+             "#{(RULES + COUNTED).sum { |r| Array(r[:probe]).size }} probes and " \
+             "#{(RULES + COUNTED).sum { |r| Array(r[:foil]).size }} foils)" \
+             "#{rf.empty? ? '' : " — #{rf.join('; ')}"}", rf.empty?)
   tf = text_reader_faults
   check.call("the non-text skip refuses a NUL blob and invalid bytes, and READS a valid Cyrillic " \
              "sentence#{tf.empty? ? '' : " — #{tf.join('; ')}"}", tf.empty?)
@@ -660,6 +985,20 @@ def self_test
   check.call("a rule widened until it swallows its own foil is REPORTED",
              violates?(broken_foil, broken_foil[:foil]))
 
+  # …and the arm must walk EVERY branch of an alternation, not just the first.
+  # This is the fixture for R5's shape: a rule with several probes, one of which
+  # its pattern has stopped matching. An arm that checked only the first probe
+  # would pass here, and a marker silently dropped from R5 would be exactly as
+  # invisible as the narration it was supposed to ban.
+  partial = { id: "RZ", re: /\bformerly\b/i, what: "a fixture", none: "-", remedy: "-",
+              probe: ["The field was formerly named zone.",
+                      "It used to be the other way round."],
+              foil: ["Nothing in this sentence is a marker."] }
+  pf = rule_detector_faults([partial])
+  check.call("a rule that has stopped matching ONE branch of its own alternation is REPORTED, " \
+             "and the report names that branch (#{pf.size} fault(s))",
+             pf.size == 1 && pf.first.include?("It used to be the other way round."))
+
   # ── the scope arms, against the live repository ──────────────────────────
   scope = build_scope
   check.call("the scope is non-empty (#{scope.files.size} published file(s))", !scope.files.empty?)
@@ -670,10 +1009,19 @@ def self_test
              "(#{scope.files.keys.count { |r| frozen_cut?(r) }} cut(s)) — those bytes are what an " \
              "assistant author reads",
              scope.files.keys.count { |r| frozen_cut?(r) }.positive?)
-  check.call("…and they carry no violation of any rule here. A frozen cut cannot be edited, so a " \
-             "rule that reddens on one is the wrong rule and must be dropped, never the cut",
+  check.call("…and they carry no violation of any rule here, R5 INCLUDED. A frozen cut cannot be " \
+             "edited, so a rule that reddens on one is the wrong rule and must be dropped, never " \
+             "the cut — this is the arm every new rule is checked against FIRST, and it is why " \
+             "the sibling's retired-wire ban is not here at all",
              scope.files.select { |rel, _| frozen_cut?(rel) }
                   .flat_map { |rel, text| scan_text(rel, text) }.empty?)
+  cut_counted = scope.files.select { |rel, _| frozen_cut?(rel) }
+                     .flat_map { |rel, text| scan_text(rel, text, COUNTED) }
+  check.call("…and neither counted construction finds anything in one either " \
+             "(#{cut_counted.size} line(s)). A cut describes a wire in the present tense of its " \
+             "own day; it does not narrate the day before. This is the measurement the header " \
+             "states, re-asked on every run instead of trusted",
+             cut_counted.empty?)
   check.call("the non-text skip dropped at least one tracked file (#{scope.skipped.size}) — the " \
              "icons this site serves are why the file set is decided from the bytes",
              !scope.skipped.empty?)
