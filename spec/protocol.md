@@ -382,24 +382,21 @@ An operator **MUST** emit the canonical order and **MUST NOT** advertise a
 module it does not serve.
 
 `capabilities` names MODULES, never the origin's registered verb NAMES. **This
-is a modelling rule, not a security one, and it used to be the other way
-round.** Through protocol 0.3 and the first 0.4 drafts the rule was justified
-by three defences that kept the verb list behind a credential -- a Bearer gate
-on the catalog, identity resolved before a name on the per-verb endpoints, and
-a gated OpenAPI description. Two of the three are retired: `GET
-<endpoint>/schema` and `GET <endpoint>/openapi.json` are both
+is a modelling rule, not a security one.** Naming them here would withhold
+nothing: `GET <endpoint>/schema` and `GET <endpoint>/openapi.json` are both
 **unauthenticated** (Sections 8.3 and 4.6), and Section 4.5's API Catalog
-hyperlinks every verb an origin serves, also unauthenticated. The third
-survives as ordinary gate order rather than as a defence -- there is nothing
-left for it to withhold. A verb name is not a secret, and this specification no
-longer pretends otherwise.
+hyperlinks every verb an origin serves, also unauthenticated. A per-verb
+endpoint does resolve identity before it resolves a name, but that is ordinary
+gate order and not a defence of the NAME -- there is nothing left for such a
+gate to withhold. A verb name is not a secret, and this specification does not
+pretend otherwise.
 
-What survives is the reason the two documents say different things: this one is
-a **pointer**, the catalog is the **contract**. An operator **MUST NOT**
-publish a registered verb name in this document or in the `agents.txt`,
-`agents.json`, `agent-configuration` or `auth.md` surfaces of Section 4.5 --
-not to withhold it, but because a second copy of the verb list is a second
-source of truth for it, and the two would drift. `/.well-known/api-catalog` is
+The two documents say different things because this one is a **pointer** and
+the catalog is the **contract**. An operator **MUST NOT** publish a registered
+verb name in this document or in the `agents.txt`, `agents.json`,
+`agent-configuration` or `auth.md` surfaces of Section 4.5 -- not to withhold
+it, but because a second copy of the verb list is a second source of truth for
+it, and the two would drift. `/.well-known/api-catalog` is
 the one surface of Section 4.5 that names verbs, and it does so by
 HYPERLINKING the endpoints rather than by describing them, which is what an
 API catalog is for.
