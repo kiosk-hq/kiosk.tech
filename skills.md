@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.4.13.md` | **0.4** | **A WIRE CHANGE, in three places at once.** (1) A path that names no verb this operator serves -- an unregistered name, or a real verb dialed with the method its kind does not take -- has no defined answer and is typically the framework's bare `404`, no problem document and no `code`; 0.4.12 promises `404 verb_not_found` with a `hint` and `405` with `Allow`, so an assistant holding it waits for a branch point that never arrives and reads a conforming refusal as a broken operator. Both codes stay in the vocabulary and a client must still understand them, but neither is required of a server, and re-reading `schema` is the recovery. (2) A caller MAY declare its human's clock in a new OPTIONAL `Kiosk-Timezone` request header, and every row that renders a wall clock now publishes the IANA zone it was rendered in -- so a day, a delivery window or a seating is no longer read on whichever clock the two sides happened to share. (3) A calendar date is `YYYY-MM-DD` and nothing else, and an instant must carry its offset: spellings 0.4.12 never forbade, and which some operators took, are now `400 bad_request`. The answers moved, so this is a wire change and not a guidance one, and 0.4.13 opens a new wire group. |
 | `skill-v0.4.12.md` | **0.4** | **A WIRE CHANGE.** The error vocabulary's single `not_found` becomes three codes, because one code carried three situations an assistant must react to differently: `404 verb_not_found` (no verb by that NAME is registered here -- re-read the catalogue), `404 not_found` (the verb is real and an ARGUMENT addressed something absent -- stop and say so), and the new `501 module_not_served` (this operator does not serve that whole capability -- fall back to what you would do at one that never offered it). An assistant holding 0.4.11 knows only the old `not_found`: it reads an unregistered verb name and an unserved module as the same fact as a missing hotel, so it re-reads the catalogue and retries where it should stop, and it reads a 501 as a server having a bad moment. The vocabulary is closed, so this is a wire change and not a guidance one, and the same-wire chain below stops at 0.4.11. |
 | `skill-v0.4.11.md` | **0.4** | The same wire as 0.4.10, minus one slot no operator ever filled: the retired free-text `params` hint is GONE from every descriptor, so a catalog no longer carries a key whose only legal value was `null`. Nothing an assistant did changes — 0.4.10 already said a descriptor only MAY carry it and that `input_schema` wins — which is why this is a cut and not a new wire group. |
 | `skill-v0.4.10.md` | **0.4** | The same wire as 0.4.9. One correction to what it tells you ABOUT that wire: the heavy default toll's ~1.3 GiB is the reference solver's sorted-nonce table, not a floor the parameters impose on every implementation -- a memory-optimised solver trades the table for time, which is precisely how Equihash 200/9's real footprint fell to ~144 MB. 0.4.9 had qualified the seconds to one machine and then stated the memory half more strongly than it holds; this cut states it as the measurement it is. |
@@ -31,20 +32,25 @@ protocol cannot transact with it.
 | `skill-v0.2.0.md` … `skill-v0.2.4.md` | 0.2 | As 0.3, before that series' additions. |
 | `skill-v0.1.1.md` … `skill-v0.1.3.md` | 0.1 | The first published series. |
 
-**THREE PATCHES IN THE 0.4 SERIES CHANGED THE WIRE, which a PATCH normally does
+**FOUR PATCHES IN THE 0.4 SERIES CHANGED THE WIRE, which a PATCH normally does
 not — and before 1.0 that is allowed rather than accidental.** 0.4.1 moved the
 pagination cursor out of the body and into a `Link` header, so an assistant
 holding 0.4.0 will look for a `next` field that no 0.4.1 operator sends; 0.4.3
 moved a settled `pay` replay from `409` to `200` with the settlement, so an
 assistant holding 0.4.2 will read a successful idempotent retry as a conflict;
-and 0.4.12 split `not_found` into three codes and added `501 module_not_served`,
+0.4.12 split `not_found` into three codes and added `501 module_not_served`,
 so an assistant holding 0.4.11 meets codes its vocabulary does not have and
-mis-branches on the one it does.
-All three are why the "same wire as" column has to be read as a chain and not as a
+mis-branches on the one it does; and 0.4.13 took the specific refusal away from a
+path that names no verb, added the caller's `Kiosk-Timezone` declaration and the
+zone every rendered row now carries, and narrowed a date to one spelling, so an
+assistant holding 0.4.12 waits for a `code` an operator no longer sends and cannot
+say whose clock its dates are on.
+All four are why the "same wire as" column has to be read as a chain and not as a
 transitive licence: 0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10 = 0.4.11,
-while 0.4.12 opens a new wire group and is so far its only member,
-but the three groups are NOT the same wire, and only the third describes
-what a 0.4.12 operator serves. The formal spec
+while 0.4.12 opens a new wire group of which it stayed the only member and
+0.4.13 opens a new wire group after it,
+but the four groups are NOT the same wire, and only the last describes
+what a 0.4.13 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
