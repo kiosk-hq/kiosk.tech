@@ -121,19 +121,18 @@ chkfail validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples
 # this example is the accepted shape of a `conflict` with that one number moved to
 # 410, so nothing but that branch leaving the schema can turn it green.
 chkfail validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/rejected/problem.status-mismatch.json
-# `verbs` is GONE from the catalog. It rendered the same value
+# The catalog carries no `verbs` member: it would render the same value
 # `/.well-known/kiosk.json` publishes as `capabilities` -- one value under two
-# names, not two facts -- so the field was dropped rather than reconciled.
+# names, not two facts.
 #
 # THIS EXAMPLE IS WHY THE SCHEMA'S ROOT IS CLOSED. It is byte-for-byte the
-# accepted sibling with `verbs` added back, carrying exactly the value the
-# field used to hold (the CURRENT module names, not 0.3's -- so a stale enum
-# cannot be what fails it). With an open root the document would simply
-# validate and this line would print PASS while checking nothing; it fails only
-# because `additionalProperties: false` refuses a key the schema does not
-# declare. Deleting either the closed root or this example silently removes a
-# property from the suite. Its predecessor, `schema-descriptor.verb-names.json`,
-# tested the `verbs` ENUM and had nothing left to test once the field went.
+# accepted sibling with a `verbs` member added, carrying exactly the value such
+# a member would hold (the CURRENT module names -- so a stale enum cannot be
+# what fails it). With an open root the document would simply validate and this
+# line would print PASS while checking nothing; it fails only because
+# `additionalProperties: false` refuses a key the schema does not declare.
+# Deleting either the closed root or this example silently removes a property
+# from the suite.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.verbs-field.json
 # `reach` is a CLOSED vocabulary, and the closure is the
 # whole enforcement. `reach` is what lets a verb answer with another

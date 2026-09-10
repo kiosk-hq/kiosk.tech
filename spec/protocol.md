@@ -401,9 +401,9 @@ the one surface of Section 4.5 that names verbs, and it does so by
 HYPERLINKING the endpoints rather than by describing them, which is what an
 API catalog is for.
 
-The module set has exactly one home, and this is it. `GET <endpoint>/schema`
-published a byte-identical copy of it as `verbs` until protocol 0.4 removed the
-field (Section 8.3).
+The module set has exactly one home, and this is it: no other surface on this
+wire publishes it, and the catalog `GET <endpoint>/schema` returns carries no
+copy of it (Section 8.3).
 
 An AI assistant reads `capabilities` to know which branches of its own
 instructions apply -- whether to expect a catalog at all, whether writes exist,
@@ -647,13 +647,12 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
    ignored argument. Returns `{device_code, user_code, verification_uri,
    verification_uri_complete, expires_in, interval}`.
 
-   This clause used to read "and an optional `scope`/`role`", which
-   contradicted both Section 5.4 and Section 7.2's account of why a `role`
-   reach is sound at all. The reference honoured that parameter, checking only
-   that the operator's declared role set contained the requested value -- and a
-   declared role set says which roles an origin HAS, not who may have them, so
-   on any origin declaring more than one role a stranger obtained the
-   privileged one and the account holder's approval granted it.
+   The reason is Section 5.4 and Section 7.2's account of why a `role` reach
+   is sound at all: a declared role set says which roles an origin HAS, not who
+   may have them. An operator that took a role name from this unauthenticated
+   request and checked only that its declared set contained the value would let
+   any stranger name the privileged role, and the account holder's approval on
+   the next step would grant it.
 2. The AI assistant shows the human `verification_uri` + `user_code`; the human approves
    on the operator's session-authenticated page (Section 15.8), which names the
    access the approval hands over.
@@ -720,11 +719,10 @@ is in Section 9 and the assistant-side rule is in Section 4.3. The distinction
 holds: the eight codes are errors WITHIN a device grant this operator runs, and
 `module_not_served` says there is no device grant here to be inside of.
 
-The list used to name only the first six, which contradicted step 1 of this very
-section eleven paragraphs earlier -- and the contradiction was not inert: it is why
-the `/oauth/*` error body had no schema, since one written from an incomplete
-vocabulary refuses conforming answers. Its `$def` is
-[`binding.schema.json#/$defs/oauthError`](./schemas/binding.schema.json).
+The list is complete and closed, and it is the vocabulary the `/oauth/*` error
+body's schema is written from: a schema written from an incomplete vocabulary
+refuses conforming answers, so the two are one list rather than two. Its `$def`
+is [`binding.schema.json#/$defs/oauthError`](./schemas/binding.schema.json).
 
 ### 6.2 Link (human-initiated -- Kiosk extension)
 
@@ -1216,16 +1214,14 @@ NOT** also appear in `actions`, since `GET` and `POST` at that path would
 otherwise reach two different verbs and the `405` of Section 8.1 could never be
 right for it.
 
-`params` -- the free-form operator-defined hint object (by convention a map of
-parameter name -> type-hint string) that descriptors carried through 0.3 -- is
-**GONE from the wire**. It was never a validation contract (the operator
-validates arguments server-side), `input_schema` is the input contract, and
-0.4 now removes the key rather than carry a slot whose only remaining legal
-value was `null`. A descriptor **MUST NOT** publish it, and an AI assistant
-reads a verb's inputs from `input_schema` alone -- **REQUIRED** on every verb
-(below), so nothing is left for a hint to stand in for. The withdrawal happens
-here because it can: before 1.0 a PATCH may change the wire (Section 14.2), and
-after 1.0 a published slot could only be deprecated, never removed.
+`params` -- a free-form operator-defined hint object mapping a parameter name
+to a type-hint string -- is **not part of this wire**. A descriptor
+**MUST NOT** publish it, `null` included; the descriptor schema declares the
+key `false` and refuses it by name rather than as a stray member. An AI
+assistant reads a verb's inputs from `input_schema` alone -- **REQUIRED** on
+every verb (below) -- so a hint has nothing to stand in for, and an operator
+that wrote one would be stating a parameter name in a second place, which is
+the drift this section exists to prevent.
 
 `reach` -- **REQUIRED** -- is the verb's answer to "whose rows may this touch?",
 and it is `principal`, `published`, `consented` or `role` (Section 7.2).
@@ -1291,8 +1287,8 @@ operator nothing to validate against, so an invalid argument becomes
 indistinguishable from a valid one that matched nothing -- an empty list where
 the honest answer is `400 bad_request` naming the valid values. A verb that
 publishes no `output_schema` cannot be consumed without a call-and-observe
-probe, because the envelope that used to carry a `kind` discriminator is gone.
-Both were OPTIONAL in 0.3 only because coverage was incomplete.
+probe, because a success body is the rows themselves (Section 8.2) and carries
+no discriminator an assistant could read a shape from.
 
 Semantics remain PROSE in `description`; the schemas constrain only *shape*,
 never meaning. A future `describe <verb>` progressive-disclosure
@@ -2073,9 +2069,9 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    lines** -- do not expect all three numbers to match.
 2. **Additivity within a MINOR series -- a promise that binds from 1.0.** A new
    MINOR (0.3 -> 0.4) is a feature milestone that MAY break compatibility with
-   the previous one -- 0.4 replaced 0.3's multiplexed
-   `POST <endpoint>/{query,run}` and its response envelope outright, with no
-   tombstones. **From 1.0 onward**, within a MINOR series the wire stays
+   the previous one, outright and with no tombstones -- which is why an AI
+   assistant holding a 0.3 skill cannot transact with a 0.4 origin at all.
+   **From 1.0 onward**, within a MINOR series the wire stays
    backward-compatible and additive: patches add endpoints and fields only;
    existing request/response fields and their meaning **MUST NOT** change or be
    removed. An AI assistant **MUST** ignore unknown response fields (including
@@ -2437,10 +2433,10 @@ conformance suite does not exist yet (Tier 3, deferred).
 
 Machine-readable schemas live in [`./schemas/`](./schemas/) (JSON Schema draft
 2020-12). **The table below is the list.** Where the sections above say "every
-wire object", they mean the objects enumerated in it -- an unqualified "every"
-was carried on this page for months while Sections 5 and 6 had no schema at
-all, so the anchor now points at an inventory a reader can check rather than at
-a promise they cannot.
+wire object", they mean the objects enumerated in it -- the anchor points at an
+inventory a reader can check rather than at a promise they cannot, because an
+unqualified "every" is a promise this document cannot keep for an object it has
+not listed.
 
 The rest of this section accounts for **everything else that travels on this
 wire**, in three further lists: documents another standard governs, documents
@@ -2466,10 +2462,7 @@ under `spec/`.
 
 **Documents on this wire that a standard OTHER THAN this one governs.** They are
 listed here rather than left off, because a reader who finds a document on the
-wire and not in this section reads the omission as an oversight -- which is
-exactly what happened: the two rows below were in neither the table nor the
-residue for as long as both existed, while this section said the residue was
-two objects.
+wire and not in this section reads the omission as an oversight.
 
 | Object | Governed by |
 |---|---|
@@ -2480,8 +2473,8 @@ two objects.
 
 **What has no oracle here at all, and why.** No count is written in this
 paragraph: the list below IS the count, because a numeral typed beside a list is
-a second source of truth for it, and the numeral that used to stand here said
-TWO while the wire had more.
+a second source of truth for it, and the two drift apart the moment the list
+grows.
 
 1. **The `POST /oauth/device_authorization` request** (Section 6.1 step 1) and
 2. **the `POST /oauth/token` request** (Section 6.1 step 3) are
@@ -2494,19 +2487,15 @@ TWO while the wire had more.
    for the same reason and with the same consequence; they are in the table
    above for what governs their content.
 
-Two more sat here until 2026-08-30 and no longer do, because in both cases the
-residue was a SENTENCE this document had failed to write rather than an object a
-schema could not describe. The `/oauth/*` **error body** was uncovered because the
-code vocabulary at the end of Section 6.1 named six codes while requiring a
-seventh, `invalid_request`, in its own step 1; the vocabulary is now stated
-complete and closed, at eight, and the object is
-`binding.schema.json#/$defs/oauthError`. The **`POST /auth/revoke` response** was
-uncovered because Section 5.5 said the call "returns a fresh token" and never named
-a member; Section 5.5 now names the object, which is Section 5.3's login answer
-exactly, so `auth.schema.json#/$defs/token` covers both and nothing was invented to
-cover it. The rule those two illustrate is the one this table is for: a schema
-records a wire the prose already states, so an object with no schema is first a
-question about the PROSE.
+The rule this list is for: a schema records a wire the prose already states, so
+an object with no schema is first a question about the PROSE. Where this
+document has not named an object's members, there is nothing for a schema to
+record and the repair is the missing sentence, not an invented shape -- which is
+why the `/oauth/*` error body is covered by
+`binding.schema.json#/$defs/oauthError` only because Section 6.1 states its code
+vocabulary complete and closed, and why the `POST /auth/revoke` response is
+covered by `auth.schema.json#/$defs/token` only because Section 5.5 names its
+members as Section 5.3's login answer exactly.
 
 **A verb's own arguments and answer are not in any of the three lists above,
 and that is not a residue.** Section 8.2 gives a success body no envelope, so

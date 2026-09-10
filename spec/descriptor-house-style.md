@@ -8,16 +8,14 @@ origin from the `schema` catalog alone, with no hardcoded knowledge and no
 call-and-observe probing.
 
 **What the PROTOCOL requires, and what this guide adds.** Section 8.3 makes
-`description`, `input_schema` and `output_schema` REQUIRED on every verb, and
-the 0.3 `params` hint GONE; Section 8.1 fixes how a query's arguments travel and which
+`description`, `input_schema` and `output_schema` REQUIRED on every verb and
+forbids `params`; Section 8.1 fixes how a query's arguments travel and which
 argument names a verb may never declare; Section 8.2 fixes the answer shape.
 Those are wire contract, and this page restates them only so it can be read on
 its own -- where a rule below is normative it says so and cites its section.
 Everything else here is WRITING ADVICE with no wire consequence: per-property
 `description` lines, real example values, the `<thing>_id` matching rule, the
-cold-assistant test. Through protocol 0.3 this guide ran AHEAD of the spec and
-asked for schemas the wire called optional. The spec has since caught up and
-passed it; the voice below is corrected to match.
+cold-assistant test.
 
 In the reference implementation these fields are the class-level macros of
 `Kiosk::Handler`, written in a controller the operator owns and
@@ -255,18 +253,16 @@ splitting into two -- one scoped, one declared.
 
 ### 4. `params` -- there is no such field
 
-The free-text `params` name-to-hint hash is **GONE from the wire**
-(Section 8.3), not merely discouraged here. What a hint used to say is either a constraint -- it belongs in `input_schema` -- or a
-meaning -- it belongs in `description`; there is no third thing, and a second
-place to state a name is exactly what drifts away from the handler. The
-controller mixin ships no macro for it, so in the declared shape there is
-nothing you could write.
+The free-text `params` name-to-hint hash is **not part of the wire**
+(Section 8.3), not merely discouraged here. Anything a hint would say is either
+a constraint -- it belongs in `input_schema` -- or a meaning -- it belongs in
+`description`; there is no third thing, and a second place to state a name is
+exactly what drifts away from the handler. The controller mixin ships no macro
+for it, so in the declared shape there is nothing you could write.
 
-Nor is there a slot to leave null any more. Through 0.3 the key survived on
-every descriptor carrying the one value it was still allowed -- `null` -- and
-0.4 withdrew it; the descriptor schema no longer declares it and a conformant
-descriptor does not publish it. If you are porting a 0.3 descriptor, delete the
-key rather than nulling it.
+There is no slot to leave null either. The descriptor schema declares the key
+`false`, which refuses it outright -- `null` is a value like any other -- so a
+descriptor carrying `params` is rejected by the schema rather than tolerated.
 
 ### 5. `example_params` -- a copyable starting call
 
@@ -347,8 +343,8 @@ class Kiosk::HotelSearchController < ApplicationController   # your base class, 
                },
                # `limit` and `cursor` are NOT here, and their absence IS the
                # declaration: they are reserved names the wire always accepts
-               # and a verb never declares (Section 8.1 item 6). The clamp they
-               # used to carry lives in `description` above.
+               # and a verb never declares (Section 8.1 item 6). The page-size
+               # clamp is stated in `description` above.
                required: []
   output_schema "$defs": {
                   hotel: {
