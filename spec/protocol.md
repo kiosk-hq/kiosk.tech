@@ -601,7 +601,7 @@ Its claims:
 | `sub` | string | REQUIRED | The identity's `user_id`. |
 | `agent_id` | string | REQUIRED | The acting agent id. |
 | `actor` | string | REQUIRED | `"agent"`. |
-| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. **No endpoint accepts a client-requested role** -- not registration, not the claim body, and not the device-authorization request that opens the claim ceremony (Section 6.1). An operator **MAY** source an AI assistant's role from a configured IdP from 0.3, INDIRECTLY via the bound human's role: at EITHER account-binding ceremony (Section 6) the approving human's IdP role is captured and set as the bound AI assistant's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
+| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. **No endpoint accepts a client-requested role** -- not registration, not the claim body, and not the device-authorization request that opens the claim ceremony (Section 6.1). An operator **MAY** source an AI assistant's role from a configured IdP, INDIRECTLY via the bound human's role: at EITHER account-binding ceremony (Section 6) the approving human's IdP role is captured and set as the bound AI assistant's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
 | `iss` / `aud` | string | REQUIRED | The operator issuer. |
 | `iat` / `nbf` / `exp` | integer | REQUIRED | Validity window (default 1 hour). |
 | `jti` | string | REQUIRED | Unique token id. |
@@ -1165,15 +1165,12 @@ explanation. An AI assistant **MAY** therefore read an origin's whole surface
 before it registers, and Section 4.1's `schema_url` is where it finds the url.
 
 **A response body carrying any other member is not a conformant catalog**; the
-root is closed in `schema-descriptor.schema.json`. In particular `verbs` is
-**GONE**. It named the module set of Section 4.2 and was required to equal the
-`capabilities` the same origin advertises in `/.well-known/kiosk.json` -- an
-equality that was never in doubt, because a conformant operator computed both
-from the same registry, so the field published one value under two names. The
-module set is read from `capabilities` (Section 4.2), which every AI assistant
-already fetches at Step 1. (Through 0.3 `verbs` was instead the invariant four
-`query`, `run`, `pay`, `schema`, which named `pay` on an operator that had no
-payment provider wired while `capabilities` correctly dropped it.)
+root is closed in `schema-descriptor.schema.json`. In particular **there is no
+`verbs` member**: the module set is read from `capabilities` (Section 4.2),
+which every AI assistant already fetches at Step 1, and publishing the same set
+a second time on this document would be one fact under two names -- obliged to
+agree, free to drift, and the kind of thing an operator gets wrong on the day it
+adds a module.
 
 The document is identical for every caller, so an operator **SHOULD** serve it
 `Cache-Control: public` and **MUST NOT** send `Vary: Authorization` on it -- a
@@ -1470,11 +1467,10 @@ the order's paid state through the operator's own queries before retrying, so a
 lost response cannot double-charge).
 
 **Three codes answer "it is not here", and they are three different facts.**
-Until 0.4 they were one code, and an AI assistant that got `not_found` for a
-hotel nobody has could not tell it from `not_found` for a verb nobody
-registered: it re-read the catalogue and retried, which is the right move for
-one of them and a wasted round trip plus a wrong report to its human for the
-other. `code` is the field this specification tells an AI assistant to branch
+One code for all three is unbranchable: an AI assistant that reads `not_found`
+for a hotel nobody has cannot tell it from `not_found` for a verb nobody
+registered, and re-reading the catalogue is the right move for one of them and a
+wasted round trip plus a wrong report to its human for the other. `code` is the field this specification tells an AI assistant to branch
 on, so the branch has to be IN the code and not in `hint`, which is prose.
 
 - **`verb_not_found`** -- the NAME of the call is unknown here. Re-read

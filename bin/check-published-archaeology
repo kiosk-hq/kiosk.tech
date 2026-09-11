@@ -122,7 +122,7 @@
 #       below for the marker set, for the one marker the sibling carries that
 #       this repository may not, and for why.
 #
-# AND TWO THINGS THAT ARE COUNTED RATHER THAN BANNED. Each is a construction
+# AND FOUR THINGS THAT ARE COUNTED RATHER THAN BANNED. Each is a construction
 # that spells archaeology and live English with the same letters here, so each
 # gets a census a human adjudicates instead of a rule that would either redden
 # on correct prose or say nothing:
@@ -133,6 +133,13 @@
 #       PRINTED, NEVER RED. The sibling's declared gap, carried here as the
 #       sibling now carries it: as a number rather than as a sentence nobody
 #       greps for.
+#   C3  `no longer` — PRINTED, NEVER RED. A withdrawal already made and a live
+#       fact about a live wire are spelled with the same two words, and the
+#       live reading is the common one here. See below.
+#   C4  a version number DATING A CLAIM — `since 0.4`, `until 0.4`, `from 1.0`.
+#       PRINTED, NEVER RED. A version that SCOPES a rule a reader is bound by
+#       is the sentence working; a version that STAMPS a fact which is simply
+#       true is archaeology with the fact left live underneath it. See below.
 #
 # AND ONE EXEMPTION INSIDE EVERY RULE: a line carrying a live `TODO` or `FIXME`
 # marker. The workspace rule that governs such a marker REQUIRES it to name the
@@ -161,7 +168,7 @@
 # re-argued against these pages rather than inherited. That argument is the next
 # section, and it is where R5 and C1 come from.
 #
-# ── R5 AND C1/C2: A PUBLIC ARTEFACT DESCRIBES WHAT IS ────────────────────────
+# ── R5 AND C1-C4: A PUBLIC ARTEFACT DESCRIBES WHAT IS ────────────────────────
 #
 # The afterlife of a removed wire element, verb, endpoint or configuration key
 # is ONE SHORT CHANGELOG LINE and nothing else — not a paragraph on a normative
@@ -216,7 +223,10 @@
 #   `used to`. A cut describes a wire in the present tense of its own day — it
 #   does not narrate the day before. A self-test arm re-asks this on every run
 #   rather than trusting the sentence, and a hit on a cut is printed as the RULE
-#   being wrong, because the bytes cannot move.
+#   being wrong, because the bytes cannot move. C3 and C4 are the exception and
+#   it is not a contradiction: a cut says what its own wire no longer carries
+#   and scopes its own rules by version, in the present tense of its day. That
+#   is why they are censuses and why those same bytes can hold their patterns.
 #
 #   C2 — A BARE `used to`. The sibling declines to ban this because it is also
 #   the ordinary passive «employed in order to», and nothing lexical forks the
@@ -228,11 +238,51 @@
 #   wave that would light them is exactly how a gate gets switched off. The
 #   number is printed so it can drain and so it can be seen to drain.
 #
+#   C3 — `no longer`. MEASURED when this census was added: FOURTEEN lines
+#   outside the frozen cuts, of which TWO were narration and are gone. The
+#   other twelve are correct and stay — a CDN serving verbs an operator no
+#   longer offers (twice), a name a later revision can no longer claim (three
+#   times, one of them inside a normative JSON Schema's own `description`), an
+#   operator that no longer knows an unlinked key, five per-cut history clauses
+#   that `check-skill-immutability` pass 4 additionally pins, and one line of
+#   the working skill alias, which carries the newest cut's exact bytes and so
+#   cannot move without a version bump. A ban would have reddened twelve true
+#   sentences to catch two datings — and THIRTY frozen cuts besides, which
+#   cannot move at all. That is the frozen-cut refusal above arriving from the
+#   other side, and it is why this is a census and always will be. Do not read
+#   those integers as current; run the guard, which prints them.
+#
+#   C4 — A VERSION NUMBER DATING A CLAIM, and it is the shape nothing here
+#   reached before: not a past tense, not a withdrawal, just a live sentence
+#   with a version stamped on the front of it. «Since 0.4 the input schema is
+#   enforced» is TRUE today, and it dates that truth against a wire the reader
+#   never used — the fact is live and only the stamp is archaeology, which is
+#   exactly why R5's markers cannot see it. It cannot be a ban either, and for
+#   the ordinary reason: the SAME construction scopes the rules a reader is
+#   bound by. «Before 1.0 the additivity promise does not bind» and «from 1.0
+#   onward the wire stays backward-compatible» are the version doing its job,
+#   and they outnumber the datings on these pages. So: counted, adjudicated by
+#   whether the version SCOPES a rule or STAMPS a fact.
+#
 #   WHY THE WORD BOUNDARY AND THE HYPHEN GUARD ARE PART OF THE PATTERNS AND NOT
 #   DETAILS, both inherited from the sibling with the false rows that bought
 #   them: unbounded, `used to` also matches the tail of «ref-used to» and
-#   «ab-used to»; and `previously-claimed` is a claim earlier in THIS run, not
-#   our past. Each has its own self-test arm.
+#   «ab-used to»; `previously-claimed` is a claim earlier in THIS run, not our
+#   past; and «no longer-lived credential» is a comparative, not a withdrawal.
+#   Each has its own self-test arm.
+#
+#   AND A CENSUS HAS NO EXIT CODE, SO SOMETHING ELSE HAS TO HOLD ITS PATTERN.
+#   A zero prints the same whether the backlog drained or the pattern stopped
+#   matching, and unlike a ban nothing goes red to say which. The probes below
+#   catch a pattern that no longer matches the sentence written beside it; they
+#   cannot catch one narrowed until it still matches that sentence and nothing
+#   anybody writes. THE FROZEN CUTS ANSWER THAT, and only because another rule
+#   froze them: they are in scope, they are real prose nobody wrote for this
+#   purpose, and they CANNOT BE EDITED, so a count over them never falls
+#   because somebody repaired something. Each census therefore declares which
+#   side of that corpus it is on — C1 and C2 ABSENT, C3 and C4 PRESENT — and
+#   every run re-measures both directions. See THE FROZEN CUTS AS A VACUITY
+#   CORPUS, beside the code.
 #
 # ── THE DETECTOR ARMS, AND THE POLARITY THEY EXIST FOR ───────────────────────
 #
@@ -328,6 +378,24 @@ PAST_NARRATION_RE =
 # sentence must not be reported twice.
 HAS_SINCE_RE     = /\b(?:ha[sv]e?|had)\s+since\b/i
 BARE_USED_TO_RE  = /\b(?<!-)used\s+to\b(?!\s+be\b)/i
+
+# `no longer` states a live fact about a live wire far more often than it
+# narrates, and every frozen cut carries it, so it can never be a ban. The
+# hyphen guard is the pattern and not a detail: «no longer-lived credential» is
+# a comparative, not a withdrawal.
+NO_LONGER_RE = /\bno\s+longer\b(?!-)/i
+
+# A VERSION NUMBER DATING A CLAIM. Both readings are spelled alike: «before 1.0
+# this promise does not bind» SCOPES a rule that binds a reader today, and
+# «since 0.4 the input schema is enforced» DATES a fact that is simply true,
+# against a version the reader never used. Only the second is archaeology, and
+# nothing lexical forks them. Declared limit: this cannot tell a version number
+# from any other decimal, so «after 3.0 hours» is counted too — one glance for
+# a human, which is the price of a census that never reddens.
+VERSION_DATING_RE =
+  /\b(?:since|as\s+of|starting\s+(?:in|with|from)|beginning\s+(?:in|with)|
+       through|until|till|prior\s+to|up\s+to|from|before|after)\s+
+     (?:protocol\s+|version\s+|v)?\d+\.\d+(?:\.\d+)?\b/ix
 
 # A page's credit slot: the name as the TEXT of a link. See the header for why
 # this is a shape rather than a path, and for the limit it declares.
@@ -425,6 +493,7 @@ COUNTED = [
     id: "C1",
     re: HAS_SINCE_RE,
     counted: true,
+    in_cuts: :none,
     what: "`has since` — the marker both legitimate past-tense uses reach for",
     none: "no `has since`",
     remedy: "adjudicate: the per-cut history clause and a live operator caveat are CORRECT here, " \
@@ -443,6 +512,7 @@ COUNTED = [
     id: "C2",
     re: BARE_USED_TO_RE,
     counted: true,
+    in_cuts: :none,
     what: "a bare `used to` — archaeology and the ordinary passive, spelled alike",
     none: "no bare `used to`",
     remedy: "adjudicate: «the key used to sign mandates» is the passive and wants nothing done, " \
@@ -454,6 +524,56 @@ COUNTED = [
     foil: [
       "The key used to be minted twice is R5's sentence, not this census's.",
       "A grant row this endpoint just refused to issue, and a token cross-used to mint another.",
+    ],
+  },
+  {
+    id: "C3",
+    re: NO_LONGER_RE,
+    counted: true,
+    in_cuts: :some,
+    what: "`no longer` — a withdrawal already made, and a live fact about a live wire, spelled " \
+          "alike",
+    none: "no `no longer`",
+    remedy: "adjudicate: a cache serving verbs an operator no longer offers, a name a later " \
+            "revision can no longer claim, an operator that no longer knows an unlinked key " \
+            "are all LIVE — each describes something a reader meets today. «This is no longer " \
+            "hygiene» is narration: it dates a live rule against a version nobody reading has " \
+            "used, and the rule states itself in the present",
+    probe: [
+      "This is no longer hygiene: with validation unconditional it turns a forgery into a " \
+      "refusal.",
+      "Both schemas are required, and the input one is no longer merely published.",
+    ],
+    foil: [
+      "There is no longer-lived credential on this wire than the mandate itself.",
+      "No, longer windows are refused; the cap is the operator's.",
+    ],
+  },
+  {
+    id: "C4",
+    re: VERSION_DATING_RE,
+    counted: true,
+    in_cuts: :some,
+    what: "a version number dating a claim — a rule it SCOPES, or a fact it merely STAMPS",
+    none: "no version number dating a claim",
+    remedy: "adjudicate: a version that SCOPES a rule a reader is bound by — «before 1.0 the " \
+            "additivity promise does not bind», «from 1.0 onward the wire stays " \
+            "backward-compatible» — is the sentence doing its job. A version that DATES a fact " \
+            "which is simply true — «since 0.4 the input schema is enforced», «until 0.4 they " \
+            "were one code» — is archaeology: the fact is live, only the stamp is not, and the " \
+            "fact states itself in the present",
+    probe: [
+      "Since 0.4 the input schema is a protocol requirement rather than house style.",
+      "Until 0.4 they were one code, and an assistant could not tell the two apart.",
+      "Through 0.3 the field was instead the invariant four verb names.",
+      "An operator MAY source a role from a configured IdP from 0.3, indirectly.",
+      "As of 0.4.2 the operator's pin is what an assistant checks.",
+      "Starting in 0.4 the catalog is closed, and prior to 1.0 nothing about that binds.",
+    ],
+    foil: [
+      "This page specifies protocol version 0.4, and the skill tracks its MAJOR.MINOR.",
+      "Before the hold expires the cart is released, and after checkout nothing moves.",
+      "A cursor issued on 2026-08-30 is opaque, and EUR 12.50 is a price.",
     ],
   },
 ].freeze
@@ -661,6 +781,56 @@ def text_reader_faults
   faults
 end
 
+# ── the frozen cuts as a vacuity corpus, for the censuses only ───────────────
+#
+# A CENSUS CANNOT BE PROVED BY ITS OWN COUNT. Zero prints the same whether the
+# backlog drained or the pattern stopped matching, and unlike a ban there is no
+# exit code to notice. The probes above catch a pattern that no longer matches
+# the sentence written beside it; they cannot catch one narrowed until it still
+# matches that sentence and nothing anybody actually writes.
+#
+# THE FROZEN CUTS ARE THE ONE CORPUS THAT ANSWERS THAT HERE. They are IN scope,
+# they are real published prose nobody wrote for this purpose, and — this is the
+# whole of it — THEY CANNOT BE EDITED. Cut immutability means a count over them
+# never falls because somebody repaired something. So a construction MEASURED to
+# occur in them can only stop occurring if its pattern broke, and one measured
+# ABSENT from them can only start occurring if its pattern widened. That is not
+# a hand-kept list; it is a property of a corpus another rule has frozen.
+#
+# This is why the arm is on the CENSUSES and not on the rules. A corpus arm over
+# the EXEMPT files is circular for R3 — its only Cyrillic is this file's own
+# fixtures, see the header — and a ban's count over the cuts is already asserted
+# to be zero. The cuts are neither exempt nor drainable, so every counted
+# construction states which side of them it is on and the run re-measures BOTH
+# directions: a `:none` that starts matching a cut is as much a report as a
+# `:some` that stops.
+
+def counted_cut_faults(scope, set = COUNTED)
+  cuts = scope.files.select { |rel, _| frozen_cut?(rel) }
+  set.filter_map do |c|
+    n = cuts.sum { |rel, text| scan_text(rel, text, [c]).size }
+    case c[:in_cuts]
+    when :none
+      next if n.zero?
+
+      "#{c[:id]} (#{c[:what]}) is declared ABSENT from the frozen cuts and now matches " \
+        "#{n} line(s) in one. A cut describes a wire in the present tense of its own day, so " \
+        "either this pattern has widened into something it should not reach, or the " \
+        "measurement the declaration rests on was wrong"
+    when :some
+      next unless n.zero?
+
+      "#{c[:id]} (#{c[:what]}) matches NOTHING in the frozen published cuts, and it was " \
+        "measured there when it was written. Those bytes cannot be edited, so nothing can " \
+        "have drained them: this census's pattern has stopped matching real prose, and its " \
+        "count over the live pages is a clean zero that means nothing"
+    else
+      "#{c[:id]} declares no `in_cuts:` expectation, so its pattern is held by its own probes " \
+        "alone and a narrowing that still matched them would be invisible"
+    end
+  end
+end
+
 # ── the scope arms ───────────────────────────────────────────────────────────
 
 Scope = Struct.new(:files, :skipped, :exempted, :faults)
@@ -759,14 +929,20 @@ end
 # code never moves on any of it.
 def print_counted(scope)
   puts
-  puts "COUNTED, NEVER BANNED — over the same published files the rules run on. These two " \
-       "constructions spell archaeology and live English with the same letters, so they are a " \
-       "list a human adjudicates, never a gate:"
+  puts "COUNTED, NEVER BANNED — over the same published files the rules run on. Each of these " \
+       "constructions spells archaeology and live English with the same letters, so each is a " \
+       "list a human adjudicates, never a gate. The frozen-cut column is what holds the pattern " \
+       "itself: those bytes cannot be repaired, so a count over them that moves is a pattern " \
+       "that moved:"
+  cuts = scope.files.select { |rel, _| frozen_cut?(rel) }
   COUNTED.each do |c|
-    hits = scope.files.flat_map { |rel, text| scan_text(rel, text, [c]) }
-    puts "  #{c[:id]} #{c[:what]} — #{hits.size} line(s)"
-    hits.each { |h| puts "       #{h.path}:#{h.line} — #{h.text}" }
-    puts "       #{c[:remedy]}." unless hits.empty?
+    hits    = scope.files.flat_map { |rel, text| scan_text(rel, text, [c]) }
+    live    = hits.reject { |h| frozen_cut?(h.path) }
+    in_cuts = cuts.sum { |rel, text| scan_text(rel, text, [c]).size }
+    puts "  #{c[:id]} #{c[:what]} — #{hits.size} line(s), #{live.size} outside the frozen cuts " \
+         "and #{in_cuts} in them (declared #{c[:in_cuts]}, re-measured on this run)"
+    live.each { |h| puts "       #{h.path}:#{h.line} — #{h.text}" }
+    puts "       #{c[:remedy]}." unless live.empty?
   end
   puts "  A ZERO HERE IS NOT A PASS AND A COUNT HERE IS NOT A FAILURE. The detector behind each " \
        "is re-proved on every run against fixtures that are not in this tree, which is the only " \
@@ -780,7 +956,7 @@ def run_check
 
   failed = false
 
-  faults = rule_detector_faults + text_reader_faults + scope.faults
+  faults = rule_detector_faults + text_reader_faults + scope.faults + counted_cut_faults(scope)
   unless faults.empty?
     failed = true
     puts "FAIL — the guard cannot answer its own question:"
@@ -990,6 +1166,40 @@ def self_test
              !counted.call("C2", "spec/protocol.md",
                            "being cross-used to mint anything else\n"))
 
+  check.call("C3 COUNTS a `no longer` that dates a live rule against a retired wire",
+             counted.call("C3", "spec/descriptor-house-style.md",
+                          "  This is no longer hygiene: validation is unconditional.\n"))
+  check.call("…and counts the LIVE readings too — a cache serving verbs an operator withdrew, " \
+             "an unlinked key the operator cannot resolve — because the two are spelled alike " \
+             "and a census that pre-judged them would be the ban this file refused",
+             counted.call("C3", "specification.html",
+                          "  <p>a CDN serving last week's verbs to an assistant that then calls " \
+                          "verbs which no longer exist.</p>\n") &&
+             counted.call("C3", "specification.html",
+                          "  <p>the operator no longer knows the key; re-register is the " \
+                          "remedy.</p>\n"))
+  check.call("C3 does NOT fire on `no longer-lived` — a comparative is not a withdrawal, and " \
+             "the hyphen guard is the pattern rather than a detail",
+             !counted.call("C3", "spec/protocol.md",
+                           "There is no longer-lived credential than the mandate itself.\n"))
+  check.call("C3 does NOT fire across a comma — `no, longer windows are refused` is two clauses",
+             !counted.call("C3", "spec/protocol.md", "No, longer windows are refused.\n"))
+
+  check.call("C4 COUNTS a version that STAMPS a fact which is simply true",
+             counted.call("C4", "onboarding.html",
+                          "  <p>Since 0.4 the input schema is a protocol requirement.</p>\n"))
+  check.call("…and counts a version that SCOPES a rule a reader IS bound by, because nothing " \
+             "lexical forks the two and the adjudication is the human's",
+             counted.call("C4", "specification.html",
+                          "  <p>From 1.0 onward the wire stays backward-compatible.</p>\n"))
+  check.call("C4 does NOT fire on a version that is simply NAMED — the construction is the " \
+             "temporal preposition, not the number",
+             !counted.call("C4", "specification.html",
+                           "  <p>This page specifies protocol version 0.4.</p>\n"))
+  check.call("C4 does NOT fire on a date or a price — a cursor issued on 2026-08-30, EUR 12.50",
+             !counted.call("C4", "spec/protocol.md",
+                           "A cursor issued on 2026-08-30 is opaque, and EUR 12.50 is a price.\n"))
+
   # ── the detector arms themselves ─────────────────────────────────────────
   rf = rule_detector_faults
   check.call("every PROBE is still flagged and every FOIL still is not, across every branch of " \
@@ -1043,13 +1253,34 @@ def self_test
              "the sibling's retired-wire ban is not here at all",
              scope.files.select { |rel, _| frozen_cut?(rel) }
                   .flat_map { |rel, text| scan_text(rel, text) }.empty?)
-  cut_counted = scope.files.select { |rel, _| frozen_cut?(rel) }
-                     .flat_map { |rel, text| scan_text(rel, text, COUNTED) }
-  check.call("…and neither counted construction finds anything in one either " \
-             "(#{cut_counted.size} line(s)). A cut describes a wire in the present tense of its " \
-             "own day; it does not narrate the day before. This is the measurement the header " \
-             "states, re-asked on every run instead of trusted",
-             cut_counted.empty?)
+  # …and every CENSUS is measured against those same frozen bytes, in whichever
+  # direction it declares. C1 and C2 are declared ABSENT there — a cut describes
+  # a wire in the present tense of its own day and does not narrate the day
+  # before — and C3 and C4 are declared PRESENT, which is what makes them
+  # checkable at all: a census has no exit code of its own, so the only thing
+  # that can tell a drained backlog from a broken pattern is a corpus nobody is
+  # allowed to repair.
+  ccf = counted_cut_faults(scope)
+  cut_census = COUNTED.map do |c|
+    n = scope.files.select { |rel, _| frozen_cut?(rel) }
+             .sum { |rel, text| scan_text(rel, text, [c]).size }
+    "#{c[:id]}=#{n}/#{c[:in_cuts]}"
+  end.join(" ")
+  check.call("…and every counted construction's frozen-cut expectation still holds, re-measured " \
+             "on this run rather than trusted (#{cut_census})" \
+             "#{ccf.empty? ? '' : " — #{ccf.join('; ')}"}", ccf.empty?)
+
+  # …and THAT arm must be able to go red in both of its directions, so each is
+  # driven off a deliberately wrong declaration rather than trusted.
+  flipped = COUNTED.map { |c| c.merge(in_cuts: c[:in_cuts] == :none ? :some : :none) }
+  check.call("a census declared PRESENT in the frozen cuts whose pattern has stopped matching " \
+             "them is REPORTED, and so is one declared ABSENT that starts matching " \
+             "(#{counted_cut_faults(scope, flipped).size} fault(s) when every declaration is " \
+             "inverted)",
+             counted_cut_faults(scope, flipped).size == COUNTED.size)
+  check.call("a census that declares no frozen-cut expectation at all is REPORTED, so the arm " \
+             "cannot be switched off by omission",
+             counted_cut_faults(scope, [COUNTED.first.reject { |k, _| k == :in_cuts }]).size == 1)
   check.call("the non-text skip dropped at least one tracked file (#{scope.skipped.size}) — the " \
              "icons this site serves are why the file set is decided from the bytes",
              !scope.skipped.empty?)

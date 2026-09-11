@@ -126,14 +126,15 @@ a service.
 ### 2. `input_schema` -- the input contract (REQUIRED)
 
 A JSON Schema object (draft 2020-12) for the verb's INPUTS. This is the ONLY
-place a parameter name appears anywhere in the descriptor, and since 0.4 it is
-also the thing the wire ENFORCES: every request is validated against it before
+place a parameter name appears anywhere in the descriptor, and it is also the
+thing the wire ENFORCES: every request is validated against it before
 the handler runs, so a property you did not declare is refused with a typed
 `400 bad_request` naming it. Rules:
 
 - `"type": "object"` with `"additionalProperties": false` ALWAYS -- an unknown
   field is a bug, and the closed object tells the assistant it has the full set.
-  This is no longer hygiene: with validation unconditional it is what turns a
+  This is load-bearing rather than hygiene: with validation unconditional it
+  is what turns a
   forged or hallucinated parameter into a refusal the assistant can correct.
   The two reserved names below are exempted by the validator, which is what
   makes "never declare them" safe.
