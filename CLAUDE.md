@@ -49,12 +49,14 @@ demonstrated by the reference implementation.
    text, skill instructions, or claims — get an entry in the touched repo's
    `CHANGELOG.md` stating the essence and intent of the change, not its
    content. Tests-only changes, refactors, typos do not qualify.
-   **Two files, two registers, and the difference was measured — do not
-   collapse them.** A per-gem `CHANGELOG.md` ships inside the package and its
-   reader meets it with no repository around them, so the concise 1–2 sentence
-   form is what those release notes are written TO. A repository-root
-   `CHANGELOG.md` is a dated engineering journal: one entry per significant
-   change, written for someone who was not there, as long as that takes. The
+   **Two registers, and the difference was measured — do not collapse them.**
+   A per-gem `CHANGELOG.md` ships inside the package and its reader meets it
+   with no repository around them, so the concise 1–2 sentence form is what
+   those release notes are written TO; **this repository ships no gem and has
+   none** (zero `.gemspec` files tracked), so that register has no instance
+   here. A repository-root `CHANGELOG.md` — the only changelog here — is a
+   dated engineering journal: one entry per significant change, written for
+   someone who was not there, as long as that takes. The
    umbrella constitution carries the derivation (K-1342 measured that only 4%
    of the reference repo's root entries ever met the one-line form; K-1382 re-derived
    the per-gem corpus) — re-measure rather than quoting a number from it.
