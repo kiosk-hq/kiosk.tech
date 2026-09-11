@@ -73,6 +73,28 @@
 #     edit a word of it, so a rule reaching it could only ever produce a red
 #     tree with no legal move.
 #
+# AND WHAT IS *NOT* EXEMPT, WHICH NEEDS ITS REASON WRITTEN DOWN JUST AS MUCH
+# (K-1500). Two of the exemptions above are granted for KIND — `bin/` and
+# `.github/` are maintainer tooling, read by whoever maintains this repository
+# and served to nobody. That reason does not generalise, and the file it stops
+# at is `spec/schemas/validate.sh`: a shell script, maintainer tooling by every
+# other measure, and IN SCOPE. It is in scope because of where it lives.
+# Everything under `spec/` is published beside the formal specification — a
+# porter who fetches the schemas fetches the validator that proves them and may
+# run it — so it is a published surface whatever else it also is, and a ledger
+# citation or a paragraph of Cyrillic in it resolves for nobody who has the
+# file. That is the boundary: EXEMPTION IS BY WHETHER THE FILE IS SERVED, NEVER
+# BY WHETHER IT IS TOOLING. `bin/` and `.github/` qualify because nothing under
+# them ships, not because of what they contain.
+#
+# The rule was decided the right way round before it was written down — one
+# census line in that script was repaired under this guard rather than exempted
+# — and a decision nobody wrote down gets re-litigated by the next person who
+# meets a red line there. So it is checked as well as stated: a self-test arm
+# asserts that NO exemption reaches under `spec/`, and a second asserts the
+# tracked tree there still holds a file that is neither schema nor prose, so the
+# boundary cannot quietly become a statement about nothing.
+#
 # AND ONE CARVE-OUT INSIDE A RULE, rather than over a path: the site's own
 # BYLINE. A page states its author the way a package states it in a manifest
 # field, and R4 is about prose that asks a reader to trust a person instead of
@@ -441,6 +463,12 @@ COUNTED = [
 # Each is a decision, so each is declared with the reason it was granted. Every
 # run reports the number of tracked files it covers and fails on a zero: an
 # exemption whose subject has left the repository is not a decision any more.
+#
+# THE TEST FOR A NEW ONE IS «IS IT SERVED?», NEVER «IS IT TOOLING?» (K-1500).
+# X1 and X2 read as kind exemptions and are not: nothing under `bin/` or
+# `.github/` ships. `spec/schemas/validate.sh` is the same kind of file and
+# ships beside the schemas it proves, so it stays in scope — see the header,
+# and the self-test arm that holds `spec/` free of every exemption here.
 
 EXEMPTIONS = [
   {
@@ -1027,6 +1055,17 @@ def self_test
              !scope.skipped.empty?)
   check.call("nothing exempt is also in scope",
              scope.files.keys.none? { |rel| exempt_for(rel) })
+  spec_tracked = (scope.files.keys + scope.skipped + scope.exempted.values.flatten)
+                 .select { |rel| rel.start_with?("spec/") }
+  spec_tooling = spec_tracked.reject { |rel| rel.end_with?(".json", ".md") }
+  check.call("no exemption reaches under `spec/` — what ships beside the formal specification is " \
+             "in scope whatever kind of file it is, TOOLING INCLUDED (#{spec_tracked.size} " \
+             "tracked, #{spec_tooling.size} of them neither schema nor prose: " \
+             "#{spec_tooling.sort.join(', ')})",
+             spec_tracked.none? { |rel| exempt_for(rel) })
+  check.call("…and that boundary still has a subject: at least one tracked file under `spec/` is " \
+             "neither schema nor prose, so the arm above is a statement about something",
+             !spec_tooling.empty?)
   check.call("this guard's own source is exempt — its fixtures are violations by construction, " \
              "and a gate with a hole in the shape of its own subject is not a gate",
              !exempt_for("bin/check-published-archaeology").nil?)

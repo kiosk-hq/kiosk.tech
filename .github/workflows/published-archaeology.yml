@@ -1,9 +1,18 @@
 name: published-archaeology
 
 # Holds every published surface in this repository to the rule that a public
-# artefact describes what IS: no citation of a private issue ledger, no
-# reference to a numbered architecture decision, no Cyrillic prose, and no
-# attribution of a normative choice to a maintainer by name.
+# artefact describes what IS.
+#
+# THE RULES ARE NOT ENUMERATED HERE, DELIBERATELY, AND THIS COMMENT IS WHY.
+# It used to list four of them. The guard grew a fifth rule and two censuses
+# forty minutes later and this header did not move, so a maintainer deciding
+# whether the job earns its minutes read a set the job had not run for a day,
+# and nothing could say so — a hand-kept enumeration beside the thing it
+# enumerates, which is the failure this repository keeps paying for (K-1498,
+# K-863). The guard is the only honest inventory of its own rules: every run
+# prints each rule and each census by name and ends with how many of each it
+# ran, and `bin/check-published-archaeology --list` prints the scope, the
+# exemptions and the file set besides. Read the run, not this comment.
 #
 # WHY THE JOB EXISTS AT ALL (K-1491). The sibling repository has held this rule
 # since T-186. This one held it nowhere, and the consequence was measured before
