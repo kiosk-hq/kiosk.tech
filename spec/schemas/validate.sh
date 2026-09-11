@@ -60,13 +60,13 @@ chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/pro
 chk validate "${F[@]}" -s schema-descriptor.schema.json -d examples/schema-descriptor.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.proofs.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.shorthand.json
-# The LARGEST LEGAL index, 2**64-1, must VALIDATE. This example exists
-# because it did not: with the bound written `exclusiveMaximum: 2**64` this file
-# was REJECTED by ajv (and by any double-precision reader), which rounds
+# The LARGEST LEGAL index, 2**64-1, must VALIDATE, and how the bound is SPELLED
+# decides whether it does. Written `exclusiveMaximum: 2**64` this file is
+# REJECTED by ajv (and by any double-precision reader), which rounds
 # 18446744073709551615 up to exactly 2**64 and then compares it against an
 # exclusive bound of 2**64. An inclusive `maximum: 2**64-1` is the same set for
-# an exact-integer reader and survives the round-trip for a double one. Flip the
-# bound back and this line goes red.
+# an exact-integer reader and survives the round-trip for a double one. Spell
+# the bound the other way and this line goes red.
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.max-index.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.max-header-nonce.json
 chk validate "${F[@]}" -s "$(ref intent  "$B/mandates.schema.json#/\$defs/intent")"     -r mandates.schema.json -d examples/mandate.intent.json
@@ -95,31 +95,30 @@ chk validate "${F[@]}" -s "$(ref bclreq  "$B/binding.schema.json#/\$defs/claimRe
 # pointer stopped resolving, ajv would fail here rather than shrug.
 chk validate "${F[@]}" -s "$(ref bclres  "$B/binding.schema.json#/\$defs/claimResponse")"       -r binding.schema.json -r auth.schema.json -d examples/binding.claim-response.json
 chk validate "${F[@]}" -s "$(ref bunlink "$B/binding.schema.json#/\$defs/unlinkRequest")"       -r binding.schema.json -r auth.schema.json -d examples/binding.unlink-request.json
-# The /oauth/* error body, which had no schema while Section 6.1's closing
-# list named six codes and its own step 1 required a seventh.
+# The /oauth/* error body. Section 6.1's closing list and its own step 1 both
+# enumerate the codes this object may carry, and they have to agree: this is
+# where that object gets a schema rather than two prose lists.
 chk validate "${F[@]}" -s "$(ref boaerr  "$B/binding.schema.json#/\$defs/oauthError")"          -r binding.schema.json -r auth.schema.json -d examples/binding.oauth-error.json
 
 echo "== reject what the schemas must refuse =="
 # `capabilities` names MODULES (schema, queries,
-# actions, pay). This document is its accepted sibling with that ONE array
-# reverted to protocol 0.3's verb names, so the only thing that can make it
-# pass is the enum going soft.
+# actions, pay), and the enum is what holds it to them. This document is its
+# accepted sibling with that ONE array carrying verb names instead, so the only
+# thing that can make it pass is the enum going soft.
 chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discovery.verb-names.json
-# The `code` vocabulary is CLOSED, and nothing proved it until the list
-# widened from fifteen members to seventeen. A near-miss of the new member --
-# `module_not_found` for `module_not_served` -- is the shape a porter would
-# actually emit, and the enum must refuse it.
+# The `code` vocabulary is CLOSED, and an enum that is never tested against a
+# near-miss is an enum nothing proves. `module_not_found` for
+# `module_not_served` is the shape a porter actually emits -- one plausible
+# word off a real member -- and the enum must refuse it.
 chkfail validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/rejected/problem.unknown-code.json
-# And the STATUS beside the code is closed too. Until this line the schema
-# carried the seventeen NAMES and nothing about which HTTP status each one means,
-# so the mapping lived in hand-kept copies on both sides of the repository
-# boundary -- the specification table, the Section 9 table, the seventeen problem
-# pages, and the implementation's own table -- with nothing comparing them across
-# it. Measured then: publishing `conflict` as 410 on all three kiosk.tech surfaces
-# while the engine kept 409 left thirteen gates at exit 0, this one among them.
-# The `allOf` in problem.schema.json binds each code to exactly one status, and
-# this example is the accepted shape of a `conflict` with that one number moved to
-# 410, so nothing but that branch leaving the schema can turn it green.
+# And the STATUS beside the code is closed too, which matters because the
+# code-to-status mapping is otherwise written out by hand on both sides of the
+# repository boundary -- the specification table, the Section 9 table, the
+# problem pages, and the implementation's own table -- and a schema carrying
+# only the NAMES compares none of them. The `allOf` in problem.schema.json binds
+# each code to exactly one status, and this example is the accepted shape of a
+# `conflict` with that one number moved to 410, so nothing but that branch
+# leaving the schema can turn it green.
 chkfail validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/rejected/problem.status-mismatch.json
 # The catalog carries no `verbs` member: it would render the same value
 # `/.well-known/kiosk.json` publishes as `capabilities` -- one value under two
@@ -143,39 +142,37 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # accepted sibling's first query with that one word substituted, so nothing but
 # the enum can be what fails it.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.bad-reach.json
-# `params` is WITHDRAWN, and until this line the withdrawal was prose
-# only. The property declaration was deleted, and deleting a declaration from
-# an OPEN object does not forbid the key -- it unconstrains it. Measured then and
-# re-measured when this fixture landed: `"params": null` validated at exit 0 with
-# the property gone, and the wave LOOSENED the document by one step, because while
-# the property was declared `["object","null"]` a `"params": 42` was refused and
-# afterwards it was not. The remedy is deliberately the narrowest one that closes
-# it -- `{"not": {}}`, the object spelling of the `false` schema, on that one key
-# -- rather than `additionalProperties: false` on the whole descriptor, because
-# whether a descriptor may carry operator-defined members at all was UNSETTLED
-# then and closing the object would have answered it by accident. This example is
-# the accepted sibling's first query with the withdrawn key added back at the only
-# value a 0.3 origin ever published, so nothing but that key can be what fails it.
+# `params` is WITHDRAWN, and a withdrawal stated only in prose is not one the
+# schema makes. Deleting a property declaration does not forbid the key -- in an
+# open object it UNCONSTRAINS it, so removing a declaration of
+# `["object","null"]` refuses LESS than keeping it: a `"params": 42` that type
+# rules out is then outside nothing. The refusal is therefore spelled on that one key,
+# `{"not": {}}`, the object spelling of the `false` schema. This example is the
+# accepted sibling's first query with the withdrawn key present, so nothing but
+# that key can be what fails it.
 # **THE OBJECT IS CLOSED AND THIS LINE IS NOT REDUNDANT.**
 # `additionalProperties` does not reach a key `properties` names, so `params` is
-# still refused by its own `{"not": {}}` and by nothing else: remove that keyword
-# and this fixture goes green while the closed object shrugs at it. The two
-# refusals are different sentences on purpose -- this one names a withdrawal, the
-# one below names an unknown member.
+# refused by its own `{"not": {}}` and by nothing else: remove that keyword and
+# this fixture goes green while the closed object shrugs at it. The two refusals
+# are different sentences on purpose -- this one names a withdrawal, the one
+# below names an unknown member -- and that is also why the closure is NOT the
+# place to spell a withdrawal: it would answer, by accident, whether a descriptor
+# may carry operator-defined members at all, which is its own rule and is stated
+# one fixture down.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.params-field.json
 # The DESCRIPTOR object is closed: a descriptor carries the keys this
-# specification names at that level and no others. The catalog ROOT was
-# closed from the start (the `verbs-field` fixture above) and each ELEMENT of its
-# two arrays was not, so an operator could publish `"x_internal_sla": "4h"` on a
+# specification names at that level and no others. Closing the catalog ROOT (the
+# `verbs-field` fixture above) does not reach the ELEMENTS of its two arrays, and
+# an open element is what lets an operator publish `"x_internal_sla": "4h"` on a
 # verb and validate clean. This example is generated from the ACCEPTED
 # examples/schema-descriptor.json with exactly that one member added to its first
 # query and nothing else changed, so only `additionalProperties: false` leaving
 # `$defs.descriptor` can turn it green -- watched, and it does.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.unknown-member.json
-# `indices` items are u64. The description said so from the start; only
+# `indices` items are u64. A `description` saying so is not a refusal; only
 # the bound makes the schema REFUSE what a conforming verifier refuses.
 # `pack("Q<")` truncates mod 2**64, so without the upper bound `idx` and
-# `idx + 2**64` were two spellings of one leaf and the schema admitted a proof
+# `idx + 2**64` are two spellings of one leaf and the schema admits a proof
 # every implementation rejects. Both examples are the accepted
 # examples/pow.shorthand.json with ONE index moved out of range -- the only
 # thing that can turn either green is the bound going away.
@@ -191,9 +188,9 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # `line_items` is REQUIRED on a cart mandate. This example is the
 # accepted examples/mandate.cart.json with that one key deleted and nothing
 # else changed, so the only thing that can turn it green is `line_items`
-# leaving the cart's `required` array again. The field was optional while the
-# settlement and reconciliation path already read it, which let a conforming
-# assistant pay and leave a capture nobody can match to a domain object.
+# leaving the cart's `required` array. The settlement and reconciliation path
+# reads that array, so a cart the schema admits without it is a conforming
+# assistant paying and leaving a capture nobody can match to a domain object.
 chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.no-line-items.json
 # And an EMPTY array is not a cart either -- the question presence alone left open.
 # `[]` satisfies `required` while carrying exactly as much reconciliation value
@@ -203,8 +200,9 @@ chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$def
 # changed, so only `minItems` leaving the schema can turn it green.
 chkfail validate "${F[@]}" -s "$(ref cartempty "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.empty-line-items.json
 # And an EMPTY `currency` is not a currency, for the same reason an empty
-# `line_items` is not a cart -- presence was the whole check on both sides, in the
-# schema and in the reference verifier, and presence is not the constraint. Section 11.2
+# `line_items` is not a cart: presence is the easiest thing to check on both
+# sides, in the schema and in the reference verifier, and presence is not the
+# constraint. Section 11.2
 # compares the three mandates' currencies to EACH OTHER and never to a domain, so
 # `""` is internally consistent from intent to payment and reaches the PSP. This
 # example is the accepted examples/mandate.intent.json with that one value emptied
@@ -214,9 +212,9 @@ chkfail validate "${F[@]}" -s "$(ref intemptycur "$B/mandates.schema.json#/\$def
 # 4217, so `currency` carries
 # `pattern: ^[A-Za-z]{3}$` -- three ASCII letters, either case -- and "Euro", "US"
 # and the numeric-3 spelling "978" that ISO 4217 also publishes are all refusals.
-# Until then the reference accepted "Euro", canonicalised it to "euro", signed it
-# into the chain and handed it to the PSP, so the human was told a card had failed
-# when nothing was wrong with the card. Three letters that name no currency still
+# A currency NAME that the schema admits is canonicalised, signed into the chain
+# and handed to the PSP, and what the human is then told is that their card
+# failed. Three letters that name no currency still
 # pass, and that is stated in Section 11.1 rather than hidden here: the pattern is
 # the operator's MINIMUM refusal, and no list this repository could ship would do
 # better, because the vendored PSP client documents a server-side supported set and
@@ -226,9 +224,9 @@ chkfail validate "${F[@]}" -s "$(ref intemptycur "$B/mandates.schema.json#/\$def
 chkfail validate "${F[@]}" -s "$(ref intcurname "$B/mandates.schema.json#/\$defs/intent")" -r mandates.schema.json -d examples/rejected/mandate.intent.currency-name.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
-# `header_nonce` is a u32 and was an unbounded integer, so the schema
-# admitted values the reference verifier folds down to a DIFFERENT number --
-# `pack("V")` truncates mod 2**32, which made 0, 2**32 and -(2**32) three
+# `header_nonce` is a u32, and an unbounded integer here is a schema that
+# admits values the reference verifier folds down to a DIFFERENT number --
+# `pack("V")` truncates mod 2**32, which makes 0, 2**32 and -(2**32) three
 # spellings of one proof. Unlike the u64 case above there is no double-rounding
 # problem at this magnitude (2**32-1 is exactly representable), so the accepted
 # example carries the largest LEGAL value and the two rejected ones sit exactly
@@ -278,16 +276,14 @@ echo "== mutation arms: a rule that a NEIGHBOURING rule would still refuse for =
 # the difference is invisible for exactly as long as a second rule happens to
 # cover the same document.
 #
-# That is what happened to `schema-descriptor.params-field.json`. Adding
-# `params: {"not": {}}` to `$defs.descriptor` came with a watched fail: delete
-# the declaration and this suite went red. Three days later the same object was
-# closed with `additionalProperties: false`, and the closure refuses an UNDECLARED
-# key -- so with the declaration deleted, `params` becomes undeclared and the
-# closure catches it instead. MEASURED at head 2026-09-04 from a `cp` copy:
-# deleting the `params` declaration left this script at PASS=61 FAIL=0. No wire
-# behaviour was at risk -- a descriptor publishing `params` is refused twice over
-# -- but the RULE was held by nothing, and the sentence that says WHAT was
-# withdrawn and WHEN could have left the schema without a single line going red.
+# `schema-descriptor.params-field.json` is the document where that bites.
+# `params` carries its own `{"not": {}}` AND sits inside an object closed with
+# `additionalProperties: false`, and the closure refuses an UNDECLARED key -- so
+# delete the `params` declaration and the key simply becomes undeclared, the
+# closure catches it, and the fixture stays red for the wrong reason. Nothing on
+# the wire is at risk (a descriptor publishing `params` is refused twice over),
+# but the withdrawal itself would then be held by nothing, and the whole suite
+# would stay at FAIL=0 while it left the schema.
 #
 # So the arm validates against a MUTATED COPY of the schema with the neighbouring
 # rule removed, which is the only shape that can tell the two apart. Three arms,
@@ -324,11 +320,10 @@ else
 fi
 
 echo "== cross-document arm: an example's min_client is the wire's, not a vintage =="
-# ajv cannot see this class at all and never could: `min_client` is a
-# bare `type: string` in the schema, so ANY version validates -- and the two
-# discovery examples published here declared `0.2.0` against a wire at `0.4.0`,
-# three minors stale, on a NORMATIVE surface, for as long as it took someone to
-# read them. Section 4.1 makes the rule a MUST: when `kiosk.min_client` is
+# ajv cannot see this class at all: `min_client` is a bare `type: string` in the
+# schema, so ANY version validates, and a discovery example on a NORMATIVE
+# surface can sit minors behind the wire it is supposed to illustrate with every
+# validator here green. Section 4.1 makes the rule a MUST: when `kiosk.min_client` is
 # present it MUST equal the `Kiosk-Min-Client` response header. So the header
 # table in protocol.md is the derivation and every example is a copy of it,
 # which is the shape that cannot go stale one file at a time.
@@ -338,14 +333,13 @@ echo "== cross-document arm: an example's min_client is the wire's, not a vintag
 # FAILS rather than skipping -- a derivation that quietly matches nothing is how
 # a gate reads green over a document it stopped examining.
 #
-# WHAT THIS DOES NOT COVER, said because the sibling defect in the same examples
-# is not covered by anything: the `owner` SHAPE. These examples taught
-# `{email: ...}` where the reference implementation emits `{name:, support:}`,
-# and this repository cannot derive that -- the emitting code is in the other
-# repository, whose own version guard deliberately reads no sibling checkout
-# because a sibling-dependent check SKIPS in public CI. The examples are
-# corrected; the shape is held by review, and this paragraph is the honest
-# statement of it rather than a silence.
+# WHAT THIS DOES NOT COVER, said because nothing else says it: the `owner`
+# SHAPE. An example here teaching `{email: ...}` where the reference
+# implementation emits `{name:, support:}` is a divergence this repository
+# cannot derive -- the emitting code is in the other repository, whose own
+# version guard deliberately reads no sibling checkout because a
+# sibling-dependent check SKIPS in public CI. That shape is held by review, and
+# this paragraph is the honest statement of it rather than a silence.
 if ruby -rjson -e '
   spec = "../protocol.md"
   unless File.exist?(spec)
