@@ -13,10 +13,21 @@ name: schema-prose
 #
 # NO PATH FILTER, for the reason problem-pages.yml and publication-paths.yml
 # each record for themselves. The guard's scope is DERIVED — `git ls-files` over
-# `spec/schemas/*.json`, and the ban's target is the schema that structurally
-# declares a descriptor — so a filter would be a hand-kept list of paths whose
-# whole job is to be subtly wrong about the one file that matters. It costs
-# about a second.
+# `spec/schemas/*.json` — and the ban reaches EVERY property description in
+# every one of those documents, so a filter would be a hand-kept mirror of a
+# corpus the guard already derives, and it would be wrong the day a schema is
+# added. It costs about a second.
+#
+# THAT SENTENCE USED TO SAY THE BAN HAD ONE TARGET, AND A LATER WAVE MADE IT
+# FALSE (K-1530). This file was written while the ruling stood on the
+# descriptor schema alone; ADR-0032 then widened the clause to every published
+# schema and did not touch this workflow, so the comment went on telling
+# whoever was deciding whether a new wire schema is covered that the ban aims
+# at one document. Do not restate the scope here at all: the guard prints its
+# own SCOPE block on every run, and `bin/check-schema-prose --self-test`
+# carries an arm that reddens if the ban ever collapses back onto a single
+# file. Those two are the answer; this comment says only that there is no
+# filter and why.
 #
 # ITS OWN WORKFLOW rather than a step in spec-schemas.yml: that one is
 # path-filtered on `spec/**`, installs Node and ajv this check does not need,
