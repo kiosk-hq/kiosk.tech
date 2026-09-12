@@ -230,13 +230,17 @@
 #
 #   C2 — A BARE `used to`. The sibling declines to ban this because it is also
 #   the ordinary passive «employed in order to», and nothing lexical forks the
-#   two. That holds here, so it is counted here. What does NOT hold here is the
-#   sibling's ratio: MEASURED in scope, 11 lines, and unlike the sibling's
-#   corpus almost none of them is the passive — this site's bare `used to` is
-#   mostly narration, in prose that is normative or close to it. That is a
-#   backlog a human drains, not a gate: 11 red lines with no repair inside the
-#   wave that would light them is exactly how a gate gets switched off. The
-#   number is printed so it can drain and so it can be seen to drain.
+#   two. That holds here, so it is counted here — and the decision does NOT
+#   rest on how many lines are in scope, which is why no number is typed into
+#   this paragraph. A pattern that spells a violation and a correct sentence
+#   with the SAME LETTERS cannot be a ban at ANY count: the exit code would
+#   then turn on a distinction the pattern is unable to draw, and one line or a
+#   hundred, the census is the honest instrument. The count is PRINTED by the
+#   run — so it can drain, and so it can be SEEN to drain — and it is printed
+#   rather than typed because this header's own rule is that an integer typed
+#   into a comment is a measurement that stops being one the day after it is
+#   typed. This paragraph once argued from such an integer, and the backlog it
+#   described drained inside a day while the sentence stayed.
 #
 #   C3 — `no longer`. MEASURED when this census was added: FOURTEEN lines
 #   outside the frozen cuts, of which TWO were narration and are gone. The
@@ -916,12 +920,19 @@ def print_census(scope)
        "what holds anything:"
   corpus = EXEMPTIONS.flat_map { |x| scope.exempted[x[:id]] }
   texts  = corpus.filter_map { |rel| read_text(File.join(REPO, rel)) }
+  zeros  = []
   RULES.each do |rule|
     n = texts.sum { |t| t.each_line.count { |l| violates?(rule, l) } }
+    zeros << rule[:id] if n.zero?
     puts "  #{rule[:id]} #{rule[:what].ljust(48)} #{n} line(s) in #{corpus.size} exempt file(s)"
   end
-  puts "  A ZERO ON THIS TABLE IS NOT A FAULT and is the reason the census is not the vacuity " \
-       "mechanism: R3 sits at zero here because this repository's journal is written in English."
+  # DERIVED, NEVER TYPED. The sentence that stood here named a rule and asserted its count was
+  # zero; the count was seven, one line above, on every run for as long as the claim was printed.
+  # Whatever this table says, it says on THIS run.
+  puts "  A ZERO ON THIS TABLE IS NOT A FAULT, and a COUNT on it is not coverage — which is the " \
+       "reason the census is not the vacuity mechanism: a rule whose subject this corpus simply " \
+       "does not contain reads exactly like a rule that has stopped matching anything at all. " \
+       "#{zeros.empty? ? 'No rule is at zero on this run.' : "At zero on this run: #{zeros.join(', ')}."}"
 end
 
 # COUNTED, NEVER BANNED. Printed in full — path, line and the sentence — because
