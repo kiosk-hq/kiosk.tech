@@ -418,10 +418,10 @@ end
 # 0.3 answered errors with `{"ok": false, "error": {"code", "message"}}`; 0.4
 # answers a FLAT RFC 9457 problem document, and `skill.md` tells every
 # assistant to branch on `body["code"]`, "not `body["error"]["code"]`". The
-# cutover moved the prose everywhere and left one EXAMPLE behind — the
-# `payment_setup_required` 402 in `specification.html`, inside a copy-button
-# block, which is worse than prose because a reader copies it and ships a body
-# that fails `problem.schema.json`.
+# cutover moved the prose everywhere and left one EXAMPLE behind — the 402
+# `payment_setup_required` document in `specification.html`, inside a
+# copy-button block, which is worse than prose because a reader copies it and
+# ships a body that fails `problem.schema.json`.
 #
 # So this scans EXAMPLES ONLY — `<pre><code>` blocks in the HTML pages and
 # fenced blocks in the Markdown ones. Prose may still discuss the retired
