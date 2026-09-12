@@ -1,0 +1,646 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# check-changelog -- this repository's changelog, held to the rule that governs
+# every changelog in this workspace.
+#
+# WHY THIS EXISTS. Phil, 2026-09-11, his words:
+#
+#   "Keep the entries short, always under 200 characters and one-two sentences.
+#    Only keep the essence of the change. git commit messages will keep the
+#    details. In the CHANGELOG, only keep the essence."
+#
+# A rule that lives only in a constitution is a rule a wave reads once. The
+# sibling repository has held its changelogs with `bin/check-changelog` since
+# T-115; this repository had nothing, and it carries the second-largest
+# changelog in the workspace.
+#
+# WHAT IT CHECKS, over `git ls-files '*CHANGELOG.md'` -- what ships is what git
+# carries.
+#
+#   CL-7   Every top-level entry opens with its ISO date. It is this file's only
+#          ordering affordance: nothing else in it says when.
+#   CL-8   A NEW entry is under 200 characters.
+#   CL-9   A NEW entry runs to at most two sentences.
+#   CL-10  The shared rule block below is byte-identical to the sibling's copy,
+#          whenever `../reference` is beside this repository.
+#
+# WHY CL-8 AND CL-9 ARE SCOPED TO WHAT IS NEW, and it is the K-1097 property
+# rather than a softening. The standing corpus is long and it is APPEND-ONLY:
+# nothing already written may be edited, so a length gate over the whole file
+# would be red on arrival and permanently unfixable, which is a gate someone
+# switches off. So the two arms read only entries that are NEW against
+# `BASELINE_REV` below -- the commit at which the rule took effect -- and
+# everything at or before it is printed as a CENSUS that never reddens. Every
+# figure in that census is derived on the run that prints it.
+#
+# WHAT "NEW" MEANS, exactly. The baseline entry set is the UNION of the
+# normalised text of every top-level entry in every `CHANGELOG.md` this
+# repository tracked AT `BASELINE_REV`. A working-tree entry whose normalised
+# text is not in that union is new. EDITING an existing entry reads as new, and
+# that is intended -- a changelog is append-only, so an edit to a long
+# historical entry is exactly the thing worth asking about.
+#
+# IF THE BASELINE COMMIT IS NOT IN THE CLONE the run FAILS and says so, naming
+# the remedy. It does not skip: a skipped arm exits 0 and reads exactly like a
+# clean tree. CI checks out with `fetch-depth: 0` for that reason.
+#
+# THE TWIN, AND WHAT THIS SCRIPT IS NOT. `reference/bin/check-changelog` is a
+# bigger gate over a bigger corpus -- one repository record, a gem package
+# record per gemspec, two declared courtesy records, Keep-a-Changelog release
+# sections. None of that shape exists here: this repository ships no gem and its
+# changelog has no release sections, so a copy of that script would be mostly
+# arms with no subject. What the two MUST share is the RULE, and the block
+# between the SHARED NEW-ENTRY RULE markers below is byte-identical in both.
+# CL-10 compares them whenever the sibling is beside this repository, and SAYS
+# SO when it is not, rather than passing quietly.
+#
+# WHAT IT CANNOT SEE, stated because an over-claimed gate is worse than none.
+# It does not read what an entry MEANS: an entry that describes the change's
+# content rather than its intent, a change that got no entry at all, and a
+# duplicate entry are all invisible. The sentence counter is a scan, not a
+# parser -- see the shared block. Without `../reference` beside it CL-10 cannot
+# run, and it prints that instead of a result.
+#
+# USAGE
+#   bin/check-changelog                 # check this repository, exit 0/1
+#   bin/check-changelog --baseline REV  # treat REV as the rule's start instead
+#   bin/check-changelog --self-test     # prove it is red on a plant of every arm
+#
+# Stdlib only: no bundle, no services, no database, no network.
+
+require "open3"
+require "fileutils"
+require "rbconfig"
+require "tmpdir"
+
+SELF_PATH = File.realpath(__FILE__)
+REPO      = File.dirname(File.dirname(SELF_PATH))
+SIBLING   = File.join(File.dirname(REPO), "reference", "bin", "check-changelog")
+
+NUL = "\u0000"  # git -z separator, spelled so this file stays text
+
+# The commit at which Phil's strong rule took effect in this repository.
+# Everything at or before it is the standing backlog and is CENSUS ONLY; every
+# entry added after it is held by CL-8 and CL-9. Move this only to record a NEW
+# starting point that has been agreed, never to make a red run green.
+BASELINE_REV = "15312262ca3e74ba4a06ab4470c01716384856b2"
+
+SHARED_MARKERS = ["# >>> SHARED NEW-ENTRY RULE -- BEGIN",
+                  "# <<< SHARED NEW-ENTRY RULE -- END"].freeze
+
+# >>> SHARED NEW-ENTRY RULE -- BEGIN
+# Byte-identical to the block of the same name in
+# `kiosk.tech/bin/check-changelog`. That script compares itself against this
+# copy whenever `../reference` is beside it, so the two repositories cannot
+# drift into two spellings of one rule. Edit both, or neither.
+LENGTH_CAP   = 200 # characters; an entry must be UNDER this
+SENTENCE_CAP = 2   # "one-two sentences"
+
+# A period that ends one of these is not a sentence boundary.
+ABBREVIATIONS = %w[e.g i.e etc vs cf al no approx Dr Mr Mrs Ms St Fig].freeze
+
+Entry = Struct.new(:line, :text)
+
+# An entry is a TOP-LEVEL `- ` bullet, running to the line before the next
+# top-level bullet or the next ATX heading. Wrapped lines are joined with one
+# space, the leading `- ` is dropped and the ends are stripped -- the unit the
+# umbrella constitution names. Same fence tracker as `headings`, and the same
+# honest limit: an unbalanced fence hides what follows it.
+def full_entries(source)
+  out   = []
+  fence = nil
+  cur   = nil
+  source.each_line.map(&:chomp).each_with_index do |line, i|
+    if (m = line.match(/\A {0,3}(`{3,}|~{3,})/))
+      marker = m[1][0]
+      if fence.nil?
+        fence = marker
+      elsif fence == marker
+        fence = nil
+      end
+      cur[:body] << line if cur
+      next
+    end
+    if fence
+      cur[:body] << line if cur
+      next
+    end
+    if line.start_with?("- ")
+      out << cur if cur
+      cur = { line: i + 1, body: [line] }
+    elsif line.match?(/\A\#{1,6}[ \t]/)
+      out << cur if cur
+      cur = nil
+    elsif cur
+      cur[:body] << line
+    end
+  end
+  out << cur if cur
+  out.map { |e| Entry.new(e[:line], normalise_entry(e[:body])) }
+end
+
+def normalise_entry(body)
+  body.join(" ").sub(/\A-[ \t]+/, "").gsub(/\s+/, " ").strip
+end
+
+# A scan, not a parser, and the header says so. Code spans, emphasis markers
+# and dotted numbers go first, because `**a thing.**` and `0.4.12` are the two
+# shapes that would otherwise decide this. Then every run of `.!?` that a
+# space or the end of the entry follows counts, unless it closes a known
+# abbreviation or a single-letter initial. An entry with no terminator at all
+# is one sentence, not zero.
+def sentence_count(text)
+  t = text.gsub(/`[^`]*`/, " CODE ")
+  t = t.gsub(/[*_]{1,3}/, "")
+  t = t.gsub(/\d+(?:\.\d+)+/, "NUM")
+  t = t.gsub("...", "…")
+  n = 0
+  t.scan(/[.!?]+["'»”)\]]*(?=\s|\z)/) do
+    pre = Regexp.last_match.pre_match
+    next if ABBREVIATIONS.any? { |a| pre.match?(/(?:\A|[^A-Za-z])#{Regexp.escape(a)}\z/i) }
+    next if pre.match?(/(?:\A|\s)[A-Za-z]\z/)
+
+    n += 1
+  end
+  n.zero? ? 1 : n
+end
+# <<< SHARED NEW-ENTRY RULE -- END
+
+# `- YYYY-MM-DD: ` and nothing looser. A bare year, a `[2026-09-06]` bracket or a
+# date in the middle of the sentence all fail: the point is that a reader
+# scanning the left margin can order the file, and only the prefix does that.
+DATED = /\A\d{4}-\d{2}-\d{2}: /
+
+# >>> ARM TABLE -- BEGIN
+#
+# Every failure this gate can report is declared here with the shape that
+# produces it, and `plant` is what the self-test does to a throwaway workspace to
+# make that arm fire. An arm without a way to demonstrate it cannot be added,
+# which is the property that keeps the self-test from drifting into a subset.
+ARMS = [
+  {
+    id: "CL-7",
+    what: "a top-level entry that does not open with its ISO date",
+    repair: "prefix the entry with the date the change landed, as `- YYYY-MM-DD: ` -- read it " \
+            "off the commit that introduced the line (`git log -S`), never off today",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        - an entry that never says when it happened, filed above one that does.
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-8",
+    what: "a NEW entry at or over #{LENGTH_CAP} characters",
+    repair: "cut it to the essence -- under #{LENGTH_CAP} characters; the commit message and " \
+            "the ledger row are where the details go",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        - 2026-01-04: #{"a very long single sentence about one small change " * 6}.
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-9",
+    what: "a NEW entry running past #{SENTENCE_CAP} sentences",
+    repair: "say it in one or two sentences; the commit message and the ledger row are where " \
+            "the rest goes",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        - 2026-01-05: One thing changed. A second sentence explains it. A third one runs on.
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-10",
+    what: "the shared rule block has drifted from the sibling's copy",
+    repair: "make the two blocks byte-identical again -- the rule is one rule, and whichever " \
+            "copy is right, two spellings of it is the defect",
+    plant: lambda { |dir|
+      sib = File.join(dir, "reference", "bin", "check-changelog")
+      File.write(sib, File.read(sib).sub("LENGTH_CAP   = 200", "LENGTH_CAP   = 400"))
+    },
+  },
+].freeze
+# <<< ARM TABLE -- END
+
+def write(root, rel, body)
+  abs = File.join(root, rel)
+  FileUtils.mkdir_p(File.dirname(abs))
+  File.write(abs, body)
+end
+
+def arm_for(id)
+  ARMS.find { |a| a[:id] == id } || raise("unknown arm #{id}")
+end
+
+# ── the corpus ───────────────────────────────────────────────────────────────
+
+def tracked(root, *pathspec)
+  out, err, status = Open3.capture3("git", "-C", root, "ls-files", "-z", *pathspec)
+  raise "git ls-files failed in #{root}: #{err}" unless status.success?
+
+  out.split(NUL).reject(&:empty?)
+end
+
+# The baseline entry set: the UNION of every top-level entry in every
+# `CHANGELOG.md` this repository tracked at `rev`.
+def baseline_of(root, rev)
+  rev ||= BASELINE_REV
+  _o, _e, st = Open3.capture3("git", "-C", root, "cat-file", "-e", "#{rev}^{commit}")
+  return { rev: rev, missing: true, set: {}, files: 0 } unless st.success?
+
+  out, err, s = Open3.capture3("git", "-C", root, "ls-tree", "-r", "-z", "--name-only", rev)
+  raise "git ls-tree failed in #{root}: #{err}" unless s.success?
+
+  paths = out.split(NUL).reject(&:empty?).select { |p| File.basename(p) == "CHANGELOG.md" }
+  set   = {}
+  paths.each do |p|
+    blob, _e2, s2 = Open3.capture3("git", "-C", root, "show", "#{rev}:#{p}")
+    next unless s2.success?
+
+    full_entries(blob).each { |e| set[e.text] = true }
+  end
+  { rev: rev, missing: false, set: set, files: paths.length }
+end
+
+# ── the shared block ─────────────────────────────────────────────────────────
+
+# The markers are matched AT COLUMN ZERO, which is not fussiness: their literal
+# text also occurs in the `SHARED_MARKERS` assignment above, and a plain
+# `index` finds that instead and extracts a two-line "block" that compares equal
+# to nothing. Anchoring is what makes this read the real block in both files.
+def shared_block(path)
+  return nil unless File.file?(path)
+
+  re = /^#{Regexp.escape(SHARED_MARKERS[0])}$.*?^#{Regexp.escape(SHARED_MARKERS[1])}$/m
+  File.read(path)[re]
+end
+
+# ── scanning ─────────────────────────────────────────────────────────────────
+
+def scan(root, baseline)
+  findings   = []
+  entries    = 0
+  dated      = 0
+  fresh      = 0
+  backlog    = 0
+  long_back  = 0
+  multi_back = 0
+
+  changelogs = tracked(root, "*CHANGELOG.md")
+
+  changelogs.each do |rel|
+    full_entries(File.read(File.join(root, rel))).each do |e|
+      entries += 1
+
+      if e.text.match?(DATED)
+        dated += 1
+      else
+        arm = arm_for("CL-7")
+        findings << {
+          path: rel, line: e.line, id: arm[:id], repair: arm[:repair],
+          what: "entry opens `#{e.text[0, 60].strip}` with no `YYYY-MM-DD:` date",
+        }
+      end
+
+      if baseline[:set].key?(e.text)
+        backlog    += 1
+        long_back  += 1 if e.text.length >= LENGTH_CAP
+        multi_back += 1 if sentence_count(e.text) > SENTENCE_CAP
+        next
+      end
+
+      fresh += 1
+      gist  = e.text.length > 64 ? "#{e.text[0, 64]}…" : e.text
+      if e.text.length >= LENGTH_CAP
+        arm = arm_for("CL-8")
+        findings << {
+          path: rel, line: e.line, id: arm[:id], repair: arm[:repair],
+          what: "new entry is #{e.text.length} characters, cap #{LENGTH_CAP}: `#{gist}`",
+        }
+      end
+      sentences = sentence_count(e.text)
+      if sentences > SENTENCE_CAP
+        arm = arm_for("CL-9")
+        findings << {
+          path: rel, line: e.line, id: arm[:id], repair: arm[:repair],
+          what: "new entry runs to #{sentences} sentences, cap #{SENTENCE_CAP}: `#{gist}`",
+        }
+      end
+    end
+  end
+
+  mine   = shared_block(SELF_PATH)
+  theirs = shared_block(SIBLING)
+  twin =
+    if theirs.nil?
+      :absent
+    elsif theirs == mine
+      :identical
+    else
+      arm = arm_for("CL-10")
+      findings << { path: "bin/#{File.basename(SELF_PATH)}", line: 0, id: arm[:id],
+                    what: arm[:what], repair: arm[:repair] }
+      :drifted
+    end
+
+  { findings: findings, files: changelogs.length, entries: entries, dated: dated,
+    baseline: baseline[:rev], baseline_files: baseline[:files],
+    baseline_set: baseline[:set].length, fresh: fresh, backlog: backlog,
+    long_back: long_back, multi_back: multi_back, twin: twin,
+    shared_lines: mine.to_s.lines.length }
+end
+
+# ── modes ────────────────────────────────────────────────────────────────────
+
+def report(result, quiet:)
+  unless quiet
+    puts "check-changelog: #{result[:files]} tracked changelog(s), #{result[:entries]} " \
+         "top-level entry(ies), #{result[:dated]} carrying an ISO date"
+    puts "  baseline #{result[:baseline][0, 12]} -- #{result[:baseline_set]} entry(ies) over " \
+         "#{result[:baseline_files]} changelog(s) at that commit"
+    puts "  #{result[:backlog]} entry(ies) at or before the baseline, #{result[:fresh]} new " \
+         "since it; CL-8/CL-9 read the new ones only"
+    puts "  CENSUS, never failed: of the backlog, #{result[:long_back]} are #{LENGTH_CAP} " \
+         "characters or longer and #{result[:multi_back]} run past #{SENTENCE_CAP} sentences"
+    note = result[:twin] == :absent ? " -- ../reference is not beside this repository, so CL-10 did NOT run" : ""
+    puts "  shared rule block: #{result[:shared_lines]} line(s), sibling #{result[:twin]}#{note}"
+  end
+
+  if result[:findings].empty?
+    unless quiet
+      puts
+      puts "check-changelog: OK -- every entry says when, and every entry newer than the " \
+           "baseline is under #{LENGTH_CAP} characters and at most #{SENTENCE_CAP} sentences."
+      puts "(The standing backlog is counted above and never failed -- a changelog is " \
+           "append-only. See the header for what this cannot see.)"
+    end
+    return 0
+  end
+
+  $stdout.flush
+  warn ""
+  warn "check-changelog: FAIL -- #{result[:findings].length} defect(s)."
+  result[:findings].sort_by { |f| [f[:path], f[:line]] }.each do |f|
+    where = f[:line].positive? ? "#{f[:path]}:#{f[:line]}" : f[:path]
+    warn "  #{where}: [#{f[:id]}] #{f[:what]}"
+    warn "      repair: #{f[:repair]}"
+  end
+  1
+end
+
+def run_check(quiet: false, baseline: nil)
+  base = baseline_of(REPO, baseline)
+  if base[:missing]
+    warn "check-changelog: FAIL -- baseline commit #{base[:rev]} is not in this clone, so " \
+         "CL-8/CL-9 cannot tell a new entry from the standing backlog. It does not skip: a " \
+         "skipped arm exits 0 and reads exactly like a clean tree."
+    warn "      repair: fetch it (`git fetch --unshallow`, or check out with " \
+         "`fetch-depth: 0`), or pass `--baseline <rev>` naming a commit this clone has"
+    return 1
+  end
+
+  report(scan(REPO, base), quiet: quiet)
+end
+
+# ── self-test ────────────────────────────────────────────────────────────────
+#
+# A corpus scan whose file set came out empty exits 0 and reads exactly like a
+# clean repository. So this builds a throwaway WORKSPACE -- a `kiosk.tech` git
+# repository with a sibling `reference/bin/check-changelog` beside it, which is
+# the layout CL-10 needs -- commits the green shapes as the baseline, plants each
+# arm's own example in turn, and asserts the guard goes red UNDER THAT ARM'S ID.
+# Then it measures the real tree, because a fixture proves the logic and says
+# nothing about what this repository holds.
+
+# >>> GREEN FIXTURES -- BEGIN
+#
+# A PRE-BASELINE entry that is long and runs to four sentences is the K-1097
+# property under test: committed at the baseline, it must be COUNTED and never
+# failed, and every plant keeps it in the file so one run proves both halves.
+BACKLOG_ENTRY = "- 2026-01-01: **a long entry from before the rule, kept exactly as written.** " \
+                "It runs to several sentences and well past two hundred characters, which is " \
+                "what the whole standing corpus looks like. It is history, so it is never " \
+                "edited. The census counts it and no arm fails on it."
+
+GREEN = {
+  "CHANGELOG.md" => <<~MD,
+    # Changelog
+
+    The repository record: newest entry first.
+
+    - 2026-01-02: **something changed.** Intent: it says why.
+
+    #{BACKLOG_ENTRY}
+  MD
+}.freeze
+# <<< GREEN FIXTURES -- END
+
+def build_fixture(dir)
+  site = File.join(dir, "kiosk.tech")
+  FileUtils.mkdir_p(File.join(site, "bin"))
+  script = File.join(site, "bin", File.basename(SELF_PATH))
+  File.write(script, File.binread(SELF_PATH))
+  File.chmod(0o755, script)
+  GREEN.each { |rel, body| write(site, rel, body) }
+
+  sib = File.join(dir, "reference", "bin", "check-changelog")
+  FileUtils.mkdir_p(File.dirname(sib))
+  File.write(sib, File.binread(SELF_PATH))
+
+  _, err, st = Open3.capture3("git", "-C", site, "init", "-q")
+  raise "git init failed: #{err}" unless st.success?
+
+  script
+end
+
+def stage(dir)
+  _, err, st = Open3.capture3("git", "-C", File.join(dir, "kiosk.tech"), "add", "-A")
+  raise "git add failed: #{err}" unless st.success?
+end
+
+# The fixture needs a real BASELINE COMMIT, because "new" is defined against one.
+# Everything in GREEN is committed here; every plant is therefore
+# working-tree-only and reads as new, which is the arrangement the real
+# repository is in.
+def commit_fixture(dir)
+  site = File.join(dir, "kiosk.tech")
+  _, err, st = Open3.capture3("git", "-C", site,
+                              "-c", "user.email=fixture@example.invalid",
+                              "-c", "user.name=fixture",
+                              "commit", "-q", "--no-gpg-sign", "-m", "baseline")
+  raise "git commit failed: #{err}" unless st.success?
+
+  out, err2, st2 = Open3.capture3("git", "-C", site, "rev-parse", "HEAD")
+  raise "git rev-parse failed: #{err2}" unless st2.success?
+
+  out.strip
+end
+
+def run_guard_in(script, baseline = nil)
+  args = baseline ? ["--baseline", baseline] : []
+  Open3.capture3(RbConfig.ruby, script, *args)
+end
+
+def self_test_fixture(failures)
+  Dir.mktmpdir("check-changelog") do |dir|
+    script = build_fixture(dir)
+    stage(dir)
+    base = commit_fixture(dir)
+
+    out, err, st = run_guard_in(script, base)
+    if st.exitstatus.zero?
+      puts "  green tree: exit 0 with every legitimate shape present -- OK"
+    else
+      failures << "the green fixture tree should exit 0; it exited #{st.exitstatus}\n#{out}#{err}"
+    end
+    unless out.include?("carrying an ISO date")
+      failures << "the guard printed no entry-date census, so CL-7's non-vacuity cannot be read off it"
+    end
+    unless out.include?("sibling identical")
+      failures << "the fixture's sibling was not recognised, so CL-10 is untested here:\n#{out}"
+    end
+
+    census = out[/CENSUS, never failed: of the backlog, (\d+) are/, 1].to_i
+    if census.positive?
+      puts "  backlog: #{census} committed entry(ies) over the cap, still exit 0 -- OK"
+    else
+      failures << "the fixture's pre-baseline long entry was not counted, so the never-redden " \
+                  "property is proved by nothing:\n#{out}"
+    end
+
+    outb, errb, stb = run_guard_in(script, "0" * 40)
+    combinedb = "#{outb}#{errb}"
+    if stb.exitstatus.zero?
+      failures << "an unresolvable baseline exited 0 -- the arms silently did not run"
+    elsif !combinedb.include?("not in this clone")
+      failures << "an unresolvable baseline failed without saying why:\n#{combinedb}"
+    else
+      puts "  unresolvable baseline: exit #{stb.exitstatus}, named with its remedy -- OK"
+    end
+
+    changelog = File.join(dir, "kiosk.tech", "CHANGELOG.md")
+    sibling   = File.join(dir, "reference", "bin", "check-changelog")
+    keep      = { changelog => File.binread(changelog), sibling => File.binread(sibling) }
+
+    ARMS.each do |arm|
+      arm[:plant].call(dir)
+      stage(dir)
+      out2, err2, st2 = run_guard_in(script, base)
+      combined = "#{out2}#{err2}"
+      if st2.exitstatus.zero?
+        failures << "planting #{arm[:id]} did not turn the guard red"
+      elsif !combined.include?("[#{arm[:id]}]")
+        failures << "#{arm[:id]}'s plant fired, but not under its own id:\n#{combined}"
+      else
+        puts "  plant #{arm[:id]}: exit #{st2.exitstatus}, reported by id -- OK"
+      end
+
+      keep.each { |abs, body| File.write(abs, body) }
+      stage(dir)
+    end
+
+    # THE SIBLING IS NOT ALWAYS THERE, and a run without it must SAY so rather
+    # than report a comparison it did not make.
+    FileUtils.rm_rf(File.join(dir, "reference"))
+    out5, err5, st5 = run_guard_in(script, base)
+    if !st5.exitstatus.zero?
+      failures << "a run with no sibling should stay green on its own arms; it exited " \
+                  "#{st5.exitstatus}\n#{out5}#{err5}"
+    elsif !out5.include?("CL-10 did NOT run")
+      failures << "a run with no sibling did not say that CL-10 could not run:\n#{out5}"
+    else
+      puts "  no sibling: exit 0 and says CL-10 did not run -- OK"
+    end
+  end
+end
+
+def run_self_test
+  failures = []
+  self_test_fixture(failures)
+
+  base = baseline_of(REPO, nil)
+  failures << "the declared baseline #{base[:rev]} is not in this clone" if base[:missing]
+  result = scan(REPO, base)
+
+  failures << "the real tree found no tracked changelog at all" if result[:files].zero?
+  if result[:entries] < 100
+    failures << "the real tree found #{result[:entries]} entry(ies) -- CL-7/CL-8/CL-9 are vacuous here"
+  end
+  if result[:backlog] < 100
+    failures << "the real tree found #{result[:backlog]} pre-baseline entry(ies) -- the baseline " \
+                "resolved to something that is not this repository's history"
+  end
+  if result[:long_back].zero?
+    failures << "not one pre-baseline entry is at or over #{LENGTH_CAP} characters, so the census " \
+                "tier is proving nothing here and CL-8 could be scoped to the whole file instead"
+  end
+  if result[:shared_lines] < 20
+    failures << "the shared rule block reads #{result[:shared_lines]} line(s) -- the markers are gone"
+  end
+  puts "  real tree: #{result[:files]} changelog(s), #{result[:dated]} of #{result[:entries]} " \
+       "entry(ies) dated, baseline #{result[:baseline][0, 12]}, #{result[:backlog]} at or before " \
+       "it (#{result[:long_back]} over the length cap, #{result[:multi_back]} over the sentence " \
+       "cap, all census only), #{result[:fresh]} newer and held; sibling #{result[:twin]}"
+
+  status = report(result, quiet: true)
+  failures << "the guard is not green over this repository (exit #{status})" unless status.zero?
+  puts "  real tree: check exits #{status}"
+
+  if failures.empty?
+    puts
+    puts "check-changelog --self-test: OK -- red on a plant of every arm (CL-7..CL-10) and on an " \
+         "unresolvable baseline, green on a committed entry over both caps and on a run with no " \
+         "sibling, and non-vacuous over this repository."
+    return 0
+  end
+
+  $stdout.flush
+  warn ""
+  warn "check-changelog --self-test: FAIL"
+  failures.each { |f| warn "  #{f}" }
+  1
+end
+
+# ── entry point ──────────────────────────────────────────────────────────────
+
+args     = ARGV.dup
+baseline = nil
+if (i = args.index("--baseline"))
+  baseline = args[i + 1]
+  args.slice!(i, 2)
+  if baseline.nil? || baseline.empty?
+    warn "usage: check-changelog [--baseline REV] [--self-test]"
+    exit 2
+  end
+end
+
+code =
+  case args[0]
+  when nil           then run_check(baseline: baseline)
+  when "--self-test" then run_self_test
+  else
+    warn "usage: check-changelog [--baseline REV] [--self-test]"
+    2
+  end
+exit code

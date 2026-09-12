@@ -1,0 +1,63 @@
+name: changelog
+
+# Every new changelog entry is short, and every entry says when. Phil's rule,
+# 2026-09-11, his words:
+#
+#   "Keep the entries short, always under 200 characters and one-two sentences.
+#    Only keep the essence of the change. git commit messages will keep the
+#    details. In the CHANGELOG, only keep the essence."
+#
+# WHY IT IS A GATE AND NOT A HEADER. The header says it too, and a header holds
+# nothing: this repository's changelog is the second largest in the workspace and
+# it drifted into a page-per-entry register while three constitutions each
+# described the register instead of the rule. The sibling repository has held its
+# changelogs since T-115; this one had nothing at all.
+#
+# THE ARMS ARE SCOPED TO WHAT IS NEW, which is the K-1097 property and not a
+# softening: the standing corpus is long, it is append-only, and a gate red on a
+# backlog nobody may drain is a gate somebody switches off. Everything at or
+# before the baseline commit named in the guard is printed as a derived census
+# and never failed.
+#
+# NO PATH FILTER, for the reason the sibling workflows here each record: the
+# guard's corpus is `git ls-files '*CHANGELOG.md'`, so a filter would be a hand
+# list of exactly the thing the guard derives. It costs ~1 s.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  changelog:
+    name: new entries are short and every entry says when (bin/check-changelog)
+    runs-on: ubuntu-latest
+
+    steps:
+      # fetch-depth: 0 is required, not tidiness — the guard reads the baseline
+      # commit's changelog to tell a new entry from the standing backlog, and a
+      # shallow clone does not have that commit. The guard FAILS rather than
+      # skipping when it is absent, so a shallow checkout is red here instead of
+      # silently green.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The runner's preinstalled Ruby. The guard is stdlib-only (open3,
+      # fileutils, rbconfig, tmpdir) and shells out to git; there is no Gemfile
+      # and no Ruby toolchain in this repository.
+      #
+      # The self-test runs FIRST and is a step of its own, for the reason the
+      # other guards here record: a corpus scan whose file set came out empty
+      # exits 0 and reads exactly like a clean repository. It builds a throwaway
+      # workspace with a baseline commit, plants each arm, and asserts the guard
+      # goes red under that arm's own id before a green run below means anything.
+      - name: The guard is red on a plant of every arm, and non-vacuous here
+        run: ruby bin/check-changelog --self-test
+
+      # CL-10 compares this repository's copy of the shared rule block with the
+      # sibling's. There is no `reference` checkout in this job, so it prints
+      # that it could not run rather than reporting a comparison it did not make;
+      # the self-test above proves both the identical and the drifted cases in
+      # its own fixture, which is where that arm is actually held.
+      - name: Every new entry is under 200 characters and at most two sentences
+        run: ruby bin/check-changelog

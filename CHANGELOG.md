@@ -1,17 +1,30 @@
 # Changelog
 
-**What this file is: this repository's dated engineering journal, newest entry
-first.** One entry per significant change to a published surface, saying what was
-wrong, what changed, and the intent, written for someone who was not there.
-Entries are as long as that takes. MEASURED 2026-09-07 over its 209 entries:
-median 688 characters, longest 1844, and **14 of them — seven per cent — short
-enough to be the «one line, 1–2 sentences» this header used to ask for.** A
-header its own file contradicts on ninety-three per cent of its lines teaches a
-reader to skip headers, so it says what is true instead. The concise release-note
-form rule 5 asks for is kept where it belongs and ships: the per-gem changelogs
-in the reference repository. This correction is the sibling of the one made to
-that repository's root changelog the day before; the defect was in both files and
-only one was fixed, which is the miss this entry records.
+**THE RULE FOR EVERY NEW ENTRY, first on this page on purpose (Phil,
+2026-09-11, his words):**
+
+> **Keep the entries short, always under 200 characters and one-two sentences.
+> Only keep the essence of the change. git commit messages will keep the
+> details. In the CHANGELOG, only keep the essence.**
+
+It binds every `CHANGELOG.md` in this workspace, and this repository tracks
+exactly one. The details belong in the commit message and in the ledger row.
+`bin/check-changelog` holds the rule (arms CL-8 length, CL-9 sentences) on
+entries that are NEW against its declared baseline commit, and prints
+everything older as a census that never reddens.
+
+**Every top-level entry opens with its ISO date** — it is this file's only
+ordering affordance, and `bin/check-changelog` fails on an entry that omits one
+(arm CL-7).
+
+**What this file is:** the repository record, newest entry first. One entry per
+significant change to a published surface.
+
+**Nothing already written is edited.** History is append-only: an entry that has
+turned out to be wrong is superseded by a new entry that says so and names it,
+never rewritten. The entries below the baseline are long; they stay as written.
+
+- 2026-09-12: **Changelog entries are capped at 200 characters and two sentences (Phil), and a new `bin/check-changelog` holds it.** Only entries newer than the baseline are gated.
 
 - 2026-09-12: **this repository's ledger-id ban carried the same leading `\b` as its two siblings, and an id written behind an escape sequence walks straight through one (K-1537).** In source text `\n` is TWO characters — a backslash and the LETTER `n` — so `"\nK-724 …"` puts a word character immediately before the id and `/\b[KT]-\d{3,4}\b/` cannot match. The row was filed against the reference repository, where the blindness was WATCHED at exit 0 on a real demo file and at exit 1 on the same line without the escape; the identical pattern is spelled here, on pages that quote identifiers and on `.json` and `.sh` files where a `\n` inside a string is ordinary. WATCHED here too, on `spec/protocol.md`, restored from a `cp` copy with sha256 `9e4f5e7ead26b8672d9553c7c186626b8960addd3d1ac8fa93f3656526e19c24` re-verified: the escaped line is now **exit 1** where the boundary alone left it green, and `SK-001` stays **exit 0**. Dropping the leading boundary — the row's own proposed remedy — is refused for a measured reason rather than a stylistic one: in the sibling repository it admits 141 lines that carry no ledger id at all. So the boundary holds and an ESCAPE RUN is admitted beside it, a backslash and one to five alphanumerics, five being the longest escape with an all-alphanumeric body. R2 and R4 take the same boundary, since an ADR reference and the maintainer's name are the identical shape. The new self-test arms are DERIVED rather than listed — every single-character escape the boundary's own character class can spell, 62 of them, plus the run ladder read off the constant and an arm that fails one past its ceiling — because the four escape letters somebody thinks of are the four that would get tested, and `\n` was invisible precisely because nobody thought of it. Nothing on any published page changes. Intent: a ban blind to a spelling of the thing it bans prints the same clean zero as an obeyed one, and three guards were printing it.
 

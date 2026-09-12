@@ -49,14 +49,18 @@ demonstrated by the reference implementation.
    text, skill instructions, or claims — get an entry in the touched repo's
    `CHANGELOG.md` stating the essence and intent of the change, not its
    content. Tests-only changes, refactors, typos do not qualify.
-   **Two registers, and the difference was measured — do not collapse them.**
-   A per-gem `CHANGELOG.md` ships inside the package and its reader meets it
-   with no repository around them, so the concise 1–2 sentence form is what
-   those release notes are written TO; **this repository ships no gem and has
-   none** (zero `.gemspec` files tracked), so that register has no instance
-   here. A repository-root `CHANGELOG.md` — the only changelog here — is a
-   dated engineering journal: one entry per significant change, written for
-   someone who was not there, as long as that takes. The
-   umbrella constitution carries the derivation (K-1342 measured that only 4%
-   of the reference repo's root entries ever met the one-line form; K-1382 re-derived
-   the per-gem corpus) — re-measure rather than quoting a number from it.
+   **THE STRONG RULE (Phil, 2026-09-11), his words. It binds EVERY
+   `CHANGELOG.md` in this workspace, and this repository tracks exactly one
+   (it ships no gem — zero `.gemspec` files tracked). There is no second
+   register and no exception; the «journal for the root file, release notes
+   for the gems» split this rule used to carry is REPEALED:**
+
+   > **Keep the entries short, always under 200 characters and one-two
+   > sentences. Only keep the essence of the change. git commit messages will
+   > keep the details. In the CHANGELOG, only keep the essence.**
+
+   The details belong in the git commit message and in the ledger row. Nothing
+   already written is edited — a changelog is append-only history — so the long
+   standing corpus stays as it is, and `bin/check-changelog` (arms CL-8 length,
+   CL-9 sentences) holds the rule on entries that are NEW against its declared
+   baseline commit, printing the backlog as a census that never reddens.
