@@ -134,22 +134,25 @@ COPULA_RE   = /\b(?:is|are|am|be|been|being|was|were|isn't|aren't|wasn't|weren't
 MARKER_RE   = /#{EDGE_BEFORE}(?:#{LABEL_WORDS.join('|')})#{EDGE_AFTER}/i
 INFINITIVE_AFTER_RE = /\A[ ]+to[ ]+\p{L}/
 
-# THE ONE PREDICATE THIS GUARD ADDS TO THE REFERENCE GUARD'S SET, and the
-# divergence is declared rather than quiet. A marker glued to its OPPOSITE by a
-# slash names the AXIS — «names, required/optional, types, enums, ranges» is a
+# THE SLASH PREDICATE, CARRIED BY BOTH GUARDS. A marker glued to its OPPOSITE by
+# a slash names the AXIS — «names, required/optional, types, enums, ranges» is a
 # list of the things a JSON Schema declares, in ADR-0023 decision 2's own
 # words — and an axis is never a label on the property carrying the sentence.
 # The shared `EDGE` already treats `-` and `_` this way for the same reason; a
-# `/` is the third compound joiner and it is separated here, as its own test,
-# so the two guards' shared vocabulary stays identical character for character
-# and the extra question is visible.
+# `/` is the third compound joiner and it is a separate test rather than a fourth
+# character in `EDGE`, so the extra question stays visible on both sides.
+#
+# `reference/bin/check-descriptor-prose` asks the identical question of Ruby, and
+# the vocabulary above plus `label_marker` below are kept character-identical in
+# the two files BY HAND — nothing in either repository compares them, and that
+# gap is filed as K-1526 rather than implied by this sentence.
 #
 # MEASURED rather than imagined: the shape is live once in this corpus
 # (`schema-descriptor.schema.json`'s `input_schema`) and twice more in the
 # reference repository, in the comments that document the descriptor API
 # (`kiosk-server/lib/kiosk/server/{actions,queries}.rb`). Those two are Ruby
 # COMMENTS rather than `description:` values, so the reference guard does not
-# read them and is not red on them today — see K-1524.
+# read them.
 SLASH_BEFORE_RE = %r{/\z}
 SLASH_AFTER_RE  = %r{\A/}
 
