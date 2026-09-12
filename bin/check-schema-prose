@@ -46,23 +46,28 @@
 #
 # ── THE BAN AND THE CENSUS, AND WHY THE LINE IS WHERE IT IS ─────────────────
 #
-# MEASURED over this corpus when the guard was written: 61 tracked JSON files,
-# 177 property descriptions, and 21 carrying an optionality-ish word. Reading
-# all 21, roughly eighteen of them are bare membership labels — «OPTIONAL
-# human-readable detail», «REQUIRED; an expired attestation is rejected»,
-# «Advisory minimum client version (optional)» — and they sit in the WIRE
-# schemas: auth, binding, discovery, kyc, mandates, pow, problem.
+# THE LINE IS THE RULING, NOT THE RESIDUE, and those were the same thing only
+# for as long as there was a residue. Do not read a number out of this comment:
+# the run prints its own SCOPE block and its own CENSUS TOTAL, derived on every
+# invocation, and those are the figures to quote (K-1451's caveat, applied to a
+# guard's header). What is durable is the shape of the argument.
 #
-# So a ban over the whole corpus would be red on eighteen sites the day it
-# landed, and draining them is a normative edit to seven published documents
-# that wants its own review rather than a guard's exit code. ADR-0023 does not
-# reach them either: it names the DESCRIPTOR surfaces by name and says nothing
-# about the schema for a JWT's claims. Where the ruling exists, this file bans;
-# where it does not, it COUNTS and prints, and the count is what makes the
-# backlog visible and the boundary a decision. That is the same split
-# `check-shipped-archaeology` keeps between its rules and its censuses, for the
-# same measured reason: a gate that is red on a standing backlog nobody has
-# agreed to drain is a gate somebody switches off.
+# ADR-0023 decision 1 re-scopes a DESCRIPTOR's `description` to semantics and
+# names the descriptor surfaces one by one; it says nothing about the schema for
+# a JWT's claims, a discovery document or an RFC 9457 problem. So the ban stands
+# where the ruling stands — the descriptor schema — and everywhere else this
+# file COUNTS and prints. That is the same split `check-shipped-archaeology`
+# keeps between its rules and its censuses, for the same measured reason: a gate
+# that is red on a standing backlog nobody has agreed to drain is a gate
+# somebody switches off.
+#
+# The wire schemas' own bare labels were drained by hand under K-1525 — nineteen
+# of them across auth, binding, discovery, kyc, mandates, pow and problem, every
+# semantic clause kept — so the census that used to carry them now prints the
+# constructions it was always meant to leave alone. **NOTHING HOLDS THAT DRAIN**:
+# widening R1 to the whole corpus would today be red on nothing, and the only
+# thing still stopping it is that no ruling reaches those documents. That gap is
+# filed as K-1527 rather than left as an inference from this paragraph.
 #
 #   R1  BAN — no property description in the DESCRIPTOR schema carries a bare
 #       optionality label. Red.
