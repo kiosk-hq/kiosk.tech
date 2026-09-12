@@ -10,7 +10,9 @@
 # twice drifts, and the copy in prose is the one nothing checks. That ADR names
 # the file this repository publishes as one of the surfaces that follows under
 # rule 1, so the clause binds the DESCRIPTOR SCHEMA here and not only the demo
-# initializers in the reference implementation.
+# initializers in the reference implementation; ADR-0032 then widened the clause
+# to EVERY published schema's property descriptions, which is the scope of the
+# ban below.
 #
 # WHY THIS GUARD IS IN *THIS* REPOSITORY, and it is a refusal on the other side
 # rather than an omission on this one. `reference/bin/check-descriptor-prose`
@@ -52,36 +54,38 @@
 # invocation, and those are the figures to quote (K-1451's caveat, applied to a
 # guard's header). What is durable is the shape of the argument.
 #
-# ADR-0023 decision 1 re-scopes a DESCRIPTOR's `description` to semantics and
-# names the descriptor surfaces one by one; it says nothing about the schema for
-# a JWT's claims, a discovery document or an RFC 9457 problem. So the ban stands
-# where the ruling stands — the descriptor schema — and everywhere else this
-# file COUNTS and prints. That is the same split `check-shipped-archaeology`
-# keeps between its rules and its censuses, for the same measured reason: a gate
-# that is red on a standing backlog nobody has agreed to drain is a gate
-# somebody switches off.
+# THE BAN COVERS THE WHOLE CORPUS, AND IT DID NOT ALWAYS (ADR-0032, K-1527).
+# ADR-0023 decision 1 re-scoped a DESCRIPTOR's `description` to semantics and
+# named the descriptor surfaces one by one; it said nothing about the schema for
+# a JWT's claims, a discovery document or an RFC 9457 problem. So this file was
+# built with the ban standing exactly where the ruling stood — one schema — and
+# COUNTING the identical shape everywhere else, on the measured reason that a
+# gate red on a standing backlog nobody has agreed to drain is a gate somebody
+# switches off. There WAS such a backlog: nineteen bare labels across auth,
+# binding, discovery, kyc, mandates, pow and problem.
 #
-# The wire schemas' own bare labels were drained by hand under K-1525 — nineteen
-# of them across auth, binding, discovery, kyc, mandates, pow and problem, every
-# semantic clause kept — so the census that used to carry them now prints the
-# constructions it was always meant to leave alone. **NOTHING HOLDS THAT DRAIN**:
-# widening R1 to the whole corpus would today be red on nothing, and the only
-# thing still stopping it is that no ruling reaches those documents. That gap is
-# filed as K-1527 rather than left as an inference from this paragraph.
+# K-1525 drained all nineteen by hand, keeping every semantic clause, which left
+# the ban narrow and the drained documents held by NOTHING — a census is printed
+# and never red, and a class drained by hand grows back. ADR-0032 supplies the
+# missing half: the semantics-only clause binds every published JSON Schema's
+# property descriptions, because the reason ADR-0023 gave is about the STRUCTURE
+# of a JSON Schema — the membership decision is machine-readable and sits three
+# lines from the prose — and that is as true of a JWT claim as of a descriptor.
+# So R1 now reads the whole corpus, and it was green on the day it widened.
 #
-#   R1  BAN — no property description in the DESCRIPTOR schema carries a bare
+#   R1  BAN — no property description ANYWHERE in the corpus carries a bare
 #       optionality label. Red.
-#   C1  CENSUS — every property description anywhere in the corpus carrying an
-#       optionality-ish word, printed with the membership its own `required`
-#       array decides, so a human can read the two side by side. Never red.
+#   C1  CENSUS — every property description carrying an optionality-ish word
+#       that is NOT a bare label, printed with the membership its own `required`
+#       array decides, so a human can read the two side by side. Never red, and
+#       it is the surface on which the next word gets adjudicated.
 #
-# THE BAN'S SCOPE IS DERIVED, NOT A FILENAME. The descriptor schema is the one
-# whose `$defs` declares a `descriptor` with both `input_schema` and
-# `output_schema` among its properties — which is what a descriptor IS, per
-# ADR-0023 decisions 2 and 3. A self-test arm requires that derivation to
-# resolve to exactly one file, so renaming the schema keeps the ban and
-# deleting the two properties it is about costs a decision instead of silently
-# emptying the scope.
+# THE BAN'S SCOPE IS THE CORPUS, DERIVED FROM `git ls-files` AND NOT LISTED, so
+# a schema added tomorrow is held with no edit here. What the self-test asserts
+# in place of the old exactly-one-schema arm is that the corpus is non-empty,
+# that the walk finds property descriptions in it, and that it finds them in
+# MORE THAN ONE FILE — a scope that collapses back to one document is the same
+# silent narrowing this section is about.
 #
 # THE MARKER IS THE ONE THE REFERENCE GUARD MEASURED, character for character,
 # because the two ask one question of two languages and a second opinion nobody
@@ -131,6 +135,19 @@ LIST      = ARGV.include?("--list")
 SELF_TEST = ARGV.include?("--self-test")
 
 # ── the markers, taken from reference/bin/check-descriptor-prose ─────────────
+#
+# EVERYTHING BETWEEN THE TWO MARKERS BELOW IS SHARED WITH THAT GUARD, which
+# asks this question of Ruby. `reference/bin/check-descriptor-prose` HOLDS THE
+# TWO BLOCKS EQUAL — its LOCKSTEP section reads this file when the two repos
+# are checked out beside each other, compares every line of CODE between these
+# markers, and fails naming the first line that differs. Comments are not
+# compared, so each side keeps its own commentary.
+#
+# So: an edit inside these markers is an edit to BOTH FILES, and moving one of
+# these constants out from between the markers is itself a failure over there —
+# the block has to be closed under its own references.
+
+# >>> SHARED VOCABULARY
 
 LABEL_WORDS = %w[optionally optional required mandatory compulsory].freeze
 EDGE_BEFORE = /(?<![-_\p{L}\p{N}])/
@@ -148,9 +165,12 @@ INFINITIVE_AFTER_RE = /\A[ ]+to[ ]+\p{L}/
 # character in `EDGE`, so the extra question stays visible on both sides.
 #
 # `reference/bin/check-descriptor-prose` asks the identical question of Ruby, and
-# the vocabulary above plus `label_marker` below are kept character-identical in
-# the two files BY HAND — nothing in either repository compares them, and that
-# gap is filed as K-1526 rather than implied by this sentence.
+# the vocabulary above plus `label_marker` below are HELD character-identical in
+# the two files by that guard's LOCKSTEP arm (K-1526) — it was hand-kept until
+# then, and the two diverged by exactly this predicate for a day because nothing
+# asked. What the arm cannot do is see this file when the repositories are not
+# checked out beside each other: there it says NOT COMPARED and this guard's own
+# CI, which clones this repo alone, is one such place.
 #
 # MEASURED rather than imagined: the shape is live once in this corpus
 # (`schema-descriptor.schema.json`'s `input_schema`) and twice more in the
@@ -176,6 +196,8 @@ def label_marker(text)
   end
   nil
 end
+
+# <<< SHARED VOCABULARY
 
 # Everything that SPELLS optionality, banned or not. `forbidden` is here and
 # not in `LABEL_WORDS` — see the header.
@@ -220,23 +242,6 @@ def properties_in(node, file, pointer, out)
   out
 end
 
-# THE BAN'S SCOPE, DERIVED: the schema that declares a `descriptor` carrying
-# both an `input_schema` and an `output_schema` — which is what ADR-0023
-# decisions 2 and 3 make a descriptor.
-def descriptor_schemas(root, files)
-  files.select do |rel|
-    doc = parse(root, rel)
-    next false unless doc.is_a?(Hash)
-
-    defs = doc["$defs"]
-    next false unless defs.is_a?(Hash)
-
-    d = defs["descriptor"]
-    d.is_a?(Hash) && d["properties"].is_a?(Hash) &&
-      %w[input_schema output_schema].all? { |k| d["properties"].key?(k) }
-  end
-end
-
 def parse(root, rel)
   JSON.parse(File.read(File.join(root, rel), encoding: "UTF-8"))
 rescue JSON::ParserError => e
@@ -257,19 +262,18 @@ def run_check(root)
     return 1
   end
 
-  banned_files = descriptor_schemas(root, files)
   props = collect(root, files)
+  read_in = props.map(&:file).uniq
 
   puts "SCOPE (derived from `git ls-files` and from the documents themselves, not listed)"
   puts "  tracked schemas   : #{files.size}"
   puts "  property descriptions with a membership decided beside them: #{props.size}"
-  puts "  R1 (ban) reaches  : #{banned_files.join(', ')}"
-  puts "                      — the schema declaring a `descriptor` with an input_schema and " \
-       "an output_schema"
-  puts "  C1 (census) reads : all #{files.size}, printed and never red — ADR-0023 names the " \
-       "descriptor surfaces and"
-  puts "                      says nothing about the wire schemas; where there is no ruling " \
-       "this file counts"
+  puts "  R1 (ban) reaches  : every one of them — #{read_in.size} file(s) carry at least one " \
+       "(ADR-0032)"
+  puts "  C1 (census) reads : the same set, printed and never red — optionality prose that is " \
+       "NOT a bare"
+  puts "                      label is the prose doing its job, and this is where the next " \
+       "word is adjudicated"
   puts
 
   if LIST
@@ -277,24 +281,23 @@ def run_check(root)
     return 0
   end
 
-  if banned_files.empty?
-    puts "FAIL: R1's scope is EMPTY — no tracked schema declares a `descriptor` with both an " \
-         "`input_schema` and an `output_schema`, so the ban reads nothing and would report a " \
-         "clean zero forever. Either the schema moved or the descriptor's shape changed; " \
-         "either way this is a decision, not a pass."
+  if props.empty?
+    puts "FAIL: R1's scope is EMPTY — #{files.size} tracked schema(s) and not one property " \
+         "description with a `required` array beside it, so the ban reads nothing and would " \
+         "report a clean zero forever. Either the walk stopped recognising a property or the " \
+         "documents changed shape; either way this is a decision, not a pass."
     return 1
   end
 
   failed = false
-  in_ban = props.select { |p| banned_files.include?(p.file) }
-  violations = in_ban.filter_map do |p|
+  violations = props.filter_map do |p|
     m = label_marker(p.description)
     [p, m] if m
   end
 
   if violations.empty?
-    puts "R1. no property description in the descriptor schema carries a bare optionality " \
-         "label — OK (#{in_ban.size} property description(s))"
+    puts "R1. no property description in any published schema carries a bare optionality " \
+         "label — OK (#{props.size} property description(s) over #{read_in.size} file(s))"
   else
     failed = true
     puts "R1. FAIL — #{violations.size} property description(s) restate the membership their " \
@@ -337,11 +340,36 @@ end
 
 # ── the self-test ───────────────────────────────────────────────────────────
 
+# The detector's probes and foils, as data rather than as a number typed into
+# the summary line: that line said «6 foil(s)» while eight were listed two
+# screens above it, which is the hand-kept count this file's own header tells a
+# reader not to trust (K-1529).
+DETECTOR_PROBES = [
+  ["MID-STRING", "The delivery date. Optional; the shop picks one when omitted."],
+  ["UPPERCASE at the head", "OPTIONAL. RFC 7638 thumbprint of the public key."],
+  ["a parenthetical", "Advisory minimum client version (optional)."],
+  ["a semicolon label", "REQUIRED; an expired attestation is rejected."],
+  ["a label after a clause", "Spending cap; REQUIRED (a nil cap is rejected)."],
+].freeze
+
+DETECTOR_FOILS = [
+  ["the COPULA complement", "The offset IS REQUIRED, and a bare local time is refused."],
+  ["a HYPHENATED compound", "Licence-required vehicles are gated by the attestation."],
+  ["an UNDERSCORE wire value", "The hint is the literal `setup_required.`"],
+  ["an INFINITIVE complement", "Reserved: always accepted, never required to be declared."],
+  ["the verb form", "The verifier requires a signature over the whole document."],
+  ["plain semantics", "Unchanged if omitted; the address's own clock decides."],
+  ["a SLASH compound naming the axis", "Inputs: names, required/optional, types, enums."],
+  ["the same compound the other way round", "It declares optional/required per field."],
+].freeze
+
 def self_test(root)
   require "tmpdir"
   require "fileutils"
   failures = []
+  arms = 0
   check = lambda do |name, ok|
+    arms += 1
     puts(ok ? "  ok   #{name}" : "  FAIL #{name}")
     failures << name unless ok
   end
@@ -353,25 +381,10 @@ def self_test(root)
                "a word deleted from the alternation fails here rather than passing silently",
                !label_marker("#{w.capitalize} thing an assistant may send.").nil?)
   end
-  [
-    ["MID-STRING", "The delivery date. Optional; the shop picks one when omitted."],
-    ["UPPERCASE at the head", "OPTIONAL. RFC 7638 thumbprint of the public key."],
-    ["a parenthetical", "Advisory minimum client version (optional)."],
-    ["a semicolon label", "REQUIRED; an expired attestation is rejected."],
-    ["a label after a clause", "Spending cap; REQUIRED (a nil cap is rejected)."]
-  ].each do |name, text|
+  DETECTOR_PROBES.each do |name, text|
     check.call("R1's detector fires on #{name}", !label_marker(text).nil?)
   end
-  [
-    ["the COPULA complement", "The offset IS REQUIRED, and a bare local time is refused."],
-    ["a HYPHENATED compound", "Licence-required vehicles are gated by the attestation."],
-    ["an UNDERSCORE wire value", "The hint is the literal `setup_required.`"],
-    ["an INFINITIVE complement", "Reserved: always accepted, never required to be declared."],
-    ["the verb form", "The verifier requires a signature over the whole document."],
-    ["plain semantics", "Unchanged if omitted; the address's own clock decides."],
-    ["a SLASH compound naming the axis", "Inputs: names, required/optional, types, enums."],
-    ["the same compound the other way round", "It declares optional/required per field."]
-  ].each do |name, text|
+  DETECTOR_FOILS.each do |name, text|
     check.call("R1's detector does NOT fire on #{name} — a false red here is a repair that " \
                "makes the document worse", label_marker(text).nil?)
   end
@@ -389,52 +402,85 @@ def self_test(root)
     end
     Open3.capture3("git", "-C", dir, "add", "-A")
 
-    plant = lambda do |rel, name, label|
+    # Prefix the label onto the FIRST property description this document
+    # carries, found by the same structural walk the run uses — no pointer and
+    # no property name is written down here, so a plant cannot rot into a
+    # no-op against a renamed field. It returns the name it hit, and a nil is
+    # itself a failure.
+    plant = lambda do |rel, label|
       path = File.join(dir, rel)
-      doc = JSON.parse(File.read(path))
-      doc["$defs"]["descriptor"]["properties"][name]["description"] =
-        "#{label} #{doc['$defs']['descriptor']['properties'][name]['description']}"
-      File.write(path, JSON.pretty_generate(doc))
+      doc  = JSON.parse(File.read(path))
+      hit  = nil
+      walk = lambda do |node|
+        return if hit
+
+        case node
+        when Hash
+          entries = node["properties"]
+          if entries.is_a?(Hash)
+            entries.each do |name, value|
+              next unless value.is_a?(Hash) && value["description"].is_a?(String)
+
+              value["description"] = "#{label} #{value['description']}"
+              hit = "#{name} in #{rel}"
+              break
+            end
+          end
+          node.each_value { |v| walk.call(v) } unless hit
+        when Array
+          node.each { |v| walk.call(v) }
+        end
+      end
+      walk.call(doc)
+      File.write(path, JSON.pretty_generate(doc)) if hit
+      hit
     end
     restore = ->(rel) { FileUtils.cp(File.join(root, rel), File.join(dir, rel)) }
 
-    descr = descriptor_schemas(dir, tracked_schemas(dir))
-    check.call("the fixture corpus resolves the SAME single descriptor schema the real one " \
-               "does — the derivation is structural and travels with the bytes",
-               descr.size == 1 && descr == descriptor_schemas(root, files))
+    # WHICH FILES ARE PLANTED IN IS DERIVED, because the ban's scope is now the
+    # whole corpus (ADR-0032) and a plant in one document would prove the rule
+    # only for that document. First, middle and last of the files that carry a
+    # property description, so the set spans the published schemas and the
+    # example fixtures beside them and follows the corpus as it grows.
+    with_props = collect(dir, tracked_schemas(dir)).map(&:file).uniq.sort
+    check.call("the fixture corpus carries property descriptions in more than one file " \
+               "(#{with_props.size}) — a plant set of one document proves the rule for one " \
+               "document", with_props.size > 1)
+    targets = [with_props.first, with_props[with_props.size / 2], with_props.last].compact.uniq
 
-    rel = descr.first
-    [
-      ["a REQUIRED. label on a property that IS in the array", "reach", "REQUIRED."],
-      ["an OPTIONAL label on a property that is NOT", "example_row", "OPTIONAL"],
-      ["a mid-sentence label", "input_schema", "Mandatory —"]
-    ].each do |name, prop, label|
-      plant.call(rel, prop, label)
-      out, = Open3.capture2e(RbConfig.ruby, __FILE__, chdir: dir) rescue nil
+    targets.zip(["REQUIRED.", "OPTIONAL", "Mandatory —"].cycle.first(targets.size))
+           .each do |rel, label|
+      hit = plant.call(rel, label)
+      if hit.nil?
+        check.call("planting #{label.inspect} in #{rel}: it carries no property description " \
+                   "any more, so this arm proves nothing", false)
+        next
+      end
       code = run_in(dir)
       restore.call(rel)
-      check.call("R1 is RED on #{name}", code == 1)
-      _ = out
+      check.call("R1 is RED on a #{label.inspect} label planted on `#{hit}`", code == 1)
     end
 
     check.call("…and GREEN again once the plants are restored", run_in(dir).zero?)
 
-    # ── VACUITY: an empty corpus and an empty ban scope are FAILURES, not
-    #    passes — a check over nothing reports the same clean zero as an
-    #    obeyed one ────────────────────────────────────────────────────────
+    # ── VACUITY: a corpus with no files, and a corpus whose files carry no
+    #    property description, are FAILURES rather than passes — a check over
+    #    nothing reports the same clean zero as an obeyed one ───────────────
     Dir.mktmpdir("schema-prose-empty") do |empty|
       Open3.capture3("git", "-C", empty, "init", "-q")
       check.call("an EMPTY corpus is red, not clean", run_in(empty) == 1)
     end
 
-    Dir.mktmpdir("schema-prose-noban") do |noban|
-      Open3.capture3("git", "-C", noban, "init", "-q")
-      FileUtils.mkdir_p(File.join(noban, "spec", "schemas"))
-      other = files.find { |f| f != rel }
-      FileUtils.cp(File.join(root, other), File.join(noban, "spec", "schemas", File.basename(other)))
-      Open3.capture3("git", "-C", noban, "add", "-A")
-      check.call("a corpus with schemas but NO descriptor schema is red — the ban's scope " \
-                 "draining to nothing is a decision, not a pass", run_in(noban) == 1)
+    Dir.mktmpdir("schema-prose-noprops") do |noprops|
+      Open3.capture3("git", "-C", noprops, "init", "-q")
+      FileUtils.mkdir_p(File.join(noprops, "spec", "schemas"))
+      File.write(File.join(noprops, "spec", "schemas", "shapeless.schema.json"),
+                 JSON.pretty_generate({ "$schema" => "https://json-schema.org/draft/2020-12/schema",
+                                        "title" => "no properties anywhere",
+                                        "type" => "string" }))
+      Open3.capture3("git", "-C", noprops, "add", "-A")
+      check.call("a corpus with schemas but NO property description is red — the ban's subject " \
+                 "draining to nothing is a decision, not a pass", run_in(noprops) == 1)
     end
   end
 
@@ -447,16 +493,22 @@ def self_test(root)
   check.call("C1's pattern still matches optionality prose in this repository (#{spelled} " \
              "row(s)) — a census that structurally cannot print a row is the same green " \
              "nothing as a rotted ban", spelled.positive?)
-  ban_scope = descriptor_schemas(root, files)
-  check.call("R1's scope resolves to EXACTLY ONE schema (#{ban_scope.join(', ')})",
-             ban_scope.size == 1)
-  check.call("R1 reads property descriptions in that schema " \
-             "(#{props.count { |p| ban_scope.include?(p.file) }})",
-             props.any? { |p| ban_scope.include?(p.file) })
+  # The old arm here required R1's scope to resolve to EXACTLY ONE schema, and
+  # ADR-0032 retired the question. What replaces it is the property that scope
+  # now has to keep: the ban reads MORE THAN ONE document, so a corpus that
+  # quietly collapses back onto the descriptor schema — a `git ls-files`
+  # pathspec that stops matching, a walk that stops recognising a property — is
+  # a failure and not a clean run.
+  read_in = props.map(&:file).uniq
+  check.call("R1 reads property descriptions in more than one file (#{read_in.size}) — a scope " \
+             "that collapses back to a single document is the narrowing ADR-0032 undid, " \
+             "arriving silently", read_in.size > 1)
 
   if failures.empty?
-    puts "SELF-TEST OK — #{LABEL_WORDS.size + 5} detector probe(s), 6 foil(s), 3 planted " \
-         "break(s) on disk, and 5 vacuity arm(s)"
+    puts "SELF-TEST OK — #{arms} arm(s): #{LABEL_WORDS.size + DETECTOR_PROBES.size} detector " \
+         "probe(s), #{DETECTOR_FOILS.size} foil(s), a label planted on disk in each of the " \
+         "files named above, and the vacuity arms that refuse an empty corpus, a corpus with " \
+         "no property description in it, and a scope collapsed onto one document"
     0
   else
     puts "SELF-TEST FAILED: #{failures.size} arm(s)"
