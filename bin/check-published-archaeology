@@ -107,15 +107,18 @@
 #
 # ── WHAT IS ASSERTED ─────────────────────────────────────────────────────────
 #
-#   R1  no ledger id — /\b[KT]-\d{3,4}\b/. The ledger is private and always
+#   R1  no ledger id — `[KT]-\d{3,4}`, whose leading boundary is NOT `\b`; see
+#       {WORD_START}. The ledger is private and always
 #       will be; the id names nothing a reader can open.
-#   R2  no reference to a numbered architecture decision — /\bADR-\d{4}\b/.
+#   R2  no reference to a numbered architecture decision — `ADR-\d{4}`, same
+#       boundary.
 #       Those live in a private repository. State the rule it decided.
 #   R3  no Cyrillic — /[Ѐ-ӿ]/. This project's working language is Russian and
 #       its published language is English. Guillemets, em dashes, arrows and
 #       accented Latin are not Cyrillic and stay, so the rule cannot argue with
 #       the house punctuation.
-#   R4  no maintainer named in prose — /\bPhil\b/, outside the byline shape.
+#   R4  no maintainer named in prose — `Phil`, same boundary, outside the
+#       byline shape.
 #   R5  no sentence NARRATING A PAST STATE — `formerly`, `previously`,
 #       `historically`, `until recently`, `used to be`, `before the fix`,
 #       `cutover`. A public artefact describes what IS. See the section on R5
@@ -363,10 +366,35 @@ REPO = File.expand_path("..", __dir__)
 #
 # One spelling of each shape, so there is a single thing to be wrong about.
 
-LEDGER_ID_RE  = /\b[KT]-\d{3,4}\b/
-ADR_RE        = /\bADR-\d{4}\b/
+# ── THE LEADING BOUNDARY IS NOT `\b`, AND THAT IS A MEASUREMENT (K-1537) ─────
+#
+# These rules read SOURCE TEXT, and in source text a word boundary is not where
+# a reader's eye puts one. A `\n` inside a string literal — JavaScript, JSON,
+# Ruby alike — is TWO characters, a backslash and the LETTER `n`, so an id
+# written `"\nK-724 …"` follows a word character and a leading `\b` cannot
+# match. The sibling guard was measured at exit 0 on exactly that line and at
+# exit 1 on the same line without the escape, so the PATTERN and not the scope
+# was what decided. The class is every escape whose body is a word character:
+# `\t`, `\r`, `\e`, `\s`, `\a`, `\f`, `\v`, `\b`, `\0`, `\cK`, and the
+# numeric `\101`, `\x41`, `\u0041`.
+#
+# THE OBVIOUS REMEDY — drop the leading `\b` — IS REFUSED. In the sibling
+# repository it admits 141 lines that carry no ledger id at all (129 of them one
+# demo's `SK-001` scooter), and the same shape is possible on any page here that
+# quotes an identifier. So the boundary HOLDS and an ESCAPE RUN is admitted
+# beside it: a backslash and one to five alphanumerics — five because `\u0041`
+# is the longest escape spelled with an all-alphanumeric body, and anything
+# longer or punctuated (`\u{1F600}`, a doubled `\\`) already ends in a
+# non-word character. FIXED-length lookbehinds in alternation because Onigmo
+# rejects a variable-length one, and a `RegexpError` while this file loads would
+# take out the whole guard rather than one rule.
+ESCAPE_RUN_ALTS = (1..5).map { |n| "(?<=\\\\[A-Za-z0-9]{#{n}})" }.freeze
+WORD_START      = "(?:#{ESCAPE_RUN_ALTS.join('|')}|(?<![A-Za-z0-9_]))"
+
+LEDGER_ID_RE  = /#{WORD_START}[KT]-\d{3,4}\b/
+ADR_RE        = /#{WORD_START}ADR-\d{4}\b/
 CYRILLIC_RE   = /[Ѐ-ӿ]/
-MAINTAINER_RE = /\bPhil\b/
+MAINTAINER_RE = /#{WORD_START}Phil\b/
 
 # A construction that announces a past state. A LEXICAL PROXY — see the header
 # for the marker set's argument against these pages, for the one marker the
@@ -1102,6 +1130,54 @@ def self_test
                        "OK-1234 is a fixture id, RFC 8628 a standard, CVE-2021-0001 neither.\n").empty?)
   check.call("does NOT flag too-few-digit or too-many-digit lookalikes",
              scan_text("spec/protocol.md", "K-12, T-9, ADR-12 and ADR-99999 are not citations.\n").empty?)
+
+  # ── THE ESCAPE THAT WALKED THROUGH THE LEADING BOUNDARY (K-1537) ──────────
+  #
+  # DERIVED, NOT LISTED. The four escape letters somebody thinks of are the four
+  # that get tested, and `\n` was invisible to the sibling guard for its whole
+  # existence because nobody thought of it either. So the arm asks for EVERY
+  # single-character escape the boundary's own character class can spell.
+  escape_bodies = [*"a".."z", *"A".."Z", *"0".."9"]
+  escape_blind = escape_bodies.reject do |c|
+    scan_text("spec/protocol.md", %(A line reading "\\#{c}K-724 refused".\n))
+      .any? { |h| h.rule[:id] == "R1" }
+  end
+  check.call("R1 fires on a ledger id behind EVERY single-character escape " \
+             "(#{escape_bodies.size} of them)" +
+             (escape_blind.empty? ? "" : " — missed #{escape_blind.join(', ')}"),
+             escape_blind.empty?)
+
+  # THE CEILING IS READ OFF THE CONSTANT, so this arm moves with it. `\101` and
+  # `\x41` are runs of 3, `\u0041` is 5; one longer is not an escape and the
+  # arm states that limit rather than leaving it to be met by surprise.
+  run_max = ESCAPE_RUN_ALTS.size
+  run_blind = (1..run_max).reject do |k|
+    scan_text("spec/protocol.md", %(a literal "\\#{'a' * k}K-724" here\n))
+      .any? { |h| h.rule[:id] == "R1" }
+  end
+  check.call("R1 fires through an escape run of 1..#{run_max} alphanumerics" +
+             (run_blind.empty? ? "" : " — missed #{run_blind.join(', ')}"),
+             run_blind.empty?)
+  check.call("…and does NOT past that — the ceiling is declared, not accidental",
+             scan_text("spec/protocol.md",
+                       %(a literal "\\#{'a' * (run_max + 1)}K-724" here\n)).empty?)
+
+  # THE OTHER HALF OF K-1537, and the reason the boundary was taught about
+  # escapes instead of deleted: dropping it admits 141 lines of the sibling
+  # repository that carry no ledger id at all, 129 of them one demo's `SK-001`.
+  check.call("does NOT flag SK-001 / SK-999 / unK-724 — the leading boundary still holds " \
+             "where no backslash introduces it",
+             scan_text("spec/protocol.md",
+                       "The scooter SK-001, its twin SK-999, and unK-724 as a word.\n").empty?)
+
+  check.call("R2 fires on an ADR reference behind a `\\n` escape",
+             scan_text("spec/schemas/x.schema.json",
+                       %({ "description": "\\nADR-0018 fixes the shape" }\n))
+               .any? { |h| h.rule[:id] == "R2" })
+  check.call("R4 fires on the maintainer named behind a `\\n` escape",
+             scan_text("spec/schemas/x.schema.json",
+                       %({ "description": "\\nPhil ruled that a bare offset is refused" }\n))
+               .any? { |h| h.rule[:id] == "R4" })
   check.call("does NOT flag guillemets, en dashes, accented Latin, arrows or a currency name",
              scan_text("specification.html",
                        "  <p>«08:00-10:00 (Europe/Dublin)», naive, <- ->, EUR 200.</p>\n").empty?)
