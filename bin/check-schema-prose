@@ -1,0 +1,473 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# NO PUBLISHED SCHEMA'S PROSE RESTATES THE SHAPE BESIDE IT (K-1517).
+#
+# ADR-0023 re-scoped a descriptor's `description` to SEMANTICS ONLY: it says
+# what a verb does, how, and what the result MEANS, and it «must never carry a
+# field list, a type, a required/optional marker, or a param name that the
+# schema also carries». The reason is not tidiness — it is that a fact stated
+# twice drifts, and the copy in prose is the one nothing checks. That ADR names
+# the file this repository publishes as one of the surfaces that follows under
+# rule 1, so the clause binds the DESCRIPTOR SCHEMA here and not only the demo
+# initializers in the reference implementation.
+#
+# WHY THIS GUARD IS IN *THIS* REPOSITORY, and it is a refusal on the other side
+# rather than an omission on this one. `reference/bin/check-descriptor-prose`
+# asks the identical question of Ruby: it walks the syntax tree and compares
+# each property's `description` with the membership its own sibling `required:`
+# array decides. It CANNOT reach a JSON Schema, and its header says so. The
+# reference repository's copy of this file — `e2e/schemas/*.schema.json` — is
+# VENDORED, held byte-identical to what this repository publishes by
+# `bin/check-spec-schemas` over there, so a rule reaching it from that side
+# would demand an edit that guard fails on: a permanently red tree with no
+# legal repair. The fix belongs where the bytes are authored, which is here.
+#
+# ── WHAT IT READS, DERIVED AND NOT LISTED ───────────────────────────────────
+#
+# Every tracked `spec/schemas/**.json`, read off `git ls-files` at run time —
+# the published schemas AND the example/rejected fixtures beside them, because
+# a fixture is published too and a description in one is read the same way.
+# Inside each document the walk is structural rather than keyed on a file name:
+#
+#   PROPERTY   a named entry of a `properties` object, carrying a string
+#              `description`. Its MEMBERSHIP is decided by the sibling
+#              `required` array — present in it means required, absent from it
+#              (or no array at all) means optional. That decision is machine-
+#              readable and sits three lines from the prose, which is exactly
+#              why the prose repeating it is redundant rather than wrong.
+#
+# Nothing else is read: a `description` on a schema ROOT, on a `$defs` member,
+# or inside a `oneOf` branch has no membership array beside it to restate, so
+# it is outside the question this guard asks. That boundary is a construction,
+# not a list — the same discipline `check-descriptor-prose` keeps one repo over,
+# and the same one that left OpenAPI parameter objects unheld there until
+# somebody planted a break in one (K-1521).
+#
+# ── THE BAN AND THE CENSUS, AND WHY THE LINE IS WHERE IT IS ─────────────────
+#
+# MEASURED over this corpus when the guard was written: 61 tracked JSON files,
+# 177 property descriptions, and 21 carrying an optionality-ish word. Reading
+# all 21, roughly eighteen of them are bare membership labels — «OPTIONAL
+# human-readable detail», «REQUIRED; an expired attestation is rejected»,
+# «Advisory minimum client version (optional)» — and they sit in the WIRE
+# schemas: auth, binding, discovery, kyc, mandates, pow, problem.
+#
+# So a ban over the whole corpus would be red on eighteen sites the day it
+# landed, and draining them is a normative edit to seven published documents
+# that wants its own review rather than a guard's exit code. ADR-0023 does not
+# reach them either: it names the DESCRIPTOR surfaces by name and says nothing
+# about the schema for a JWT's claims. Where the ruling exists, this file bans;
+# where it does not, it COUNTS and prints, and the count is what makes the
+# backlog visible and the boundary a decision. That is the same split
+# `check-shipped-archaeology` keeps between its rules and its censuses, for the
+# same measured reason: a gate that is red on a standing backlog nobody has
+# agreed to drain is a gate somebody switches off.
+#
+#   R1  BAN — no property description in the DESCRIPTOR schema carries a bare
+#       optionality label. Red.
+#   C1  CENSUS — every property description anywhere in the corpus carrying an
+#       optionality-ish word, printed with the membership its own `required`
+#       array decides, so a human can read the two side by side. Never red.
+#
+# THE BAN'S SCOPE IS DERIVED, NOT A FILENAME. The descriptor schema is the one
+# whose `$defs` declares a `descriptor` with both `input_schema` and
+# `output_schema` among its properties — which is what a descriptor IS, per
+# ADR-0023 decisions 2 and 3. A self-test arm requires that derivation to
+# resolve to exactly one file, so renaming the schema keeps the ban and
+# deleting the two properties it is about costs a decision instead of silently
+# emptying the scope.
+#
+# THE MARKER IS THE ONE THE REFERENCE GUARD MEASURED, character for character,
+# because the two ask one question of two languages and a second opinion nobody
+# reconciles is worse than none:
+#
+#   * the word set is the five bare labels, written as one alternation so a
+#     marker deleted from it fails its own probe rather than passing silently;
+#   * the boundary excludes `-`, `_` and digits, because `licence-required` is
+#     a compound adjective and `setup_required` is a WIRE VALUE a description
+#     quotes — Ruby's `\b` calls all three a boundary and reddened four correct
+#     descriptions the first time this was written over there (K-1514);
+#   * a marker that is the complement of a COPULA is a predicate about the
+#     value («the offset IS REQUIRED»), not a label on the property;
+#   * a marker taking an INFINITIVE complement is a predicate about an ACTION
+#     («never required TO BE declared»), and a membership label never takes one
+#     (K-1521).
+#
+# WHAT IT DOES NOT COVER, stated rather than implied:
+#
+#   * the OTHER ADR-0023 clauses — a description carrying a field list, a type
+#     or a param name. Those need the input schema read alongside the prose and
+#     are a different check; this one holds the membership marker only.
+#   * the narrative surfaces. `specification.html`, `spec/protocol.md` and
+#     `spec/descriptor-house-style.md` describe the descriptor in prose with no
+#     `required` array beside them, so there is nothing here to compare against.
+#   * `FORBIDDEN.`, which `spec/schemas/schema-descriptor.schema.json` uses on
+#     `params` — a third kind of membership label, decided by the `not: {}`
+#     beside it. It is COUNTED (the census word set carries it) and not banned,
+#     because the reference guard's word set was measured against a live corpus
+#     and this one has not been; adding a word to a ban on the strength of one
+#     site is the guess this workspace keeps recording the cost of.
+#
+# Usage: bin/check-schema-prose [--list] [--self-test]
+
+require "json"
+require "open3"
+
+ROOT = File.expand_path("..", __dir__)
+
+KNOWN_FLAGS = ["--list", "--self-test"].freeze
+unknown = ARGV.reject { |a| KNOWN_FLAGS.include?(a) }
+unless unknown.empty?
+  warn "check-schema-prose: unknown argument(s) #{unknown.join(' ')}; known: #{KNOWN_FLAGS.join(' ')}"
+  exit 2
+end
+LIST      = ARGV.include?("--list")
+SELF_TEST = ARGV.include?("--self-test")
+
+# ── the markers, taken from reference/bin/check-descriptor-prose ─────────────
+
+LABEL_WORDS = %w[optionally optional required mandatory compulsory].freeze
+EDGE_BEFORE = /(?<![-_\p{L}\p{N}])/
+EDGE_AFTER  = /(?![-_\p{L}\p{N}])/
+COPULA_RE   = /\b(?:is|are|am|be|been|being|was|were|isn't|aren't|wasn't|weren't|not)[ ]+\z/i
+MARKER_RE   = /#{EDGE_BEFORE}(?:#{LABEL_WORDS.join('|')})#{EDGE_AFTER}/i
+INFINITIVE_AFTER_RE = /\A[ ]+to[ ]+\p{L}/
+
+# THE ONE PREDICATE THIS GUARD ADDS TO THE REFERENCE GUARD'S SET, and the
+# divergence is declared rather than quiet. A marker glued to its OPPOSITE by a
+# slash names the AXIS — «names, required/optional, types, enums, ranges» is a
+# list of the things a JSON Schema declares, in ADR-0023 decision 2's own
+# words — and an axis is never a label on the property carrying the sentence.
+# The shared `EDGE` already treats `-` and `_` this way for the same reason; a
+# `/` is the third compound joiner and it is separated here, as its own test,
+# so the two guards' shared vocabulary stays identical character for character
+# and the extra question is visible.
+#
+# MEASURED rather than imagined: the shape is live once in this corpus
+# (`schema-descriptor.schema.json`'s `input_schema`) and twice more in the
+# reference repository, in the comments that document the descriptor API
+# (`kiosk-server/lib/kiosk/server/{actions,queries}.rb`). Those two are Ruby
+# COMMENTS rather than `description:` values, so the reference guard does not
+# read them and is not red on them today — see K-1524.
+SLASH_BEFORE_RE = %r{/\z}
+SLASH_AFTER_RE  = %r{\A/}
+
+# The first bare LABEL in this text, or nil.
+def label_marker(text)
+  offset = 0
+  while (m = MARKER_RE.match(text, offset))
+    offset = m.end(0)
+    before = text[0...m.begin(0)]
+    after  = text[m.end(0)..].to_s
+    next if before =~ COPULA_RE
+    next if after  =~ INFINITIVE_AFTER_RE
+    next if before =~ SLASH_BEFORE_RE || after =~ SLASH_AFTER_RE
+
+    return m[0]
+  end
+  nil
+end
+
+# Everything that SPELLS optionality, banned or not. `forbidden` is here and
+# not in `LABEL_WORDS` — see the header.
+CENSUS_RE = /
+  #{EDGE_BEFORE}(?:#{LABEL_WORDS.join('|')}|forbidden)#{EDGE_AFTER}
+  | \bomit(?:s|ted|ting|ission)?\b
+  | \brequires?\b
+  | \bdefaults?[ ](?:to|is)\b
+  | \b(?:may|can)[ ]be[ ](?:omitted|left[ ]out|skipped|absent)\b
+/xi
+
+# ── the corpus ──────────────────────────────────────────────────────────────
+
+Prop = Struct.new(:file, :pointer, :name, :required, :description)
+
+def tracked_schemas(root)
+  out, _err, st = Open3.capture3("git", "-C", root, "ls-files", "--", "spec/schemas/*.json")
+  raise "git ls-files failed in #{root}" unless st.success?
+
+  out.lines(chomp: true).sort
+end
+
+# Walk one parsed document and yield every PROPERTY — see the header for why a
+# `description` with no `required` array beside it is not one.
+def properties_in(node, file, pointer, out)
+  case node
+  when Hash
+    props = node["properties"]
+    if props.is_a?(Hash)
+      req = node["required"].is_a?(Array) ? node["required"] : []
+      props.each do |name, value|
+        next unless value.is_a?(Hash) && value["description"].is_a?(String)
+
+        out << Prop.new(file, "#{pointer}/properties/#{name}", name,
+                        req.include?(name), value["description"])
+      end
+    end
+    node.each { |k, v| properties_in(v, file, "#{pointer}/#{k}", out) }
+  when Array
+    node.each_with_index { |v, i| properties_in(v, file, "#{pointer}[#{i}]", out) }
+  end
+  out
+end
+
+# THE BAN'S SCOPE, DERIVED: the schema that declares a `descriptor` carrying
+# both an `input_schema` and an `output_schema` — which is what ADR-0023
+# decisions 2 and 3 make a descriptor.
+def descriptor_schemas(root, files)
+  files.select do |rel|
+    doc = parse(root, rel)
+    next false unless doc.is_a?(Hash)
+
+    defs = doc["$defs"]
+    next false unless defs.is_a?(Hash)
+
+    d = defs["descriptor"]
+    d.is_a?(Hash) && d["properties"].is_a?(Hash) &&
+      %w[input_schema output_schema].all? { |k| d["properties"].key?(k) }
+  end
+end
+
+def parse(root, rel)
+  JSON.parse(File.read(File.join(root, rel), encoding: "UTF-8"))
+rescue JSON::ParserError => e
+  raise "#{rel} is not parseable JSON: #{e.message}"
+end
+
+def collect(root, files)
+  files.flat_map { |rel| properties_in(parse(root, rel), rel, "", []) }
+end
+
+# ── the run ─────────────────────────────────────────────────────────────────
+
+def run_check(root)
+  files = tracked_schemas(root)
+  if files.empty?
+    puts "FAIL: the corpus is EMPTY — a ban over no files reports the same clean zero as an " \
+         "obeyed one, forever."
+    return 1
+  end
+
+  banned_files = descriptor_schemas(root, files)
+  props = collect(root, files)
+
+  puts "SCOPE (derived from `git ls-files` and from the documents themselves, not listed)"
+  puts "  tracked schemas   : #{files.size}"
+  puts "  property descriptions with a membership decided beside them: #{props.size}"
+  puts "  R1 (ban) reaches  : #{banned_files.join(', ')}"
+  puts "                      — the schema declaring a `descriptor` with an input_schema and " \
+       "an output_schema"
+  puts "  C1 (census) reads : all #{files.size}, printed and never red — ADR-0023 names the " \
+       "descriptor surfaces and"
+  puts "                      says nothing about the wire schemas; where there is no ruling " \
+       "this file counts"
+  puts
+
+  if LIST
+    props.each { |p| puts "  #{p.file}#{p.pointer}  required=#{p.required}  #{p.description[0, 120]}" }
+    return 0
+  end
+
+  if banned_files.empty?
+    puts "FAIL: R1's scope is EMPTY — no tracked schema declares a `descriptor` with both an " \
+         "`input_schema` and an `output_schema`, so the ban reads nothing and would report a " \
+         "clean zero forever. Either the schema moved or the descriptor's shape changed; " \
+         "either way this is a decision, not a pass."
+    return 1
+  end
+
+  failed = false
+  in_ban = props.select { |p| banned_files.include?(p.file) }
+  violations = in_ban.filter_map do |p|
+    m = label_marker(p.description)
+    [p, m] if m
+  end
+
+  if violations.empty?
+    puts "R1. no property description in the descriptor schema carries a bare optionality " \
+         "label — OK (#{in_ban.size} property description(s))"
+  else
+    failed = true
+    puts "R1. FAIL — #{violations.size} property description(s) restate the membership their " \
+         "own `required` array decides:"
+    violations.each do |p, m|
+      decided = p.required ? "IS in the `required` array" : "is NOT in the `required` array"
+      puts "  #{p.file}#{p.pointer}"
+      puts "    label   : #{m.inspect}"
+      puts "    decided : `#{p.name}` #{decided} beside this prose"
+      puts "    remedy  : drop the label and keep the semantics. ADR-0023: a description says " \
+           "what the field MEANS; the `required` array says whether it is there."
+    end
+  end
+
+  census = props.select { |p| p.description.match?(CENSUS_RE) }
+  if census.empty?
+    puts "C1. no property description anywhere in the corpus spells optionality — census empty " \
+         "(#{props.size} property description(s))"
+  else
+    puts "C1. #{census.size} property description(s) spell optionality — CENSUS ONLY, never " \
+         "red. Read it: a bare label («OPTIONAL human-readable detail») restates the " \
+         "`required` array three lines up and wants deleting; a sentence about what the VALUE " \
+         "means when present, or about what OMITTING it does, is the prose doing its job."
+    census.group_by(&:file).sort.each do |file, rows|
+      puts "  #{file}"
+      rows.each do |p|
+        flag = label_marker(p.description) ? "BARE LABEL" : "no bare label"
+        puts "    WARN #{p.pointer}  required=#{p.required}  [#{flag}]"
+        puts "         #{p.description[0, 150]}"
+      end
+    end
+  end
+
+  puts
+  puts "CENSUS TOTAL (derived on this run; printed, never red): #{census.size} row(s) over " \
+       "#{files.size} file(s), of which #{census.count { |p| label_marker(p.description) }} " \
+       "carry a bare label"
+  failed ? 1 : 0
+end
+
+# ── the self-test ───────────────────────────────────────────────────────────
+
+def self_test(root)
+  require "tmpdir"
+  require "fileutils"
+  failures = []
+  check = lambda do |name, ok|
+    puts(ok ? "  ok   #{name}" : "  FAIL #{name}")
+    failures << name unless ok
+  end
+
+  # ── the detector, on strings: one probe per marker and per historical
+  #    spelling, and one foil per shape the boundary deliberately keeps out ──
+  LABEL_WORDS.each do |w|
+    check.call("R1's detector fires on the bare label #{w.inspect} — one probe per marker, so " \
+               "a word deleted from the alternation fails here rather than passing silently",
+               !label_marker("#{w.capitalize} thing an assistant may send.").nil?)
+  end
+  [
+    ["MID-STRING", "The delivery date. Optional; the shop picks one when omitted."],
+    ["UPPERCASE at the head", "OPTIONAL. RFC 7638 thumbprint of the public key."],
+    ["a parenthetical", "Advisory minimum client version (optional)."],
+    ["a semicolon label", "REQUIRED; an expired attestation is rejected."],
+    ["a label after a clause", "Spending cap; REQUIRED (a nil cap is rejected)."]
+  ].each do |name, text|
+    check.call("R1's detector fires on #{name}", !label_marker(text).nil?)
+  end
+  [
+    ["the COPULA complement", "The offset IS REQUIRED, and a bare local time is refused."],
+    ["a HYPHENATED compound", "Licence-required vehicles are gated by the attestation."],
+    ["an UNDERSCORE wire value", "The hint is the literal `setup_required.`"],
+    ["an INFINITIVE complement", "Reserved: always accepted, never required to be declared."],
+    ["the verb form", "The verifier requires a signature over the whole document."],
+    ["plain semantics", "Unchanged if omitted; the address's own clock decides."],
+    ["a SLASH compound naming the axis", "Inputs: names, required/optional, types, enums."],
+    ["the same compound the other way round", "It declares optional/required per field."]
+  ].each do |name, text|
+    check.call("R1's detector does NOT fire on #{name} — a false red here is a repair that " \
+               "makes the document worse", label_marker(text).nil?)
+  end
+
+  # ── planted breaks on disk, in a throwaway copy of the real corpus ────────
+  Dir.mktmpdir("schema-prose-selftest") do |dir|
+    FileUtils.mkdir_p(File.join(dir, "spec", "schemas"))
+    # A fixture repository, so the plant never touches the working tree.
+    Open3.capture3("git", "-C", dir, "init", "-q")
+    files = tracked_schemas(root)
+    files.each do |rel|
+      dest = File.join(dir, rel)
+      FileUtils.mkdir_p(File.dirname(dest))
+      FileUtils.cp(File.join(root, rel), dest)
+    end
+    Open3.capture3("git", "-C", dir, "add", "-A")
+
+    plant = lambda do |rel, name, label|
+      path = File.join(dir, rel)
+      doc = JSON.parse(File.read(path))
+      doc["$defs"]["descriptor"]["properties"][name]["description"] =
+        "#{label} #{doc['$defs']['descriptor']['properties'][name]['description']}"
+      File.write(path, JSON.pretty_generate(doc))
+    end
+    restore = ->(rel) { FileUtils.cp(File.join(root, rel), File.join(dir, rel)) }
+
+    descr = descriptor_schemas(dir, tracked_schemas(dir))
+    check.call("the fixture corpus resolves the SAME single descriptor schema the real one " \
+               "does — the derivation is structural and travels with the bytes",
+               descr.size == 1 && descr == descriptor_schemas(root, files))
+
+    rel = descr.first
+    [
+      ["a REQUIRED. label on a property that IS in the array", "reach", "REQUIRED."],
+      ["an OPTIONAL label on a property that is NOT", "example_row", "OPTIONAL"],
+      ["a mid-sentence label", "input_schema", "Mandatory —"]
+    ].each do |name, prop, label|
+      plant.call(rel, prop, label)
+      out, = Open3.capture2e(RbConfig.ruby, __FILE__, chdir: dir) rescue nil
+      code = run_in(dir)
+      restore.call(rel)
+      check.call("R1 is RED on #{name}", code == 1)
+      _ = out
+    end
+
+    check.call("…and GREEN again once the plants are restored", run_in(dir).zero?)
+
+    # ── VACUITY: an empty corpus and an empty ban scope are FAILURES, not
+    #    passes — a check over nothing reports the same clean zero as an
+    #    obeyed one ────────────────────────────────────────────────────────
+    Dir.mktmpdir("schema-prose-empty") do |empty|
+      Open3.capture3("git", "-C", empty, "init", "-q")
+      check.call("an EMPTY corpus is red, not clean", run_in(empty) == 1)
+    end
+
+    Dir.mktmpdir("schema-prose-noban") do |noban|
+      Open3.capture3("git", "-C", noban, "init", "-q")
+      FileUtils.mkdir_p(File.join(noban, "spec", "schemas"))
+      other = files.find { |f| f != rel }
+      FileUtils.cp(File.join(root, other), File.join(noban, "spec", "schemas", File.basename(other)))
+      Open3.capture3("git", "-C", noban, "add", "-A")
+      check.call("a corpus with schemas but NO descriptor schema is red — the ban's scope " \
+                 "draining to nothing is a decision, not a pass", run_in(noban) == 1)
+    end
+  end
+
+  # ── VACUITY: the census must still have a live subject in this tree ───────
+  files = tracked_schemas(root)
+  props = collect(root, files)
+  check.call("the corpus is non-empty (#{files.size} tracked schema(s))", !files.empty?)
+  check.call("the walk finds property descriptions to read (#{props.size})", !props.empty?)
+  spelled = props.count { |p| p.description.match?(CENSUS_RE) }
+  check.call("C1's pattern still matches optionality prose in this repository (#{spelled} " \
+             "row(s)) — a census that structurally cannot print a row is the same green " \
+             "nothing as a rotted ban", spelled.positive?)
+  ban_scope = descriptor_schemas(root, files)
+  check.call("R1's scope resolves to EXACTLY ONE schema (#{ban_scope.join(', ')})",
+             ban_scope.size == 1)
+  check.call("R1 reads property descriptions in that schema " \
+             "(#{props.count { |p| ban_scope.include?(p.file) }})",
+             props.any? { |p| ban_scope.include?(p.file) })
+
+  if failures.empty?
+    puts "SELF-TEST OK — #{LABEL_WORDS.size + 5} detector probe(s), 6 foil(s), 3 planted " \
+         "break(s) on disk, and 5 vacuity arm(s)"
+    0
+  else
+    puts "SELF-TEST FAILED: #{failures.size} arm(s)"
+    1
+  end
+end
+
+# Run THIS script, unmodified, against another root. A copy would drift and a
+# symlink would resolve back to the real one, so the file is invoked by path
+# with the root passed in the environment.
+def run_in(dir)
+  _out, _err, st = Open3.capture3({ "KIOSK_SCHEMA_PROSE_ROOT" => dir }, RbConfig.ruby, __FILE__)
+  st.exitstatus
+end
+
+require "rbconfig"
+
+FIXTURE_ROOT = ENV.fetch("KIOSK_SCHEMA_PROSE_ROOT", nil)
+EFFECTIVE_ROOT = FIXTURE_ROOT ? File.expand_path(FIXTURE_ROOT) : ROOT
+puts "NOTE — running against FIXTURE ROOT #{EFFECTIVE_ROOT}, not this repository." if FIXTURE_ROOT
+
+exit(SELF_TEST ? self_test(EFFECTIVE_ROOT) : run_check(EFFECTIVE_ROOT))

@@ -1,0 +1,55 @@
+name: schema-prose
+
+# No published schema's prose restates the shape beside it (K-1517, ADR-0023).
+#
+# A descriptor's `description` is SEMANTICS ONLY — it says what the verb does
+# and what the result means, never «REQUIRED.», never a type, never a param
+# name the schema already carries. The reference implementation holds that
+# clause over its Ruby descriptors (bin/check-descriptor-prose there), and it
+# CANNOT hold it here: its copy of these schemas is vendored and held
+# byte-identical to what this repository publishes, so a rule reaching it from
+# that side would demand an edit its own vendoring guard fails on. The bytes
+# are authored here, so the check belongs here.
+#
+# NO PATH FILTER, for the reason problem-pages.yml and publication-paths.yml
+# each record for themselves. The guard's scope is DERIVED — `git ls-files` over
+# `spec/schemas/*.json`, and the ban's target is the schema that structurally
+# declares a descriptor — so a filter would be a hand-kept list of paths whose
+# whole job is to be subtly wrong about the one file that matters. It costs
+# about a second.
+#
+# ITS OWN WORKFLOW rather than a step in spec-schemas.yml: that one is
+# path-filtered on `spec/**`, installs Node and ajv this check does not need,
+# and one invariant deserves one exit code and one name in the checks list —
+# the same reasoning skill-immutability.yml and problem-pages.yml already
+# record.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  schema-prose:
+    name: no published schema's prose restates its own `required` array (bin/check-schema-prose)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The runner's preinstalled Ruby. The guard is stdlib-only (json, open3,
+      # rbconfig, tmpdir, fileutils) and shells out to git — no Gemfile, no
+      # bundle, no Ruby toolchain anywhere in this repo — so pinning a version
+      # here would be a version to maintain for no gain.
+      #
+      # The self-test runs FIRST and as a step of its own, because the way this
+      # check fails is by reading NOTHING: a corpus that collapsed to zero
+      # files, or a ban whose derived scope resolves to no schema, exits 0 and
+      # reads exactly like an obeyed rule. The guard proves it is red on a
+      # planted label in three spellings, green again once restored, red rather
+      # than clean on both empty-scope shapes, and non-vacuous over this tree,
+      # before a green run below means anything.
+      - name: The guard is red on a planted label, and non-vacuous here
+        run: ruby bin/check-schema-prose --self-test
+
+      - name: The descriptor schema's prose carries no membership label
+        run: ruby bin/check-schema-prose
