@@ -3,9 +3,13 @@
 This repository is the published Kiosk protocol: the normative
 [`specification.html`](specification.html), the formal spec and its JSON
 Schemas under `spec/`, the versioned assistant skill cuts, the problem-document
-pages every error `type` URI dereferences to, and the pinned proof-of-work
-solver `pow/solve.py`. It holds no operator's data and no card, and it runs no
-server of its own — but what is written here is what every Kiosk operator and
+pages every error `type` URI dereferences to, and the proof-of-work solver an
+assistant downloads and runs. The solver is served twice, and both copies are
+in scope: the content-addressed `pow/solve-<sha256-prefix>.py` that a skill cut
+pins by URL and digest, and `pow/solve.py`, the mutable copy an operator's 402
+hint points at. This repository holds no operator's data and no card, and it
+runs no server of its own — but what is written here is what every Kiosk
+operator and
 every assistant implements, so a flaw in the *rules* reaches every origin at
 once.
 
@@ -15,7 +19,7 @@ once.
 
 | The flaw is in | File it in |
 | --- | --- |
-| the **specification** — a normative rule, the formal spec, a JSON Schema, a skill cut, a problem page, `pow/solve.py` | [`kiosk-hq/kiosk.tech`](https://github.com/kiosk-hq/kiosk.tech/issues), this repository |
+| the **specification** — a normative rule, the formal spec, a JSON Schema, a skill cut, a problem page, either served copy of the solver | [`kiosk-hq/kiosk.tech`](https://github.com/kiosk-hq/kiosk.tech/issues), this repository |
 | the **implementation** — a gem, a demo application, the e2e harness, a deploy runbook | [`kiosk-hq/kiosk`](https://github.com/kiosk-hq/kiosk/issues) |
 
 If a flaw is in both — the spec permits something an engine should not do, or
@@ -52,7 +56,8 @@ We will credit you in the changelog entry for the fix unless you ask us not to.
 Every normative statement in `specification.html` and in `spec/protocol.md`,
 every JSON Schema under `spec/schemas/`, the assistant skill (the alias
 `skill.md` and every `skill-vX.Y.Z.md` cut), the problem pages under
-`problems/`, and `pow/solve.py`.
+`problems/`, and both served copies of the solver — the content-addressed
+`pow/solve-<sha256-prefix>.py` that skill cuts pin, and `pow/solve.py`.
 
 ## What is not a vulnerability here
 
@@ -62,7 +67,7 @@ every JSON Schema under `spec/schemas/`, the assistant skill (the alias
   pins; an issue asking us to rewrite `skill-v0.3.4.md` in place will be answered
   with that. A report that a cut's bytes no longer match a published digest is a
   real and urgent finding.
-- **`pow/solve.py` holds no key, sees no token and touches no money.** It is
+- **The solver holds no key, sees no token and touches no money.** It is
   fetched by content hash and run as a subprocess by the assistant, which never
   imports from it; the worst a swapped copy buys is a rejected proof. A report
   that the served bytes do not match the digest a skill cut publishes beside the
