@@ -17,9 +17,9 @@ its precise companion; both are kept consistent). Static files, no build step �
 here is compiled, and NO workflow builds the site: every workflow in
 `.github/workflows/` runs a guard over the checked-in files. Each `bin/check-*`
 has exactly one workflow that runs it, so the guards answer the same in CI as
-they do locally — that pairing is the fact worth knowing, and it is the one
-the umbrella workspace's `audit/check-file-inventories.rb` enforces rather than
-a count. **Do not enumerate or count the workflows in this paragraph.** It
+they do locally — that pairing is the fact worth knowing, and it is enforced
+rather than restated here. **Do not enumerate or count the workflows in this
+paragraph.** It
 claimed a single one while two existed (K-898); the repair claimed two while a
 third was landing; and that same repair asserted `check-problem-pages` was run
 by nothing on the very day the workflow that runs it was committed. Three wrong

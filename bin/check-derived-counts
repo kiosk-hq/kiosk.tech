@@ -70,7 +70,12 @@
 #   EXEMPT   `CHANGELOG.md`: append-only history. An entry records the tree AS
 #            IT WAS -- "the vocabulary grows from fifteen members to seventeen"
 #            is correct forever and gating it would demand a lie.
-#   EXEMPT   `CLAUDE.md`: removed whole at publication; not shipped content.
+#   GATED    `CLAUDE.md`: a maintainer document, and it SHIPS. It was carved out
+#            here on the claim that it is "removed whole at publication"; that
+#            claim was measured FALSE (K-1556) -- this repository is public and
+#            https://raw.githubusercontent.com/kiosk-hq/kiosk.tech/main/CLAUDE.md
+#            answers HTTP 200. Bringing it into scope cost nothing: the run went
+#            from 87 gated files to 88 and stayed green.
 #   REPORTED `bin/**`, `.github/**` and `spec/schemas/validate.sh` -- source and
 #            CI comments. K-1281 named this exclusion explicitly: a `#` line is a
 #            note to the next maintainer and is no more a published claim than
@@ -453,7 +458,7 @@ FROZEN_CUT = /\Askill(-v\d+\.\d+\.\d+)?\.md\z/.freeze
 def gated?(rel)
   base = File.basename(rel)
   return false if base =~ FROZEN_CUT
-  return false if base == "CHANGELOG.md" || base == "CLAUDE.md"
+  return false if base == "CHANGELOG.md"
   return false if rel.start_with?("bin/", ".github/")
 
   rel.end_with?(".md", ".html", ".json")
@@ -563,7 +568,7 @@ def report(quiet: false)
   by_rule = scanned.sites.group_by { |s| s.rule[:id] }
 
   say.call("check-derived-counts: #{scanned.gated_files} gated file(s) " \
-           "(.md/.html/.json, tracked, less the frozen skill cuts, CHANGELOG.md and CLAUDE.md), " \
+           "(.md/.html/.json, tracked, less the frozen skill cuts and CHANGELOG.md), " \
            "#{RULES.length} rule(s) over #{DERIVATIONS.length} derivation(s), " \
            "#{scanned.sites.length} live site(s).")
   RULES.each do |rule|

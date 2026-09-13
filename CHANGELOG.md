@@ -24,6 +24,8 @@ significant change to a published surface.
 turned out to be wrong is superseded by a new entry that says so and names it,
 never rewritten. The entries below the baseline are long; they stay as written.
 
+- 2026-09-13: **`CLAUDE.md` is shipped content and is now guarded as such.** It was exempt on the claim it is stripped at publication; this repository is already public.
+
 - 2026-09-12: **A SECURITY.md: specification flaws are public issues here, implementation flaws go to `kiosk-hq/kiosk` (K-1535).** The spec's Reference list and the landing footer link it.
 
 - 2026-09-12: **Changelog entries are capped at 200 characters and two sentences (Phil), and a new `bin/check-changelog` holds it.** Only entries newer than the baseline are gated.
