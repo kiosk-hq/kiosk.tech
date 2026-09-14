@@ -24,6 +24,8 @@ significant change to a published surface.
 turned out to be wrong is superseded by a new entry that says so and names it,
 never rewritten. The entries below the baseline are long; they stay as written.
 
+- 2026-09-14: **A same-wire span could reach PAST a cut the same page calls a new wire group.** `check-skill-immutability` now refuses a span that swallows a boundary.
+
 - 2026-09-14: **`skill-v0.4.14` published.** The row-label guidance names the property rather than a fixed field list, and the three-refusal-code argument is stated in the present.
 
 - 2026-09-13: **This repository had no README, so a stranger's first prose was the agent constitution.** It now says what is here, what is normative, and where the reference implementation lives.

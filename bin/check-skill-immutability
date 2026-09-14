@@ -414,6 +414,12 @@ end
 #   R10 the same-wire group written as a SPAN rather than as a chain («the
 #       "same wire" chain below runs 0.4.3 → 0.4.10 only») reaches the newest
 #       cut, exactly as R7 requires of the «=» spelling (K-1232)
+#       — AND may not reach PAST one. R10 measured only the short direction for
+#       as long as it existed, so a span swallowing a cut the same file declares
+#       opens a new wire group passed unconditionally (K-1602): «0.4.3 → 0.4.14»
+#       with 0.4.12 and 0.4.13 both declared was EXIT 0, measured by
+#       plant-and-restore on the live page. A boundary inside a span is the wire
+#       changing partway along it, which is the one thing the span denies.
 #   R11 the per-cut history clause list R8 reads is PRESENT on the normative
 #       page (specification.html) whenever the newest series has more than one
 #       cut — R8 is a rule about a list it finds, and until K-1236 nothing said
@@ -1011,6 +1017,17 @@ def prose_failures(path, raw, ctx)
                "a new wire group\" in the same file — plus the same sentence for every cut " \
                "between — and end this span at #{legal_end}, the cut the closing group actually " \
                "reaches."
+    elsif !(crossed = new_groups.uniq.select { |v|
+              i = ctx.all_versions.index(v)
+              i && i > ctx.all_versions.index(from) && i <= ctx.all_versions.index(to)
+            }.sort_by { version_order(_1) }).empty?
+      fails << "#{path}: the same-wire span \"#{from} → #{to}\" reaches past " \
+               "#{crossed.join(", ")}, which this same file says opens a new wire group. The " \
+               "span is the published answer to \"can the cut I hold talk to this operator\", " \
+               "and written this way it says yes about a cut that cannot: a group boundary " \
+               "inside a span is the wire CHANGING partway along it. End the span at the cut " \
+               "below #{crossed.min_by { |v| version_order(v) }}, or stop calling " \
+               "#{crossed.join(", ")} a new group."
     end
   end
 
@@ -1247,6 +1264,26 @@ def self_test_prose_cases
      "skills.md",
      "the chain runs 0.4.3 → 0.4.9 only, because 0.4.9 opens a new wire group, in which " \
      "0.4.9 = 0.4.10.", :red],
+    # K-1602: R10 was one-sided. It measured only whether a span stopped SHORT,
+    # so anything reaching the newest cut passed unconditionally — including a
+    # span that swallows a cut this very file declares opens a new wire group.
+    # The first case is the shape the K-1602 plant found on the live page
+    # («0.4.3 → 0.4.14» with 0.4.12 and 0.4.13 both declared): the span reaches
+    # the newest cut, and says that two later wire groups are the same wire as
+    # the group below them.
+    ["R10 span reaching the newest cut ACROSS two declared new-group boundaries (K-1602)",
+     "skills.md",
+     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.9 opens a new wire group and 0.4.10 " \
+     "opens a new wire group.", :red],
+    ["R10 span reaching the newest cut across ONE declared boundary (K-1602)",
+     "skills.md",
+     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.9 opens a new wire group, in which " \
+     "0.4.9 = 0.4.10.", :red],
+    # The span may still START at a cut that opens its own group — that is the
+    # normal spelling — so the predicate looks strictly ABOVE the start.
+    ["R10 span whose own START opens a wire group is not an over-reach (K-1602)",
+     "skills.md",
+     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.3 opens a new wire group.", :green],
     ["R1 current-skill sentence, stale",
      "spec/protocol.md", "The current skill is **0.4.9**.", :red],
     ["R1 current-skill sentence, at head",
