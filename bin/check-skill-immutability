@@ -933,6 +933,30 @@ def prose_failures(path, raw, ctx)
   # span left at 0.4.9 while 0.4.12 opens a group is still red. R7 needs no such
   # bound because its chains are contiguity-checked already.
   #
+  # AND «EVERY CUT AT THE TOP OPENS ITS OWN GROUP» WAS ALSO A SPECIAL CASE
+  # (K-1601, 2026-09-14). K-1472 generalised the escape from the newest cut's
+  # PREDECESSOR to the unbroken run of «X opens a new wire group» CUTS at the top
+  # of the list — which is right only while every cut in that run opens a group
+  # of its own. It stopped being right the moment a cut JOINED the newest group:
+  # cutting 0.4.14 onto 0.4.13's wire broke the run at its first element, the
+  # escape evaporated, and the guard demanded the span reach 0.4.14 — i.e. the
+  # FALSE sentence «0.4.3 → 0.4.14», that the eleven cuts of the 0.4.3 group
+  # describe the same wire as two later groups. Same failure as K-1472 and the
+  # same direction: the guard demanding the thing NEW_GROUP exists to refuse.
+  # The fix walks GROUPS instead of CUTS — from the newest cut, jump to the
+  # greatest declared boundary at or below the cursor, step one cut below it,
+  # repeat — so a group of any size is crossed in one step and a run of
+  # single-cut groups still behaves exactly as before. NOTHING IS LOOSENED, and
+  # the self-test is what settled that rather than the reasoning: the first
+  # writing of this walk turned K-1472's «only the INTERMEDIATE cut is declared»
+  # fixture green, because crossing a multi-cut group and forgetting the cuts
+  # above a boundary are the SAME BYTES until something says which. So a cut
+  # above a declared boundary counts as part of that group only when a same-wire
+  # chain in this same file names it together with the boundary. Membership is
+  # therefore always WRITTEN DOWN on the page an adopter reads, the walk stops at
+  # the first cut nothing accounts for, and a span that stops inside the closing
+  # group is still red.
+  #
   # ONE CUT SHORT WAS THE SPECIAL CASE, NOT THE RULE (K-1472, 2026-09-10). The
   # escape used to read «the span must end at the cut IMMEDIATELY BEFORE the
   # newest», which is right only while at most ONE cut has opened a group of its
@@ -948,14 +972,29 @@ def prose_failures(path, raw, ctx)
   # begins. Nothing is loosened — every cut in that run must be declared, IN THIS
   # SAME FILE, so a span two cuts short with only one declaration is still red.
   new_groups = claim_text.scan(NEW_GROUP).flatten
-  # The maximal suffix of published cuts each of which is declared to open a
-  # group of its own; the span may legally stop at the cut just below it.
-  own_group_tail = ctx.all_versions.reverse.take_while { new_groups.include?(_1) }
-  legal_end      = if own_group_tail.empty?
-                     ctx.newest_version
-                   else
-                     ctx.all_versions[ctx.all_versions.size - own_group_tail.size - 1]
-                   end
+  # The span may legally stop where the group that CLOSED actually ends, and
+  # that boundary is found by walking GROUPS down from the newest cut, never
+  # CUTS. See the K-1601 note above for why the cut-wise walk this replaces
+  # evaporated the moment a cut JOINED the newest group instead of opening one.
+  chain_sets = claim_text.scan(SAME_WIRE_CHAIN).map { _1.scan(/\d+(?:\.\d+)+/) }
+  boundaries = new_groups.uniq.filter_map { ctx.all_versions.index(_1) }.sort
+  cursor     = ctx.all_versions.size - 1
+  loop do
+    start = boundaries.select { _1 <= cursor }.max
+    break if start.nil?
+
+    # A cut ABOVE a declared boundary belongs to that boundary's group only if a
+    # same-wire chain IN THIS SAME FILE says so. Without that link the guard
+    # cannot tell "0.4.10 was cut onto 0.4.9's wire" from "the wave forgot
+    # 0.4.10", and K-1472's INTERMEDIATE fixture is exactly the second reading.
+    joined = ((start + 1)..cursor).all? do |i|
+      chain_sets.any? { _1.include?(ctx.all_versions[start]) && _1.include?(ctx.all_versions[i]) }
+    end
+    break unless joined
+
+    cursor = start - 1
+  end
+  legal_end = cursor.negative? ? nil : ctx.all_versions[cursor]
   claim_text.scan(CHAIN_SPAN) do |(from, to)|
     claims += 1
     hits |= [:chain_span]
@@ -1190,6 +1229,24 @@ def self_test_prose_cases
      "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new wire group.", :red],
     ["R10 span short by two where only the NEWEST of the two is declared (K-1472)",
      "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.10 opens a new wire group.", :red],
+    # K-1601: the newest cut JOINS the group below it instead of opening one, so
+    # the run of own-group CUTS at the top is empty and the cut-wise escape
+    # evaporates. These are the v0.4.14 wave's own bytes: 0.4.9 opens a group,
+    # 0.4.10 is cut onto that same wire, and the span describing the group that
+    # closed at 0.4.8 is TRUE. Before the group-wise walk the first case was red
+    # and the only green edit available published «0.4.3 → 0.4.10».
+    ["R10 span ending at the closing group where the newest cut JOINED the group below (K-1601)",
+     "skills.md",
+     "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new wire group, in which " \
+     "0.4.9 = 0.4.10.", :green],
+    ["R10 span stopping one cut INSIDE the closing group, newest cut joined (K-1601)",
+     "skills.md",
+     "the chain runs 0.4.3 → 0.4.7 only, because 0.4.9 opens a new wire group, in which " \
+     "0.4.9 = 0.4.10.", :red],
+    ["R10 span stopping inside the newest group itself, newest cut joined (K-1601)",
+     "skills.md",
+     "the chain runs 0.4.3 → 0.4.9 only, because 0.4.9 opens a new wire group, in which " \
+     "0.4.9 = 0.4.10.", :red],
     ["R1 current-skill sentence, stale",
      "spec/protocol.md", "The current skill is **0.4.9**.", :red],
     ["R1 current-skill sentence, at head",

@@ -24,6 +24,8 @@ significant change to a published surface.
 turned out to be wrong is superseded by a new entry that says so and names it,
 never rewritten. The entries below the baseline are long; they stay as written.
 
+- 2026-09-14: **`skill-v0.4.14` published.** The row-label guidance names the property rather than a fixed field list, and the three-refusal-code argument is stated in the present.
+
 - 2026-09-13: **This repository had no README, so a stranger's first prose was the agent constitution.** It now says what is here, what is normative, and where the reference implementation lives.
 - 2026-09-13: **SECURITY.md scoped only `pow/solve.py`, which is not the copy skill cuts pin.** Both served copies of the solver are named and in scope now.
 
