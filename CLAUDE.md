@@ -34,7 +34,7 @@ demonstrated by the reference implementation.
 
 ## The five rules
 
-1. **Authority chain.** The spec (`kiosk.tech/specification.html`) is
+1. **Authority chain.** The spec (`specification.html`, this repository's own) is
    normative. Code and skill conform to the spec; landing/HN/README claim
    only what the code demonstrably does. An ADR may override the spec — then
    the spec must be updated to match.
