@@ -1,7 +1,7 @@
 name: spec-schemas
 
 # Lints the formal-spec JSON Schemas and validates their example payloads
-# (kiosk.tech/spec/schemas) on every change. Keeps the machine-readable
+# (spec/schemas) on every change. Keeps the machine-readable
 # contract honest and consistent with the narrative specification.html.
 #
 # The ASCII rule used to live here as an inline `grep -rlP` and NOWHERE ELSE,
