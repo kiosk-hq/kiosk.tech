@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Validate the Kiosk protocol JSON Schemas and their example payloads.
 # Draft 2020-12, via ajv-cli. Requires Node; uses a global `ajv` if present,
-# otherwise `npx ajv-cli`. This is the merge gate for kiosk.tech/spec/schemas.
+# otherwise `npx ajv-cli`. This is the merge gate for this repo's spec/schemas.
 set -uo pipefail
 set +C   # some shells default to noclobber; we truncate temp files
 cd "$(dirname "$0")"
