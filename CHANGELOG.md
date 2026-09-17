@@ -24,6 +24,8 @@ significant change to a published surface.
 turned out to be wrong is superseded by a new entry that says so and names it,
 never rewritten. The entries below the baseline are long; they stay as written.
 
+- 2026-09-17: **`skill-v0.4.15` published.** A KYC status poll has no `declined` answer to wait for: an anonymizing provider reports only approvals, so the give-up horizon is the stop condition.
+
 - 2026-09-15: **A shipped line named this repository's own `spec/schemas` with the repository's own name in front.** A clone has no such directory; the path is now relative.
 - 2026-09-15: **Step 3 still offered a hand-drawn protocol table as a second way to draw the plane.** The mount is the way; what an operator writes is their own verbs.
 - 2026-09-14: **A same-wire span could reach PAST a cut the same page calls a new wire group.** `check-skill-immutability` now refuses a span that swallows a boundary.
