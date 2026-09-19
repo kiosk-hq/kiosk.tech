@@ -1062,7 +1062,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
 
   <h2>What to do next</h2>
   <ul>
-    <li><strong>Test with your own agent.</strong> Point an AI assistant that can fetch a skill file and make its own HTTP calls at your local server and say "order groceries." (Hermes has driven this loop end to end against a hosted demo, on the 0.3 wire; the 0.4 surface has not been re-verified with a live assistant &mdash; so treat the first run as a test of your integration <em>and</em> of the claim.)</li>
+    <li><strong>Test with your own agent.</strong> Point an AI assistant that can fetch a skill file and make its own HTTP calls at your local server and say "order groceries." (Hermes has driven this loop end to end against a hosted demo on the 0.4 wire, on a deliberately weak model at low effort. No other runtime has been run against it &mdash; so treat your first run as a test of your integration <em>and</em> of your assistant.)</li>
     <li><strong>Add more queries.</strong> Expose anything an agent might need — store locations, nutritional info, allergy filters. A new verb in a controller you already named needs nothing else; a new <em>controller</em> goes in <code>c.handlers</code>.</li>
     <li><strong>Add more actions.</strong> Reservations, cancellations, loyalty points — anything your app does today.</li>
     <li><strong>Go to production.</strong> Swap <code>STRIPE_SECRET_KEY</code> for a live key, add your domain to <code>KIOSK_ISSUER</code>, and deploy.</li>
