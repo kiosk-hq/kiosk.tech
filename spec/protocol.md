@@ -100,9 +100,10 @@ proof-of-work gate.
 - **Verb** -- one named operation the operator serves at its own endpoint: a
   QUERY (a read, GET) or an ACTION (a write, POST), plus the two the protocol
   reserves for itself, `schema` and `pay` (Section 8.1).
-- **Module** -- one of the four DISCOVERABLE groupings a deployment advertises
-  in `capabilities`: `schema`, `queries`, `actions`, `pay` (Section 4.2). A
-  module is not a verb; which verbs a module holds is `schema`'s catalog.
+- **Module** -- one of the five DISCOVERABLE groupings a deployment advertises
+  in `capabilities`: `schema`, `queries`, `actions`, `pay`, `events`
+  (Section 4.2). A module is not a verb; which verbs a module holds is
+  `schema`'s catalog.
 - **Problem document** -- the RFC 9457 `application/problem+json` object a verb
   answers on an error, carrying the vocabulary `code` (Section 9).
 - **Mandate** -- one link of the signed AP2 payment chain: intent, cart, or
@@ -2484,9 +2485,10 @@ likely to use.
 ### 16.1 Operator profile
 
 An implementation is a **Kiosk operator** when it serves the core plus whichever
-optional modules it chooses to serve. Four of those modules are DISCOVERABLE
+optional modules it chooses to serve. Five of those modules are DISCOVERABLE
 and are exactly the members of `capabilities` (Section 4.2): `schema` and the
-`queries` / `actions` halves of item 3 below, and `pay` (item 5). The rest --
+`queries` / `actions` halves of item 3 below, `pay` (item 5), and `events`
+(item 9). The rest --
 proof-of-work, binding, KYC -- announce themselves in a response rather than in
 the discovery document, and are absent from `capabilities` for that reason:
 
