@@ -762,7 +762,7 @@ Authorization: Bearer &lt;jwt&gt;
 
   <p><strong>Opening a stream is free, and an event is never tolled.</strong> Proof-of-work prices a caller's consumption of operator CPU; a held socket consumes none, and the identity paid to register. An operator may cap how many streams one identity holds at once.</p>
 
-  <p>An operator must authenticate the upgrade and <strong>must accept the access token in the <code>Authorization</code> header</strong>, which is where an assistant should put it: a token in a URL is a token in every access log on the path.</p>
+  <p>An operator must authenticate the upgrade and <strong>must accept the access token in the <code>Authorization</code> header</strong>, and an assistant <strong>must</strong> present it there: the header is the one place this wire carries a credential on the upgrade, and a token in a URL is a token in every access log on the path.</p>
 
   <h3>Subscribing</h3>
 

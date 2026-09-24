@@ -1481,8 +1481,9 @@ identity.
 
 An operator **MUST** authenticate the upgrade, and **MUST** accept the access
 token in the `Authorization` header of the upgrade request. An assistant
-**SHOULD** present it there: a token in a URL is a token in every access log on
-the path.
+**MUST** present it there: the header is the one place this wire carries a
+credential on the upgrade, and a token in a URL is a token in every access log
+on the path.
 
 #### 8.5.4 Subscribing
 
