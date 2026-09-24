@@ -165,6 +165,26 @@ Dir.chdir(ROOT)
 # protected, so a future naming shape is covered rather than silently exempt.
 CUT = %r{\Askill-v[^/]+\.md\z}
 
+# THE OTHER PINNED ARTEFACT ON THIS SITE, and it is protected by the SAME two
+# passes for the same reason (T-169 wave 1).
+#
+# `events/listen-vX.Y.Z.py` is the reference event-stream client. The published
+# skill pins it by SHA-256 exactly as it pins a skill cut, so an assistant
+# verifies the digest and REFUSES to execute a file that does not match. A
+# content-addressed name would have been immutable by construction; Phil chose
+# to version it «ровно как kiosk и как skill.md» instead, and a version-named
+# file is immutable only if something enforces it. This is that something.
+#
+# It is a SEPARATE constant rather than a widened CUT because `cuts` below and
+# every pass after the second are about the SKILL — the alias, the frontmatter
+# version, the prose that names the current cut. A listener file is none of
+# those and must not be sorted in among them.
+LISTENER_CUT = %r{\Aevents/listen-v[^/]+\.py\z}
+
+# What passes 1 and 2 protect: anything already published that something else
+# pins by digest.
+IMMUTABLE = Regexp.union(CUT, LISTENER_CUT)
+
 # The "latest" alias. Two published sentences say it carries the newest cut's
 # exact bytes; pass 3 is what makes that true rather than aspirational (K-847).
 ALIAS = "skill.md"
@@ -261,7 +281,7 @@ if status_ok
     path = line[3..].to_s.strip.delete_prefix('"').delete_suffix('"')
     # Rename entries read `R  old -> new`; the old path is the one at risk.
     path = path.split(" -> ").first.to_s
-    next unless CUT.match?(path)
+    next unless IMMUTABLE.match?(path)
     next if code == "??"            # a brand-new cut, not yet tracked
     next if code.start_with?("A")   # staged add of a brand-new cut
 
@@ -298,7 +318,7 @@ else
   if diff_ok
     changed = diff_out.lines.filter_map do |line|
       code, path = line.chomp.split("\t", 2)
-      next unless path && CUT.match?(path)
+      next unless path && IMMUTABLE.match?(path)
 
       [code.to_s[0], path]
     end
