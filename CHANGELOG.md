@@ -24,6 +24,7 @@ significant change to a published surface.
 turned out to be wrong is superseded by a new entry that says so and names it,
 never rewritten. The entries below the baseline are long; they stay as written.
 
+- 2026-09-24: **The connect ticket comes out of the event stream (ADR-0034).** A stream is now authenticated one way only: the `Authorization` header on the upgrade.
 - 2026-09-24: **`events/listen-v0.5.0.py` published.** The pinned reference client for the event stream, versioned like the skill rather than content-addressed, and immutable once cut.
 - 2026-09-25: **The wire gains an optional events module (ADR-0033).** An operator may push topics an assistant subscribes to, instead of being asked the same question again.
 

@@ -764,14 +764,12 @@ Authorization: Bearer &lt;jwt&gt;
 
   <p>An operator must authenticate the upgrade and <strong>must accept the access token in the <code>Authorization</code> header</strong>, which is where an assistant should put it: a token in a URL is a token in every access log on the path.</p>
 
-  <p><strong>An operator may also accept a single-use connect <em>ticket</em></strong> as a <code>?ticket=</code> parameter, minted by <code>POST &lt;endpoint&gt;/events/ticket</code> — authenticated the ordinary way, untolled, answering <code>{"ticket": "...", "expires_in": &lt;seconds&gt;}</code>. This exists for a concrete reason rather than a theoretical one: a conformant assistant may run in a host whose WebSocket client takes a URL and nothing else, so it cannot set a header and would otherwise be shut out of a module it is perfectly able to use. A ticket must be single-use, must expire in 60 seconds or less, and must not be accepted as an access token anywhere else.</p>
-
   <h3>Subscribing</h3>
 
   <pre><code class="language-json">{"command":"subscribe",
  "identifier":"{\"channel\":\"KioskEvents\",\"topic\":\"todo\",\"subject\":\"list_4f1e...\",\"since\":880}"}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p><strong>An operator may also accept subscriptions declared in the upgrade's URL</strong> — <code>?topic=&lt;name&gt;[:&lt;subject&gt;]</code>, repeatable or comma-separated, with an optional <code>?since=</code> applying to all of them — and an operator that accepts the ticket above must accept these too. They are one subscription in two spellings, and the reason for the second is the reason for the ticket: a client that cannot set a header usually cannot send a frame either, and a socket it can open but never subscribe on delivers nothing at all.</p>
+  <p><strong>An operator may also accept subscriptions declared in the upgrade's URL</strong> — <code>?topic=&lt;name&gt;[:&lt;subject&gt;]</code>, repeatable or comma-separated, with an optional <code>?since=</code> applying to all of them. They are one subscription in two spellings, and the second exists because a client that can set a header on the upgrade may still be unable to send a frame: a socket it can open but never subscribe on delivers nothing at all.</p>
 
   <p>On a subscription it accepts, the operator answers <code>{"type":"subscribed","topic":...,"subject":...,"head":1486,"truncated":false}</code>. <code>head</code> is the origin's current event id, which is what an assistant records as its cursor. <code>truncated</code> is <code>true</code> when the operator cannot prove the subscriber has seen everything after the <code>since</code> it presented; it is <strong>required</strong> rather than optional, because it is the one signal that turns a lost range into a single ordinary read instead of a silent gap. On <code>truncated: true</code> an assistant re-reads the current state through the ordinary verb that owns it, exactly once, and then carries on with the stream.</p>
 
@@ -789,7 +787,7 @@ Authorization: Bearer &lt;jwt&gt;
 
   <p>An operator should send a periodic <code>{"type":"ping","message":&lt;unix&gt;}</code> so a subscriber can notice a dead connection, and <strong>should not send one more often than every 30 seconds</strong>. A heartbeat is a liveness signal for a client that has nothing better; sent faster than the events it accompanies it becomes the loudest thing on the stream, and a client that surfaces frames as they arrive can lose real messages in the noise.</p>
 
-  <p><strong>The event stream adds no error codes.</strong> The vocabulary is unchanged: a refusal here is <code>reject_subscription</code> or a typed <code>disconnect</code> reason, and the ticket endpoint answers with the ordinary problem documents.</p>
+  <p><strong>The event stream adds no error codes.</strong> The vocabulary is unchanged: a refusal here is <code>reject_subscription</code> or a typed <code>disconnect</code> reason.</p>
 
   <h2>Conformance — port Kiosk</h2>
   <p>The protocol is stack-neutral; Ruby is just the reference. This is the checklist for implementing Kiosk on any stack. Each clause below is a summary of a normative section of this page; where a port needs the requirement stated to the letter, Section 16 of the <a href="/spec/protocol.md">formal specification</a> carries the same two profiles, item for item, with a section reference on each clause pointing at the text that states it in full. The two are kept in step deliberately, and where their wording still differs the formal specification is the authority on wire precision.</p>

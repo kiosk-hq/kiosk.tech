@@ -1484,16 +1484,6 @@ token in the `Authorization` header of the upgrade request. An assistant
 **SHOULD** present it there: a token in a URL is a token in every access log on
 the path.
 
-**An operator MAY also accept a single-use connect TICKET** as a `ticket` query
-parameter, and one that does **MUST** serve `POST <endpoint>/events/ticket`,
-authenticated by the ordinary chain and untolled, answering
-`{"ticket": "...", "expires_in": <seconds>}`. This exists because a conformant AI
-assistant may run in a host whose WebSocket client accepts a URL and nothing
-else -- it cannot set a header, and would otherwise be locked out of a module it
-is otherwise able to use. A ticket **MUST** be single-use, **MUST** expire in
-60 seconds or less, and **MUST NOT** be accepted as an access token by any
-other endpoint.
-
 #### 8.5.4 Subscribing
 
 A subscriber names a topic, optionally a `subject`, and optionally a cursor:
@@ -1505,11 +1495,10 @@ A subscriber names a topic, optionally a `subject`, and optionally a cursor:
 
 **An operator MAY also accept subscriptions declared in the URL of the
 upgrade** -- `?topic=<name>[:<subject>]`, repeatable or comma-separated, with an
-optional `?since=<id>` applying to all of them -- and an operator that accepts
-the ticket of Section 8.5.3 **MUST** accept these too. The two are the same
-subscription by two spellings, and the reason for the second is the reason for
-the ticket: a client that cannot set a header usually cannot send a frame
-either, and a socket it can open but never subscribe on delivers nothing at all.
+optional `?since=<id>` applying to all of them. The two are the same
+subscription by two spellings, and the second exists because a client that can
+set a header on the upgrade may still be unable to SEND a frame: a socket it
+can open but never subscribe on delivers nothing at all.
 
 On a subscription it accepts, the operator **MUST** send:
 
@@ -1588,8 +1577,7 @@ real messages to the noise.
 
 The event stream introduces **no new error codes**. The vocabulary of Section 9
 is unchanged: a refusal on this surface is `reject_subscription` or a typed
-`disconnect` reason, and the `POST <endpoint>/events/ticket` endpoint answers
-with the ordinary problem documents.
+`disconnect` reason.
 
 ## 9. Errors -- problem documents and the code vocabulary
 
