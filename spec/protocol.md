@@ -611,7 +611,7 @@ Its claims:
 | `sub` | string | REQUIRED | The identity's `user_id`. |
 | `agent_id` | string | REQUIRED | The acting agent id. |
 | `actor` | string | REQUIRED | `"agent"`. |
-| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. **No endpoint accepts a client-requested role** -- not registration, not the claim body, and not the device-authorization request that opens the claim ceremony (Section 6.1). An operator **MAY** source an AI assistant's role from a configured IdP, INDIRECTLY via the bound human's role: at EITHER account-binding ceremony (Section 6) the approving human's IdP role is captured and set as the bound AI assistant's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
+| `role` | string | OPTIONAL | Operator-assigned role; **omitted** (not null) when absent. **No endpoint accepts a client-requested role** -- not registration, not the claim body, and not the device-authorization request that opens the claim ceremony (Section 6.1). An operator that assigns roles at all assigns one to EVERY AI assistant it admits, self-registration included -- role resolution is total or absent (Section 6.3). An operator **MAY** source an AI assistant's role from a configured IdP, INDIRECTLY via the bound human's role: at EITHER account-binding ceremony (Section 6) the approving human's IdP role is captured and set as the bound AI assistant's role. Direct agent-IdP (ID-JAG) role assertion stays planned. |
 | `iss` / `aud` | string | REQUIRED | The operator issuer. |
 | `iat` / `nbf` / `exp` | integer | REQUIRED | Validity window (default 1 hour). |
 | `jti` | string | REQUIRED | Unique token id. |
@@ -773,6 +773,19 @@ role, its tokens omit the `role` claim (Section 5.4) and its ceremony responses
 omit `scope` (Section 6.1). Both shapes are total. The MIXTURE is what this
 paragraph forbids, and it is forbidden because the two properties below are
 false without it.
+
+**Totality reaches the path with no human in it, too.** The quantifier above
+runs over humans, and one way into an operator is not a human at all: a fresh
+key self-registers (Section 5.3) and no approval is involved. So an operator
+that assigns roles at all **MUST** also fix the role an AI assistant is assigned
+when nothing else resolves one for it -- a self-registration, and a binding
+whose approving human the operator's own identity system answers no role for.
+That role **MUST** be one the operator declares. Without it the origin admits AI
+assistants whose tokens omit the `role` claim (Section 5.4) while its verbs
+branch on one, which is the mixture the paragraph above forbids arriving by the
+one door that quantifier does not reach. The reference refuses to start on that
+configuration, naming the setting; an operator that assigns roles to nobody is
+untouched by this requirement and has nothing to configure.
 
 Under that contract both properties hold without a caveat. A ceremony can never
 mint a privilege its approver does not hold, which is what makes an approval

@@ -103,11 +103,11 @@ openssl genrsa 2048 | base64
   c.roles  = %i[customer]
   c.owner  = { name: "Your Business", support: "help@your-domain.com" }
 
-  # OPTIONAL — role pinned to every self-registered agent (agents can't
-  # choose their own). By default no role is assigned, and single-role
-  # providers like this one can leave it out entirely. Alternatively, assign
-  # the role yourself when creating the account in the assistant_creation
-  # hook below — that's where provider-owned role assignment belongs.
+  # The DEFAULT ROLE — pinned to every self-registered agent (agents can't
+  # choose their own) and fallen back to by a binding that resolves none.
+  # REQUIRED whenever c.roles above is set, and it must be one of them: there
+  # is always a default role, so kiosk-server refuses to start without one.
+  # An operator that assigns roles to nobody sets neither line.
   c.registration_role = :customer
 
   # OPTIONAL — which identity provider verifies agent tokens. When omitted,
@@ -193,7 +193,7 @@ post "/kiosk/reschedule_delivery", to: "kiosk/server/verb#create", defaults: { k
     <li><strong>The account-binding ceremony</strong> — how an assistant gets attached to a human's <em>existing</em> account instead of a fresh assistant account. That is the RFC 8628 claim wire (<code>POST /kiosk/oauth/device_authorization</code>, <code>POST /kiosk/oauth/token</code>), the link/claim/unlink endpoints (<code>POST /kiosk/auth/link</code>, <code>/kiosk/auth/claim</code>, <code>/kiosk/auth/unlink</code>), and two human-facing HTML pages: the consent page at <code>/kiosk/oauth/device/verify</code>, which shows the key's fingerprint and when it asked, and «Link an assistant» at <code>/kiosk/auth/assistants</code> with its link/update/unlink form posts. Both pages are session-authenticated through your own <code>user_idp</code> — approving a binding is the human channel's job, not the agent's — and both render minimal engine views you override by shipping same-named templates under <code>app/views/kiosk/server/</code>.</li>
   </ul>
 
-  <blockquote><strong>Roles are total, or you have none.</strong> The role a binding carries is the approving human's — the engine reads it from your <code>user_idp</code> and never from anything the assistant sent. So if you declare <code>c.roles</code> at all, your identity system MUST name a role for <em>every</em> human who can approve a binding. A role for staff and nothing for customers is not a supported configuration: on an origin with more than one role, an assistant that already holds the privileged one <em>keeps</em> it while its principal changes to a human who holds none. Declaring no roles at all is the other supported shape — then no binding carries a role and no token has one. If you write <code>#kiosk_role</code> on your user model, make it total: return your least-privileged declared role rather than <code>nil</code>. kiosk-server cannot check this at boot — whether a method is total over your humans is not something a configuration file says — so it warns in your log the first time a ceremony resolves no role on a multi-role origin, and <a href="/spec/protocol.md">§6.3 of the protocol</a> states the requirement.</blockquote>
+  <blockquote><strong>Roles are total, or you have none.</strong> The role a binding carries is the approving human's — the engine reads it from your <code>user_idp</code> and never from anything the assistant sent. So if you declare <code>c.roles</code> at all, your identity system MUST name a role for <em>every</em> human who can approve a binding. A role for staff and nothing for customers is not a supported configuration: on an origin with more than one role, a member of staff your identity system answers no role for gets an assistant at your <em>default</em> role instead of theirs, and it can see nothing they could see themselves. Declaring no roles at all is the other supported shape — then no binding carries a role and no token has one. If you write <code>#kiosk_role</code> on your user model, make it total: return your least-privileged declared role rather than <code>nil</code>. Whether a Ruby <em>method</em> is total over your humans is not something a configuration file says, so kiosk-server cannot check that half at boot — it warns in your log the first time a ceremony resolves no role on a multi-role origin. The <em>configuration</em> half it does check, and refuses: declaring <code>c.roles</code> without a <code>c.registration_role</code> stops the app from starting, because that default is the role an assistant lands on when nothing else resolves one — a self-registration, or a binding whose approving human you answer no role for. <a href="/spec/protocol.md">§6.3 of the protocol</a> states the requirement.</blockquote>
 
   <p>The mount also installs the <strong>discovery documents</strong>, which live at the <em>origin root</em> rather than under the prefix — the agents.txt v1.0 standard and RFC 8615 put them there, outside any mount:</p>
   <ul>
