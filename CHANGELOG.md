@@ -11,6 +11,10 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+## [0.4.16] — 2026-09-25
+
+- 2026-09-25: **`skill-v0.4.16` published: an assistant is told a wait is over, not left asking.** It subscribes to the event stream for the identity check and the card; polling is the fallback.
+- 2026-09-25: **The skill pins `events/listen-v0.5.0.py` by SHA-256**, the way it has always pinned the proof-of-work solver — fetch, verify, run, and never write a client of your own.
 - 2026-09-24: **§6.3 and §5.4: role totality reaches self-registration, the one way in with no human (ADR-0036).** An operator that assigns roles at all assigns one to every AI assistant it admits.
 - 2026-09-24: **§6.3: the reference resolves a role-less rebind from the operator's default, not from the assistant's previous role.** The forbidden mixture now costs staff their own access.
 - 2026-09-24: **An assistant MUST put the upgrade's token in the `Authorization` header (ADR-0035).** With the ticket gone there is one place a credential goes, so the page says so.
