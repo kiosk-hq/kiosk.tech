@@ -64,3 +64,17 @@ demonstrated by the reference implementation.
    standing corpus stays as it is, and `bin/check-changelog` (arms CL-8 length,
    CL-9 sentences) holds the rule on entries that are NEW against its declared
    baseline commit, printing the backlog as a census that never reddens.
+
+   **AND THE ENTRY SAYS WHICH VERSION CARRIES IT, NOT ONLY WHEN IT LANDED (Phil,
+   2026-09-24).** An entry is grouped by the cut that carries it:
+   `## [Unreleased]` holds what no cut has closed yet, and a cut renames it to
+   `## [MAJOR.MINOR.PATCH] — YYYY-MM-DD` and opens a fresh empty one above — **a
+   skill PATCH getting a section exactly as a MINOR does**, since a date cannot
+   say which version has a change. A cut here is the published skill cut, this
+   repository's one versioned artefact: everything published since the previous
+   one belongs to the section that cut closes — a specification sentence, a
+   landing claim, a pinned client. The entries written before the grouping sit
+   below the `## Before release sections` heading, unedited and naming no version.
+   **`CHANGELOG-RULE.md` at the root is the authority for how**, and the changelog
+   points at it instead of repeating it. `bin/check-changelog` holds the shape
+   (CL-11 heading grammar, CL-12 an open section, CL-13 no ungrouped entry).

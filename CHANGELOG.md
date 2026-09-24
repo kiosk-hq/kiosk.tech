@@ -1,28 +1,23 @@
 # Changelog
 
-**THE RULE FOR EVERY NEW ENTRY, first on this page on purpose (Phil,
-2026-09-11, his words):**
+The repository record: one entry per significant change to a published surface,
+newest first.
 
-> **Keep the entries short, always under 200 characters and one-two sentences.
-> Only keep the essence of the change. git commit messages will keep the
-> details. In the CHANGELOG, only keep the essence.**
+**How to write an entry, and what a release section means:
+[`CHANGELOG-RULE.md`](CHANGELOG-RULE.md).** In short: under 200 characters, one or
+two sentences, the essence rather than the content; open with the ISO date; write
+it under `## [Unreleased]`; nothing already written is edited. Both halves are
+held by `bin/check-changelog`.
 
-It binds every `CHANGELOG.md` in this workspace, and this repository tracks
-exactly one. The details belong in the commit message and in the ledger row.
-`bin/check-changelog` holds the rule (arms CL-8 length, CL-9 sentences) on
-entries that are NEW against its declared baseline commit, and prints
-everything older as a census that never reddens.
+## [Unreleased]
 
-**Every top-level entry opens with its ISO date** — it is this file's only
-ordering affordance, and `bin/check-changelog` fails on an entry that omits one
-(arm CL-7).
+- 2026-09-24: **Entries are grouped by the cut that carries them, version and date in the heading.** A skill patch is as visible as a minor; `CHANGELOG-RULE.md` carries the rules.
 
-**What this file is:** the repository record, newest entry first. One entry per
-significant change to a published surface.
+## Before release sections
 
-**Nothing already written is edited.** History is append-only: an entry that has
-turned out to be wrong is superseded by a new entry that says so and names it,
-never rewritten. The entries below the baseline are long; they stay as written.
+Entries written before this file grouped them by cut. They are not a cut
+themselves, and they are not unreleased either — every one of them is published —
+so they carry no version, and none of them is ever edited.
 
 - 2026-09-24: **The connect ticket comes out of the event stream (ADR-0034).** A stream is now authenticated one way only: the `Authorization` header on the upgrade.
 - 2026-09-24: **`events/listen-v0.5.0.py` published.** The pinned reference client for the event stream, versioned like the skill rather than content-addressed, and immutable once cut.
