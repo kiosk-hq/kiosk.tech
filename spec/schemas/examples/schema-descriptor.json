@@ -269,5 +269,31 @@
         ]
       }
     }
+  ],
+  "events": [
+    {
+      "name": "order_payment",
+      "description": "An order of yours was paid -- by you, or by somebody paying on your behalf.",
+      "reach": "principal",
+      "payload_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "order_id",
+          "payment_state"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "payment_state": {
+            "enum": [
+              "paid",
+              "refunded"
+            ]
+          }
+        }
+      }
+    }
   ]
 }

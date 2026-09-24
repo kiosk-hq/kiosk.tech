@@ -38,6 +38,7 @@ chk compile "${F[@]}" -s discovery.schema.json
 chk compile "${F[@]}" -s pow.schema.json
 chk compile "${F[@]}" -s problem.schema.json -r pow.schema.json
 chk compile "${F[@]}" -s schema-descriptor.schema.json
+chk compile "${F[@]}" -s event.schema.json
 chk compile "${F[@]}" -s mandates.schema.json
 chk compile "${F[@]}" -s kyc.schema.json
 chk compile "${F[@]}" -s auth.schema.json
@@ -58,6 +59,7 @@ chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/pro
 chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.verb-not-found.json
 chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.module-not-served.json
 chk validate "${F[@]}" -s schema-descriptor.schema.json -d examples/schema-descriptor.json
+chk validate "${F[@]}" -s event.schema.json -d examples/event.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.proofs.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.shorthand.json
 # The LARGEST LEGAL index, 2**64-1, must VALIDATE, and how the bound is SPELLED
@@ -169,6 +171,15 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # query and nothing else changed, so only `additionalProperties: false` leaving
 # `$defs.descriptor` can turn it green -- watched, and it does.
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.unknown-member.json
+# An EVENT's root is closed on the same terms, and the near-miss a porter
+# actually emits is a delivery timestamp beside the occurrence one -- plausible,
+# useful-sounding, and not on the wire. The five members are the five members.
+chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.unknown-member.json
+# And a TOPIC descriptor is closed too. `subject_reachable` is the member a
+# porter reaches for, because the operator really does have such a rule -- it is
+# deliberately NOT published, so the schema has to refuse it rather than leave
+# the omission to prose.
+chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.topic-extra-member.json
 # `indices` items are u64. A `description` saying so is not a refusal; only
 # the bound makes the schema REFUSE what a conforming verifier refuses.
 # `pack("Q<")` truncates mod 2**64, so without the upper bound `idx` and

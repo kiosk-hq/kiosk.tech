@@ -214,7 +214,7 @@ Content-Type: application/json
   <p><strong>The mandate chain is not reached by the first rule, and answers <code>403 forbidden</code>.</strong> The three rules above are about <em>arguments</em> — the values a verb's <code>input_schema</code> describes. A <strong>mandate</strong> (see Payment below) is not an argument to a verb: it is the <strong>authorisation</strong> the <code>pay</code> call rests on, and the question it answers is not &ldquo;can the operator use this value&rdquo; but &ldquo;has this assistant been authorised to spend this money&rdquo;. A mandate that does not carry what a mandate must carry has authorised nothing, so the operator answers <code>403</code> — <strong>including where the defect also fits the first rule</strong>, which a negative <code>cap_amount_cents</code> plainly does. The whole class answers alike so an assistant learns one branch rather than a table: any base claim absent (<code>id</code>, <code>user_id</code>, <code>agent_id</code>, <code>iss</code>, <code>iat</code>, <code>exp</code>); a <code>user_id</code>/<code>agent_id</code> that is not the authenticated principal, or an <code>iss</code> that is not the operator's own; an <code>exp</code> that has passed, or a signature that does not verify; an amount absent, zero or negative; <code>currency</code> absent, or present but not a non-empty string; <code>line_items</code> absent, not an array, or empty; any binding rule broken. <strong>Two mandate checks are not in the class and do answer <code>400</code></strong>, stated here rather than left to be inferred because the boundary does not fall out of the reason on its own: an <code>iat</code> or <code>exp</code> that is not a NumericDate, and a mandate whose lifetime exceeds the operator's maximum. Neither is a claim about what the mandate authorises — they ask whether it is a well-formed, bounded credential at all — and they are the only mandate checks the first rule reaches.</p>
 
   <h2>The <code>schema</code> verb — self-description</h2>
-  <p><code>GET /kiosk/schema</code> returns exactly <code>{queries, actions}</code> — and it takes <strong>no credential</strong>:</p>
+  <p><code>GET /kiosk/schema</code> returns exactly <code>{queries, actions, events}</code> — and it takes <strong>no credential</strong>:</p>
   <pre><code class="language-json">GET /kiosk/schema
 
 → 200 OK
@@ -265,6 +265,14 @@ ETag: "1f0c7a3e9b5d24618af03c9d7e2b5a04"
                                     { "type": "object", "additionalProperties": false, "required": ["status","setup_url"],
                                       "properties": { "status":    {"const":"setup_required"},
                                                       "setup_url": {"type":"string","description":"Hosted page to hand to the human."} } } ] } }
+  ],
+  "events": [
+    { "name": "order_payment", "description": "An order of yours was paid — by you, or by somebody paying on your behalf.",
+      "reach": "principal",
+      "payload_schema": { "type": "object", "additionalProperties": false,
+                          "required": ["order_id","payment_state"],
+                          "properties": { "order_id":      {"type":"string"},
+                                          "payment_state": {"enum":["paid","refunded"]} } } }
   ]
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <ul>
@@ -315,14 +323,15 @@ ETag: "1f0c7a3e9b5d24618af03c9d7e2b5a04"
   }
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p><strong><code>capabilities</code></strong> is an array of the <strong>modules</strong> this endpoint serves, drawn from the canonical set <code>schema</code>, <code>queries</code>, <code>actions</code>, <code>pay</code>, always in that order. Membership is derived from what the operator has registered:</p>
+  <p><strong><code>capabilities</code></strong> is an array of the <strong>modules</strong> this endpoint serves, drawn from the canonical set <code>schema</code>, <code>queries</code>, <code>actions</code>, <code>pay</code>, <code>events</code>, always in that order. Membership is derived from what the operator has registered:</p>
   <ul>
     <li><code>schema</code> — present iff the operator has registered at least one query <em>or</em> at least one action (schema is the self-description of those).</li>
     <li><code>queries</code> — present iff at least one named query is registered.</li>
     <li><code>actions</code> — present iff at least one action is registered.</li>
     <li><code>pay</code> — present iff payments are configured.</li>
+    <li><code>events</code> — present iff at least one topic is registered (see <em>The event stream</em> below).</li>
   </ul>
-  <p>Typically all four are present.</p>
+  <p><code>events</code> is <strong>last</strong> in that order, and it was added after the other four. An origin that serves no topics therefore advertises exactly the array it advertised before this module existed, and a reader that has never heard of events sees the same four names it always did — a module is a branch of the reader's own instructions, and a reader with no such branch must not be made to fail on a name it does not know.</p>
 
   <p><strong>Modules, never verb names — and that is a modelling rule, not a security one.</strong> Naming them here would withhold nothing: <code>GET &lt;endpoint&gt;/schema</code> is public, and <code>/.well-known/api-catalog</code> hyperlinks every verb an origin serves without a credential. A verb name is not a secret, and this spec does not pretend otherwise.</p>
 
@@ -719,9 +728,68 @@ Authorization: Bearer &lt;jwt&gt;
   <p>Reputation is operator-local; a keypair is unique per domain, so there is no cross-operator identifier. The <code>kiosk-reputation</code> gem provides policy hooks for the reputation→proof-count function.</p>
   <p><strong>A policy decides per call KIND, and the write kind is named <code>run</code>.</strong> An operator <em>declares</em> a handler as a <code>query</code> or an <code>action</code>, but a policy is asked about a call in the gate's own coarse vocabulary — <code>query</code>, <code>run</code>, <code>pay</code> — in which an <code>action</code> arrives as <strong><code>run</code></strong>, and <code>pay</code> is a kind of its own rather than a write. <code>query</code> is the one word spelled identically in both vocabularies, which is what makes the difference easy to miss: a policy branching on <code>action</code> is never wrong out loud. It matches nothing, so it declines to toll every write, and declining is the ordinary “this call is free” answer — no error, no log line, nothing a passing test would see. An implementation exposing such a hook SHOULD state which vocabulary it hands the policy, and an operator writing one SHOULD exercise its write branch against a running origin rather than reading it.</p>
 
-  <div class="todo">
-    <strong>ROADMAP — operator-sent events.</strong> Every exchange this specification describes is AI-assistant-initiated: an AI assistant that wants to know whether an order shipped asks again. A future version will let an operator push such updates instead. <strong>This page names no transport for it, deliberately.</strong> A roadmap sentence that names a transport reads as a commitment to it, and a reader cannot tell a live intention from one nobody holds any more — so this page names none until it carries the wire itself. Nothing about events is normative until this page carries the wire itself, and no member, field or value is reserved for it today.
-  </div>
+  <h2>The event stream</h2>
+
+  <p>Every other exchange on this page is one an AI assistant <em>makes</em>. This is the one surface where the operator speaks first, and it is <strong>optional</strong>: an operator that serves no topics omits <code>events</code> from <code>capabilities</code> and publishes no <code>events_url</code>, and everything else here is unchanged.</p>
+
+  <p><strong>What it is for.</strong> Some of what an assistant needs to know happens on somebody else's clock — a human finishes an identity check, a human saves a card, a hotel answers a booking, a courier sets off, another member of a shared list ticks something off. Without a stream the only way to learn any of those is to ask again, and again, at a cadence nobody specified, on an origin that may toll every ask.</p>
+
+  <p><strong>What it is not.</strong> There are no webhooks <em>to</em> the assistant: an assistant has no public callback URL, and this specification does not ask it to get one. There is no server-sent-events transport. There is no fan-out across origins — one origin, one socket, one identity, the same shape as everything else on this wire.</p>
+
+  <h3>Topics</h3>
+
+  <p>A <strong>topic</strong> is a named kind of event an origin publishes, declared by the operator and published in the catalog's <code>events</code> array. A topic descriptor carries <code>name</code> (a wire name, drawn from the same vocabulary as a verb's), <code>description</code>, <code>reach</code> — the same four values a verb's <code>reach</code> takes, meaning the same things — and <code>payload_schema</code>, the JSON Schema for the event's <code>data</code>. <strong>A topic descriptor carries the members named above and no others.</strong></p>
+
+  <p><code>payload_schema</code> is required for the reason a verb's <code>output_schema</code> is: without it a message cannot be consumed without receiving one first and seeing what turned up, which is a contract discovered by experiment rather than published.</p>
+
+  <p><strong>What an operator must not publish is the rule by which it decides that a particular <em>subject</em> is readable by a particular subscriber.</strong> That rule is the operator's own, it runs on every subscribe and again while the subscription stands, and publishing it would describe where to look for a gap in it while telling a well-behaved subscriber nothing it can act on.</p>
+
+  <h3>An event</h3>
+
+  <pre><code class="language-json">{"id": 1487,
+ "topic": "kyc_verification",
+ "subject": "9f2c...",
+ "occurred_at": "2026-09-04T09:14:22Z",
+ "data": { }}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p><strong>An event carries the five members named above and no others.</strong> <code>subject</code> is <code>null</code> for a topic that has none, and <code>data</code> must validate against the topic's <code>payload_schema</code>.</p>
+
+  <p><code>id</code> is a <strong>per-origin</strong> monotonic integer — not per topic, not per subscriber. One integer therefore resumes every subscription a socket holds, and an assistant compares integers instead of keeping a cursor per topic.</p>
+
+  <h3>Opening it</h3>
+
+  <p>The stream is at <code>&lt;endpoint&gt;/events</code> over WebSocket, on the <code>actioncable-v1-json</code> subprotocol, and <code>events_url</code> in the discovery document is where an assistant finds it.</p>
+
+  <p><strong>Opening a stream is free, and an event is never tolled.</strong> Proof-of-work prices a caller's consumption of operator CPU; a held socket consumes none, and the identity paid to register. An operator may cap how many streams one identity holds at once.</p>
+
+  <p>An operator must authenticate the upgrade and <strong>must accept the access token in the <code>Authorization</code> header</strong>, which is where an assistant should put it: a token in a URL is a token in every access log on the path.</p>
+
+  <p><strong>An operator may also accept a single-use connect <em>ticket</em></strong> as a <code>?ticket=</code> parameter, minted by <code>POST &lt;endpoint&gt;/events/ticket</code> — authenticated the ordinary way, untolled, answering <code>{"ticket": "...", "expires_in": &lt;seconds&gt;}</code>. This exists for a concrete reason rather than a theoretical one: a conformant assistant may run in a host whose WebSocket client takes a URL and nothing else, so it cannot set a header and would otherwise be shut out of a module it is perfectly able to use. A ticket must be single-use, must expire in 60 seconds or less, and must not be accepted as an access token anywhere else.</p>
+
+  <h3>Subscribing</h3>
+
+  <pre><code class="language-json">{"command":"subscribe",
+ "identifier":"{\"channel\":\"KioskEvents\",\"topic\":\"todo\",\"subject\":\"list_4f1e...\",\"since\":880}"}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p><strong>An operator may also accept subscriptions declared in the upgrade's URL</strong> — <code>?topic=&lt;name&gt;[:&lt;subject&gt;]</code>, repeatable or comma-separated, with an optional <code>?since=</code> applying to all of them — and an operator that accepts the ticket above must accept these too. They are one subscription in two spellings, and the reason for the second is the reason for the ticket: a client that cannot set a header usually cannot send a frame either, and a socket it can open but never subscribe on delivers nothing at all.</p>
+
+  <p>On a subscription it accepts, the operator answers <code>{"type":"subscribed","topic":...,"subject":...,"head":1486,"truncated":false}</code>. <code>head</code> is the origin's current event id, which is what an assistant records as its cursor. <code>truncated</code> is <code>true</code> when the operator cannot prove the subscriber has seen everything after the <code>since</code> it presented; it is <strong>required</strong> rather than optional, because it is the one signal that turns a lost range into a single ordinary read instead of a silent gap. On <code>truncated: true</code> an assistant re-reads the current state through the ordinary verb that owns it, exactly once, and then carries on with the stream.</p>
+
+  <p>On a subscription it refuses — an unknown topic, or a subject its own rule says this subscriber may not read — the operator answers <code>reject_subscription</code>, and <strong>must not instead hand back a subscription that is simply silent</strong>: a subscription to nothing looks exactly like a quiet topic, and a subscriber would wait on it forever.</p>
+
+  <h3>Delivery, ordering and replay</h3>
+
+  <p><strong>Delivery is at-least-once and ordered per origin.</strong> There are no acknowledgements, and a subscriber never publishes. An operator may deliver an event more than once — notably around a subscribe, where a replay and a live stream overlap — so <strong>an assistant must ignore an <code>id</code> it has already seen</strong>. With a payload that carries state, that is not a nicety: acting twice on one event is the failure at-least-once trades for never losing one.</p>
+
+  <p><strong>An operator must retain at least 24 hours of events per identity</strong>, and the figure is not a cache size. Some topics are <em>waits</em> — the assistant asked for something and is holding on for the answer. Others are <em>subscriptions</em>: the event arrives hours or days later, and the assistant is not running when it does. Nothing obliges an assistant to hold a socket across its own sessions, and a turn-based one cannot. For those topics the <strong>cursor</strong> is how events are delivered and the socket is an optimisation over it — the assistant records <code>head</code> and asks for everything after it the next time it runs. A retention window shorter than the gap between an assistant's sessions makes <code>truncated: true</code> the permanent answer for exactly the topics that have no other one.</p>
+
+  <h3>Authorisation, revocation and liveness</h3>
+
+  <p>A subscription is authorised by the topic's <code>reach</code> and by the operator's own subject rule, at subscribe time <strong>and again while it stands</strong> — at least every 60 seconds. When a subscriber's reach to a subject is withdrawn the operator stops delivering and should say why (<code>{"type":"unsubscribed","reason":"reach_revoked"}</code>). When the credential itself is revoked the operator closes the connection and says that coming back will not help: <code>{"type":"disconnect","reason":"revoked","reconnect":false}</code>. That last flag earns its place — a client retrying into a refusal whose answer cannot change is a reconnect storm against an origin.</p>
+
+  <p>An operator should send a periodic <code>{"type":"ping","message":&lt;unix&gt;}</code> so a subscriber can notice a dead connection, and <strong>should not send one more often than every 30 seconds</strong>. A heartbeat is a liveness signal for a client that has nothing better; sent faster than the events it accompanies it becomes the loudest thing on the stream, and a client that surfaces frames as they arrive can lose real messages in the noise.</p>
+
+  <p><strong>The event stream adds no error codes.</strong> The vocabulary is unchanged: a refusal here is <code>reject_subscription</code> or a typed <code>disconnect</code> reason, and the ticket endpoint answers with the ordinary problem documents.</p>
 
   <h2>Conformance — port Kiosk</h2>
   <p>The protocol is stack-neutral; Ruby is just the reference. This is the checklist for implementing Kiosk on any stack. Each clause below is a summary of a normative section of this page; where a port needs the requirement stated to the letter, Section 16 of the <a href="/spec/protocol.md">formal specification</a> carries the same two profiles, item for item, with a section reference on each clause pointing at the text that states it in full. The two are kept in step deliberately, and where their wording still differs the formal specification is the authority on wire precision.</p>

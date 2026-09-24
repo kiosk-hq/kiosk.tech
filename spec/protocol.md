@@ -314,11 +314,12 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 | `kiosk.version` | string | REQUIRED | Discovery-document format version (currently `"1.0"`), independent of protocol version. |
 | `kiosk.issuer` | string | REQUIRED | The AP2 mandate `iss` anchor and token `iss`/`aud`. An absolute https origin. |
 | `kiosk.endpoint` | string | REQUIRED | The wire-verb root (base URL + mount path). All verb and auth URLs derive from this. |
-| `kiosk.capabilities` | array | REQUIRED | The MODULES this endpoint serves, from `["schema","queries","actions","pay"]`, in that canonical order (Section 4.2). |
+| `kiosk.capabilities` | array | REQUIRED | The MODULES this endpoint serves, from `["schema","queries","actions","pay","events"]`, in that canonical order (Section 4.2). |
 | `kiosk.schema_url` | string | REQUIRED | Where to fetch the catalog (Section 8.3). MUST resolve to the same document as `GET <endpoint>/schema`. MAY carry a cache-busting version parameter -- see below. |
 | `kiosk.min_client` | string | OPTIONAL | Advisory minimum client version. When present it **MUST** equal the `Kiosk-Min-Client` response header (Section 3, point 6) -- same number, two surfaces. |
 | `kiosk.owner` | object | OPTIONAL | Operator contact info; SHOULD include at least an email. |
 | `kiosk.auth` | object | REQUIRED | The kiosk-pop auth block (Section 4.3). |
+| `kiosk.events_url` | string | OPTIONAL | Where to open the event stream (Section 8.5). Present **iff** `capabilities` carries `events`; an absolute `wss://` URL, and the same origin and mount as `endpoint` under the WebSocket scheme. |
 | `kiosk.skill` | object | OPTIONAL | Pinned skill reference `{url, sha256}` (Section 14.4). Omitted entirely when absent. |
 
 **Caching, and why `schema_url` is a separate field.** This document is
@@ -377,9 +378,17 @@ hostname the AI assistant actually dialed is rejected -- and the AI assistant
 `capabilities` is the subset of the canonical MODULE set the operator actually
 serves, derived from what it has registered: `schema` (present iff at least one
 query or action is registered), `queries` (iff a query is registered),
-`actions` (iff an action is registered), `pay` (iff payments are configured).
+`actions` (iff an action is registered), `pay` (iff payments are configured),
+`events` (iff at least one topic is registered -- Section 8.5).
 An operator **MUST** emit the canonical order and **MUST NOT** advertise a
 module it does not serve.
+
+`events` is LAST in that order and was added after the other four. An origin
+that serves no topics therefore advertises exactly the array it advertised
+before this module existed, and an AI assistant that has never heard of events
+reads the same four names it always did: a module is a branch of the reader's
+instructions, and a reader who has no such branch must not be made to fail on
+a name.
 
 `capabilities` names MODULES, never the origin's registered verb NAMES. **This
 is a modelling rule, not a security one.** Naming them here would withhold
@@ -1155,7 +1164,7 @@ alone.
 
 ### 8.3 The `schema` verb
 
-`GET <endpoint>/schema` returns `{queries, actions}` and nothing else. The
+`GET <endpoint>/schema` returns `{queries, actions, events}` and nothing else. The
 document is **UNAUTHENTICATED**: an operator **MUST** serve it to a caller that
 presents no credential, and **MUST NOT** toll it. It carries verb names,
 descriptions, input and output schemas and examples -- nothing about any
@@ -1163,6 +1172,12 @@ particular AI assistant and nothing secret -- so gating it while the discovery
 surfaces of Section 4.5 stand open would withhold nothing and cost an
 explanation. An AI assistant **MAY** therefore read an origin's whole surface
 before it registers, and Section 4.1's `schema_url` is where it finds the url.
+
+`events` is an array of TOPIC descriptors and is **REQUIRED even when it is
+empty** -- an origin that serves no topics answers `"events": []`, exactly as
+an origin with no actions answers `"actions": []`. A member that appears only
+sometimes is a member every reader has to branch on; the module set in
+`capabilities` (Section 4.2) is where presence is stated.
 
 **A response body carrying any other member is not a conformant catalog**; the
 root is closed in `schema-descriptor.schema.json`. In particular **there is no
@@ -1390,6 +1405,190 @@ is the same array either way, an AI assistant that always follows a `next` link
 while one is present needs no advance knowledge of which queries paginate.
 
 ---
+
+### 8.5 The event stream
+
+Every verb in this specification is a call an AI assistant MAKES. This section
+is the one surface where the operator speaks first.
+
+**What it is for.** Some things an assistant needs to know happen on somebody
+else's clock: a human finishes an identity check, a human saves a card, a hotel
+answers a booking, a courier leaves, another member of a shared list ticks
+something off. Without a stream the only way to learn any of them is to ask
+again and again -- at an invented cadence nobody specified, on an origin that
+may toll every ask.
+
+**What it is NOT.** There are no webhooks to the assistant: an assistant has no
+public callback URL, and the protocol does not ask it to acquire one. There is
+no server-sent-events transport. There is no fan-out across origins: one origin,
+one socket, one identity, exactly like every other part of this wire.
+
+#### 8.5.1 Topics
+
+A **topic** is a named kind of event an origin publishes. Topics are declared by
+the operator and published in the catalog's `events` array (Section 8.3), each
+descriptor carrying:
+
+| Member | Presence | Meaning |
+|---|---|---|
+| `name` | REQUIRED | The topic name. A wire name: `^[a-z][a-z0-9_]*$`, the same vocabulary a verb name is drawn from (Section 8.1). |
+| `description` | REQUIRED | Prose semantics, a string or `null`, on the same terms as a verb's. |
+| `reach` | REQUIRED | Whose events a subscriber may read: `principal`, `published`, `consented` or `role` -- the same four values, with the same meanings, as a verb's `reach` (Section 7.2). |
+| `payload_schema` | REQUIRED | JSON Schema for the event's `data`. |
+
+**A topic descriptor carries the members named above and NO OTHERS.**
+
+`payload_schema` is REQUIRED for the reason a verb's `output_schema` is: without
+it a message cannot be consumed without receiving one and observing what
+arrived, which is a contract discovered by experiment rather than published.
+
+An operator **MUST NOT** publish the rule by which it decides whether a
+particular SUBJECT is readable by a particular subscriber. That rule is the
+operator's, it is applied on every subscribe and again while the subscription
+stands (Section 8.5.6), and publishing it would describe where to look for a gap
+in it without telling a conformant subscriber anything it can act on.
+
+#### 8.5.2 The event
+
+```json
+{"id": 1487,
+ "topic": "kyc_verification",
+ "subject": "9f2c...",
+ "occurred_at": "2026-09-04T09:14:22Z",
+ "data": { }}
+```
+
+**An event carries the five members named above and no others.** `subject` is
+`null` for a topic that has none. `data` **MUST** validate against the topic's
+`payload_schema`. `occurred_at` is an RFC 3339 timestamp in UTC.
+
+`id` is a **per-origin monotonic integer** -- not per topic and not per
+subscriber. One integer therefore resumes every subscription a socket holds, and
+a subscriber compares ids rather than tracking a cursor per topic.
+
+#### 8.5.3 Opening the stream
+
+The stream is at `<endpoint>/events` over WebSocket, and `events_url` (Section
+4.1) is where an assistant finds it. The subprotocol is `actioncable-v1-json`
+and an operator **MUST** negotiate it.
+
+**Opening a stream is FREE.** An operator **MUST NOT** toll the upgrade, and
+**MUST NOT** toll an event. Proof-of-work prices a caller's consumption of
+operator CPU (Section 10); a held socket consumes none, and the identity has
+already paid for registration. An operator **MAY** cap concurrent streams per
+identity.
+
+An operator **MUST** authenticate the upgrade, and **MUST** accept the access
+token in the `Authorization` header of the upgrade request. An assistant
+**SHOULD** present it there: a token in a URL is a token in every access log on
+the path.
+
+**An operator MAY also accept a single-use connect TICKET** as a `ticket` query
+parameter, and one that does **MUST** serve `POST <endpoint>/events/ticket`,
+authenticated by the ordinary chain and untolled, answering
+`{"ticket": "...", "expires_in": <seconds>}`. This exists because a conformant AI
+assistant may run in a host whose WebSocket client accepts a URL and nothing
+else -- it cannot set a header, and would otherwise be locked out of a module it
+is otherwise able to use. A ticket **MUST** be single-use, **MUST** expire in
+60 seconds or less, and **MUST NOT** be accepted as an access token by any
+other endpoint.
+
+#### 8.5.4 Subscribing
+
+A subscriber names a topic, optionally a `subject`, and optionally a cursor:
+
+```json
+{"command":"subscribe",
+ "identifier":"{\"channel\":\"KioskEvents\",\"topic\":\"todo\",\"subject\":\"list_4f1e...\",\"since\":880}"}
+```
+
+**An operator MAY also accept subscriptions declared in the URL of the
+upgrade** -- `?topic=<name>[:<subject>]`, repeatable or comma-separated, with an
+optional `?since=<id>` applying to all of them -- and an operator that accepts
+the ticket of Section 8.5.3 **MUST** accept these too. The two are the same
+subscription by two spellings, and the reason for the second is the reason for
+the ticket: a client that cannot set a header usually cannot send a frame
+either, and a socket it can open but never subscribe on delivers nothing at all.
+
+On a subscription it accepts, the operator **MUST** send:
+
+```json
+{"type":"subscribed","topic":"todo","subject":"list_4f1e...","head":1486,"truncated":false}
+```
+
+`head` is the origin's current event id -- what a subscriber records as its
+cursor. `truncated` is `true` when the operator cannot prove the subscriber has
+seen everything after the `since` it presented, and is REQUIRED rather than
+optional: it is the one signal that turns a lost range into a single ordinary
+read rather than a silent gap. On `truncated: true` an assistant **MUST**
+re-read the current state through the ordinary verb that owns it, exactly once,
+and then continue on the stream.
+
+On a subscription it refuses -- an unknown topic, or a subject the operator's
+own rule says this subscriber may not read -- the operator **MUST** answer
+`reject_subscription` and **MUST NOT** instead stream an empty subscription: a
+subscription to nothing is indistinguishable from a quiet topic, and a
+subscriber would wait on it forever.
+
+#### 8.5.5 Delivery, ordering and replay
+
+**Delivery is at-least-once and ordered per origin.** There are no
+acknowledgements, and a subscriber never publishes. An operator **MAY** deliver
+an event more than once -- notably around a subscribe, where a replay and a live
+stream overlap -- so **an AI assistant MUST ignore an `id` it has already
+seen.** With a stateful payload that is not a nicety: acting twice on one event
+is the failure at-least-once trades for never losing one.
+
+`since` reaches only into what the operator still retains. There is no "from the
+beginning".
+
+**An operator MUST retain at least 24 hours of events per identity.** The figure
+is not a cache size: some topics are WAITS, where an assistant is holding on for
+an answer it asked for, and others are SUBSCRIPTIONS, where the event arrives
+hours or days later and the assistant is not running when it does. Nothing
+obliges an assistant to hold a socket across its own sessions, and a turn-based
+assistant cannot. For those topics the CURSOR is how events are delivered and
+the socket is an optimisation over it: the assistant records `head`, and asks
+for everything after it the next time it runs. A retention window shorter than
+the gap between an assistant's sessions makes `truncated: true` the permanent
+answer for exactly the topics that have no other one.
+
+#### 8.5.6 Authorisation, revocation and liveness
+
+A subscription is authorised by the topic's `reach` and by the operator's own
+subject rule, at subscribe time **and again while the subscription stands**. An
+operator **MUST** re-authorise at least every 60 seconds.
+
+When a subscriber's reach to a subject is withdrawn, the operator **MUST** stop
+delivering and **SHOULD** say why:
+
+```json
+{"type":"unsubscribed","topic":"todo","reason":"reach_revoked"}
+```
+
+When the credential itself is revoked (Section 5.5), the operator **MUST** close
+the connection and **MUST** say that reconnecting will not help:
+
+```json
+{"type":"disconnect","reason":"revoked","reconnect":false}
+```
+
+`reconnect: false` is load-bearing: a client that retries into a refusal whose
+answer cannot change is a reconnect storm against an origin.
+
+An operator **SHOULD** send a periodic `{"type":"ping","message":<unix>}` so a
+subscriber can detect a dead connection, and **SHOULD NOT** send one more often
+than every 30 seconds. A heartbeat is a liveness signal for a client that has
+nothing better; sent faster than the events it accompanies, it is the loudest
+thing on the stream, and a client that surfaces frames as they arrive can lose
+real messages to the noise.
+
+#### 8.5.7 Errors
+
+The event stream introduces **no new error codes**. The vocabulary of Section 9
+is unchanged: a refusal on this surface is `reject_subscription` or a typed
+`disconnect` reason, and the `POST <endpoint>/events/ticket` endpoint answers
+with the ordinary problem documents.
 
 ## 9. Errors -- problem documents and the code vocabulary
 
@@ -2364,6 +2563,18 @@ the discovery document, and are absent from `capabilities` for that reason:
    the reason that section gives: an implementation that omits it accepts an
    attestation the KYC provider minted for a DIFFERENT operator.
 
+9. **Module EVENTS** (Section 8.5), OPTIONAL: the stream at
+   `<endpoint>/events` on the `actioncable-v1-json` subprotocol, authenticated
+   by the same chain as every verb and never tolled; the catalog's `events`
+   array and the `events` capability; `subscribed` carrying `head` and
+   `truncated`; `reject_subscription` for a topic or a subject the subscriber
+   may not read; at-least-once delivery ordered by a per-origin `id`; `since`
+   replay over at least 24 hours of retained events; and re-authorisation at
+   least every 60 seconds with `reach_revoked` and a `reconnect:false`
+   disconnect on a revoked credential. An operator that declines this module
+   omits `events` from `capabilities` and publishes no `events_url`; it still
+   answers `"events": []` in the catalog, whose root is closed.
+
 **What the reference implements, and what it therefore cannot show.** The
 reference implementation serves the binding module of item 7 ALWAYS: its
 routes are drawn on every mount, `device_authorization_url` and `claim_url`
@@ -2406,6 +2617,18 @@ existing operator account, binds instead of registering -- the claim ceremony
 (hand the human `user_code` + `verification_uri`, then poll with a possession
 proof) or a human-supplied link code redeemed with `{code, public_key, signed}`
 (Section 6).
+
+**And, where it consumes the OPTIONAL events module** (Section 8.5): opens the
+stream BEFORE the call whose answer may arrive out of band, so there is no
+window between asking and listening; records `head` from `subscribed` and
+presents it as `since` on every later subscribe, including the first subscribe
+of a LATER SESSION -- for a topic whose event arrives hours away that cursor is
+how the event is delivered at all, and a socket is not something an assistant
+can hold that long; IGNORES an `id` it has already seen, because delivery is
+at-least-once and acting twice on one event is the failure that trades for;
+re-reads current state through the ordinary verb exactly once on
+`truncated: true`; and does not reconnect after a `disconnect` carrying
+`reconnect: false`.
 
 ### 16.3 Conformance anchors
 

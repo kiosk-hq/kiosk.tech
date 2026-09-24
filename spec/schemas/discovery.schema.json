@@ -4,11 +4,20 @@
   "title": "Kiosk discovery document",
   "description": "The JSON served at GET /.well-known/kiosk.json (Kiosk protocol 0.4).",
   "type": "object",
-  "required": ["kiosk"],
+  "required": [
+    "kiosk"
+  ],
   "properties": {
     "kiosk": {
       "type": "object",
-      "required": ["version", "issuer", "endpoint", "capabilities", "schema_url", "auth"],
+      "required": [
+        "version",
+        "issuer",
+        "endpoint",
+        "capabilities",
+        "schema_url",
+        "auth"
+      ],
       "properties": {
         "version": {
           "type": "string",
@@ -25,7 +34,15 @@
         "capabilities": {
           "type": "array",
           "description": "The MODULES this endpoint serves, from the canonical set, in canonical order. Never the origin's registered verb NAMES -- this document is a POINTER, not a copy of the contract, and the names are published once, in the catalog at `schema_url`. This is also the ONLY place the module set appears: no other surface on this wire publishes it, and the catalog carries no copy of it.",
-          "items": { "enum": ["schema", "queries", "actions", "pay"] },
+          "items": {
+            "enum": [
+              "schema",
+              "queries",
+              "actions",
+              "pay",
+              "events"
+            ]
+          },
           "uniqueItems": true
         },
         "schema_url": {
@@ -53,19 +70,36 @@
             "claim_url"
           ],
           "properties": {
-            "kind": { "const": "kiosk-pop" },
-            "challenge_url": { "type": "string" },
-            "register_url": { "type": "string" },
-            "login_url": { "type": "string" },
-            "revoke_url": { "type": "string" },
-            "device_authorization_url": { "type": "string" },
-            "claim_url": { "type": "string" }
+            "kind": {
+              "const": "kiosk-pop"
+            },
+            "challenge_url": {
+              "type": "string"
+            },
+            "register_url": {
+              "type": "string"
+            },
+            "login_url": {
+              "type": "string"
+            },
+            "revoke_url": {
+              "type": "string"
+            },
+            "device_authorization_url": {
+              "type": "string"
+            },
+            "claim_url": {
+              "type": "string"
+            }
           }
         },
         "skill": {
           "type": "object",
           "description": "Pinned skill reference. Omitted entirely when no skill is pinned.",
-          "required": ["url", "sha256"],
+          "required": [
+            "url",
+            "sha256"
+          ],
           "properties": {
             "url": {
               "type": "string",
@@ -77,6 +111,10 @@
               "pattern": "^[0-9a-f]{64}$"
             }
           }
+        },
+        "events_url": {
+          "type": "string",
+          "description": "Where to open the event stream. Present IFF `capabilities` carries `events`. An absolute wss:// URL -- the same origin and mount as `endpoint` under the WebSocket scheme, never a second copy of the host."
         }
       }
     }

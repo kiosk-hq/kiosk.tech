@@ -1,0 +1,13 @@
+{
+  "queries": [],
+  "actions": [],
+  "events": [
+    {
+      "name": "order_payment",
+      "description": "An order of yours was paid.",
+      "reach": "principal",
+      "payload_schema": { "type": "object" },
+      "subject_reachable": "members_of(list_id)"
+    }
+  ]
+}

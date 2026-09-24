@@ -24,6 +24,8 @@ significant change to a published surface.
 turned out to be wrong is superseded by a new entry that says so and names it,
 never rewritten. The entries below the baseline are long; they stay as written.
 
+- 2026-09-25: **The wire gains an optional events module (ADR-0033).** An operator may push topics an assistant subscribes to, instead of being asked the same question again.
+
 - 2026-09-20: **A live assistant has now driven the 0.4 wire, and the landing said it had not.** The compatible-assistants tier and the onboarding note now say what was driven, and what was not.
 
 - 2026-09-17: **`skill-v0.4.15` published.** A KYC status poll has no `declined` answer to wait for: an anonymizing provider reports only approvals, so the give-up horizon is the stop condition.
