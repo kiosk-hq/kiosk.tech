@@ -783,11 +783,13 @@ ROLE, like the principal, changes on a rebind (below).
 not define what replaces it.** A ceremony that carries no role, at an operator
 that does assign roles, has no role to move: an implementation **MAY** leave the
 AI assistant's existing role as it stands, and **MAY** instead assign whatever it
-would assign that assistant at registration. The reference does the first, which
-is why the mixture matters -- an AI assistant can keep a privileged role while
-its principal changes to a human who holds none. Neither behaviour is something
-to rely on: the input is a configuration this section forbids, and the repair
-belongs in the operator's identity system rather than in the ceremony.
+would assign that assistant at registration. The reference does the second, so
+no role outlives the principal it was resolved for. The mixture still matters --
+a member of staff the identity system answers nothing for gets an AI assistant
+at the registration role rather than at their own, and can see nothing they
+could see themselves. Neither behaviour is something to rely on: the input is a
+configuration this section forbids, and the repair belongs in the operator's
+identity system rather than in the ceremony.
 
 A key the operator has never seen becomes a **linked assistant account** under the
 human's `user_id`. A key that already had a self-standing account is **rebound**:

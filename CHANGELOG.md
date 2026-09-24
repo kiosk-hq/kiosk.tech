@@ -11,6 +11,7 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-24: **§6.3: the reference resolves a role-less rebind from the operator's default, not from the assistant's previous role.** The forbidden mixture now costs staff their own access.
 - 2026-09-24: **An assistant MUST put the upgrade's token in the `Authorization` header (ADR-0035).** With the ticket gone there is one place a credential goes, so the page says so.
 - 2026-09-24: **Entries are grouped by the cut that carries them, version and date in the heading.** A skill patch is as visible as a minor; `CHANGELOG-RULE.md` carries the rules.
 
