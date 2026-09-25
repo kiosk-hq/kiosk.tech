@@ -1,6 +1,6 @@
 # Kiosk Protocol -- Formal Specification
 
-**Version 0.4** (Draft; wire format stable) - Status: for implementers and porters
+**Version 0.4** (Draft; pre-1.0, the wire may still change between releases) - Status: for implementers and porters
 
 This is the **formal** companion to the narrative specification at
 <https://kiosk.tech/specification.html>. The narrative page is the readable

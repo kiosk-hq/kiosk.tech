@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-25: **Both specification pages now say the wire may still change before 1.0**, which is what the landing already told a reader and what this week's event-stream change demonstrated.
+
 ## [0.4.17] — 2026-09-25
 
 - 2026-09-25: **`skill-v0.4.17` published: the skill now says HOW to wait, not only what to subscribe to.** A wait blocks in the foreground; a subscription is delivered by a stored cursor.
