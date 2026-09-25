@@ -12,7 +12,7 @@
     ],
     "schema_url": "https://getgrocery.demo.kiosk.tech/kiosk/schema?v=1f0c7a3e9b5d24618af03c9d7e2b5a04",
     "events_url": "wss://getgrocery.demo.kiosk.tech/kiosk/events",
-    "min_client": "0.4.0",
+    "min_client": "0.5.0",
     "owner": {
       "name": "GetGrocery",
       "support": "demo@kiosk.tech"
@@ -27,7 +27,7 @@
       "claim_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/claim"
     },
     "skill": {
-      "url": "https://kiosk.tech/skill-v0.4.17.md",
+      "url": "https://kiosk.tech/skill-v0.5.0.md",
       "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     }
   }

@@ -14,8 +14,9 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.0.md` | **0.5** | The same wire as 0.4.17, word for word -- what moves is the NUMBER, and the move is a correction. 0.4.16 made `events` a THIRD REQUIRED array in the catalog, whose root is closed, so a 0.4.15 reader refuses every catalog a 0.4.16 origin publishes: that is a MINOR break, and it shipped inside two patch cuts with `min_client` left at `0.4.0`. An origin serving this cut advertises `Kiosk-API-Version: 0.5.0` and `min_client: 0.5.0`, so the number an assistant reads off the wire is the number of the wire it gets. |
 | `skill-v0.4.17.md` | **0.4** | The same wire as 0.4.16. One correction to what it tells you ABOUT that wire: how to WAIT on the event stream 0.4.16 introduced. That cut taught an assistant to subscribe and said nothing about holding the wait, so an assistant that cannot keep a socket across its own turns backgrounded the pinned listener into a log file and read that file for a few seconds per turn -- a one-shot poll with a horizon of seconds, which is worse than the poll the stream replaced. 0.4.17 separates the two kinds of topic and gives each its procedure: a WAIT blocks in the FOREGROUND inside one tool call, using the listener's new one-shot mode, and waits again on a deadline until the flow's give-up horizon; a SUBSCRIPTION is delivered by the CURSOR, recorded across turns and presented on the next connect, with a signalling background process as an optional extra and never as a log file. It pins `events/listen-v0.5.1.py`, which exits on the event rather than on the deadline so a foreground wait costs what the human took. |
-| `skill-v0.4.16.md` | **0.4** | The same wire as 0.4.15, plus one OPTIONAL module that was published after that cut: the **event stream**. An origin that serves it carries `events` in `capabilities`, publishes an `events_url`, and answers a third array in the catalog naming the topics it pushes; an assistant subscribes over one WebSocket -- the access token in the `Authorization` header of the upgrade, which is the only way in -- and is told the moment a human finishes an identity check or saves a card, instead of asking again and again at a cadence nobody specified. Nothing is taken away: every verb, code and answer 0.4.15 knows is unchanged, the catalog's new array is additive, and an origin that publishes no topics omits all three signals. So the cut also DE-POLLS the two waits it covers -- polling survives as the documented fallback for a runtime that cannot hold a socket, and for an origin that serves no topics, horizon and all -- and it pins the reference listener by SHA-256, the way the proof-of-work solver has always been pinned. |
+| `skill-v0.4.16.md` | **0.4** | **A WIRE CHANGE, and it was not meant to be one.** This cut introduces the **event stream**: an origin that serves it carries `events` in `capabilities`, publishes an `events_url`, and answers a third array in the catalog naming the topics it pushes; an assistant subscribes over one WebSocket -- the access token in the `Authorization` header of the upgrade, which is the only way in -- and is told the moment a human finishes an identity check or saves a card, instead of asking again and again at a cadence nobody specified. The cut also DE-POLLS the two waits it covers -- polling survives as the documented fallback for a runtime that cannot hold a socket, and for an origin that serves no topics, horizon and all -- and it pins the reference listener by SHA-256, the way the proof-of-work solver has always been pinned. It is the same wire as 0.4.15 in every verb, code and answer, and none of those is taken away; what breaks is the CATALOG. Its root is closed, and the third array is REQUIRED even when empty -- an origin serving no topics still answers `"events": []` -- so a 0.4.15 reader refuses every catalog published from here onward. That is why `skill-v0.5.0.md` renumbers this wire to 0.5. |
 | `skill-v0.4.15.md` | **0.4** | The same wire as 0.4.14. One correction to what it tells you ABOUT that wire: a KYC status poll has no `declined` answer to wait for. A KYC provider that anonymizes reports an approval to the operator and nothing else, so a check the human refused, abandoned or never opened reads as `pending` for ever -- 0.4.14 named `declined` as a terminal outcome, which left an assistant waiting for one. The give-up horizon is the stop condition rather than a status, and the verb's `output_schema` is the authority on which statuses an operator can report at all. |
 | `skill-v0.4.14.md` | **0.4** | The same wire as 0.4.13. Two corrections to what it tells you ABOUT that wire. The row field that renders a time is identified by what it CARRIES -- the zone inside the value, and the verb's `output_schema` -- rather than by how it is spelled: the four names 0.4.13 listed are one short of what operators publish, and a name ending in `_label` is not the signal, because a table's in-house label carries no time at all. And the argument for three separate refusal codes is stated in the present rather than dated against a cut nobody reading has held. |
 | `skill-v0.4.13.md` | **0.4** | **A WIRE CHANGE, in three places at once.** (1) A path that names no verb this operator serves -- an unregistered name, or a real verb dialed with the method its kind does not take -- has no defined answer and is typically the framework's bare `404`, no problem document and no `code`; 0.4.12 promises `404 verb_not_found` with a `hint` and `405` with `Allow`, so an assistant holding it waits for a branch point that never arrives and reads a conforming refusal as a broken operator. Both codes stay in the vocabulary and a client must still understand them, but neither is required of a server, and re-reading `schema` is the recovery. (2) A caller MAY declare its human's clock in a new OPTIONAL `Kiosk-Timezone` request header, and every row that renders a wall clock now publishes the IANA zone it was rendered in -- so a day, a delivery window or a seating is no longer read on whichever clock the two sides happened to share. (3) A calendar date is `YYYY-MM-DD` and nothing else, and an instant must carry its offset: spellings 0.4.12 never forbade, and which some operators took, are now `400 bad_request`. The answers moved, so this is a wire change and not a guidance one, and 0.4.13 opens a new wire group. |
@@ -36,7 +37,7 @@ protocol cannot transact with it.
 | `skill-v0.2.0.md` … `skill-v0.2.4.md` | 0.2 | As 0.3, before that series' additions. |
 | `skill-v0.1.1.md` … `skill-v0.1.3.md` | 0.1 | The first published series. |
 
-**FOUR PATCHES IN THE 0.4 SERIES CHANGED THE WIRE, which a PATCH normally does
+**FIVE PATCHES IN THE 0.4 SERIES CHANGED THE WIRE, which a PATCH normally does
 not — and before 1.0 that is allowed rather than accidental.** 0.4.1 moved the
 pagination cursor out of the body and into a `Link` header, so an assistant
 holding 0.4.0 will look for a `next` field that no 0.4.1 operator sends; 0.4.3
@@ -48,21 +49,28 @@ mis-branches on the one it does; and 0.4.13 took the specific refusal away from 
 path that names no verb, added the caller's `Kiosk-Timezone` declaration and the
 zone every rendered row now carries, and narrowed a date to one spelling, so an
 assistant holding 0.4.12 waits for a `code` an operator no longer sends and cannot
-say whose clock its dates are on.
-All four are why the "same wire as" column has to be read as a chain and not as a
+say whose clock its dates are on; and 0.4.16 made `events` a third REQUIRED array
+in the catalog, whose root is closed, so an assistant holding 0.4.15 refuses every
+catalog a 0.4.16 origin publishes -- a MINOR break shipped as a patch, which
+`skill-v0.5.0.md` is the correction of.
+All five are why the "same wire as" column has to be read as a chain and not as a
 transitive licence: 0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10 = 0.4.11,
 while 0.4.12 opens a new wire group of which it stayed the only member and
-0.4.13 opens a new wire group after it in which 0.4.13 = 0.4.14 = 0.4.15 = 0.4.16 = 0.4.17,
-but the four groups are NOT the same wire, and only the last describes
-what a 0.4.17 operator serves. The formal spec
+0.4.13 opens a new wire group after it in which 0.4.13 = 0.4.14 = 0.4.15,
+and 0.4.16 opens a new wire group, the one served now, in which
+0.4.16 = 0.4.17 = 0.5.0,
+but the five groups are NOT the same wire, and only the last describes
+what a 0.5.0 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
 operator pins — that is what the dual-check is for.
 
-**0.3 and 0.4 are not interoperable.** 0.4 removed the multiplexed endpoints and
-the response envelope outright, with no tombstones and no compatibility mode. An
-assistant holding a 0.3.x cut against an operator pinning 0.4.x must adopt the
-pinned cut first: the paths, the argument channel and the response shape all
-differ. The pre-0.4 cuts stay published, unedited, because live pins reference
-their bytes — not because the wire they describe is still served.
+**Neither 0.3 and 0.4 nor 0.4 and 0.5 are interoperable.** 0.4 removed the
+multiplexed endpoints and the response envelope outright, with no tombstones and
+no compatibility mode: the paths, the argument channel and the response shape all
+differ. 0.5 closed the catalog around a third REQUIRED array, `events`, which a
+0.4 reader refuses. An assistant holding an older cut than the operator pins must
+adopt the pinned cut first. The earlier cuts stay published, unedited, because
+live pins reference their bytes — not because the wire they describe is still
+served.

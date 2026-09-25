@@ -599,6 +599,26 @@ CURRENT_CLAIM = /
 # a sentence every cut moves — was held by nothing at all (K-1227).
 SERVES_CLAIM = /a\s+(\d+(?:\.\d+)+)\s+operator\s+(?:no\s+longer\s+)?serves/i
 
+# R12's subject: the PROTOCOL MINOR a published page prints. Four prose shapes
+# and the landing's version badge, which is an element whose whole text is the
+# number. It is derived from the cuts on disk like everything else here — version
+# parity puts the newest cut on the protocol's own MAJOR.MINOR — so this asks no
+# page to agree with another page's typed number.
+#
+# MEASURED 2026-09-25, which is why the rule exists: with `Status: v0.4` and the
+# badge both left behind on a 0.5 tree, twelve gates across the three
+# repositories exited 0 — every `kiosk.tech/bin/check-*` plus the umbrella's
+# wording, census, claims-derivation and publication-scrub checks.
+PROTOCOL_CLAIM = /
+  (?: Status:[ \t]*v
+    | Protocol[ \t]Specification[ \t]v
+    | \bVersion[ \t]+
+    | specifies[ \t]protocol[ \t]version[ \t]+
+  )(\d+\.\d+)(?![\d.])
+/x
+# Read on the RAW bytes: `plain` strips the tags that make this unambiguous.
+PROTOCOL_BADGE = %r{>v(\d+\.\d+)</p>}
+
 # "0.4.0-0.4.9 describe earlier 0.4 cuts". THE TRAILING NOUN IS NOT PART OF THE
 # PATTERN, on purpose: this rule used to require the literal word "wires", both
 # live sentences say "cuts", and so it matched NOTHING ANYWHERE IN THE REPO
@@ -907,6 +927,20 @@ def prose_failures(path, raw, ctx)
     fails << "#{path}: says what a #{named} operator serves (or no longer serves), but the newest " \
              "cut is #{ctx.newest_version}. That sentence names the CURRENT cut whichever way " \
              "round it is written."
+  end
+
+  # R12. The protocol MINOR a page prints, against the series the newest cut is on.
+  [[claim_text, PROTOCOL_CLAIM], [raw, PROTOCOL_BADGE]].each do |text, pattern|
+    text.scan(pattern) do |(named)|
+      claims += 1
+      hits |= [:protocol_version]
+      next if named == ctx.newest_series
+
+      fails << "#{path}: prints protocol version #{named}, but the newest cut " \
+               "#{ctx.newest_cut} puts this protocol on #{ctx.newest_series}. Version parity " \
+               "binds the protocol, the implementation and the skill to one MAJOR.MINOR, so a " \
+               "page stating the version is relinked by the wave that cuts the MINOR."
+    end
   end
 
   claim_text.scan(EARLIER_WIRES) do |(from, to, series)|
@@ -1304,6 +1338,18 @@ def self_test_prose_cases
     ["R10 span whose own START opens a wire group is not an over-reach (K-1602)",
      "skills.md",
      "the chain runs 0.4.3 → 0.4.10 only, because 0.4.3 opens a new wire group.", :green],
+    ["R12 the landing's status box left on the previous protocol MINOR",
+     "index.html", "<strong>Status: v0.3</strong> — pre-1.0.", :red],
+    ["R12 the landing's status box on this protocol MINOR",
+     "index.html", "<strong>Status: v0.4</strong> — pre-1.0.", :green],
+    ["R12 the landing's version badge left behind, read on the raw bytes",
+     "index.html", "<p style=\"font-size:11px\">v0.3</p>", :red],
+    ["R12 the landing's version badge on this protocol MINOR",
+     "index.html", "<p style=\"font-size:11px\">v0.4</p>", :green],
+    ["R12 the normative page's version line left behind",
+     "specification.html", "<p>Version 0.3 — Draft (pre-1.0)</p>", :red],
+    ["R12 a THIRD-PARTY version is not this protocol's",
+     "specification.html", "<td>agents.txt v1.0</td>", :green],
     ["R1 current-skill sentence, stale",
      "spec/protocol.md", "The current skill is **0.4.9**.", :red],
     ["R1 current-skill sentence, at head",
@@ -1471,7 +1517,14 @@ def self_test_history_page_cases
   ].freeze
 end
 
-# Every rule must find something to say about this repository's own files.
+# Every rule must find something to say about this repository's own files —
+# except while the newest series carries ONE cut, when R2 and R8 have no
+# subject a TRUE page could write: R2 fails any earlier-cuts range and R8 any
+# per-cut list, both asking for the sentence to be removed. Demanding the
+# subject then is the trap history_page_failures is already written around — a
+# rule demanding the edit the rule beside it forbids.
+NEEDS_TWO_CUTS_ON_SERIES = %i[earlier_wires history_clause].freeze
+
 VACUITY_RULES = {
   current_claim: "R1 a sentence naming the current cut",
   serves_claim: "R1 a sentence saying what a cut's operator serves",
@@ -1483,7 +1536,8 @@ VACUITY_RULES = {
   history_clause: "R8 the per-cut history clause list",
   chain_span: "R10 the same-wire group written as an arrow span",
   row_protocol: "R9 a cut table row's protocol column",
-  row_same_wire: "R9 a cut table row body's \"same wire as\" predecessor"
+  row_same_wire: "R9 a cut table row body's \"same wire as\" predecessor",
+protocol_version: "R12 the protocol version a published page prints"
 }.freeze
 
 def run_self_test
@@ -1535,6 +1589,9 @@ def run_self_test
     VACUITY_RULES.each do |rule, description|
       if seen.include?(rule)
         puts format("  %-5s vacuity: %s", "HIT", description)
+      elsif NEEDS_TWO_CUTS_ON_SERIES.include?(rule) && real.series_cuts.size < 2
+        puts format("  %-5s vacuity: %s — no subject is possible: %s is the only cut on %s",
+                    "N/A", description, real.newest_version, real.newest_series)
       else
         bad << "vacuity: #{description} (#{rule}) matches NOTHING in this repository. A pattern " \
                "with no subject is a pattern that has been switched off, and it exits 0 forever " \

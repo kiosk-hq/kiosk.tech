@@ -4,7 +4,7 @@ This repo is everything published at https://kiosk.tech (GitHub Pages,
 `CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
 universal agent skill (the "latest" alias, which must come to REST byte-identical
 to the newest cut; the immutable published versions are `skill-vX.Y.Z.md`,
-current `skill-v0.4.17.md` (MAJOR.MINOR tracks the framework release from 0.2 on)
+current `skill-v0.5.0.md` (MAJOR.MINOR tracks the framework release from 0.2 on)
 — a published version file is never edited, every change ships a new one, and a
 skill edit ends in a version bump plus a re-pin of every consumer in the same
 wave: `bin/check-skill-immutability` enforces both halves. K-847, and the three
@@ -68,12 +68,13 @@ demonstrated by the reference implementation.
    **AND THE ENTRY SAYS WHICH VERSION CARRIES IT, NOT ONLY WHEN IT LANDED (Phil,
    2026-09-24).** An entry is grouped by the cut that carries it:
    `## [Unreleased]` holds what no cut has closed yet, and a cut renames it to
-   `## [MAJOR.MINOR.PATCH] — YYYY-MM-DD` and opens a fresh empty one above — **a
-   skill PATCH getting a section exactly as a MINOR does**, since a date cannot
-   say which version has a change. A cut here is the published skill cut, this
-   repository's one versioned artefact: everything published since the previous
-   one belongs to the section that cut closes — a specification sentence, a
-   landing claim, a pinned client. The entries written before the grouping sit
+   `## [<line> MAJOR.MINOR.PATCH] — YYYY-MM-DD` and opens a fresh empty one above
+   — **a skill PATCH getting a section exactly as a MINOR does**, since a date
+   cannot say which version has a change. This repository publishes TWO versioned
+   lines on independent numbers — the skill cut and the pinned event listener — so
+   the heading names which one it cut, and everything published since the previous
+   section belongs to it, a specification sentence and a landing claim included.
+   The entries written before the grouping sit
    below the `## Before release sections` heading, unedited and naming no version.
    **`CHANGELOG-RULE.md` at the root is the authority for how**, and the changelog
    points at it instead of repeating it. `bin/check-changelog` holds the shape

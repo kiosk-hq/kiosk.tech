@@ -11,6 +11,12 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+## [skill 0.5.0] — 2026-09-25
+
+- 2026-09-25: **The protocol is 0.5, and `skill-v0.5.0.md` is the renumber.** The catalog's third array is REQUIRED, which a 0.4 reader refuses, so the wire now advertises the number it is.
+- 2026-09-25: **The skill forbids promising a notification it cannot deliver.** Say you will be told only while holding a foreground wait or a helper that can wake you.
+- 2026-09-25: **A release section names which artefact line it cut**, because the skill and the pinned listener carry independent numbers. `CHANGELOG-RULE.md` has the rule.
+- 2026-09-25: **The landing drops operator-push events from its known TODOs** — the event stream shipped — and dates the Hermes run to the 0.4 wire it ran against.
 - 2026-09-25: **The onboarding guide names the demo task that runs the worked flow, `rake check:shop`, instead of the retired `rake demo`** (T-065).
 - 2026-09-25: **Both specification pages now say the wire may still change before 1.0**, which is what the landing already told a reader and what this week's event-stream change demonstrated.
 
