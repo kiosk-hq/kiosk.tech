@@ -11,6 +11,11 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+## [0.4.17] — 2026-09-25
+
+- 2026-09-25: **`skill-v0.4.17` published: the skill now says HOW to wait, not only what to subscribe to.** A wait blocks in the foreground; a subscription is delivered by a stored cursor.
+- 2026-09-25: **`events/listen-v0.5.1.py` published.** Its `--until-event` returns on the first event instead of on the deadline, so a foreground wait costs what the human took.
+
 ## [0.4.16] — 2026-09-25
 
 - 2026-09-25: **`skill-v0.4.16` published: an assistant is told a wait is over, not left asking.** It subscribes to the event stream for the identity check and the card; polling is the fallback.
