@@ -11,6 +11,7 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-25: **The onboarding guide names the demo task that runs the worked flow, `rake check:shop`, instead of the retired `rake demo`** (T-065).
 - 2026-09-25: **Both specification pages now say the wire may still change before 1.0**, which is what the landing already told a reader and what this week's event-stream change demonstrated.
 
 ## [0.4.17] — 2026-09-25
