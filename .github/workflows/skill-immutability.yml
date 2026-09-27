@@ -18,12 +18,6 @@ name: skill-immutability
 # NO PATH FILTER, on purpose. The one class of change this job exists to catch
 # is a change to `skill-v*.md`; a `paths:` filter that got the glob subtly
 # wrong would silently skip exactly that. It costs ~5 s.
-#
-# Its own workflow rather than a job in spec-schemas.yml: that workflow is
-# path-filtered on `spec/**` (skill cuts live at the repo root, so it would
-# never fire), it installs Node and ajv, and one invariant deserves one exit
-# code and one name in the checks list — the shape the reference repo's
-# bin/check-* jobs use.
 
 on:
   push:

@@ -1,0 +1,25 @@
+name: spec-ascii
+
+# The formal spec under spec/ is pure ASCII (bin/check-spec-ascii). The
+# self-test runs first: a scan whose file set has collapsed exits 0 and reads
+# like a clean spec, so the check proves it reddens on a plant before its green
+# run counts. Unfiltered like every workflow here; the run costs about a second.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  spec-ascii:
+    name: the formal spec is pure ASCII (bin/check-spec-ascii)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The runner's preinstalled Ruby: the check is stdlib-only and this
+      # repository has no Ruby toolchain to pin.
+      - name: The ASCII check is red on a plant, and non-vacuous here
+        run: ruby bin/check-spec-ascii --self-test
+
+      - name: Formal spec is ASCII
+        run: ruby bin/check-spec-ascii

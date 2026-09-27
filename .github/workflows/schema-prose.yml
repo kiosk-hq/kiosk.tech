@@ -28,12 +28,6 @@ name: schema-prose
 # carries an arm that reddens if the ban ever collapses back onto a single
 # file. Those two are the answer; this comment says only that there is no
 # filter and why.
-#
-# ITS OWN WORKFLOW rather than a step in spec-schemas.yml: that one is
-# path-filtered on `spec/**`, installs Node and ajv this check does not need,
-# and one invariant deserves one exit code and one name in the checks list —
-# the same reasoning skill-immutability.yml and problem-pages.yml already
-# record.
 
 on:
   push:

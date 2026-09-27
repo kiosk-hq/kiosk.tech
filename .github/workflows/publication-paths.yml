@@ -21,10 +21,6 @@ name: publication-paths
 # records for itself: the guard reads EVERY tracked file, so any filter would be
 # a list of paths to get subtly wrong, and the one it missed is exactly the one
 # that ships a dangling pointer. It costs ~5 s.
-#
-# Its own workflow rather than a job in spec-schemas.yml: that one is
-# path-filtered on `spec/**` and installs Node and ajv this needs none of, and
-# one invariant deserves one exit code and one name in the checks list.
 
 on:
   push:

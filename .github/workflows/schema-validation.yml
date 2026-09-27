@@ -1,0 +1,26 @@
+name: schema-validation
+
+# Every JSON Schema under spec/schemas compiles, every example validates
+# against its schema, and the examples written to be refused are refused
+# (spec/schemas/validate.sh, via ajv-cli). Unfiltered like every workflow here.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  schema-validation:
+    name: schemas compile, examples validate, the refused stay refused (spec/schemas/validate.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Install ajv-cli
+        run: npm i -g ajv-cli@5.0.0
+
+      - name: Validate schemas + examples
+        run: bash spec/schemas/validate.sh

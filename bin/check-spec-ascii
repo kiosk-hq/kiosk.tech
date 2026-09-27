@@ -9,39 +9,17 @@
 # other people round-trip. So it may contain no byte above 0x7F, and every file
 # in it must decode as UTF-8 (which, given the first half, means US-ASCII).
 #
-# WHY THIS FILE EXISTS RATHER THAN THE RULE JUST LIVING IN THE WORKFLOW. The
-# rule shipped as one inline `grep` step inside `.github/workflows/spec-schemas.yml`
-# and nowhere else. That step is path-filtered on `spec/**`, so it fires ONLY on
-# a push, and this repository is pushed in bursts: the class went red twice, and
-# the second time (K-1279) three characters sat at head for fifteen commits with
-# every local gate in the workspace at exit 0. A rule that a session cannot run
-# is a rule that is checked on publication day.
+# WHY A BYTE WALK RATHER THAN A `grep`. A GNU `grep -P` byte class does not exist
+# on BSD grep, and the interactive `grep` in this project's shell is a wrapper
+# that honours `.gitignore` and skips files it decides are binary -- and a file
+# with a NUL in it is still published bytes. So this script walks every byte of
+# every file itself, in Ruby, with no pattern engine and no file-type guessing.
+# `.github/workflows/spec-ascii.yml` calls it, so CI and a local session ask one
+# question with one implementation.
 #
-# AND IT COULD NOT SIMPLY BE TYPED BY HAND EITHER, which is the half that made
-# the CI-only home actively dangerous rather than merely inconvenient:
-#
-#   * The workflow's spelling is a GNU `grep -rlP` over a PCRE byte class. `-P`
-#     is a GNU extension; BSD `grep` -- what a macOS checkout has -- does not take
-#     it, and `\x` is not a BRE escape there either. So the hand-run of the CI
-#     line is not a weaker check, it is a DIFFERENT one, and its clean answer
-#     means nothing at all.
-#   * An interactive `grep` in this project's development shell is not `grep(1)`
-#     but a wrapper that honours `.gitignore` and skips files it decides are
-#     binary. Both exemptions are invisible in the output, and the second is
-#     exactly wrong here: a file with a NUL in it is still published bytes.
-#
-# So this guard does NOT reproduce the CI line's implementation. It reproduces
-# its INTENT with a method that cannot be defeated by any of the above: it walks
-# every byte of every file itself, in Ruby, with no pattern engine and no
-# file-type guessing anywhere in the path.
-#
-# THE FILE SET, stated because a local guard that checks a different set than CI
-# hands out a green that means nothing. CI runs its grep over a fresh
-# `actions/checkout`, whose working tree is exactly the tracked files at that
-# commit. This guard's set is `git ls-files -- spec` in the repository it lives
-# in, read from the WORKING TREE. On a clean tree the two sets are identical --
-# measured at the commit that introduced this file, 59 files either way. The two
-# deliberate differences:
+# THE FILE SET is `git ls-files -- spec` in the repository this file lives in,
+# read from the WORKING TREE; on a clean tree that is exactly what a fresh
+# `actions/checkout` holds. The two deliberate differences:
 #
 #   * An UNTRACKED file under `spec/` is not checked, because CI cannot see one
 #     either. It is COUNTED AND NAMED in a note line, so the "green locally, red

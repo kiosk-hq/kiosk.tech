@@ -25,12 +25,6 @@ name: problem-pages
 # that ships a status the document beside it disproves. It costs ~1 s. This is
 # the same reasoning derived-counts.yml, publication-paths.yml and
 # skill-immutability.yml each record for themselves.
-#
-# ITS OWN WORKFLOW, not a step in spec-schemas.yml, for the reason
-# skill-immutability.yml already records for itself: that workflow is
-# path-filtered on `spec/**` while these inputs span the repo root, it installs
-# Node and ajv this check does not need, and one invariant deserves one exit
-# code and one name in the checks list.
 
 on:
   push:
