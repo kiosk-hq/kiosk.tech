@@ -627,7 +627,11 @@ PROTOCOL_BADGE = %r{>v(\d+\.\d+)</p>}
 # keyed on prose is a rule one wording change switches off in silence. The
 # self-test's VACUITY arm is the standing check that this cannot recur — a
 # pattern that matches nothing here is now a failure rather than a green run.
-EARLIER_WIRES     = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+describe\s+earlier\s+(\d+\.\d+)(?![\d.])/i
+# THE SPAN END IS OPTIONAL, because a series with exactly two cuts has ONE
+# earlier cut and a range whose ends are equal is not a sentence anybody
+# would publish. `0.5.0 describes the earlier 0.5 cut` is read as the span
+# 0.5.0-0.5.0; the dash spelling is unchanged for every wider series.
+EARLIER_WIRES     = /(\d+(?:\.\d+)+)(?:\s*[-–—]\s*(\d+(?:\.\d+)+))?\s+describes?\s+(?:the\s+)?earlier\s+(\d+\.\d+)(?![\d.])/i
 EARLIER_PROTOCOLS = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+(?:cuts\s+)?describe\s+protocol\s+(\d+\.\d+)\s*[-–—]\s*(\d+\.\d+)/i
 
 # R7's subject: the cut table's same-wire chain, "0.4.3 = 0.4.4 = ... = 0.4.10".
@@ -952,11 +956,13 @@ def prose_failures(path, raw, ctx)
                "or remove the sentence."
       next
     end
+    to ||= from
     want_from, want_to = ctx.series_cuts.first, ctx.series_cuts[-2]
     next if from == want_from && to == want_to && series == ctx.newest_series
 
+    want = want_from == want_to ? "the one cut #{want_from}" : "#{want_from}-#{want_to}"
     fails << "#{path}: \"#{from}-#{to} describe earlier #{series} …\" — derived from the cuts on " \
-             "disk that range is #{want_from}-#{want_to} on the #{ctx.newest_series} series " \
+             "disk that is #{want} on the #{ctx.newest_series} series " \
              "(every cut on the newest series except the newest itself)."
   end
 
@@ -1255,6 +1261,9 @@ end
 # series, then a full 0.4.0..0.4.10 run.
 FIXTURE_CUTS = (%w[0.1.1 0.2.0 0.3.11] + (0..10).map { "0.4.#{_1}" })
                .map { "skill-v#{_1}.md" }.freeze
+# A series with exactly ONE earlier cut, which FIXTURE_CUTS cannot express: it is
+# the case where R2's span collapses to a single version.
+FIXTURE_CUTS_TWO = %w[0.1.1 0.5.0 0.5.1].map { "skill-v#{_1}.md" }.freeze
 
 # `overrides` replaces one row's protocol cell and body, so an R9 fixture is a
 # WHOLE VALID TABLE with exactly one thing wrong in it — otherwise R6 would fire
@@ -1380,6 +1389,10 @@ def self_test_prose_cases
      "spec/protocol.md", "and 0.4.0-0.4.8 describe\nearlier 0.4 cuts that a 0.4.10 operator no longer serves.", :red],
     ["R2 earlier-cuts range, at head",
      "spec/protocol.md", "and 0.4.0-0.4.9 describe\nearlier 0.4 cuts that a 0.4.10 operator no longer serves.", :green],
+    # The dash spelling stays MANDATORY wherever the span is a real span: a lone
+    # endpoint on an 11-cut series names one cut where nine are meant.
+    ["R2 one cut named without a span on a series that has nine earlier ones",
+     "spec/protocol.md", "and 0.4.0 describes the earlier 0.4 cut a 0.4.10 operator no longer serves.", :red],
     ["R3 earlier-protocols range, stale",
      "spec/protocol.md", "the 0.1.1-0.3.10 cuts describe protocol 0.1-0.3", :red],
     ["R3 earlier-protocols range, at head",
@@ -1562,6 +1575,26 @@ def run_self_test
       puts format("  %-5s %s", want == :red ? "RED" : "GREEN", label)
     else
       bad << "#{label}: expected #{want}, got #{red ? "red" : "green"}"
+    end
+  end
+
+  # The one-earlier-cut series. FIXTURE_CUTS' newest series carries eleven cuts,
+  # so the collapsed span is only reachable with a fixture of its own.
+  two = context_for(FIXTURE_CUTS_TWO)
+  [
+    ["R2 the one earlier cut named without a span, at head",
+     "spec/protocol.md", "and 0.5.0 describes the earlier 0.5 cut a 0.5.1 operator no longer serves.", :green],
+    ["R2 the one earlier cut named without a span, naming the WRONG cut",
+     "spec/protocol.md", "and 0.4.9 describes the earlier 0.5 cut a 0.5.1 operator no longer serves.", :red],
+    ["R2 the collapsed span written out as a dash range",
+     "spec/protocol.md", "and 0.5.0-0.5.0 describe earlier 0.5 cuts a 0.5.1 operator no longer serves.", :green],
+  ].each do |label, path, body, want|
+    got, = prose_failures(path, body, two)
+    red  = !got.empty?
+    if red == (want == :red)
+      puts format("  %-5s %s", want == :red ? "RED" : "GREEN", label)
+    else
+      bad << "#{label}: expected #{want}, got #{red ? "red" : "green"}#{red ? " (#{got.first})" : ""}"
     end
   end
 

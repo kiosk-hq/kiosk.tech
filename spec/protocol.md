@@ -2322,7 +2322,8 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    wire itself may change in a PATCH. The current skill is **0.5.1**, the second
    cut on this series. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.4.17 cuts
-   describe protocol 0.1-0.4 and cannot transact with a 0.5 origin at all. Published skill
+   describe protocol 0.1-0.4 and cannot transact with a 0.5 origin at all, and
+   0.5.0 describes the earlier 0.5 cut a 0.5.1 operator no longer serves. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
