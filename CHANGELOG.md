@@ -11,6 +11,10 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+## [skill 0.5.1] — 2026-09-28
+
+- 2026-09-28: **`skill-v0.5.1.md`: the human’s time zone is asked once and reused at every operator**, and an operator that never sees it falls back to the service place’s clock.
+- 2026-09-28: **`skill-v0.5.1.md`: a bearer credential in an answer goes to the human once, never repeated or logged.** The skill had a rule for relaying a URL and none for a capability.
 - 2026-09-28: **§12 now names which id an attestation's `sub` must equal** — the principal, not the AI assistant's own account — so the narrative page says what the formal spec already did.
 
 ## [skill 0.5.0] — 2026-09-25
