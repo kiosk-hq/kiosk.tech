@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-28: **§12 now names which id an attestation's `sub` must equal** — the principal, not the AI assistant's own account — so the narrative page says what the formal spec already did.
+
 ## [skill 0.5.0] — 2026-09-25
 
 - 2026-09-25: **The protocol is 0.5, and `skill-v0.5.0.md` is the renumber.** The catalog's third array is REQUIRED, which a 0.4 reader refuses, so the wire now advertises the number it is.
