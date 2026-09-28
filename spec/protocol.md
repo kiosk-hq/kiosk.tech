@@ -1514,7 +1514,10 @@ upgrade** -- `?topic=<name>[:<subject>]`, repeatable or comma-separated, with an
 optional `?since=<id>` applying to all of them. The two are the same
 subscription by two spellings, and the second exists because a client that can
 set a header on the upgrade may still be unable to SEND a frame: a socket it
-can open but never subscribe on delivers nothing at all.
+can open but never subscribe on delivers nothing at all. The reference listener
+published and pinned for assistants is one such client -- it subscribes through
+the URL alone and sends no frame at all -- so an operator that accepts only the
+frame spelling cannot be driven by it.
 
 On a subscription it accepts, the operator **MUST** send:
 

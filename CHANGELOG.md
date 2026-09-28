@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-28: **§8.5.4 now names the pinned reference listener as the client that can only subscribe in the URL**, instead of arguing from one that might exist.
+
 ## [skill 0.5.1] — 2026-09-28
 
 - 2026-09-28: **Both specification pages now say which earlier 0.5 cut a 0.5.1 operator no longer serves**, the sentence every series needs once it has more than one cut.
