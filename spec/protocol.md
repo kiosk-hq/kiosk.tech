@@ -2623,16 +2623,6 @@ the discovery document, and are absent from `capabilities` for that reason:
    omits `events` from `capabilities` and publishes no `events_url`; it still
    answers `"events": []` in the catalog, whose root is closed.
 
-**What the reference implements, and what it therefore cannot show.** The
-reference implementation serves the binding module of item 7 ALWAYS: its
-routes are drawn on every mount, `device_authorization_url` and `claim_url`
-are published on every origin it serves, and no configuration switch turns
-the module off. So an operator that serves the core and DECLINES binding --
-a profile this section permits -- is one the reference does not exhibit and
-no test here exercises. That profile is normative on the strength of this
-text alone, and an implementation claiming it has no reference behaviour to
-be checked against.
-
 ### 16.2 AI assistant profile
 
 A client is a **Kiosk-compatible AI assistant** when it: branches on the problem document's `code`, never
