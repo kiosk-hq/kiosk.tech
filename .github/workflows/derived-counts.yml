@@ -29,7 +29,7 @@ on:
 
 jobs:
   derived-counts:
-    name: every held cardinal equals what the tree derives (bin/check-derived-counts)
+    name: every held cardinal and the conformance checklist match the tree (bin/check-derived-counts)
     runs-on: ubuntu-latest
 
     steps:
@@ -51,5 +51,5 @@ jobs:
       - name: The guard is red on a plant of every rule, and non-vacuous here
         run: ruby bin/check-derived-counts --self-test
 
-      - name: Every cardinal in a published page equals what this tree derives
+      - name: Every cardinal, and the conformance checklist, equal what this tree derives
         run: ruby bin/check-derived-counts

@@ -2,7 +2,9 @@
 # frozen_string_literal: true
 
 # check-derived-counts -- a cardinal typed into a published page must equal the
-# number THIS repository derives for the thing it counts (K-1281).
+# number THIS repository derives for the thing it counts (K-1281), and the
+# narrative page's operator conformance checklist must list the same items, in
+# the same order, as Section 16.1 of the formal specification (K-1838).
 #
 # THE DEFECT, measured rather than argued. A count typed into prose is a claim
 # with no owner: it is true the day it is written and nothing notices when the
@@ -452,6 +454,93 @@ RULES = [
   },
 ].freeze
 
+# -- the two conformance profiles --------------------------------------------
+#
+# The narrative page says its checklist and Section 16 of the formal
+# specification carry "the same two profiles, item for item". Nothing compared
+# them, so a module added to one list and not the other read clean (K-1838).
+#
+# ONLY THE OPERATOR PROFILE IS HELD. It is a numbered list on both sides, so its
+# items pair. The AI assistant profile is one semicolon-separated paragraph on
+# both sides and has no items to pair.
+#
+# COMPARED: the number of items, and each item's LABEL in order, once markup,
+# dash spelling and case are normalised away.
+#
+# NOT COMPARED, and this is a measurement rather than an omission: the RFC 2119
+# strength word. The page marks items 6, 7 and 8 `(MAY)`; Section 16.1 marks none
+# of the three and states their optionality in its preamble instead, spelling
+# `OPTIONAL` at the head of item 9 alone. The other `OPTIONAL`s inside those items
+# belong to something else -- the skill pin, the registration toll, the anonymized
+# attributes -- so pairing the words needs a hand-kept exception list, which is
+# what this file exists to refuse.
+
+PROTOCOL_MD = "spec/protocol.md"
+
+# Far below any legitimate shrink of a profile and far above the 0 or 1 a broken
+# parser returns, which otherwise reads like two lists that agree.
+PROFILE_FLOOR = 5
+
+def profile_label(raw)
+  normalise(raw.to_s).gsub(/\s*(?:--|—)\s*/, " - ").sub(/:\s*\z/, "").downcase.strip
+end
+
+def operator_items_html
+  ol = slurp(SPEC_HTML)[%r{<h3>Operator profile</h3>.*?<ol>(.*?)</ol>}m, 1]
+  raise Blind, "#{SPEC_HTML}: no <ol> follows <h3>Operator profile</h3>" if ol.nil?
+
+  items = ol.scan(%r{<li>(.*?)</li>}m).map do |(body)|
+    label = body[%r{\A\s*<strong>(.*?)</strong>}m, 1]
+    raise Blind, "#{SPEC_HTML}: an operator-profile item opens without a <strong> label" if label.nil?
+
+    profile_label(label)
+  end
+  if items.length < PROFILE_FLOOR
+    raise Blind, "#{SPEC_HTML}: the operator profile parsed as #{items.length} item(s), " \
+                 "below the floor of #{PROFILE_FLOOR}"
+  end
+
+  items
+end
+
+def operator_items_md
+  section = slurp(PROTOCOL_MD)[/^### 16\.1 Operator profile$(.*?)^### 16\.2 /m, 1]
+  raise Blind, "#{PROTOCOL_MD}: no `### 16.1 Operator profile` section" if section.nil?
+
+  items = section.scan(/^\d+\. \*\*(.+?)\*\*/m).map { |(label)| profile_label(label) }
+  if items.length < PROFILE_FLOOR
+    raise Blind, "#{PROTOCOL_MD}: Section 16.1 parsed as #{items.length} item(s), " \
+                 "below the floor of #{PROFILE_FLOOR}"
+  end
+
+  items
+end
+
+# Returns [summary line, problems].
+def operator_profile_report
+  page = operator_items_html
+  spec = operator_items_md
+  line = "  PROFILE  OPERATOR = #{page.length} item(s) in #{SPEC_HTML} against #{spec.length} " \
+         "in #{PROTOCOL_MD} Section 16.1, paired label by label."
+  if page.length != spec.length
+    return [line, [["PROFILE",
+                    "the two operator profiles do not list the same number of items: " \
+                    "#{SPEC_HTML} has #{page.length}, #{PROTOCOL_MD} Section 16.1 has " \
+                    "#{spec.length}, and the page says the two carry the same profile item " \
+                    "for item.\n      page: #{page.join(' | ')}\n      spec: #{spec.join(' | ')}"]]]
+  end
+
+  problems = page.each_with_index.filter_map do |label, i|
+    next if label == spec[i]
+
+    ["PROFILE",
+     "operator profile item #{i + 1} differs: #{SPEC_HTML} says \"#{label}\", " \
+     "#{PROTOCOL_MD} Section 16.1 says \"#{spec[i]}\". Move the page to the formal " \
+     "specification, which is the authority on wire precision."]
+  end
+  [line, problems]
+end
+
 # -- the file set ------------------------------------------------------------
 
 FROZEN_CUT = /\Askill(-v\d+\.\d+\.\d+)?\.md\z/.freeze
@@ -628,9 +717,21 @@ def report(quiet: false)
                  "      counting:     #{DERIVATIONS[s.rule[:derivation]][:what]}"]
   end
 
+  begin
+    line, found = operator_profile_report
+    say.call(line)
+    problems.concat(found)
+  rescue Blind => e
+    problems << ["MECHANISM",
+                 "the operator conformance profiles could not be read: #{e.message}. A profile " \
+                 "this guard cannot parse is a guard gone blind, and a blind guard reads exactly " \
+                 "like two lists that agree -- so it FAILS here."]
+  end
+
   if problems.empty?
     say.call("check-derived-counts: OK -- every held cardinal equals the number this repository " \
-             "derives for what it counts.")
+             "derives for what it counts, and the two operator conformance profiles list the " \
+             "same items in the same order.")
     return 0
   end
 
@@ -645,7 +746,8 @@ def emit(*problems)
   warn ""
   warn "A cardinal in a published page is a copy of something this tree can count. Move the"
   warn "sentence to the derived number -- do NOT relax the rule, and never hold one typed"
-  warn "number to another."
+  warn "number to another. A conformance-profile item is that one level up: the narrative"
+  warn "page's checklist is a copy of Section 16.1, so move the page."
   1
 end
 
@@ -662,6 +764,17 @@ def run_list
     puts "      from: #{DERIVATIONS[rule[:derivation]][:from]}"
     (by_rule[rule[:id]] || []).each { |s| puts "      #{s.rel}: \"#{s.typed}\" | #{s.excerpt}" }
     puts "      (no live site)" if (by_rule[rule[:id]] || []).empty?
+  end
+  begin
+    page = operator_items_html
+    spec = operator_items_md
+    puts "PROFILE  OPERATOR -- the two conformance profiles, paired item by item"
+    puts "      from: #{PROTOCOL_MD} Section 16.1, held on #{SPEC_HTML}"
+    page.each_with_index do |label, i|
+      puts format("      %2d  %-34s %s", i + 1, label, spec[i] == label ? "== spec" : "!= #{spec[i]}")
+    end
+  rescue Blind => e
+    warn "  BLIND OPERATOR_PROFILE: #{e.message}"
   end
   puts "gated files: #{scanned.gated_files} (floor #{FILE_FLOOR}); " \
        "sites: #{scanned.sites.length}; ungated residue: #{scanned.residue}"
@@ -698,9 +811,40 @@ def fixture_codes
   codes
 end
 
-def fixture_spec_html
+# Six items, so an arm cannot pass by agreeing with this repository's nine, and
+# each label exercises one spelling the comparison has to normalise away: an
+# entity dash against `--`, `<code>` against a backtick, and case.
+FIX_PROFILE = [
+  ["Core &mdash; alpha", "Core -- alpha"],
+  ["Core &mdash; beta", "Core -- beta"],
+  ["Module <code>gamma</code>", "Module `gamma`"],
+  ["Module DELTA", "Module delta"],
+  ["Module epsilon", "Module epsilon"],
+  ["Module <code>zeta</code>", "Module ZETA"],
+].freeze
+
+def fixture_spec_html(drop_profile_item: nil, wrong_profile_label: nil, no_profile: false)
   rows = fixture_codes.map { |c, s| "<tr><td><code>#{c}</code></td><td>#{s}</td><td>x</td></tr>" }
-  "<html><body><table>\n#{rows.join("\n")}\n</table></body></html>\n"
+  body = +"<html><body><table>\n#{rows.join("\n")}\n</table>\n"
+  unless no_profile
+    lis = FIX_PROFILE.each_with_index.filter_map do |(html, _md), i|
+      next if i == drop_profile_item
+
+      label = i == wrong_profile_label ? "Module renamed" : html
+      "<li><strong>#{label}:</strong> what this item requires.</li>"
+    end
+    body << "<h3>Operator profile</h3>\n<ol>\n#{lis.join("\n")}\n</ol>\n"
+  end
+  body << "</body></html>\n"
+  body
+end
+
+def fixture_protocol_md
+  items = FIX_PROFILE.each_with_index.map do |(_html, md), i|
+    "#{i + 1}. **#{md}** (Section #{i + 1}): what this item requires."
+  end
+  "# formal specification\n\n### 16.1 Operator profile\n\n#{items.join("\n")}\n\n" \
+    "### 16.2 AI assistant profile\n\nA client is compatible when it does the above.\n"
 end
 
 def fixture_problem_json
@@ -762,6 +906,7 @@ def build_fixture(dir, padding)
   FileUtils.cp(SELF_PATH, File.join(dir, "bin", "check-derived-counts"))
   FileUtils.chmod(0o755, File.join(dir, "bin", "check-derived-counts"))
   File.write(File.join(dir, SPEC_HTML), fixture_spec_html)
+  File.write(File.join(dir, PROTOCOL_MD), fixture_protocol_md)
   File.write(File.join(dir, INDEX_HTML), fixture_index_html)
   File.write(File.join(dir, ONBOARD_HTML), fixture_onboarding_html)
   File.write(File.join(dir, BINDING_JSON), fixture_binding_json)
@@ -899,6 +1044,51 @@ def self_test_exempt_arms(dir, failures)
   git(dir, "add", "-A")
 end
 
+def rewrite_spec_html(dir, **kwargs)
+  File.write(File.join(dir, SPEC_HTML), fixture_spec_html(**kwargs))
+  git(dir, "add", "-A")
+end
+
+# The three ways the promise "the same two profiles, item for item" can go
+# false: an item leaves one list, an item is renamed on one side, and the
+# parser stops finding a list at all.
+def self_test_profile_arms(dir, failures)
+  rewrite_spec_html(dir, drop_profile_item: 3)
+  arm(failures, "PROFILE reddens when an item is deleted from the page's checklist") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    if st.exitstatus.zero?                   then [false, "the guard stayed green\n#{c}"]
+    elsif !c.include?("[PROFILE]")           then [false, "fired, but not under the PROFILE arm\n#{c}"]
+    elsif !c.include?("has #{FIX_PROFILE.length - 1}") then [false, "did not print the page's count\n#{c}"]
+    elsif !c.include?("has #{FIX_PROFILE.length}")     then [false, "did not print the spec's count\n#{c}"]
+    else [true, nil]
+    end
+  end
+
+  rewrite_spec_html(dir, wrong_profile_label: 3)
+  arm(failures, "PROFILE reddens when one item's label differs, naming the position and both") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    if st.exitstatus.zero?             then [false, "the guard stayed green\n#{c}"]
+    elsif !c.include?("[PROFILE]")     then [false, "fired, but not under the PROFILE arm\n#{c}"]
+    elsif !c.include?("item 4 differs") then [false, "did not name the position\n#{c}"]
+    elsif !c.include?("module renamed") then [false, "did not print the page's label\n#{c}"]
+    elsif !c.include?("module delta")   then [false, "did not print the spec's label\n#{c}"]
+    else [true, nil]
+    end
+  end
+
+  rewrite_spec_html(dir, no_profile: true)
+  arm(failures, "a profile the parser cannot find FAILS instead of reading as agreement") do
+    out, err, st = run_guard_in(dir)
+    c = "#{out}#{err}"
+    [!st.exitstatus.zero? && c.include?("[MECHANISM]") && c.include?("Operator profile"),
+     "exit #{st.exitstatus}\n#{c}"]
+  end
+
+  rewrite_spec_html(dir)
+end
+
 def run_self_test
   failures = []
 
@@ -914,6 +1104,7 @@ def run_self_test
     self_test_vacuity_arms(dir, failures)
     self_test_blind_arms(dir, failures)
     self_test_exempt_arms(dir, failures)
+    self_test_profile_arms(dir, failures)
 
     arm(failures, "the fixture tree returns to exit 0 once every plant is removed") do
       out, err, st = run_guard_in(dir)
@@ -955,6 +1146,14 @@ def run_self_test
     failures << "real-tree scan: #{e.message}"
   end
 
+arm(failures, "the two operator profiles pair non-vacuously in THIS repository") do
+  page = operator_items_html
+  puts "  real tree: the operator profile pairs #{page.length} item(s) against Section 16.1"
+  [page.length >= PROFILE_FLOOR, "#{page.length} item(s)"]
+rescue Blind => e
+  [false, e.message]
+end
+
   arm(failures, "the guard is green over this repository") do
     code = report(quiet: true)
     [code.zero?, "exit #{code}"]
@@ -965,7 +1164,8 @@ def run_self_test
     puts "check-derived-counts --self-test: OK -- red on a planted stale cardinal in every rule " \
          "(naming the file, the sentence and both numbers), red when a rule loses its last live " \
          "subject, red when a derivation source moves, red on a collapsed file set, green on the " \
-         "frozen skill cuts and on append-only history, and non-vacuous over this repository."
+         "frozen skill cuts and on append-only history, red when the two conformance profiles " \
+         "lose an item, disagree on one, or stop parsing, and non-vacuous over this repository."
     return 0
   end
 
