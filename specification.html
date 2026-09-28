@@ -768,6 +768,8 @@ Authorization: Bearer &lt;jwt&gt;
 
   <p>An operator <strong>must not</strong> accept the access token anywhere else on the upgrade — not in the query string, not in a cookie, not in a header of its own. The access log is the operator's, so an origin that also reads the token from a URL leaks it however carefully the assistant behaved; the obligation binds both ends or it binds neither.</p>
 
+  <p><strong>The <code>Authorization</code> header is the whole of what authorises the upgrade.</strong> An operator <strong>must</strong> accept an upgrade that carries no <code>Origin</code> request header, and <strong>must not</strong> refuse one because of the value that header carries; an assistant is under no obligation to send it. <code>Origin</code> is a browser's forgery control, and a browser cannot put an <code>Authorization</code> header on a WebSocket it opens cross-origin — so this upgrade has no ambient credential for such a check to defend, and a check on it refuses every non-browser stack instead. Several WebSocket frameworks arm one by default; left armed, an origin answers <code>404</code> at the very URL its own discovery document publishes as <code>events_url</code>, which reads to an assistant as a capability advertised and not served.</p>
+
   <h3>Subscribing</h3>
 
   <pre><code class="language-json">{"command":"subscribe",

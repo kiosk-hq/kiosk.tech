@@ -1506,6 +1506,17 @@ access log is written by the operator, so an origin that also reads the token
 from a URL leaks it however carefully the assistant behaved; the obligation
 binds both ends or it binds neither.
 
+**The `Authorization` header is the whole of what authorises the upgrade.** An
+operator **MUST** accept an upgrade that carries no `Origin` request header, and
+**MUST NOT** refuse one because of the value that header carries; an assistant is
+under no obligation to send it. `Origin` is a browser's forgery control, and a
+browser cannot put an `Authorization` header on a WebSocket it opens
+cross-origin -- so this upgrade has no ambient credential for such a check to
+defend, and a check on it refuses every non-browser stack instead. Several
+WebSocket frameworks arm one by default; left armed, an origin answers `404` at
+the very URL its own discovery document publishes as `events_url`, which reads
+to an assistant as a capability advertised and not served.
+
 #### 8.5.4 Subscribing
 
 A subscriber names a topic, optionally a `subject`, and optionally a cursor:
