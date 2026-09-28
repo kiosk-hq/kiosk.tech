@@ -11,6 +11,7 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-28: **The narrative page's conformance checklist gains the events module, in both profiles.** The formal spec carried it, and the page promises the two match item for item.
 - 2026-09-28: **§8.5.3: the `Authorization` header alone authorises the stream upgrade — an operator must accept one carrying no `Origin`.** A browser forgery check there locks out every other stack.
 - 2026-09-28: **§8.5.3 binds the operator too: the access token is accepted in the `Authorization` header and nowhere else on the upgrade.** The assistant-side MUST had no counterpart.
 - 2026-09-28: **§8.5.4 now names the pinned reference listener as the client that can only subscribe in the URL**, instead of arguing from one that might exist.

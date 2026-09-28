@@ -402,7 +402,8 @@ RULES = [
     id: "DC-7", derivation: "CAPABILITIES",
     what: "a cardinal counting the DISCOVERABLE modules",
     patterns: [/one of the #{CARD} DISCOVERABLE groupings/,
-               /#{CARD} of those modules are DISCOVERABLE/],
+               /#{CARD} of those modules are DISCOVERABLE/,
+               /#{CARD} of them are discoverable and are exactly the members of/],
     fixture: ->(w) { "Module -- one of the #{w} DISCOVERABLE groupings a deployment advertises." },
   },
   {
