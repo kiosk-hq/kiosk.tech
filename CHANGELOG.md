@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-28: **§16.3 now says what a caller meets when an operator validates a request body:** `400 bad_request` naming the member, never another status.
+
 - 2026-09-28: **§16.1: the note that the reference cannot decline binding is gone.** It can: a switch puts every binding path on `501 module_not_served`, and the profile is exercised.
 - 2026-09-28: **§8.1: an indexed `name%5B0%5D=value` is not an array either** — it is a one-level object, and a `400` where the schema declares an array. The porter note says where decoding sits.
 - 2026-09-28: **The onboarding page stopped demanding a `CREATE ROLE` Postgres login to run a demo.** `demo:setup` no longer creates the `app_role` group role; `psql` on PATH is what it needs.

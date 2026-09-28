@@ -2679,6 +2679,18 @@ Two oracles pin behavior beyond this text:
 2. **Frozen Equihash known-answer tests** at production parameters (n=168, k=7) --
    a ported verifier MUST reproduce them.
 
+**What a caller meets when an operator DOES validate a request body.** Anchor 1
+is a SHOULD, so an operator that validates nothing is conformant. One that
+validates a REQUEST object this document publishes a schema for **MUST** refuse
+a body that does not satisfy it with `400 bad_request` naming the member that
+failed, and **MUST NOT** reach for another status: a shape failure is a
+malformed request (Section 9.1 rule 1), never an absent resource and never a
+refusal to serve. An absent REQUIRED member and a present member of the wrong
+TYPE are the same answer, because an AI assistant recovers from both the same
+way -- by re-reading the object and re-sending. The reference implementation
+serves this, on every reserved-plane body Section 17 covers, under an operator
+switch that is ON by default.
+
 The reference end-to-end harness exercises the golden path
 (discovery -> register -> schema -> a query -> an action -> pay, plus the problem
 documents) an independent implementation should survive. A published stack-neutral black-box
