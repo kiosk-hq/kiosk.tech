@@ -11,6 +11,7 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-28: **§8.5.3 binds the operator too: the access token is accepted in the `Authorization` header and nowhere else on the upgrade.** The assistant-side MUST had no counterpart.
 - 2026-09-28: **§8.5.4 now names the pinned reference listener as the client that can only subscribe in the URL**, instead of arguing from one that might exist.
 
 ## [skill 0.5.1] — 2026-09-28

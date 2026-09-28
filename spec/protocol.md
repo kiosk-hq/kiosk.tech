@@ -1500,6 +1500,12 @@ token in the `Authorization` header of the upgrade request. An assistant
 credential on the upgrade, and a token in a URL is a token in every access log
 on the path.
 
+An operator **MUST NOT** accept the access token anywhere else on the upgrade
+-- not in the query string, not in a cookie, not in a header of its own. The
+access log is written by the operator, so an origin that also reads the token
+from a URL leaks it however carefully the assistant behaved; the obligation
+binds both ends or it binds neither.
+
 #### 8.5.4 Subscribing
 
 A subscriber names a topic, optionally a `subject`, and optionally a cursor:

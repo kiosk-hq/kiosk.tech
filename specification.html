@@ -766,6 +766,8 @@ Authorization: Bearer &lt;jwt&gt;
 
   <p>An operator must authenticate the upgrade and <strong>must accept the access token in the <code>Authorization</code> header</strong>, and an assistant <strong>must</strong> present it there: the header is the one place this wire carries a credential on the upgrade, and a token in a URL is a token in every access log on the path.</p>
 
+  <p>An operator <strong>must not</strong> accept the access token anywhere else on the upgrade — not in the query string, not in a cookie, not in a header of its own. The access log is the operator's, so an origin that also reads the token from a URL leaks it however carefully the assistant behaved; the obligation binds both ends or it binds neither.</p>
+
   <h3>Subscribing</h3>
 
   <pre><code class="language-json">{"command":"subscribe",
