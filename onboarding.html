@@ -67,7 +67,7 @@
 gem "kiosk-all",        github: "kiosk-hq/kiosk"   # meta-gem: kiosk-core + kiosk-server
 gem "kiosk-pay-stripe", github: "kiosk-hq/kiosk"   # Stripe card-on-file payment adapter (this walkthrough uses it)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-bash">bundle install
-rails generate kiosk:install                # the kiosk migrations + initializer
+rails generate kiosk:install                # the kiosk migrations, initializer and wire routes
 rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 2: Configure Kiosk</h2>
@@ -155,7 +155,7 @@ class StripeCustomer &lt; ApplicationRecord
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 3: Draw the routes</h2>
-  <p>Your wire has <strong>two halves</strong>, and the split is by <em>whose surface it is</em>. Keep both in a routes file of their own and reach it from <code>config/routes.rb</code> with Rails' own <code>draw</code>, so the whole Kiosk surface reads as one file instead of being interleaved with your own pages:</p>
+  <p>Your wire has <strong>two halves</strong>, and the split is by <em>whose surface it is</em>. Step 1's generator already drew the first half: it wrote the <code>draw(:kiosk)</code> line below into your <code>config/routes.rb</code>, so the whole Kiosk surface reads as one file instead of being interleaved with your own pages.</p>
   <pre><code class="language-ruby"># config/routes.rb
 Rails.application.routes.draw do
   root "home#index"
@@ -164,7 +164,7 @@ Rails.application.routes.draw do
   draw(:kiosk)
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The file <code>draw</code> reaches holds the mount first, then one explicit line per verb you serve. The six below are the ones Steps 4 and 5 declare:</p>
+  <p>The file <code>draw</code> reaches holds the mount first, then one explicit line per verb you serve. The generator wrote it with the mount already in place and nothing under it, because it knows none of your verbs — the six below are the ones Steps 4 and 5 declare, and adding them is this step's work:</p>
   <pre><code class="language-ruby"># config/routes/kiosk.rb
 
 # 1. THE PROTOCOL PLANE, mounted the ordinary Rails way. These paths and their
