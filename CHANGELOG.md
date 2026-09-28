@@ -11,6 +11,7 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-28: **§8.1: an indexed `name%5B0%5D=value` is not an array either** — it is a one-level object, and a `400` where the schema declares an array. The porter note says where decoding sits.
 - 2026-09-28: **The onboarding page stopped demanding a `CREATE ROLE` Postgres login to run a demo.** `demo:setup` no longer creates the `app_role` group role; `psql` on PATH is what it needs.
 - 2026-09-28: **The narrative page's conformance checklist gains the events module, in both profiles.** The formal spec carried it, and the page promises the two match item for item.
 - 2026-09-28: **§8.5.3: the `Authorization` header alone authorises the stream upgrade — an operator must accept one carrying no `Origin`.** A browser forgery check there locks out every other stack.

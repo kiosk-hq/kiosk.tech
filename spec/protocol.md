@@ -1066,6 +1066,13 @@ The query-string encoding is:
    declaration resolves the ambiguity, and the bracketed spelling stays the one
    an operator MUST accept whatever the declaration says, so an AI assistant
    sends the brackets regardless.
+
+   **An INDEXED name is not an array either.** `name[0]=value&name[1]=value`
+   (`name%5B0%5D=value&name%5B1%5D=value`) is rule 3's object with digits for
+   keys, so where `input_schema` declares that parameter an array an operator
+   **MUST** answer `400 bad_request` naming it (rule 5) rather than read the
+   indices as positions. Empty brackets are the array spelling and the only
+   one.
 3. **Objects** are `name[key]=value` (`name%5Bkey%5D=value`), **one level deep,
    scalar leaves only**.
 4. **Nothing deeper is a query.** A read whose input needs an array of objects,
@@ -1136,6 +1143,20 @@ The query-string encoding is:
    the offset is REQUIRED, so a zoneless timestamp is refused rather than
    completed from a clock (Section 3, point 8, rule 7). Which CLOCK a date or
    an instant is in, in each direction, is that point's subject.
+
+**Where this decoding sits, for a porter.** These rules are a DECODING step and
+it runs BEFORE any generic OpenAPI request validator, never behind one: such a
+validator checks the parameter names the document declares, and those are the
+`input_schema` property names -- `amenity`, never `amenity[]` (Section 4.6) --
+so a request still carrying the wire's bracketed spelling when it reaches the
+validator is refused under a name the operator never published. Decode first,
+validate the decoded arguments after. A port hosted on a servlet container has
+one more thing to know: stock Apache Tomcat answers `400` to a raw `[` in a
+request target before any application code runs, on RFC 3986 grounds. That
+costs a conformant operator nothing, because the wire spelling is
+percent-encoded; a port that wants to accept the literal spelling as well has
+to relax its connector (`relaxedQueryChars="[]"`), and that is the only reason
+to.
 
 ### 8.2 Response shape
 
