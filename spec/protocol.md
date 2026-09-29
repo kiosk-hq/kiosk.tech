@@ -1509,6 +1509,29 @@ The stream is at `<endpoint>/events` over WebSocket, and `events_url` (Section
 4.1) is where an assistant finds it. The subprotocol is `actioncable-v1-json`
 and an operator **MUST** negotiate it.
 
+**That subprotocol's framing is part of the contract**, and a port needs it
+stated here rather than read out of somebody's source tree. On an upgrade it
+accepts, an operator **MUST** send this as the first frame:
+
+```json
+{"type":"welcome"}
+```
+
+An operator **MAY** refuse the upgrade at the HTTP layer, and **MAY** instead
+complete the handshake and refuse on the credential afterwards -- which is what
+the reference does, because the credential is checked by the same chain every
+verb uses and that chain runs inside the application. An operator that refuses
+after completing the handshake **MUST** say so and close:
+
+```json
+{"type":"disconnect","reason":"unauthorized","reconnect":false}
+```
+
+So `welcome`, and never the `101`, is what tells an assistant its socket is
+authenticated: an assistant that reads the status as success may be holding a
+socket that has already been refused, which is silent and looks exactly like a
+quiet one.
+
 **Opening a stream is FREE.** An operator **MUST NOT** toll the upgrade, and
 **MUST NOT** toll an event. Proof-of-work prices a caller's consumption of
 operator CPU (Section 10); a held socket consumes none, and the identity has
@@ -1570,6 +1593,31 @@ optional: it is the one signal that turns a lost range into a single ordinary
 read rather than a silent gap. On `truncated: true` an assistant **MUST**
 re-read the current state through the ordinary verb that owns it, exactly once,
 and then continue on the stream.
+
+**Every frame about ONE SUBSCRIPTION travels in an envelope; every frame about
+the CONNECTION does not.** The `subscribed` object above -- and `unsubscribed`
+(Section 8.5.6), and every event (Section 8.5.2) -- arrives as the `message` of
+a frame whose `identifier` is the subscribe frame's own `identifier` STRING,
+echoed back byte for byte:
+
+```json
+{"identifier":"{\"channel\":\"KioskEvents\",\"topic\":\"todo\",\"subject\":\"list_4f1e...\"}",
+ "message":{"type":"subscribed","topic":"todo","subject":"list_4f1e...","head":1486,"truncated":false}}
+```
+
+`welcome`, `ping` and `disconnect` are about the connection: they arrive at TOP
+LEVEL with no `identifier`, which is how this specification prints them. Two
+frames are top level and carry the identifier with no `message` --
+`reject_subscription` below, and the confirmation an operator **MUST** send
+once the subscription is live:
+
+```json
+{"identifier":"{\"channel\":\"KioskEvents\",\"topic\":\"todo\"}","type":"confirm_subscription"}
+```
+
+A subscriber tells one subscription's frames from another's by that
+`identifier`, which is why it is echoed and why it is a string rather than an
+object: it is compared, not parsed.
 
 On a subscription it refuses -- an unknown topic, or a subject the operator's
 own rule says this subscriber may not read -- the operator **MUST** answer
@@ -2628,7 +2676,10 @@ the discovery document, and are absent from `capabilities` for that reason:
 
 9. **Module EVENTS** (Section 8.5), OPTIONAL: the stream at
    `<endpoint>/events` on the `actioncable-v1-json` subprotocol, authenticated
-   by the same chain as every verb and never tolled; the catalog's `events`
+   by the same chain as every verb and never tolled; `welcome` as the first
+   frame of an accepted upgrade and an `unauthorized` disconnect on one refused
+   after the handshake; the `identifier`/`message` envelope on a subscription's
+   own frames, with `confirm_subscription` once it is live; the catalog's `events`
    array and the `events` capability; `subscribed` carrying `head` and
    `truncated`; `reject_subscription` for a topic or a subject the subscriber
    may not read; at-least-once delivery ordered by a per-origin `id`; `since`

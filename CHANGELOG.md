@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-29: **§8.5 publishes the framing a port has to produce**: the `welcome` frame, the refused-upgrade disconnect, the `identifier`/`message` envelope and `confirm_subscription`.
+
 - 2026-09-29: **§8.5.6 tells an expired credential from a revoked one**: a token that merely aged out closes with `reconnect: true`, because minting another and resuming is what the assistant can do.
 
 - 2026-09-28: **§16.3 now says what a caller meets when an operator validates a request body:** `400 bad_request` naming the member, never another status.
