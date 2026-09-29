@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-09-29: **§8.5.6 tells an expired credential from a revoked one**: a token that merely aged out closes with `reconnect: true`, because minting another and resuming is what the assistant can do.
+
 - 2026-09-28: **§16.3 now says what a caller meets when an operator validates a request body:** `400 bad_request` naming the member, never another status.
 
 - 2026-09-28: **§16.1: the note that the reference cannot decline binding is gone.** It can: a switch puts every binding path on `501 module_not_served`, and the profile is exercised.

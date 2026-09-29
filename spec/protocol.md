@@ -1623,6 +1623,21 @@ the connection and **MUST** say that reconnecting will not help:
 `reconnect: false` is load-bearing: a client that retries into a refusal whose
 answer cannot change is a reconnect storm against an origin.
 
+A credential that has merely **expired** is a different answer, and an operator
+**MUST NOT** give it the revoked one. Access tokens are short-lived (Section
+5.5) and a held socket outlives them; the assistant holding one can mint
+another by challenge-response (Section 5.3) and resume from its cursor. So the
+operator closes the connection and says that coming back WILL help:
+
+```json
+{"type":"disconnect","reason":"token_expired","reconnect":true}
+```
+
+`reconnect` rather than `reason` is what a subscriber acts on: it comes back
+when the flag is `true`, renewing its credential first, and stops when it is
+`false`. An assistant told `revoked` for a token that had simply aged out
+stops in the one case where coming back would have worked.
+
 An operator **SHOULD** send a periodic `{"type":"ping","message":<unix>}` so a
 subscriber can detect a dead connection, and **SHOULD NOT** send one more often
 than every 30 seconds. A heartbeat is a liveness signal for a client that has
@@ -2618,8 +2633,9 @@ the discovery document, and are absent from `capabilities` for that reason:
    `truncated`; `reject_subscription` for a topic or a subject the subscriber
    may not read; at-least-once delivery ordered by a per-origin `id`; `since`
    replay over at least 24 hours of retained events; and re-authorisation at
-   least every 60 seconds with `reach_revoked` and a `reconnect:false`
-   disconnect on a revoked credential. An operator that declines this module
+   least every 60 seconds with `reach_revoked` when a subject's reach is
+   withdrawn, a `reconnect:false` disconnect on a revoked credential and a
+   `reconnect:true` one on a merely expired token. An operator that declines this module
    omits `events` from `capabilities` and publishes no `events_url`; it still
    answers `"events": []` in the catalog, whose root is closed.
 
