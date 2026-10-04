@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-05: **One deployment MAY serve several origins, each its own operator** (§4.1), replacing the one-origin constraint. Onboarding: redirect an alias, list a second business.
+
 - 2026-10-05: **§8.5.4 says what a cursor is**: an event `id` or `head`, a non-negative integer within JSON's exact range. Any other `since`, or a `subject` that is not a string, is refused.
 
 - 2026-10-04: **The onboarding guide states the one-origin constraint where an operator sets the issuer**, and says to redirect an alias hostname to the canonical origin rather than serve both.
