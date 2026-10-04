@@ -1651,14 +1651,7 @@ this wire has no others, because a subscriber never publishes (Section 8.5.5) --
 and an `identifier` STRING. Section 8.5.7 leaves two forms to refuse with, and
 which one applies turns on whether the frame names a subscription at all.
 
-It carries an `identifier` string the operator cannot act on -- one naming a
-channel that is not `KioskEvents`, or one that is not a JSON document. That
-string still NAMES a subscription, because the identifier is compared and never
-parsed, so the operator **MUST** answer `reject_subscription` echoing it byte
-for byte, exactly as for an unknown topic; the socket's other subscriptions are
-unaffected.
-
-Or it names no subscription at all -- it is not a JSON object, or it carries no
+It names no subscription at all -- it is not a JSON object, or it carries no
 `identifier` string, or its `command` is neither of the two. There is nothing to
 echo, so the operator **MUST** close the connection:
 
@@ -1671,7 +1664,40 @@ request it cannot act on, so no vocabulary is added (Section 8.5.7).
 `reconnect: false` for the reason Section 8.5.6 gives: a client whose frames are
 malformed does not fix them by coming back.
 
-**An operator MUST NOT answer either shape with silence.** A socket that stays
+Otherwise it NAMES one, because the identifier is compared and never parsed, so
+the string correlates a refusal whatever it happens to contain -- and the
+operator **MUST** answer `reject_subscription` echoing it byte for byte, exactly
+as for an unknown topic; the socket's other subscriptions are unaffected. That
+is the answer for EVERY identifier the operator cannot act on, and the ways
+below are examples rather than an enumeration:
+
+- the identifier is not a JSON document, or it names a channel that is not
+  `KioskEvents`;
+- a `subscribe` presents a `since` that is not a cursor. The replay it asked for
+  cannot be served, and opening the subscription without it would lose exactly
+  the events the cursor was presented to recover (Section 8.5.5);
+- an `unsubscribe` names a subscription this socket does not hold -- one it
+  never opened, or one whose identifier it re-serialised rather than echoed,
+  carrying the same members in another order. The identifier is COMPARED, so
+  that is a different subscription.
+
+**A `subscribe` for a subscription that is ALREADY LIVE is answered and not
+refused.** It is the one frame here the operator CAN act on, and the action is
+nothing, so the answer is the confirmation again:
+
+```json
+{"identifier":"{\"channel\":\"KioskEvents\",\"topic\":\"todo\"}","type":"confirm_subscription"}
+```
+
+The operator **MUST NOT** answer it `reject_subscription` -- a subscriber
+correlates by that identifier alone, so it would read the refusal as the live
+subscription's and tear down something that works -- and **MUST NOT** send a
+second `subscribed` or replay the tail again: one subscription has one cursor,
+and a second replay delivers events to a subscriber that asked for them once.
+An `unsubscribe` naming a live subscription drops it and delivery stops; this
+wire has no confirmation for that, and an operator **MUST NOT** invent one.
+
+**An operator MUST NOT answer ANY frame with silence.** A socket that stays
 open and says nothing is the failure the paragraph above names, reached by
 another route: a subscriber holding a frame-level bug waits on a stream that
 will never speak, and reads the silence as nothing having happened.
@@ -2740,9 +2766,12 @@ the discovery document, and are absent from `capabilities` for that reason:
    own frames, with `confirm_subscription` once it is live; the catalog's `events`
    array and the `events` capability; `subscribed` carrying `head` and
    `truncated`; `reject_subscription` for a topic or a subject the subscriber
-   may not read and for an `identifier` string it cannot act on, with an
+   may not read and for an `identifier` string it cannot act on, the
+   confirmation again and nothing else on a `subscribe` for a subscription
+   already live, and an
    `invalid_request` `reconnect:false` disconnect on a frame naming no
-   subscription at all; at-least-once delivery ordered by a per-origin `id`; `since`
+   subscription at all, so that no frame is answered with silence;
+   at-least-once delivery ordered by a per-origin `id`; `since`
    replay over at least 24 hours of retained events; and re-authorisation at
    least every 60 seconds with `reach_revoked` when a subject's reach is
    withdrawn, a `reconnect:false` disconnect on a revoked credential and a

@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-04: **§8.5.4 states the rule instead of listing shapes, and no frame may get silence**: an unresolvable `unsubscribe` or an unreadable `since` is refused, a live `subscribe` re-confirmed.
+
 - 2026-10-04: **The onboarding guide's list of what the mount draws now carries `/kiosk/events`** — the one path it serves that the page never mentioned.
 
 - 2026-10-04: **§8.5.4 says what a frame the operator cannot act on gets**: `reject_subscription` where it names a subscription, an `invalid_request` close where it names none. Silence was the gap.
