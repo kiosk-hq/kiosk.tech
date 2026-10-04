@@ -1175,8 +1175,10 @@ of verb -- never by how large the answer is or whether it was truncated:**
 
 - a **query** answers a **JSON array** of rows -- always, paginating or not;
 - **everything else** answers **its own JSON value**, typically an object. An
-  action's is operator-defined; `schema`'s is `{queries, actions}`
-  (Section 8.3) and `pay`'s is its settlement object (Section 11.3), both
+  action's is operator-defined; `schema`'s is `{queries, actions, events}`
+  (Section 8.3) -- all three members always present, `events` an empty array on
+  an origin that declares no topic -- and `pay`'s is its settlement object
+  (Section 11.3), both
   fixed by this specification rather than by an operator.
 
 Whichever it is, it **MUST** match the verb's declared `output_schema`
