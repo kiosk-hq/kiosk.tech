@@ -367,13 +367,14 @@ reader gives away the whole benefit.
 
 **Every origin is its own operator.** One deployment **MAY** serve several origins.
 Each is a separate operator on this wire: the discovery document served on an origin
-advertises that origin as its `kiosk.issuer`; a possession proof is accepted only when
-its `aud` is the origin the request arrived on and that origin is one the operator
-serves (Section 15.1); and an assistant account, an access token or a mandate made on
-one origin is not accepted on another. A request on a hostname the operator does not
-serve is not a request to any of its origins, so a proof carrying that hostname is
-rejected -- and the AI assistant **MUST NOT** paper over that by signing the
-advertised issuer instead (Section 15.1).
+advertises that origin as its `kiosk.issuer`; a request on a hostname the operator
+does not serve is answered as one of its origins, the default one, whose discovery
+document that hostname serves; a possession proof is accepted only when its `aud` is
+the origin the request is answered as (Section 15.1); and an assistant account, an
+access token or a mandate made on one origin is not accepted on another. So a proof
+carrying a hostname the operator does not serve is always rejected -- and the AI
+assistant **MUST NOT** paper over that by signing the advertised issuer instead
+(Section 15.1).
 
 ### 4.2 `capabilities`
 
