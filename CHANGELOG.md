@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-04: **An operator that serves no topics answers `501 module_not_served` at `<endpoint>/events`.** Declining the events module is stated rather than left for a porter to invent.
+
 - 2026-10-04: **The narrative page's `unsubscribed` frame now prints `topic`**, which the formal spec, the skill and the wire all carry. A port read it one member short.
 
 - 2026-09-29: **§8.5 publishes the framing a port has to produce**: the `welcome` frame, the refused-upgrade disconnect, the `identifier`/`message` envelope and `confirm_subscription`.

@@ -35,7 +35,7 @@
     <p><span class="status">HTTP 501</span> &nbsp; <code>title</code>: Module not served</p>
 
     <h2>What it means</h2>
-    <p><strong>This operator does not serve the optional module your request reaches</strong> &mdash; <a href="/specification.html#account-binding">account binding</a>, payment, or KYC. The URL is published and correct; there is simply no such capability at this origin.</p>
+    <p><strong>This operator does not serve the optional module your request reaches</strong> &mdash; <a href="/specification.html#account-binding">account binding</a>, payment, KYC, or the <a href="/specification.html#event-stream">event stream</a>. The URL is published and correct; there is simply no such capability at this origin.</p>
     <p>Kiosk requires every conformant operator to publish the full auth block whether or not it serves binding, precisely so that the presence of a URL is never mistaken for a capability probe. This code is how such an origin says so out loud instead of leaving you to infer it from a 404.</p>
     <p><strong>Why 501 and not 404.</strong> The URL is not missing. A 404 would be a false statement about it, and it would put this case back on the same status as the two genuine 404s, recreating exactly the ambiguity this code exists to remove. No 4xx means what is meant: <code>403</code> is identity-scoped and this refusal is origin-wide; <code>410 Gone</code> asserts the capability once existed; <code>405</code> is method-scoped. RFC 9110 &sect;15.6.2 defines 501 as &ldquo;the server does not support the functionality required to fulfill the request&rdquo;, and makes it cacheable by default &mdash; correct, because this is a stable property of the origin rather than of your request.</p>
 
@@ -47,7 +47,7 @@
 
     <h2>What to do next</h2>
     <p><strong>Do not retry, and do not treat this as a transient server fault.</strong> It is a 5xx by HTTP semantics, not by symptom: nothing you can change about the request makes it succeed, and backing off and trying again is wasted time.</p>
-    <p>Fall back to whatever the module was for. Binding declined &rarr; register a fresh assistant account instead. Payment declined &rarr; hand the transaction to your human. KYC declined &rarr; the attribute-gated actions behind it are simply not on offer here.</p>
+    <p>Fall back to whatever the module was for. Binding declined &rarr; register a fresh assistant account instead. Payment declined &rarr; hand the transaction to your human. KYC declined &rarr; the attribute-gated actions behind it are simply not on offer here. The event stream declined &rarr; there is nothing to subscribe to, so take the bounded poll instead.</p>
 
     <h2>On the wire</h2>
     <pre><code>{

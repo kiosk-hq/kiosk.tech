@@ -384,6 +384,11 @@ query or action is registered), `queries` (iff a query is registered),
 An operator **MUST** emit the canonical order and **MUST NOT** advertise a
 module it does not serve.
 
+**Not advertising a module is not the whole of declining it.** An operator that
+declines an OPTIONAL module also answers `501 module_not_served` at the paths
+that module would have served (Section 16.1 item 7), so a declined module is
+absent from this array AND says so at its own URL.
+
 `events` is LAST in that order and was added after the other four. An origin
 that serves no topics therefore advertises exactly the array it advertised
 before this module existed, and an AI assistant that has never heard of events
@@ -1509,6 +1514,21 @@ The stream is at `<endpoint>/events` over WebSocket, and `events_url` (Section
 4.1) is where an assistant finds it. The subprotocol is `actioncable-v1-json`
 and an operator **MUST** negotiate it.
 
+**An operator that serves no topics still has that path, and it answers.** This
+module is OPTIONAL (Section 16.1 item 9), and an origin that declares no topic
+**MUST** answer `501 module_not_served` at `<endpoint>/events` -- an ordinary
+problem document (Section 9) whose `detail` names the events module -- for a
+plain request and for an upgrade alike, and **before** the credential is read:
+whether this origin publishes events at all is a fact about the ORIGIN and true
+of every caller. So it is NOT a completed handshake followed by a `disconnect`
+frame; a client meets it as the HTTP status of a refused upgrade rather than as
+anything it can read off a socket. The path is this specification's rather than
+the operator's, which is why 501 is right and 404 would not be: the URL is
+correct at every conformant origin whether or not that origin advertises it. An
+AI assistant **MUST NOT** retry it and **MUST NOT** read it as a refused
+credential -- `capabilities` and the absent `events_url` say the same thing
+without a round trip.
+
 **That subprotocol's framing is part of the contract**, and a port needs it
 stated here rather than read out of somebody's source tree. On an upgrade it
 accepts, an operator **MUST** send this as the first frame:
@@ -1699,6 +1719,10 @@ The event stream introduces **no new error codes**. The vocabulary of Section 9
 is unchanged: a refusal on this surface is `reject_subscription` or a typed
 `disconnect` reason.
 
+The one refusal at the URL itself is the MODULE: an origin that declares no
+topic answers `501 module_not_served` there (Section 8.5.3). That is an existing
+code and an ordinary problem document, reached before there is a socket at all.
+
 ## 9. Errors -- problem documents and the code vocabulary
 
 Schema: [`problem.schema.json`](./schemas/problem.schema.json).
@@ -1754,7 +1778,7 @@ members it does not recognise.
 | `quota_exceeded` | 429 | A rate or volume quota the OPERATOR enforces is exhausted -- e.g. a cap on how many KYC verifications one principal may have open at once. The engine never raises it: an operator emits it from its own handler when it meters something, and it is the one refusal in this table that means "come back later" rather than "no". |
 | `action_failed` | 500 | An operator-registered action raised. |
 | `internal_error` | 500 | Catch-all server error. |
-| `module_not_served` | 501 | **This operator does not serve the OPTIONAL MODULE the request reaches** (Section 16.1 item 7) -- account binding (Section 6), payment (Section 11) or KYC (Section 12). The URL is published and correct; there is simply no such capability here. `detail` names the module. Nothing the caller can change makes this request succeed, so the AI assistant **MUST NOT** retry it and **MUST NOT** treat it as a transient server fault: it falls back to whatever the module was for -- plain registration instead of binding, a human hand-off instead of a `pay`. See below for why this is 501 and not 404. |
+| `module_not_served` | 501 | **This operator does not serve the OPTIONAL MODULE the request reaches** (Section 16.1 item 7) -- account binding (Section 6), payment (Section 11), KYC (Section 12) or the event stream (Section 8.5). The URL is published and correct; there is simply no such capability here. `detail` names the module. Nothing the caller can change makes this request succeed, so the AI assistant **MUST NOT** retry it and **MUST NOT** treat it as a transient server fault: it falls back to whatever the module was for -- plain registration instead of binding, a human hand-off instead of a `pay`, a bounded poll instead of a stream. See below for why this is 501 and not 404. |
 
 **Three codes share HTTP 402, and only two of them are gates.** `pow_required` and
 `payment_setup_required` name a gate the caller can clear, and each carries the
@@ -2663,7 +2687,8 @@ the discovery document, and are absent from `capabilities` for that reason:
    serves what the last two reach. **An operator that does not serve an OPTIONAL
    module answers `501 module_not_served` at the published paths that module
    would have served** (Section 9) -- for binding that is the two URLs above, for
-   `pay` and KYC the paths of items 5 and 8. This applies to items 5 to 8: an
+   `pay` and KYC the paths of items 5 and 8, for events the stream URL of item 9.
+   This applies to items 5 to 9: an
    optional module declined is a published path that says so in the vocabulary,
    never a 404, never a bare 403, and never silence.
 8. **Module KYC** (Section 12): the attestation endpoint, verifying the
@@ -2688,7 +2713,9 @@ the discovery document, and are absent from `capabilities` for that reason:
    withdrawn, a `reconnect:false` disconnect on a revoked credential and a
    `reconnect:true` one on a merely expired token. An operator that declines this module
    omits `events` from `capabilities` and publishes no `events_url`; it still
-   answers `"events": []` in the catalog, whose root is closed.
+   answers `"events": []` in the catalog, whose root is closed, and
+   `501 module_not_served` at `<endpoint>/events` (Section 8.5.3), which is
+   item 7's rule rather than an exception to it.
 
 ### 16.2 AI assistant profile
 
