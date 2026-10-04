@@ -175,6 +175,7 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # actually emits is a delivery timestamp beside the occurrence one -- plausible,
 # useful-sounding, and not on the wire. The five members are the five members.
 chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.unknown-member.json
+chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.id-above-json-range.json
 # And a TOPIC descriptor is closed too. `subject_reachable` is the member a
 # porter reaches for, because the operator really does have such a rule -- it is
 # deliberately NOT published, so the schema has to refuse it rather than leave

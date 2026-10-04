@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-05: **§8.5.4 says what a cursor is**: an event `id` or `head`, a non-negative integer within JSON's exact range. Any other `since`, or a `subject` that is not a string, is refused.
+
 - 2026-10-04: **The onboarding guide states the one-origin constraint where an operator sets the issuer**, and says to redirect an alias hostname to the canonical origin rather than serve both.
 
 - 2026-10-04: **The response-shape rule names `schema`'s third member.** It said `{queries, actions}` where §8.3 beside it says `{queries, actions, events}`, which is what an origin serves.

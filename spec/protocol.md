@@ -1609,7 +1609,10 @@ On a subscription it accepts, the operator **MUST** send:
 ```
 
 `head` is the origin's current event id -- what a subscriber records as its
-cursor. `truncated` is `true` when the operator cannot prove the subscriber has
+cursor. **A cursor is an event `id` or a `head` the operator sent**: a
+non-negative integer no larger than 2^53 - 1, the range JSON carries exactly
+(RFC 7493 Section 2.2) -- a JSON number in the identifier, its decimal digits
+in the URL. `truncated` is `true` when the operator cannot prove the subscriber has
 seen everything after the `since` it presented, and is REQUIRED rather than
 optional: it is the one signal that turns a lost range into a single ordinary
 read rather than a silent gap. On `truncated: true` an assistant **MUST**
@@ -1678,6 +1681,8 @@ below are examples rather than an enumeration:
 - a `subscribe` presents a `since` that is not a cursor. The replay it asked for
   cannot be served, and opening the subscription without it would lose exactly
   the events the cursor was presented to recover (Section 8.5.5);
+- a `subscribe` presents a `subject` that is not a string, which no event's
+  `subject` can match (Section 8.5.2);
 - an `unsubscribe` names a subscription this socket does not hold -- one it
   never opened, or one whose identifier it re-serialised rather than echoed,
   carrying the same members in another order. The identifier is COMPARED, so
