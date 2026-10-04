@@ -11,6 +11,10 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-04: **The onboarding guide's list of what the mount draws now carries `/kiosk/events`** — the one path it serves that the page never mentioned.
+
+- 2026-10-04: **§8.5.4 says what a frame the operator cannot act on gets**: `reject_subscription` where it names a subscription, an `invalid_request` close where it names none. Silence was the gap.
+
 - 2026-10-04: **An operator that serves no topics answers `501 module_not_served` at `<endpoint>/events`.** Declining the events module is stated rather than left for a porter to invent.
 
 - 2026-10-04: **The narrative page's `unsubscribed` frame now prints `topic`**, which the formal spec, the skill and the wire all carry. A port read it one member short.

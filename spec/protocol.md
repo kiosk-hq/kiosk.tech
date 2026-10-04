@@ -1645,6 +1645,37 @@ own rule says this subscriber may not read -- the operator **MUST** answer
 subscription to nothing is indistinguishable from a quiet topic, and a
 subscriber would wait on it forever.
 
+**A frame the operator cannot act on is answered too, and for the same reason.**
+A frame on this socket carries a `command` -- `subscribe` or `unsubscribe`, and
+this wire has no others, because a subscriber never publishes (Section 8.5.5) --
+and an `identifier` STRING. Section 8.5.7 leaves two forms to refuse with, and
+which one applies turns on whether the frame names a subscription at all.
+
+It carries an `identifier` string the operator cannot act on -- one naming a
+channel that is not `KioskEvents`, or one that is not a JSON document. That
+string still NAMES a subscription, because the identifier is compared and never
+parsed, so the operator **MUST** answer `reject_subscription` echoing it byte
+for byte, exactly as for an unknown topic; the socket's other subscriptions are
+unaffected.
+
+Or it names no subscription at all -- it is not a JSON object, or it carries no
+`identifier` string, or its `command` is neither of the two. There is nothing to
+echo, so the operator **MUST** close the connection:
+
+```json
+{"type":"disconnect","reason":"invalid_request","reconnect":false}
+```
+
+`invalid_request` is the `actioncable-v1-json` subprotocol's own reason for a
+request it cannot act on, so no vocabulary is added (Section 8.5.7).
+`reconnect: false` for the reason Section 8.5.6 gives: a client whose frames are
+malformed does not fix them by coming back.
+
+**An operator MUST NOT answer either shape with silence.** A socket that stays
+open and says nothing is the failure the paragraph above names, reached by
+another route: a subscriber holding a frame-level bug waits on a stream that
+will never speak, and reads the silence as nothing having happened.
+
 #### 8.5.5 Delivery, ordering and replay
 
 **Delivery is at-least-once and ordered per origin.** There are no
@@ -1717,7 +1748,9 @@ real messages to the noise.
 
 The event stream introduces **no new error codes**. The vocabulary of Section 9
 is unchanged: a refusal on this surface is `reject_subscription` or a typed
-`disconnect` reason.
+`disconnect` reason. Section 8.5.4 says which of the two a frame the operator
+cannot act on gets, and the `invalid_request` reason it names is the
+subprotocol's own rather than a new member of anything here.
 
 The one refusal at the URL itself is the MODULE: an origin that declares no
 topic answers `501 module_not_served` there (Section 8.5.3). That is an existing
@@ -2707,7 +2740,9 @@ the discovery document, and are absent from `capabilities` for that reason:
    own frames, with `confirm_subscription` once it is live; the catalog's `events`
    array and the `events` capability; `subscribed` carrying `head` and
    `truncated`; `reject_subscription` for a topic or a subject the subscriber
-   may not read; at-least-once delivery ordered by a per-origin `id`; `since`
+   may not read and for an `identifier` string it cannot act on, with an
+   `invalid_request` `reconnect:false` disconnect on a frame naming no
+   subscription at all; at-least-once delivery ordered by a per-origin `id`; `since`
    replay over at least 24 hours of retained events; and re-authorisation at
    least every 60 seconds with `reach_revoked` when a subject's reach is
    withdrawn, a `reconnect:false` disconnect on a revoked credential and a
