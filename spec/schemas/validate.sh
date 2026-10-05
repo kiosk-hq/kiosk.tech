@@ -78,6 +78,8 @@ chk validate "${F[@]}" -s "$(ref payreq  "$B/mandates.schema.json#/\$defs/payReq
 chk validate "${F[@]}" -s "$(ref settle  "$B/mandates.schema.json#/\$defs/settlement")" -r mandates.schema.json -d examples/settlement.json
 chk validate "${F[@]}" -s "$(ref att     "$B/kyc.schema.json#/\$defs/attestation")"     -r kyc.schema.json -d examples/kyc.attestation.json
 chk validate "${F[@]}" -s "$(ref kycreq  "$B/kyc.schema.json#/\$defs/request")"         -r kyc.schema.json -d examples/kyc.request.json
+chk validate "${F[@]}" -s "$(ref kycver  "$B/kyc.schema.json#/\$defs/verification")"    -r kyc.schema.json -d examples/kyc.verification.json
+chk validate "${F[@]}" -s "$(ref kycevt  "$B/kyc.schema.json#/\$defs/verificationEvent")" -r kyc.schema.json -d examples/kyc.verification-event.json
 # Sections 5 and 6. One example per `$def`, because the claim these
 # schemas exist to make honest is per-OBJECT, not per-file: a file that compiles
 # while one of its six objects is a typo'd `$def` nobody validates against is the
@@ -175,6 +177,7 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # actually emits is a delivery timestamp beside the occurrence one -- plausible,
 # useful-sounding, and not on the wire. The five members are the five members.
 chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.unknown-member.json
+chkfail validate "${F[@]}" -s "$(ref kycevt3 "$B/kyc.schema.json#/\$defs/verificationEvent")" -r kyc.schema.json -d examples/rejected/kyc.verification-event.no-jws.json
 chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.id-above-json-range.json
 # And a TOPIC descriptor is closed too. `subject_reachable` is the member a
 # porter reaches for, because the operator really does have such a rule -- it is

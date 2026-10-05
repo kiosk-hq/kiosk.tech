@@ -2417,9 +2417,41 @@ An Action MAY be **gated** on a set of required attribute names. When the callin
 AI assistant's recorded attributes do not include every required name as `true`, the
 operator **MUST** reject with `kyc_required` (HTTP **403**), carrying a hint
 naming what is needed (e.g. "complete KYC: age>=18 and category-A licence
-required"). The reference `kiosk-demo-skooti` gates `rent_motorcycle` (a
+required") and, at an operator serving Section 12.4, naming `request_kyc`. The
+reference `kiosk-demo-skooti` gates `rent_motorcycle` (a
 combustion-engine motorcycle) on `age_over_18` **AND** `licence_a`, while the
 licence-free electric scooter needs neither -- the gate is per-Action.
+
+### 12.4 Opening a verification, and the event that delivers it
+
+An operator **MAY** open verifications at a KYC provider on the AI assistant's
+behalf. One that does **MUST** serve the `request_kyc` action and **MUST**
+publish the `kyc_verification` topic (Section 8.5.1) -- so it serves the event
+stream and advertises `events`. The attestation reaches the AI assistant on that
+event, and the wire has no operation that reads it back.
+
+1. `request_kyc` takes no arguments and answers `{request_id, verification_url,
+   status: "pending"}` ([`kyc.schema.json#/$defs/verification`](./schemas/kyc.schema.json)).
+   The AI assistant relays `verification_url` to its human.
+2. When the human approves, the operator emits one `kyc_verification` event to
+   the principal that opened the verification. Its `subject` is the
+   `request_id`, and its `data` is `{request_id, status: "approved", kyc_jws}`
+   ([`kyc.schema.json#/$defs/verificationEvent`](./schemas/kyc.schema.json)),
+   `kyc_jws` being the provider-signed attestation. The topic's
+   `payload_schema` publishes that shape.
+3. The AI assistant subscribes to `kyc_verification` **before** it calls
+   `request_kyc`, submits the event's `kyc_jws` to `POST <endpoint>/agents/kyc`,
+   and retries the gated action. A fresh session recovers a missed event by
+   subscribing with a `since` inside the retention window (Section 8.5.5). On
+   `truncated: true` no operation re-reads the attestation, so the AI assistant
+   calls `request_kyc` again.
+4. A provider reports an approval and nothing else, so a verification the human
+   refused produces no event.
+
+The attestation is therefore held in the retained event tail. Delivery is scoped
+to the one principal that opened the verification, the provider bounds its
+lifetime with `exp`, and `POST <endpoint>/agents/kyc` re-checks `sub` against
+the authenticated `user_id` -- so a replayed copy is of use to no one else.
 
 ---
 
@@ -2765,7 +2797,10 @@ the discovery document, and are absent from `capabilities` for that reason:
    `kyc_required` gate on attribute-restricted actions (Section 12.3). The `aud`
    check is the operator binding of Section 12.1 and belongs in this list for
    the reason that section gives: an implementation that omits it accepts an
-   attestation the KYC provider minted for a DIFFERENT operator.
+   attestation the KYC provider minted for a DIFFERENT operator. An operator
+   that opens verifications itself serves `request_kyc` and delivers the
+   attestation on the `kyc_verification` topic (Section 12.4), which requires
+   Module EVENTS.
 
 9. **Module EVENTS** (Section 8.5), OPTIONAL: the stream at
    `<endpoint>/events` on the `actioncable-v1-json` subprotocol, authenticated
