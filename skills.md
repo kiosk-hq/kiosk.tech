@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.2.md` | **0.5** | **A WIRE CHANGE: the identity check moves onto the event stream.** `request_kyc` opens a verification and the `kyc_verification` event carries the signed `kyc_jws`; no operation reads it back, so there is no status verb and nothing to poll. The cut also says how to be WOKEN: run the pinned listener `listen-v0.5.2.py` in the mode that exits on the event, as a background process the runtime tracks, and start it again with `--since`. |
 | `skill-v0.5.1.md` | **0.5** | The same wire as 0.5.0. Two corrections to what it tells you ABOUT that wire, both found on a live assistant run. The human’s TIME ZONE is one fact about the human rather than one per operator — asked once and reused everywhere, never re-asked per origin — and it is not a blocker either, because an operator that never sees the header falls back to the clock of the place the service happens; where the hour belongs to a PLACE, the place’s own `timezone` on the catalogue is what to read. And an answer field that is a bearer CREDENTIAL rather than a pointer — a signed string a lock or a device checks offline, for whoever holds it — is handed to the human once and never repeated, logged or recapped; the cut before it had a rule for relaying a URL and none for relaying a capability. |
 | `skill-v0.5.0.md` | **0.5** | The same wire as 0.4.17, word for word -- what moves is the NUMBER, and the move is a correction. 0.4.16 made `events` a THIRD REQUIRED array in the catalog, whose root is closed, so a 0.4.15 reader refuses every catalog a 0.4.16 origin publishes: that is a MINOR break, and it shipped inside two patch cuts with `min_client` left at `0.4.0`. An origin serving this cut advertises `Kiosk-API-Version: 0.5.0` and `min_client: 0.5.0`, so the number an assistant reads off the wire is the number of the wire it gets. |
 | `skill-v0.4.17.md` | **0.4** | The same wire as 0.4.16. One correction to what it tells you ABOUT that wire: how to WAIT on the event stream 0.4.16 introduced. That cut taught an assistant to subscribe and said nothing about holding the wait, so an assistant that cannot keep a socket across its own turns backgrounded the pinned listener into a log file and read that file for a few seconds per turn -- a one-shot poll with a horizon of seconds, which is worse than the poll the stream replaced. 0.4.17 separates the two kinds of topic and gives each its procedure: a WAIT blocks in the FOREGROUND inside one tool call, using the listener's new one-shot mode, and waits again on a deadline until the flow's give-up horizon; a SUBSCRIPTION is delivered by the CURSOR, recorded across turns and presented on the next connect, with a signalling background process as an optional extra and never as a log file. It pins `events/listen-v0.5.1.py`, which exits on the event rather than on the deadline so a foreground wait costs what the human took. |
@@ -53,15 +54,19 @@ assistant holding 0.4.12 waits for a `code` an operator no longer sends and cann
 say whose clock its dates are on; and 0.4.16 made `events` a third REQUIRED array
 in the catalog, whose root is closed, so an assistant holding 0.4.15 refuses every
 catalog a 0.4.16 origin publishes -- a MINOR break shipped as a patch, which
-`skill-v0.5.0.md` is the correction of.
-All five are why the "same wire as" column has to be read as a chain and not as a
+`skill-v0.5.0.md` is the correction of. One PATCH in the 0.5 series changed the
+wire as well: 0.5.2 moved an identity check's signed attestation onto the
+`kyc_verification` event and removed the status verb that read it, so an
+assistant holding 0.5.1 asks for a verb a 0.5.2 operator no longer serves.
+All six are why the "same wire as" column has to be read as a chain and not as a
 transitive licence: 0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10 = 0.4.11,
 while 0.4.12 opens a new wire group of which it stayed the only member and
 0.4.13 opens a new wire group after it in which 0.4.13 = 0.4.14 = 0.4.15,
-and 0.4.16 opens a new wire group, the one served now, in which
+and 0.4.16 opens a new wire group in which
 0.4.16 = 0.4.17 = 0.5.0 = 0.5.1,
-but the five groups are NOT the same wire, and only the last describes
-what a 0.5.1 operator serves. The formal spec
+and 0.5.2 opens a new wire group, the one served now,
+but the six groups are NOT the same wire, and only the last describes
+what a 0.5.2 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

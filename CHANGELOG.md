@@ -11,6 +11,16 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+## [skill 0.5.2 · listener 0.5.2] — 2026-10-06
+
+- 2026-10-06: **The identity check waits on the `kyc_verification` event**, which carries the signed attestation; the skill has no status verb and no poll for it.
+
+- 2026-10-06: **The skill says how an event wakes an idle assistant**: run the listener so it exits on the event, as a background process the runtime tracks, and restart it with `--since`.
+
+- 2026-10-06: **The listener leaves on `501 module_not_served` with exit 4** instead of reporting a dead token or re-minting one for ever, and sends no `Origin` header.
+
+- 2026-10-06: **The skill lists the `token_expired` disconnect, and the event stream among the capabilities `module_not_served` can name.**
+
 - 2026-10-05: **KYC (§12.4)**: `request_kyc` opens a verification and the `kyc_verification` event delivers the signed attestation; KYC by verification implies the event stream.
 
 - 2026-10-05: **`payment/return/` is withdrawn**: a card-setup flow returns the human to the operator's own origin, so nothing sent anyone to the site's page.

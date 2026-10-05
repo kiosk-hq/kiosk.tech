@@ -2547,11 +2547,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    and **PATCH is a skill-only revision** -- a wording or guidance fix to the same
    protocol, cut without a protocol change -- with the pre-1.0 exception of
    point 2: before 1.0 a skill PATCH may also carry a wire change, because the
-   wire itself may change in a PATCH. The current skill is **0.5.1**, the second
+   wire itself may change in a PATCH. The current skill is **0.5.2**, the third
    cut on this series. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.4.17 cuts
    describe protocol 0.1-0.4 and cannot transact with a 0.5 origin at all, and
-   0.5.0 describes the earlier 0.5 cut a 0.5.1 operator no longer serves. Published skill
+   0.5.0-0.5.1 describe earlier 0.5 cuts a 0.5.2 operator no longer serves. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
