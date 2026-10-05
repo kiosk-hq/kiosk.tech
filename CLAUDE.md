@@ -9,8 +9,7 @@ current `skill-v0.5.1.md` (MAJOR.MINOR tracks the framework release from 0.2 on)
 skill edit ends in a version bump plus a re-pin of every consumer in the same
 wave: `bin/check-skill-immutability` enforces both halves. K-847, and the three
 standing rules are in the umbrella `CLAUDE.md`.), `index.html` —
-landing, `onboarding.html`, `payment/return` (Stripe Checkout return page),
-and `spec/` — the **formal** specification (`spec/protocol.md`,
+landing, `onboarding.html`, and `spec/` — the **formal** specification (`spec/protocol.md`,
 RFC-style) plus machine-readable JSON Schemas (`spec/schemas/`) for adopters and
 porters (`specification.html` is the narrative spec, the formal spec is
 its precise companion; both are kept consistent). Static files, no build step — nothing

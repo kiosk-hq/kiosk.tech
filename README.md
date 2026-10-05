@@ -52,7 +52,6 @@ describes, and what changed on the wire.
 | `problems/<code>/` | One page per entry in the protocol's closed error vocabulary. Every Kiosk refusal is an RFC 9457 problem document whose `type` is one of these URLs, so a developer who pastes the URI out of a log lands on the page for that code; `problems/` indexes them. |
 | `pow/solve.py` | The reference Equihash proof-of-work solver (Python + numpy) — the current copy, which is what an operator's `402` points a caller at. |
 | `pow/solve-<digest>.py` | The same solver at a content-addressed URL, so a frozen skill cut can pin a solver whose bytes cannot change under it. |
-| `payment/return/` | The page a hosted card-setup flow returns the human to. |
 
 ## Checking it
 

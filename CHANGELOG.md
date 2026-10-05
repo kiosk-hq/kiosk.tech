@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-05: **`payment/return/` is withdrawn**: a card-setup flow returns the human to the operator's own origin, so nothing sent anyone to the site's page.
+
 - 2026-10-05: **§4.1 states how an unserved hostname is answered**: as the default origin, and a proof's `aud` must be the origin a request is answered as.
 
 - 2026-10-05: **One deployment MAY serve several origins, each its own operator** (§4.1), replacing the one-origin constraint. Onboarding: redirect an alias, list a second business.
