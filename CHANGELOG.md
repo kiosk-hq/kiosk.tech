@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-06: **The specification's `Kiosk-Min-Client` example and the discovery examples now show `0.5.2`**, the floor every 0.5.2 origin sends.
+
 ## [skill 0.5.2 · listener 0.5.2] — 2026-10-06
 
 - 2026-10-06: **The identity check waits on the `kyc_verification` event**, which carries the signed attestation; the skill has no status verb and no poll for it.
