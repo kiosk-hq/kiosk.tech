@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-06: **A KYC attestation is valid for one year**: the provider sets `exp` one year after `iat`, so one recovered from the event tail is still good to submit.
+
 - 2026-10-06: **Before 1.0 version parity is the full MAJOR.MINOR.PATCH** of protocol, implementation and skill; from 1.0 any two patches of one MINOR interoperate.
 
 - 2026-10-06: **The specification's `Kiosk-Min-Client` example and the discovery examples now show `0.5.2`**, the floor every 0.5.2 origin sends.

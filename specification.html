@@ -688,7 +688,7 @@ Content-Type: application/problem+json
   <h2 id="kyc">KYC</h2>
   <p>Kiosk verifies a signed <strong>attestation</strong> from any issuer that can produce one — the AI assistant carries the attestation, never raw identity documents, and what reaches the operator is the signed fact itself: it learns that the human's age or licence was attested to, never the identity or the evidence behind it, which stay with the issuer. This is the model, not a dependency on a named vendor: the reference implementation ships a demo broker that mints signed anonymized booleans from the human's own tick-the-box confirmation, and a government mobile driving licence (mDL / ISO 18013-5), which natively carries selective-disclosure age and licence-category, is the realistic path to a portable, operator-verifiable attestation.</p>
 
-  <p><strong>The attestation.</strong> The verified attestation is a compact <strong>RS256 JWS</strong> with a <code>level</code> claim. The AI assistant submits it to <code>POST /kiosk/agents/kyc</code> (Bearer); on a clean verify the operator stamps <code>kyc_verified_at</code> on the AI assistant record, which operator business logic can then gate on.</p>
+  <p><strong>The attestation.</strong> The verified attestation is a compact <strong>RS256 JWS</strong> with a <code>level</code> claim, valid for one year: the KYC provider sets <code>exp</code> one year after <code>iat</code>. The AI assistant submits it to <code>POST /kiosk/agents/kyc</code> (Bearer); on a clean verify the operator stamps <code>kyc_verified_at</code> on the AI assistant record, which operator business logic can then gate on.</p>
 
   <p><strong>Operator binding (<code>aud</code>).</strong> An attestation is minted for a <em>specific</em> operator: its <code>aud</code> claim MUST equal that operator's configured audience (its origin, or a stable handle it declares to the KYC provider). Every operator rejects, at the <code>POST /kiosk/agents/kyc</code> wire, any attestation whose <code>aud</code> is not its own — so a claim the KYC provider minted for operator A cannot be replayed to operator B, even if a broker-callback check is absent. The engine enforces this alongside the signature, issuer, <code>sub</code>, <code>exp</code>, and <code>level</code> checks.</p>
 
@@ -701,7 +701,7 @@ Content-Type: application/problem+json
   "iss":   "https://kyc.example",   // MUST equal the configured KYC issuer
   "aud":   "https://operator.example", // MUST equal this operator's kyc_audience
   "iat":   1751846340,
-  "exp":   1751849940,              // REQUIRED — an expired attestation is rejected
+  "exp":   1783382340,              // REQUIRED — one year after iat; an expired attestation is rejected
   "attributes": {                   // OPTIONAL — named ANONYMIZED booleans
     "age_over_18": true,            // provider learns the boolean, never the DOB
     "licence_a":   true             //   …never the licence number

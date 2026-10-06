@@ -2382,7 +2382,8 @@ An operator MAY require a KYC attestation. The AI assistant carries a signed
 **MUST** equal the operator-configured KYC issuer, `aud` **MUST** equal this
 operator's configured audience (see 12.1), `exp` **MUST** be present and
 unexpired, and `level` **MUST** be exactly `"verified"` (anything else is
-rejected). The AI assistant submits it to `POST <endpoint>/agents/kyc` (Bearer) as
+rejected). The KYC provider sets `exp` one year after `iat`. The AI assistant
+submits it to `POST <endpoint>/agents/kyc` (Bearer) as
 `{kyc_jws}`; on a clean verify the operator records verification and returns
 `{kyc_verified: true, attributes: {...}}`.
 
