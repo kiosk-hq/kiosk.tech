@@ -164,7 +164,7 @@ Rails.application.routes.draw do
   draw(:kiosk)
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The file <code>draw</code> reaches holds the mount first, then one explicit line per verb you serve. The generator wrote it with the mount already in place and nothing under it, because it knows none of your verbs — the six below are the ones Steps 4 and 5 declare, and adding them is this step's work:</p>
+  <p>The file <code>draw</code> reaches holds the mount first, then one explicit line per verb you serve. The generator wrote it with the mount already in place and nothing under it, because it knows none of your verbs — the five below are the ones Steps 4 and 5 declare, and adding them is this step's work:</p>
   <pre><code class="language-ruby"># config/routes/kiosk.rb
 
 # 1. THE PROTOCOL PLANE, mounted the ordinary Rails way. These paths and their
@@ -177,7 +177,6 @@ get  "/kiosk/catalog",             to: "kiosk/server/verb#show",   defaults: { k
 get  "/kiosk/delivery_slots",      to: "kiosk/server/verb#show",   defaults: { kiosk_verb: "delivery_slots" }
 get  "/kiosk/my_orders",           to: "kiosk/server/verb#show",   defaults: { kiosk_verb: "my_orders" }
 post "/kiosk/create_order",        to: "kiosk/server/verb#create", defaults: { kiosk_verb: "create_order" }
-post "/kiosk/payment_setup",       to: "kiosk/server/verb#create", defaults: { kiosk_verb: "payment_setup" }
 post "/kiosk/reschedule_delivery", to: "kiosk/server/verb#create", defaults: { kiosk_verb: "reschedule_delivery" }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The prefix is the <code>mount_path</code> from Step 2's initializer — <code>/kiosk</code> unless you set another. <code>defaults: { kiosk_verb: … }</code> hands the name to the shipped <code>VerbController</code>: nothing is inferred from the path, and you never point a route at a handler controller of your own. Adding a verb is two edits in two files from here on — the declaration in your controller, and its line in this one — and in exchange <code>bin/rails routes</code> prints your actual wire.</p>
@@ -186,7 +185,7 @@ post "/kiosk/reschedule_delivery", to: "kiosk/server/verb#create", defaults: { k
 
   <p>Under the prefix, the mount draws:</p>
   <ul>
-    <li><strong>The reserved endpoints</strong> — <code>GET /kiosk/schema</code> (the catalog — public, no token) and <code>POST /kiosk/pay</code>. <code>pay</code> is drawn whether or not you configured a payment provider: without one it refuses with a <code>501 module_not_served</code> problem document, and discovery leaves <code>pay</code> out of the capabilities it advertises, so nothing invites an agent to call it. There is also <code>GET /kiosk/openapi.json</code> — the same catalog rendered as OpenAPI 3.1, also public. You draw none of these three, and you cannot collide with one: <code>Kiosk::Handler</code> refuses a reserved verb name when the class body loads, naming the class, the method and the name that is taken.</li>
+    <li><strong>The reserved endpoints</strong> — <code>GET /kiosk/schema</code> (the catalog — public, no token), <code>POST /kiosk/pay</code>, and <code>POST /kiosk/payment_setup</code> with <code>GET /kiosk/payment_setup/return</code>, the page Stripe sends the human back to after saving a card; with a payment provider configured, <code>payment_setup</code> is listed among your actions. <code>pay</code> and <code>payment_setup</code> are drawn whether or not you configured a payment provider: without one they refuse with a <code>501 module_not_served</code> problem document, and discovery leaves <code>pay</code> out of the capabilities it advertises, so nothing invites an agent to call it. There is also <code>GET /kiosk/openapi.json</code> — the same catalog rendered as OpenAPI 3.1, also public. You draw none of these, and you cannot collide with one: <code>Kiosk::Handler</code> refuses a reserved verb name when the class body loads, naming the class, the method and the name that is taken.</li>
     <li><strong>The proof-of-possession auth plane</strong> — <code>GET /kiosk/auth/challenge</code> plus <code>POST /kiosk/auth/register</code>, <code>/kiosk/auth/login</code> and <code>/kiosk/auth/revoke</code>: the handshake the <code>register.rb</code> script in Step 6 performs.</li>
     <li><strong>JWKS</strong> — <code>GET /kiosk/.well-known/jwks.json</code>, the public keys agents verify Kiosk-issued JWTs against. It sits under the mount rather than at the origin root, and that is the URL discovery publishes as <code>jwks_uri</code>.</li>
     <li><strong>KYC attestation</strong> — <code>POST /kiosk/agents/kyc</code>, where an agent presents a broker-signed identity fact. Drawn unconditionally for the same reason as <code>pay</code>: with no KYC key configured the verifier rejects with a <code>501 module_not_served</code> problem document, and a provider that never advertises KYC loses nothing.</li>
@@ -524,7 +523,7 @@ class Kiosk::CatalogController &lt; ApplicationController   # your base class, y
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 5: Declare your actions</h2>
-  <p>Actions mutate state — create orders, move a paid delivery, set up payment. They are the same shape as Step 4's queries, marked <code>kind :action</code> instead of <code>kind :query</code>. They go in a second controller here because orders and the catalogue are different things — not because they have to: one controller may declare both.</p>
+  <p>Actions mutate state — create orders, move a paid delivery. They are the same shape as Step 4's queries, marked <code>kind :action</code> instead of <code>kind :query</code>. They go in a second controller here because orders and the catalogue are different things — not because they have to: one controller may declare both.</p>
   <p>One of the actions below gates on the order being <em>paid</em>, and the receipts live in tables the Kiosk engine writes (<code>kiosk.settlements</code>, linked to the signed cart mandate it settled). Read them the Rails way — two small models over the engine's tables, no SQL by hand:</p>
   <pre><code class="language-ruby"># app/models/kiosk_settlement.rb — a read window onto the capture receipts
 # the Kiosk engine records after a successful /pay.
@@ -557,38 +556,6 @@ class Kiosk::OrdersController &lt; ApplicationController
   # column type; a different number reaches each of them, which is why both are
   # here. See the guard in create_order.
   MAX_TOTAL_CENTS = 2_147_483_647
-
-  # Check/setup saved payment card. A verb that takes nothing still declares the
-  # empty closed object — "this verb takes no arguments" then becomes a published
-  # fact instead of an absence the assistant has to interpret.
-  kind :action
-  description "Say whether this principal already has a card on file, or hand back a " \
-              "Stripe-hosted link for the human to add one. Nothing is charged and no " \
-              "card data touches your app. Call it before every pay on a new device or " \
-              "session, and again once the human says they are done. While one setup is " \
-              "outstanding this returns the SAME link, so relay that one rather than a " \
-              "fresh link per check. Poll on a bounded schedule — every ~5 seconds for " \
-              "the first minute, then every ~15 seconds, and give up after about 5 " \
-              "minutes: tell the human it is unfinished rather than polling forever."
-  input_schema type: "object", additionalProperties: false,
-               properties: {}, required: []
-  output_schema type: "object",
-                properties: { status:    { type: "string",
-                                           enum: ["setup_required", "ready"] },
-                              setup_url: { type: "string",
-                                           description: "Present only while setup is required." } }
-  example_params({})
-  example_row({ status: "setup_required",
-                setup_url: "https://checkout.stripe.com/c/pay/cs_test_..." })
-  def payment_setup
-    uid      = kiosk_identity.user_id
-    provider = Kiosk.configuration.payment_provider
-    if provider.setup_required?(user_id: uid)
-      render json: { status: "setup_required", setup_url: provider.setup_url(user_id: uid) }
-    else
-      render json: { status: "ready" }
-    end
-  end
 
   # Create an order. Delivery is PART of the order — the window and the address
   # are inputs here, not a later step (getgrocery's shape: an assistant that
