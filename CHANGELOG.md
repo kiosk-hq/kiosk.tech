@@ -6,10 +6,11 @@ newest first.
 **How to write an entry, and what a release section means:
 [`CHANGELOG-RULE.md`](CHANGELOG-RULE.md).** In short: under 200 characters, one or
 two sentences, the essence rather than the content; open with the ISO date; write
-it under `## [Unreleased]`; nothing already written is edited. Both halves are
-held by `bin/check-changelog`.
+it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
+
+- 2026-10-07: **The specification's Flow 3 diagram names a payment provider, not Stripe**, matching the provider-neutral card setup.
 
 ## [skill 0.5.4] — 2026-10-07
 
