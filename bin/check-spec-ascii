@@ -65,27 +65,6 @@
 # `<U+XXXX>`, so the report of an encoding problem can never itself be an
 # encoding problem in somebody's log.
 #
-# WHY NOT AN ARM OF AN EXISTING GUARD, since this repository has three and adding
-# a fourth script needs an argument:
-#
-#   * `bin/check-publication-paths` is the closest structural fit -- a line-level
-#     content ban over `git ls-files`, with a self-test harness already built.
-#     It is also BYTE-IDENTICAL in both published repositories by construction
-#     (it re-digests itself against a recorded twin digest), and the sibling
-#     repository has a `spec/` directory of its own holding conformance manifests
-#     with 1574 non-ASCII characters in them. An ASCII-over-`spec/` arm there is
-#     red in the twin the day it is written. Measured, not assumed.
-#   * `bin/check-problem-pages` compares the error vocabulary against the
-#     published problem pages, has no self-test harness at all, and shares
-#     neither subject nor file set.
-#   * `bin/check-skill-immutability` is about published skill cuts.
-#
-# And the deciding argument is not really about fit. The DEFECT was that the rule
-# had two homes with one implementation between them; the repair is one
-# implementation with the workflow CALLING it, so CI and a local session can no
-# longer disagree about the file set, the method or the message. That only works
-# if the thing CI calls is a script.
-#
 # Stdlib only: no bundle, no services, no network. It reads files and shells out
 # to `git ls-files`. It writes nothing, anywhere. Usage:
 #
