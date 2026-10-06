@@ -26,8 +26,7 @@ name: published-archaeology
 # NO PATH FILTER, DELIBERATELY. The rule is a ban over the WHOLE tracked tree,
 # so any path filter would be a promise the guard cannot keep: a citation added
 # to a page outside the filter is exactly the commit that must go red, and it is
-# the commit a filter would wave through. `problem-pages.yml` already records
-# the same reasoning after the same mistake. The guard is stdlib-only and reads
+# the commit a filter would wave through. The guard is stdlib-only and reads
 # the tree once, so it costs seconds.
 #
 # THE SELF-TEST IS A STEP OF ITS OWN, and here that is load-bearing rather than

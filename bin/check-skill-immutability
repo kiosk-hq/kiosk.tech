@@ -607,8 +607,7 @@ SERVES_CLAIM = /a\s+(\d+(?:\.\d+)+)\s+operator\s+(?:no\s+longer\s+)?serves/i
 #
 # MEASURED 2026-09-25, which is why the rule exists: with `Status: v0.4` and the
 # badge both left behind on a 0.5 tree, twelve gates across the three
-# repositories exited 0 — every `kiosk.tech/bin/check-*` plus the umbrella's
-# wording, census, claims-derivation and publication-scrub checks.
+# repositories exited 0.
 PROTOCOL_CLAIM = /
   (?: Status:[ \t]*v
     | Protocol[ \t]Specification[ \t]v
