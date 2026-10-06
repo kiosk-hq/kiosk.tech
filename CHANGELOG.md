@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-07: **The `kyc_required` hint names only a KYC path the origin serves**, and says verification is not available where it serves none.
 - 2026-10-07: **Onboarding says the payment provider, not Stripe, returns the human to the payment-setup return page**, matching the provider-neutral card setup.
 
 - 2026-10-07: **The specification's Flow 3 diagram names a payment provider, not Stripe**, matching the provider-neutral card setup.

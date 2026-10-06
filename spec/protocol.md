@@ -2428,7 +2428,10 @@ An Action MAY be **gated** on a set of required attribute names. When the
 principal's recorded attributes do not include every required name as `true`, the
 operator **MUST** reject with `kyc_required` (HTTP **403**), carrying a hint
 naming what is needed (e.g. "complete KYC: age>=18 and category-A licence
-required") and, at an operator serving Section 12.4, naming `request_kyc`. The
+required") and the way to verify that this origin serves: `request_kyc` at an
+operator serving Section 12.4, otherwise `POST <endpoint>/agents/kyc` when it
+accepts attestations; where it serves neither, the hint says verification is not
+available here. The
 reference `kiosk-demo-skooti` gates `rent_motorcycle` (a
 combustion-engine motorcycle) on `age_over_18` **AND** `licence_a`, while the
 licence-free electric scooter needs neither -- the gate is per-Action. The record
