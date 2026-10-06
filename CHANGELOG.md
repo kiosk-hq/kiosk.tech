@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-06: **The site keeps only the check scripts that have caught defects or guard the skill cuts; five scripts and their workflows are removed.**
+
 ## [skill 0.5.3 · listener 0.5.3] — 2026-10-06
 
 - 2026-10-06: **Waking is mandatory**: the listener runs as a background process the runtime tracks, and on an event the assistant acts and tells its human unasked.
