@@ -146,8 +146,8 @@ proof-of-work gate.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.5.2` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
-   | `Kiosk-Min-Client` | `0.5.2` | Advisory: the oldest skill version the operator expects an AI assistant to hold. Before 1.0 it equals `Kiosk-API-Version`; from 1.0 it is in the same MAJOR.MINOR and no newer. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
+   | `Kiosk-API-Version` | `0.5.3` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-Min-Client` | `0.5.3` | Advisory: the oldest skill version the operator expects an AI assistant to hold. Before 1.0 it equals `Kiosk-API-Version`; from 1.0 it is in the same MAJOR.MINOR and no newer. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
    spelling. The root-served discovery surfaces (Section 4.5) sit outside the
@@ -1723,16 +1723,11 @@ is the failure at-least-once trades for never losing one.
 `since` reaches only into what the operator still retains. There is no "from the
 beginning".
 
-**An operator MUST retain at least 24 hours of events per identity.** The figure
-is not a cache size: some topics are WAITS, where an assistant is holding on for
-an answer it asked for, and others are SUBSCRIPTIONS, where the event arrives
-hours or days later and the assistant is not running when it does. Nothing
-obliges an assistant to hold a socket across its own sessions, and a turn-based
-assistant cannot. For those topics the CURSOR is how events are delivered and
-the socket is an optimisation over it: the assistant records `head`, and asks
-for everything after it the next time it runs. A retention window shorter than
-the gap between an assistant's sessions makes `truncated: true` the permanent
-answer for exactly the topics that have no other one.
+**An operator MUST retain at least 24 hours of events per identity**, and holds
+no cursor for it. The CURSOR is the assistant's: it records `head` and every
+event's `id`, and presents the latest as `since` when it subscribes again --
+after a reconnect, or when it was closed and its human writes to it again. The
+24 hours is how long that gap may be before the answer is `truncated: true`.
 
 #### 8.5.6 Authorisation, revocation and liveness
 
@@ -2492,7 +2487,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.5.2**: a 0.5.2 operator pins the 0.5.2 skill against the 0.5.2 wire. A new
+   **0.5.3**: a 0.5.3 operator pins the 0.5.3 skill against the 0.5.3 wire. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -2550,11 +2545,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.2**, the third
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.3**, the fourth
    cut on this series. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.4.17 cuts
    describe protocol 0.1-0.4 and cannot transact with a 0.5 origin at all, and
-   0.5.0-0.5.1 describe earlier 0.5 cuts a 0.5.2 operator no longer serves. Published skill
+   0.5.0-0.5.2 describe earlier 0.5 cuts a 0.5.3 operator no longer serves. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
@@ -2865,9 +2860,8 @@ proof) or a human-supplied link code redeemed with `{code, public_key, signed}`
 stream BEFORE the call whose answer may arrive out of band, so there is no
 window between asking and listening; records `head` from `subscribed` and
 presents it as `since` on every later subscribe, including the first subscribe
-of a LATER SESSION -- for a topic whose event arrives hours away that cursor is
-how the event is delivered at all, and a socket is not something an assistant
-can hold that long; IGNORES an `id` it has already seen, because delivery is
+after it was closed and reopened, and keeps that cursor in the conversation
+rather than in anything shared across sessions; IGNORES an `id` it has already seen, because delivery is
 at-least-once and acting twice on one event is the failure that trades for;
 re-reads current state through the ordinary verb exactly once on
 `truncated: true`; and does not reconnect after a `disconnect` carrying

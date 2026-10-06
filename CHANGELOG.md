@@ -11,6 +11,12 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+## [skill 0.5.3 · listener 0.5.3] — 2026-10-06
+
+- 2026-10-06: **Waking is mandatory**: the listener runs as a background process the runtime tracks, and on an event the assistant acts and tells its human unasked.
+
+- 2026-10-06: **The event cursor lives in the conversation**, so a rewound session resumes from the id it knew; the operator holds none, and the support for runtimes that cannot be woken is removed.
+
 - 2026-10-06: **A KYC attestation is valid for one year**: the provider sets `exp` one year after `iat`, so one recovered from the event tail is still good to submit.
 
 - 2026-10-06: **Before 1.0 version parity is the full MAJOR.MINOR.PATCH** of protocol, implementation and skill; from 1.0 any two patches of one MINOR interoperate.

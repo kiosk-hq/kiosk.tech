@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.3.md` | **0.5** | The same wire as 0.5.2. Waking is mandatory: the pinned listener `listen-v0.5.3.py` runs as a background process the runtime tracks, and on an event the assistant acts and tells its human unasked. The cursor lives in the conversation, so a rewound session resumes from the id it knew; the support for runtimes that cannot be woken is gone. |
 | `skill-v0.5.2.md` | **0.5** | **A WIRE CHANGE: the identity check moves onto the event stream.** `request_kyc` opens a verification and the `kyc_verification` event carries the signed `kyc_jws`; no operation reads it back, so there is no status verb and nothing to poll. The cut also says how to be WOKEN: run the pinned listener `listen-v0.5.2.py` in the mode that exits on the event, as a background process the runtime tracks, and start it again with `--since`. |
 | `skill-v0.5.1.md` | **0.5** | The same wire as 0.5.0. Two corrections to what it tells you ABOUT that wire, both found on a live assistant run. The human’s TIME ZONE is one fact about the human rather than one per operator — asked once and reused everywhere, never re-asked per origin — and it is not a blocker either, because an operator that never sees the header falls back to the clock of the place the service happens; where the hour belongs to a PLACE, the place’s own `timezone` on the catalogue is what to read. And an answer field that is a bearer CREDENTIAL rather than a pointer — a signed string a lock or a device checks offline, for whoever holds it — is handed to the human once and never repeated, logged or recapped; the cut before it had a rule for relaying a URL and none for relaying a capability. |
 | `skill-v0.5.0.md` | **0.5** | The same wire as 0.4.17, word for word -- what moves is the NUMBER, and the move is a correction. 0.4.16 made `events` a THIRD REQUIRED array in the catalog, whose root is closed, so a 0.4.15 reader refuses every catalog a 0.4.16 origin publishes: that is a MINOR break, and it shipped inside two patch cuts with `min_client` left at `0.4.0`. An origin serving this cut advertises `Kiosk-API-Version: 0.5.0` and `min_client: 0.5.0`, so the number an assistant reads off the wire is the number of the wire it gets. |
@@ -57,16 +58,17 @@ catalog a 0.4.16 origin publishes -- a MINOR break shipped as a patch, which
 `skill-v0.5.0.md` is the correction of. One PATCH in the 0.5 series changed the
 wire as well: 0.5.2 moved an identity check's signed attestation onto the
 `kyc_verification` event and removed the status verb that read it, so an
-assistant holding 0.5.1 asks for a verb a 0.5.2 operator no longer serves.
+assistant holding 0.5.1 asks for a verb removed in 0.5.2.
 All six are why the "same wire as" column has to be read as a chain and not as a
 transitive licence: 0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10 = 0.4.11,
 while 0.4.12 opens a new wire group of which it stayed the only member and
 0.4.13 opens a new wire group after it in which 0.4.13 = 0.4.14 = 0.4.15,
 and 0.4.16 opens a new wire group in which
 0.4.16 = 0.4.17 = 0.5.0 = 0.5.1,
-and 0.5.2 opens a new wire group, the one served now,
+and 0.5.2 opens a new wire group, the one served now, in which
+0.5.2 = 0.5.3,
 but the six groups are NOT the same wire, and only the last describes
-what a 0.5.2 operator serves. The formal spec
+what a 0.5.3 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
