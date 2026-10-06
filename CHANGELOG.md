@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-06: **Before 1.0 version parity is the full MAJOR.MINOR.PATCH** of protocol, implementation and skill; from 1.0 any two patches of one MINOR interoperate.
+
 - 2026-10-06: **The specification's `Kiosk-Min-Client` example and the discovery examples now show `0.5.2`**, the floor every 0.5.2 origin sends.
 
 ## [skill 0.5.2 · listener 0.5.2] — 2026-10-06

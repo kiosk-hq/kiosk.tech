@@ -60,11 +60,12 @@ bare number names two different files, which is why the heading names the line.
 
 A section is named for the cut that closed it, and everything published since
 the previous section belongs to it — a specification sentence, a landing-page
-claim, an onboarding fix. The skill's MAJOR.MINOR is the protocol version this
-site specifies, which version parity fixes across the protocol, the reference
-implementation and the skill; PATCH is the skill's own revision, and it gets a
-section exactly as a MINOR does. The listener's number is its own and tracks
-nothing.
+claim, an onboarding fix. Version parity fixes the skill's number: before 1.0
+the protocol, the reference implementation and the skill carry the same
+MAJOR.MINOR.PATCH, so a skill cut is a release of the reference implementation
+too and a release there is a skill cut here, even with no text to change; from
+1.0 they share MAJOR.MINOR and PATCH is the skill's own. A PATCH gets a section
+exactly as a MINOR does. The listener's number is its own and tracks nothing.
 
 The order of one cut, and it is the order that keeps the heading true:
 
@@ -75,7 +76,8 @@ The order of one cut, and it is the order that keeps the heading true:
    naming every line this wave cut, and open a fresh empty `## [Unreleased]`
    above it.
 3. `bin/check-skill-immutability` and `bin/check-changelog` green, and the
-   operator pins relinked, before the merge.
+   operator pins relinked and, before 1.0, `reference` cut to the same version,
+   before the merge.
 
 ## Nothing already written is edited
 

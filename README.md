@@ -34,10 +34,10 @@ in order to talk to any Kiosk operator. It is the **latest alias**, and it comes
 to rest byte-identical to the newest `skill-vX.Y.Z.md` beside it.
 
 A `skill-vX.Y.Z.md` file is **immutable**: a published cut is never edited, and
-every change ships a new file. MAJOR.MINOR is the protocol version that cut
-describes, so a cut whose MAJOR.MINOR does not match an operator's protocol
-cannot transact with it; PATCH is a skill-only revision against the same
-protocol. An operator's `/.well-known/kiosk.json` pins one of these URLs
+every change ships a new file. A cut's version is the protocol version it
+describes — before 1.0 the whole MAJOR.MINOR.PATCH, from 1.0 the MAJOR.MINOR —
+so a skill cut and a protocol release are one event, and a cut on another
+version than an operator's protocol cannot be relied on to transact with it. An operator's `/.well-known/kiosk.json` pins one of these URLs
 together with its SHA-256, which is why the files may not move.
 
 `skills.md` is the index of them: every published cut, the protocol it
