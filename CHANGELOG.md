@@ -11,6 +11,10 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+## [skill 0.5.4] — 2026-10-07
+
+- 2026-10-07: **The skill caps open KYC checks per human, records attributes against the human for all their assistants, and names `payment_setup` as the fixed path.**
+
 - 2026-10-07: **KYC attributes are recorded against the person, and the provider callback `POST /kiosk/kyc/callback` is specified** beside `request_kyc`, with its answers and the open-verification cap.
 
 - 2026-10-07: **`payment_setup` is a fixed path of the `pay` module, provider-neutral, with a return page** that pushes the `payment_setup` topic once the human finishes.
