@@ -18,11 +18,7 @@ here is compiled, and NO workflow builds the site: every workflow in
 has exactly one workflow that runs it, so the guards answer the same in CI as
 they do locally — that pairing is the fact worth knowing, and it is enforced
 rather than restated here. **Do not enumerate or count the workflows in this
-paragraph.** It
-claimed a single one while two existed (K-898); the repair claimed two while a
-third was landing; and that same repair asserted `check-problem-pages` was run
-by nothing on the very day the workflow that runs it was committed. Three wrong
-statements, one cause: a set the directory already knows, retyped by hand.
+paragraph.**
 `ls .github/workflows/` and `ls bin/` are the list, and that same umbrella
 check fails if one is written back here.
 
@@ -60,9 +56,7 @@ demonstrated by the reference implementation.
 
    The details belong in the git commit message and in the ledger row. Nothing
    already written is edited — a changelog is append-only history — so the long
-   standing corpus stays as it is, and `bin/check-changelog` (arms CL-8 length,
-   CL-9 sentences) holds the rule on entries that are NEW against its declared
-   baseline commit, printing the backlog as a census that never reddens.
+   standing corpus stays as it is.
 
    **AND THE ENTRY SAYS WHICH VERSION CARRIES IT, NOT ONLY WHEN IT LANDED (Phil,
    2026-09-24).** An entry is grouped by the cut that carries it:
@@ -76,5 +70,4 @@ demonstrated by the reference implementation.
    The entries written before the grouping sit
    below the `## Before release sections` heading, unedited and naming no version.
    **`CHANGELOG-RULE.md` at the root is the authority for how**, and the changelog
-   points at it instead of repeating it. `bin/check-changelog` holds the shape
-   (CL-11 heading grammar, CL-12 an open section, CL-13 no ungrouped entry).
+   points at it instead of repeating it.

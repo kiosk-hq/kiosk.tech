@@ -1,9 +1,7 @@
 # How to write a CHANGELOG entry here
 
 This repository tracks one changelog, `CHANGELOG.md`: the record of what changed
-on the published site. Read this before adding a line. `bin/check-changelog`
-holds the parts a script can hold and names the arm that failed; its header says
-what it cannot see.
+on the published site. Read this before adding a line.
 
 ## The entry
 
@@ -75,7 +73,7 @@ The order of one cut, and it is the order that keeps the heading true:
 2. Rename `## [Unreleased]` to `## [<line> X.Y.Z] — <the date it was cut>`,
    naming every line this wave cut, and open a fresh empty `## [Unreleased]`
    above it.
-3. `bin/check-skill-immutability` and `bin/check-changelog` green, and the
+3. `bin/check-skill-immutability` green, and the
    operator pins relinked and, before 1.0, `reference` cut to the same version,
    before the merge.
 
