@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-07: **`payment_setup` is a fixed path of the `pay` module, provider-neutral, with a return page** that pushes the `payment_setup` topic once the human finishes.
+
 - 2026-10-06: **The site keeps only the check scripts that have caught defects or guard the skill cuts; five scripts and their workflows are removed.**
 
 ## [skill 0.5.3 · listener 0.5.3] — 2026-10-06

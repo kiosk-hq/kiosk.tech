@@ -1266,8 +1266,8 @@ where each can be checked against the handler that produces it.
 
 A verb **name** is one path segment matching `^[a-z][a-z0-9_]*$` (Section 8.1),
 it **MUST NOT** be one of the reserved first segments the operator's own wire
-occupies (`schema`, `pay`, and whatever else the origin serves directly under
-`endpoint`), and one name is one KIND: a name published in `queries` **MUST
+occupies (`schema`, `pay`, `payment_setup`, and whatever else the origin serves
+directly under `endpoint`), and one name is one KIND: a name published in `queries` **MUST
 NOT** also appear in `actions`, since `GET` and `POST` at that path would
 otherwise reach two different verbs and the `405` of Section 8.1 could never be
 right for it.
@@ -2211,12 +2211,25 @@ a DIFFERENT currency: the spelling may move, the code may not.
 
 ### 11.4 Card setup
 
-Payment uses the PSP's card-on-file (SetupIntent) model. An AI assistant **SHOULD** call
-the operator's `payment_setup` action before paying. If no card is on file, `pay`
-answers `402` with `payment_setup_required` (no `challenges`) and
-`WWW-Authenticate: Payment realm="<issuer>", method="ap2"`. The AI assistant **MUST NOT**
-automate the card form: it hands the returned `setup_url` to the human, who enters
-the card on the PSP's hosted page, then the AI assistant retries pay (Section 15.7).
+An operator serving the `pay` module **MUST** serve `POST <endpoint>/payment_setup`,
+published as an action in `schema`, taking an empty `{}` body. It answers whether
+the principal can pay now, independent of the PSP: `{"status":"ready"}`, or
+`{"status":"setup_required","setup_url":"<url>"}` when the human must first finish
+a page at the PSP, such as saving a card. Without the `pay` module it answers
+`501 module_not_served`. An AI assistant **SHOULD** call it before paying. If
+nothing is set up, `pay` answers `402` with `payment_setup_required` (no
+`challenges`) and `WWW-Authenticate: Payment realm="<issuer>", method="ap2"`. The
+AI assistant **MUST NOT** automate the PSP's form: it hands the returned
+`setup_url` to the human, then retries pay (Section 15.7).
+
+The PSP returns the human's browser to `GET <endpoint>/payment_setup/return`, an
+unauthenticated page the operator serves. An operator that can tell from that
+request whose setup it reports publishes the `payment_setup` topic (Section 8.5)
+and, once that principal can pay, pushes `{"status":"ready"}` to them; the
+request alone is never evidence of readiness. An AI assistant waits on that topic
+where the catalogue publishes it, and otherwise polls `payment_setup` on the
+bounded schedule its description states. In the reference implementation,
+configuring a `payment_provider` serves both paths.
 
 ### 11.5 Per-assistant spending cap (optional)
 
@@ -2759,7 +2772,7 @@ the discovery document, and are absent from `capabilities` for that reason:
    `200` within the reach it declares and no further.
 5. **Module `pay`** (Section 11): AP2 mandate-chain verification -- the required
    claims (Section 11.1), the chain binding, and the cap/total/amount rules
-   (Section 11.2, Section 11.3) -- the `payment_setup` convention (Section 11.4), the
+   (Section 11.2, Section 11.3) -- `payment_setup` and its return page (Section 11.4), the
    `payment_setup_required` 402 with `WWW-Authenticate: Payment`, an idempotent
    replay -- an identical chain whose cart has settled answers `200` with that
    settlement, everything else re-presented answers `409 conflict` raised BEFORE
