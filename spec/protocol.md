@@ -1266,7 +1266,7 @@ where each can be checked against the handler that produces it.
 
 A verb **name** is one path segment matching `^[a-z][a-z0-9_]*$` (Section 8.1),
 it **MUST NOT** be one of the reserved first segments the operator's own wire
-occupies (`schema`, `pay`, `payment_setup`, and whatever else the origin serves
+occupies (`schema`, `pay`, `payment_setup`, `request_kyc`, `kyc`, and whatever else the origin serves
 directly under `endpoint`), and one name is one KIND: a name published in `queries` **MUST
 NOT** also appear in `actions`, since `GET` and `POST` at that path would
 otherwise reach two different verbs and the `405` of Section 8.1 could never be
@@ -1838,7 +1838,7 @@ members it does not recognise.
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
 | `payment_failed` | 402 | The charge did not settle: declined, authentication required, insufficient funds, or a processor timeout (Section 11.3). Not a gate -- there is nothing to solve and nothing to set up; no `challenges`, and **no `WWW-Authenticate`** (see below). `hint` says whether the outcome was definitive or unknown. |
-| `quota_exceeded` | 429 | A rate or volume quota the OPERATOR enforces is exhausted -- e.g. a cap on how many KYC verifications one principal may have open at once. The engine never raises it: an operator emits it from its own handler when it meters something, and it is the one refusal in this table that means "come back later" rather than "no". |
+| `quota_exceeded` | 429 | A rate or volume quota the OPERATOR enforces is exhausted -- e.g. a cap on how many KYC verifications one principal may have open at once (Section 12.4.1). It is the one refusal in this table that means "come back later" rather than "no". |
 | `action_failed` | 500 | An operator-registered action raised. |
 | `internal_error` | 500 | Catch-all server error. |
 | `module_not_served` | 501 | **This operator does not serve the OPTIONAL MODULE the request reaches** (Section 16.1 item 7) -- account binding (Section 6), payment (Section 11), KYC (Section 12) or the event stream (Section 8.5). The URL is published and correct; there is simply no such capability here. `detail` names the module. Nothing the caller can change makes this request succeed, so the AI assistant **MUST NOT** retry it and **MUST NOT** treat it as a transient server fault: it falls back to whatever the module was for -- plain registration instead of binding, a human hand-off instead of a `pay`, a bounded poll instead of a stream. See below for why this is 501 and not 404. |
@@ -2392,7 +2392,9 @@ operator's configured audience (see 12.1), `exp` **MUST** be present and
 unexpired, and `level` **MUST** be exactly `"verified"` (anything else is
 rejected). The KYC provider sets `exp` one year after `iat`. The AI assistant
 submits it to `POST <endpoint>/agents/kyc` (Bearer) as
-`{kyc_jws}`; on a clean verify the operator records verification and returns
+`{kyc_jws}`; on a clean verify the operator replaces the attributes recorded
+against the **principal** -- the human the AI assistant acts for, never the
+assistant's own account -- with the ones granted, and returns
 `{kyc_verified: true, attributes: {...}}`.
 
 ### 12.1 Operator binding (`aud`)
@@ -2415,21 +2417,25 @@ operator learns only the booleans the KYC issuer signed -- it **MUST NOT** recei
 or store the underlying documents (date of birth, licence number, passport scan).
 An operator **MUST** honour only values that are literally `true`; any other value
 (`false`, string, number) is **NOT** a grant. The operator **MUST** record the
-granted attributes with the verification (the reference stores one row per granted
-name in a `kyc_attributes` table) and **MUST NOT** log the underlying documents.
+granted attributes against the principal (the reference stores one row per
+principal and granted name in a `kyc_attributes` table) and **MUST NOT** log the underlying documents.
 The field is **additive**: a bare `level: "verified"` attestation with no
 `attributes` still verifies (the binary path), yielding an empty attribute set.
 
 ### 12.3 Attribute-gated Actions
 
-An Action MAY be **gated** on a set of required attribute names. When the calling
-AI assistant's recorded attributes do not include every required name as `true`, the
+An Action MAY be **gated** on a set of required attribute names. When the
+principal's recorded attributes do not include every required name as `true`, the
 operator **MUST** reject with `kyc_required` (HTTP **403**), carrying a hint
 naming what is needed (e.g. "complete KYC: age>=18 and category-A licence
 required") and, at an operator serving Section 12.4, naming `request_kyc`. The
 reference `kiosk-demo-skooti` gates `rent_motorcycle` (a
 combustion-engine motorcycle) on `age_over_18` **AND** `licence_a`, while the
-licence-free electric scooter needs neither -- the gate is per-Action.
+licence-free electric scooter needs neither -- the gate is per-Action. The record
+belongs to the principal, so every AI assistant acting for that human passes the
+same gate; when an AI assistant's principal changes -- a placeholder principal
+bound to the human's account -- the new principal starts with no attributes and
+verifies again.
 
 ### 12.4 Opening a verification, and the event that delivers it
 
@@ -2461,6 +2467,45 @@ The attestation is therefore held in the retained event tail. Delivery is scoped
 to the one principal that opened the verification, the provider bounds its
 lifetime with `exp`, and `POST <endpoint>/agents/kyc` re-checks `sub` against
 the authenticated `user_id` -- so a replayed copy is of use to no one else.
+
+#### 12.4.1 The provider's callback
+
+`request_kyc` opens the verification at the KYC provider for the calling
+principal, asking for the attributes the operator's gated actions need, with this
+operator's audience (Section 12.1) and the callback
+`POST <endpoint>/kyc/callback` on the origin being served. The provider answers
+the operator with the `request_id`, the `verification_url` and a one-time
+`nonce`; the operator keeps the `request_id` and the `nonce` against the
+principal. When the human approves, the provider posts
+`{"request_id": "...", "nonce": "...", "kyc_jws": "..."}` to the callback. The
+callback is server to server and carries no Bearer: it is authenticated by the
+open verification, its `nonce` and the signed attestation. The operator:
+
+1. answers `400 bad_request` when `request_id` or `kyc_jws` is missing;
+2. answers `404 not_found` unless `request_id` names an open verification;
+3. answers `403 forbidden` unless `nonce` equals the one it kept;
+4. verifies `kyc_jws` exactly as `POST <endpoint>/agents/kyc` does (Section 12,
+   12.1), with `sub` held to the principal that opened the verification, plus
+   any further check its provider requires, answering `403 forbidden` on any
+   failure;
+5. on success answers `200 {"ok": true}`, closes the verification so the same
+   callback cannot land twice, replaces the principal's recorded attributes with
+   the ones granted, and emits the `kyc_verification` event (Section 12.4 item 2).
+
+The attributes are therefore recorded when the human approves. An AI assistant
+that also submits the event's `kyc_jws` to `POST <endpoint>/agents/kyc` records
+the same attributes again.
+
+An operator that does not open verifications answers `POST <endpoint>/request_kyc`
+and `POST <endpoint>/kyc/callback` with `501 module_not_served`. When the provider
+does not open a verification, `request_kyc` answers `500 action_failed`. An
+operator **MAY** cap how many verifications one principal has open, answering
+`429 quota_exceeded` beyond it; the reference implementation counts a
+verification until it is approved or for fifteen minutes after it was opened,
+and allows three. `request_kyc` and `kyc` are reserved first segments
+(Section 8.3). In the reference implementation the operator configures a KYC
+provider adapter, the attributes its gated actions need, and the provider's
+issuer, public key and audience; that serves both paths and the topic.
 
 ---
 
@@ -2808,10 +2853,11 @@ the discovery document, and are absent from `capabilities` for that reason:
    `kyc_required` gate on attribute-restricted actions (Section 12.3). The `aud`
    check is the operator binding of Section 12.1 and belongs in this list for
    the reason that section gives: an implementation that omits it accepts an
-   attestation the KYC provider minted for a DIFFERENT operator. An operator
-   that opens verifications itself serves `request_kyc` and delivers the
-   attestation on the `kyc_verification` topic (Section 12.4), which requires
-   Module EVENTS.
+   attestation the KYC provider minted for a DIFFERENT operator. Attributes are
+   recorded against the principal, never the AI assistant's own account. An
+   operator that opens verifications itself serves `request_kyc` and the
+   provider callback (Section 12.4.1), and delivers the attestation on the
+   `kyc_verification` topic (Section 12.4), which requires Module EVENTS.
 
 9. **Module EVENTS** (Section 8.5), OPTIONAL: the stream at
    `<endpoint>/events` on the `actioncable-v1-json` subprotocol, authenticated

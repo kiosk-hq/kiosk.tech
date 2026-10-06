@@ -11,6 +11,8 @@ held by `bin/check-changelog`.
 
 ## [Unreleased]
 
+- 2026-10-07: **KYC attributes are recorded against the person, and the provider callback `POST /kiosk/kyc/callback` is specified** beside `request_kyc`, with its answers and the open-verification cap.
+
 - 2026-10-07: **`payment_setup` is a fixed path of the `pay` module, provider-neutral, with a return page** that pushes the `payment_setup` topic once the human finishes.
 
 - 2026-10-06: **The site keeps only the check scripts that have caught defects or guard the skill cuts; five scripts and their workflows are removed.**
