@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.9.md` | **0.5** | The same wire as 0.5.8. An event `id` names one delivery to one identity and is never compared across identities, the key directory is per origin (scheme, host and port) rather than per hostname, and the Intent mandate's `scope` is an optional label the operator defines. |
 | `skill-v0.5.8.md` | **0.5** | The same wire as 0.5.7. The dual-check example in the skill writes its pinned cut as `skill-vX.Y.Z.md` rather than naming an earlier cut. |
 | `skill-v0.5.7.md` | **0.5** | The same wire as 0.5.6. The assistant can hold a second account on one origin in its own slot, rewrites `identity.json` from the bound token's claims after a binding, and hands the human the binding page without fetching it. It pins a solver with three dead lines removed, and the listener keeps its own number. |
 | `skill-v0.5.6.md` | **0.5** | The same wire as 0.5.5. The assistant compares a payment's answered currency with the one it signed as a code, not byte for byte, and is ready for one operator to refuse a currency another accepts. An unanswered query is not evidence about whose rows exist. |
@@ -71,9 +72,9 @@ while 0.4.12 opens a new wire group of which it stayed the only member and
 and 0.4.16 opens a new wire group in which
 0.4.16 = 0.4.17 = 0.5.0 = 0.5.1,
 and 0.5.2 opens a new wire group, the one served now, in which
-0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8,
+0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8 = 0.5.9,
 but the six groups are NOT the same wire, and only the last describes
-what a 0.5.8 operator serves. The formal spec
+what a 0.5.9 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

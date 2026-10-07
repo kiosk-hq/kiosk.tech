@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.9] — 2026-10-08
+
+- 2026-10-08: **Skill 0.5.9 says an event `id` is one delivery to one identity, keys an identity per origin rather than per hostname, and calls the mandate `scope` an optional label.**
+
 - 2026-10-08: **The landing's verified tier now rests on the October 2026 Hermes run on the 0.5 wire**: getgrocery's KYC, card setup and payment, and hoteling's paid booking confirmed by event.
 
 - 2026-10-07: **§11.6's reference note names the engine's `PaymentClaim` as the operator half**, which the paying demos now configure rather than copy (T-176).
