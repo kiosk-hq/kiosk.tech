@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-08: The onboarding page wires Stripe with the adapter's own customer table, laid down by one migration, instead of hand-written resolver lambdas and a model.
+
+- 2026-10-08: The hoteling demo card says it pays in Stripe test mode: hoteling and skooti now charge through kiosk-pay-stripe, no longer a stub.
+
 - 2026-10-08: **`known-issues.html` lists environment stumbles live assistant runs hit, outside the skill**, linked from the landing footer.
 
 ## [skill 0.5.9] — 2026-10-08
