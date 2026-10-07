@@ -672,7 +672,9 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
    the next step would grant it.
 2. The AI assistant shows the human `verification_uri` + `user_code`; the human approves
    on the operator's session-authenticated page (Section 15.8), which names the
-   access the approval hands over.
+   access the approval hands over. A browser with no session there is sent to
+   the operator's sign-in page and back; any other caller without a session is
+   answered `401` with a body naming that sign-in page.
 3. The AI assistant polls `POST <endpoint>/oauth/token` (form-encoded) with
    `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, and
    -- once approved -- `signed` (the possession proof of Section 5.2). The proof is

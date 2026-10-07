@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-07: **The device verify page sends a signed-out browser to sign in and back, and answers any other caller `401` naming the sign-in page.**
+
 ## [skill 0.5.6] — 2026-10-07
 
 - 2026-10-07: **The skill carries three assistant duties**: compare a payment's currency as a code, expect a currency one operator refuses, and never read an unanswered query as isolation.
