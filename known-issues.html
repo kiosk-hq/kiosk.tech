@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <title>Kiosk — Known Issues</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      background:#0d0d0d;color:#e0e0e0;line-height:1.7;letter-spacing:-0.01em;
+    }
+    .back{display:inline-block;font-size:13px;color:#888;text-decoration:none;margin:20px 0 0 24px}
+    .back:hover{color:#aaa}
+    article{max-width:760px;margin:0 auto;padding:24px 24px 80px}
+    h1{font-size:28px;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px}
+    h2{font-size:18px;font-weight:700;margin:32px 0 10px;padding-top:16px;border-top:1px solid #1a1a1a}
+    p{font-size:15px;color:#bbb;margin-bottom:10px}
+    a{color:#8bc49a;text-decoration:none}
+    a:hover{text-decoration:underline}
+    code{font-family:'SF Mono','Fira Mono',monospace;font-size:13px;background:#1a1a1a;padding:2px 6px;border-radius:4px;color:#ccc;overflow-wrap:anywhere}
+    footer{text-align:center;padding:40px 24px;font-size:12px;color:#444;border-top:1px solid #1a1a1a}
+    footer a{color:#666}
+  </style>
+</head>
+<body>
+<a href="/" class="back">← kiosk.tech</a>
+<article>
+  <h1>Known issues</h1>
+  <p>Problems that live assistant runs against Kiosk operators have hit in the assistant's own environment. None is a protocol defect, so none is in the <a href="/skill.md">skill</a>.</p>
+
+  <h2>The helper scripts cannot import <code>cryptography</code> or <code>jwt</code> after <code>pip install</code> succeeded</h2>
+  <p><strong>Cause:</strong> <code>pip</code> installed into one Python and the script ran under another; a machine often has several (the system one, Homebrew's, one in <code>~/.local/bin</code>, the assistant's own).</p>
+  <p><strong>Fix:</strong> create one venv, <code>python3 -m venv ~/.kiosk/venv</code>, and run both <code>~/.kiosk/venv/bin/pip</code> and every script through <code>~/.kiosk/venv/bin/python</code>.</p>
+
+  <h2>The assistant's browser tool fails with <code>Cannot find module …/cli.js</code></h2>
+  <p><strong>Cause:</strong> the assistant runtime's own Node or <code>npx</code> install is broken. Kiosk needs no browser on the assistant's side: every call is plain HTTPS, and the pages for linking an account or saving a card are opened by the human.</p>
+  <p><strong>Fix:</strong> call the API over HTTP (<code>curl</code>, Python) and repair the runtime's Node install separately.</p>
+</article>
+
+<footer>
+  <a href="https://github.com/kiosk-hq/kiosk.tech/issues">Report another one</a>
+</footer>
+</body>
+</html>

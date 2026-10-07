@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-08: **`known-issues.html` lists environment stumbles live assistant runs hit, outside the skill**, linked from the landing footer.
+
 ## [skill 0.5.9] — 2026-10-08
 
 - 2026-10-08: **Skill 0.5.9 says an event `id` is one delivery to one identity, keys an identity per origin rather than per hostname, and calls the mandate `scope` an optional label.**

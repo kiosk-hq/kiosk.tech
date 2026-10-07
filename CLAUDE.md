@@ -71,3 +71,10 @@ demonstrated by the reference implementation.
    below the `## Before release sections` heading, unedited and naming no version.
    **`CHANGELOG-RULE.md` at the root is the authority for how**, and the changelog
    points at it instead of repeating it.
+
+## The skill stays audience-neutral
+
+`skill.md` is normative and read by every assistant on every OS. A workaround for
+one OS, one Python install or one assistant runtime does not go in it unless its
+absence blocks a significant share of readers. It goes on `known-issues.html`:
+symptom, cause, fix, and only for a stumble a live run actually hit.
