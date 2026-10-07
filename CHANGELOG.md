@@ -10,6 +10,12 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.5 · listener 0.5.5] — 2026-10-07
+
+- 2026-10-07: **The listener reads the access token from a file, never its command line**, and the skill has the assistant show its key's fingerprint during binding.
+
+- 2026-10-07: **The skill describes what an assistant meets**: optional KYC submit, discovery versus fixed paths, opt-in `limit`, operator-chosen toll counts, `action_failed`.
+
 - 2026-10-07: **The `kyc_required` hint names only a KYC path the origin serves**, and says verification is not available where it serves none.
 - 2026-10-07: **Onboarding says the payment provider, not Stripe, returns the human to the payment-setup return page**, matching the provider-neutral card setup.
 
