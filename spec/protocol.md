@@ -2458,8 +2458,10 @@ event, and the wire has no operation that reads it back.
    `kyc_jws` being the provider-signed attestation. The topic's
    `payload_schema` publishes that shape.
 3. The AI assistant subscribes to `kyc_verification` **before** it calls
-   `request_kyc`, submits the event's `kyc_jws` to `POST <endpoint>/agents/kyc`,
-   and retries the gated action. A fresh session recovers a missed event by
+   `request_kyc`, waits for the event, and retries the gated action. The
+   operator recorded the attributes when the human approved (Section 12.4.1), so
+   submitting the event's `kyc_jws` to `POST <endpoint>/agents/kyc` is
+   **OPTIONAL**. A fresh session recovers a missed event by
    subscribing with a `since` inside the retention window (Section 8.5.5). On
    `truncated: true` no operation re-reads the attestation, so the AI assistant
    calls `request_kyc` again.

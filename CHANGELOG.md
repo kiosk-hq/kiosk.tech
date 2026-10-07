@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-07: **The formal protocol makes submitting the KYC event's attestation optional**, matching the narrative specification and the skill.
+
 ## [skill 0.5.5 · listener 0.5.5] — 2026-10-07
 
 - 2026-10-07: **The listener reads the access token from a file, never its command line**, and the skill has the assistant show its key's fingerprint during binding.
