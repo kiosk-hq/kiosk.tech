@@ -2373,10 +2373,12 @@ as `409 conflict` above (Section 11.3).
 > and nothing is written, so it cannot mint a second settlement. When the lookup
 > finds nothing the `409` stands, and it carries a `hint` saying what it now
 > means: seen, not settled, reconcile before signing anything new. The operator half of the rule is
-> what its three paying demos show, in the same shape: each claims the row
+> the engine's `Kiosk::Server::PaymentClaim`, which an operator wraps around its
+> PSP adapter and points at its own payable table: it claims the row
 > (`unpaid` -> `paying`) BEFORE the capture -- an atomic compare-and-set that
 > also makes a second capture impossible -- and flips it to `paid` the instant
-> the capture returns, a hair BEFORE the settlement row is written. Their
+> the capture returns, a hair BEFORE the settlement row is written. The three
+> paying demos keep only their cashier check, and their
 > per-user queries (`my_orders`, `my_bookings`, `my_reservations`) publish a
 > `payment_state` of `unpaid` | `pending` | `paid` read from that marker first
 > and the settlement row second, so a claimed-but-unresolved capture answers

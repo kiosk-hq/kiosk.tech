@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-07: **§11.6's reference note names the engine's `PaymentClaim` as the operator half**, which the paying demos now configure rather than copy (T-176).
+
 - 2026-10-07: **An event `id` names one event in one identity's stream**, so the same change told to two members carries two ids and is never correlated by id.
 
 ## [skill 0.5.8] — 2026-10-07
