@@ -181,9 +181,13 @@ CUT = %r{\Askill-v[^/]+\.md\z}
 # those and must not be sorted in among them.
 LISTENER_CUT = %r{\Aevents/listen-v[^/]+\.py\z}
 
+# `pow/solve-<digest prefix>.py`, the proof-of-work solver the skill pins by
+# SHA-256. A new solver is a new file beside the old one.
+SOLVER_CUT = %r{\Apow/solve-[0-9a-f]+\.py\z}
+
 # What passes 1 and 2 protect: anything already published that something else
 # pins by digest.
-IMMUTABLE = Regexp.union(CUT, LISTENER_CUT)
+IMMUTABLE = Regexp.union(CUT, LISTENER_CUT, SOLVER_CUT)
 
 # The "latest" alias. Two published sentences say it carries the newest cut's
 # exact bytes; pass 3 is what makes that true rather than aspirational (K-847).
