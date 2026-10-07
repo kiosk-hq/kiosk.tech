@@ -4,7 +4,7 @@ This repo is everything published at https://kiosk.tech (GitHub Pages,
 `CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
 universal agent skill (the "latest" alias, which must come to REST byte-identical
 to the newest cut; the immutable published versions are `skill-vX.Y.Z.md`,
-current `skill-v0.5.6.md` (before 1.0 its whole version is the framework release's)
+current `skill-v0.5.7.md` (before 1.0 its whole version is the framework release's)
 — a published version file is never edited, every change ships a new one, and a
 skill edit ends in a version bump plus a re-pin of every consumer in the same
 wave: `bin/check-skill-immutability` enforces both halves. K-847, and the three

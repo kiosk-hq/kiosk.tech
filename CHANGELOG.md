@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.7] — 2026-10-07
+
+- 2026-10-07: **The skill holds a second account on one origin in its own slot, takes a bound `user_id` from the new token, and hands the binding page to the human unfetched.**
+- 2026-10-07: **`pow/solve-2ba89e902b14.py` published and pinned**: the solver without an uncalled helper, an unsourced claim and an untested mode; the old file stays served.
 - 2026-10-07: **An unreadable `Kiosk-Timezone` is refused `400` with the arguments, before any proof-of-work toll is asked for.**
 - 2026-10-07: **The device verify page sends a signed-out browser to sign in and back, and answers any other caller `401` naming the sign-in page.**
 
