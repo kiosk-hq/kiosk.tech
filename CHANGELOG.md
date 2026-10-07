@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.8] — 2026-10-07
+
+- 2026-10-07: **The skill's dual-check example writes the pinned cut as `skill-vX.Y.Z.md`**, so no cut ever shows an earlier cut's name as its own pin (K-2023).
+
 ## [skill 0.5.7] — 2026-10-07
 
 - 2026-10-07: **The skill holds a second account on one origin in its own slot, takes a bound `user_id` from the new token, and hands the binding page to the human unfetched.**

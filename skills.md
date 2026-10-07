@@ -14,7 +14,8 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
-| `skill-v0.5.7.md` | **0.5** | The same wire as 0.5.6. The assistant can hold a second account on one origin in its own slot, rewrites `identity.json` from the bound token's claims after a binding, and hands the human the binding page without fetching it. It pins a solver with three dead lines removed, and the listener keeps its own number.
+| `skill-v0.5.8.md` | **0.5** | The same wire as 0.5.7. The dual-check example in the skill writes its pinned cut as `skill-vX.Y.Z.md` rather than naming an earlier cut. |
+| `skill-v0.5.7.md` | **0.5** | The same wire as 0.5.6. The assistant can hold a second account on one origin in its own slot, rewrites `identity.json` from the bound token's claims after a binding, and hands the human the binding page without fetching it. It pins a solver with three dead lines removed, and the listener keeps its own number. |
 | `skill-v0.5.6.md` | **0.5** | The same wire as 0.5.5. The assistant compares a payment's answered currency with the one it signed as a code, not byte for byte, and is ready for one operator to refuse a currency another accepts. An unanswered query is not evidence about whose rows exist. |
 | `skill-v0.5.5.md` | **0.5** | The same wire as 0.5.4. The pinned listener `listen-v0.5.5.py` reads the access token from a file, never from its command line. The assistant shows its key's fingerprint when the human approves a binding, and submitting the identity attestation after the event is optional, since the operator recorded it on approval. |
 | `skill-v0.5.4.md` | **0.5** | The same wire as 0.5.3, as an assistant meets it. `payment_setup` is the path every operator serving `pay` serves, not a conventional name; the payment provider's card form is the human's whatever the provider. KYC attributes are recorded against the human when they approve, so every assistant of that human passes the same gate, and the cap on open checks is per human. |
@@ -70,9 +71,9 @@ while 0.4.12 opens a new wire group of which it stayed the only member and
 and 0.4.16 opens a new wire group in which
 0.4.16 = 0.4.17 = 0.5.0 = 0.5.1,
 and 0.5.2 opens a new wire group, the one served now, in which
-0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7,
+0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8,
 but the six groups are NOT the same wire, and only the last describes
-what a 0.5.7 operator serves. The formal spec
+what a 0.5.8 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
