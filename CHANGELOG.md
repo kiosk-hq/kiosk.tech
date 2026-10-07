@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.6] — 2026-10-07
+
+- 2026-10-07: **The skill carries three assistant duties**: compare a payment's currency as a code, expect a currency one operator refuses, and never read an unanswered query as isolation.
+
 - 2026-10-07: **Section 17 lists `event.schema.json` for the event-stream message**, so the schema list covers every JSON object the wire carries.
 - 2026-10-07: **The formal protocol makes submitting the KYC event's attestation optional**, matching the narrative specification and the skill.
 
