@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-07: **Section 17 lists `event.schema.json` for the event-stream message**, so the schema list covers every JSON object the wire carries.
 - 2026-10-07: **The formal protocol makes submitting the KYC event's attestation optional**, matching the narrative specification and the skill.
 
 ## [skill 0.5.5 · listener 0.5.5] — 2026-10-07

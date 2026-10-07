@@ -2986,6 +2986,7 @@ counts on purpose -- see the count note below.
 | KYC attestation | [`kyc.schema.json`](./schemas/kyc.schema.json) |
 | Registration and login, Section 5 | [`auth.schema.json`](./schemas/auth.schema.json) |
 | Account binding, Section 6 | [`binding.schema.json`](./schemas/binding.schema.json) |
+| Event-stream message, Section 8.5 | [`event.schema.json`](./schemas/event.schema.json) |
 
 Each file carries one `$def` per object; the `$def` names are the objects'
 names, and the example payloads under `./schemas/examples/` -- including a
