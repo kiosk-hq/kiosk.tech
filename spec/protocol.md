@@ -241,7 +241,8 @@ proof-of-work gate.
       the operator cannot read is `400 bad_request` naming the header and what
       is accepted (Section 9.1 rule 1) -- never a silent fallback, because an
       answer produced from a zone nobody chose is shaped exactly like a right
-      one.
+      one. It is refused with the arguments, before any proof-of-work toll is
+      asked for.
    4. **An AI assistant MUST take the zone from the HUMAN it acts for, and
       MUST NOT read it off the machine it runs on** -- its locale, its
       hostname, or the geolocation of its IP. An assistant commonly runs

@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-07: **An unreadable `Kiosk-Timezone` is refused `400` with the arguments, before any proof-of-work toll is asked for.**
 - 2026-10-07: **The device verify page sends a signed-out browser to sign in and back, and answers any other caller `401` naming the sign-in page.**
 
 ## [skill 0.5.6] — 2026-10-07
