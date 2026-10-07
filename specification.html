@@ -783,7 +783,7 @@ POST /kiosk/agents/kyc
 
   <p><strong>An event carries the five members named above and no others.</strong> <code>subject</code> is <code>null</code> for a topic that has none, and <code>data</code> must validate against the topic's <code>payload_schema</code>.</p>
 
-  <p><code>id</code> is a <strong>per-origin</strong> monotonic integer — not per topic, not per subscriber. One integer therefore resumes every subscription a socket holds, and an assistant compares integers instead of keeping a cursor per topic.</p>
+  <p><code>id</code> is a <strong>per-origin</strong> monotonic integer — not per topic, not per subscriber. One integer therefore resumes every subscription a socket holds, and an assistant compares integers instead of keeping a cursor per topic. An <code>id</code> names one event in <em>one</em> identity's stream, not the change behind it: a change told to two identities is two events with two ids, so ids are never compared across identities.</p>
 
   <h3>Opening it</h3>
 

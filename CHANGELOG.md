@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-07: **An event `id` names one event in one identity's stream**, so the same change told to two members carries two ids and is never correlated by id.
+
 ## [skill 0.5.8] — 2026-10-07
 
 - 2026-10-07: **The skill's dual-check example writes the pinned cut as `skill-vX.Y.Z.md`**, so no cut ever shows an earlier cut's name as its own pin (K-2023).

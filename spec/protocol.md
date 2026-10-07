@@ -1514,6 +1514,9 @@ in it without telling a conformant subscriber anything it can act on.
 `id` is a **per-origin monotonic integer** -- not per topic and not per
 subscriber. One integer therefore resumes every subscription a socket holds, and
 a subscriber compares ids rather than tracking a cursor per topic.
+An `id` names one event in ONE identity's stream, not the change behind it: a
+change told to two identities is two events with two ids, so ids are never
+compared across identities.
 
 #### 8.5.3 Opening the stream
 
