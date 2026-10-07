@@ -17,6 +17,9 @@ published surface.
 
 Every top-level entry opens with its ISO date, `- YYYY-MM-DD: ` (arm CL-7).
 
+`bin/check-changelog` holds the arms named here. It measures an entry as its text
+after the leading `- `, date included, with wrapped lines joined by one space.
+
 ## The version is in the heading, and a PATCH is a release
 
 Entries are grouped by the cut that carries them, so a reader can answer «which

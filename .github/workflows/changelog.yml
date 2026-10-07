@@ -1,0 +1,25 @@
+name: changelog
+
+# Every entry newer than the script's baseline commit is under 200 characters
+# and at most two sentences, and every entry says when. The baseline is read
+# from history, so the checkout is full.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  changelog:
+    name: new entries are short and every entry says when (bin/check-changelog)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: The script is red on a plant of every arm
+        run: ruby bin/check-changelog --self-test
+
+      - name: Every new entry is under 200 characters and at most two sentences
+        run: ruby bin/check-changelog

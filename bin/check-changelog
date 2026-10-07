@@ -1,0 +1,941 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# check-changelog -- this repository's changelog, held to the rule that governs
+# every changelog in this workspace.
+#
+# WHY THIS EXISTS. Phil, 2026-09-11, his words:
+#
+#   "Keep the entries short, always under 200 characters and one-two sentences.
+#    Only keep the essence of the change. git commit messages will keep the
+#    details. In the CHANGELOG, only keep the essence."
+#
+# A rule that lives only in a constitution is a rule a wave reads once. The
+# sibling repository has held its changelogs with `bin/check-changelog` since
+# T-115; this repository had nothing, and it carries the second-largest
+# changelog in the workspace.
+#
+# WHAT IT CHECKS, over `git ls-files '*CHANGELOG.md'` -- what ships is what git
+# carries.
+#
+#   CL-7   Every top-level entry opens with its ISO date. It is this file's only
+#          ordering affordance: nothing else in it says when.
+#   CL-8   A NEW entry is under 200 characters.
+#   CL-9   A NEW entry runs to at most two sentences.
+#   CL-10  The shared rule blocks below are byte-identical to the sibling's
+#          copies, whenever `../reference` is beside this repository.
+#   CL-11  A level-2 heading that is none of the three shapes a record may
+#          carry: `[Unreleased]`, a version section `[MAJOR.MINOR.PATCH] --
+#          YYYY-MM-DD`, or the one declared pre-grouping heading. A heading
+#          naming a MAJOR.MINOR alone, or carrying no date, is the defect: a
+#          PATCH cut of the skill is a release here and has to be as visible
+#          as a MINOR one, which is what a date alone could never say.
+#   CL-12  A record with no `[Unreleased]` section, or with one that is not its
+#          FIRST section. That section is where the next entry goes.
+#   CL-13  A top-level entry ABOVE the first section, which no release groups.
+#
+# WHY CL-8 AND CL-9 ARE SCOPED TO WHAT IS NEW, and it is the K-1097 property
+# rather than a softening. The standing corpus is long and it is APPEND-ONLY:
+# nothing already written may be edited, so a length gate over the whole file
+# would be red on arrival and permanently unfixable, which is a gate someone
+# switches off. So the two arms read only entries that are NEW against
+# `BASELINE_REV` below -- the commit at which the rule took effect -- and
+# everything at or before it is printed as a CENSUS that never reddens. Every
+# figure in that census is derived on the run that prints it.
+#
+# WHAT "NEW" MEANS, exactly. The baseline entry set is the UNION of the
+# normalised text of every top-level entry in every `CHANGELOG.md` this
+# repository tracked AT `BASELINE_REV`. A working-tree entry whose normalised
+# text is not in that union is new. EDITING an existing entry reads as new, and
+# that is intended -- a changelog is append-only, so an edit to a long
+# historical entry is exactly the thing worth asking about.
+#
+# IF THE BASELINE COMMIT IS NOT IN THE CLONE the run FAILS and says so, naming
+# the remedy. It does not skip: a skipped arm exits 0 and reads exactly like a
+# clean tree. CI checks out with `fetch-depth: 0` for that reason.
+#
+# THE TWIN, AND WHAT THIS SCRIPT IS NOT. `reference/bin/check-changelog` is a
+# bigger gate over a bigger corpus -- one repository record, a gem package
+# record per gemspec, two declared courtesy records, and the per-release
+# subsection arms over all of them. This repository ships no gem and tracks one
+# changelog, so a copy of that script would be mostly arms with no subject.
+# What the two MUST share is the RULES, and there are two blocks now: the
+# SHARED NEW-ENTRY RULE and the SHARED RELEASE-SECTION RULE below are each
+# byte-identical in both files. CL-10 compares both whenever the sibling is
+# beside this repository, and SAYS SO when it is not, rather than passing
+# quietly. A RELEASE here is not a tree event as it is over there: this
+# repository's versioned artefact is the published skill cut, so a section is
+# named for the cut that closed it -- see `CHANGELOG-RULE.md`.
+#
+# WHAT IT CANNOT SEE, stated because an over-claimed gate is worse than none.
+# It does not read what an entry MEANS: an entry that describes the change's
+# content rather than its intent, a change that got no entry at all, and a
+# duplicate entry are all invisible. The sentence counter is a scan, not a
+# parser -- see the shared block. Without `../reference` beside it CL-10 cannot
+# run, and it prints that instead of a result. CL-11/CL-12/CL-13 are STRUCTURE:
+# they hold the shape of a heading and where an entry sits, and read neither the
+# version nor what this site publishes -- that a section names a cut that exists
+# is `bin/check-skill-immutability`'s subject, and an entry filed under the wrong
+# release is invisible here.
+#
+# USAGE
+#   bin/check-changelog                 # check this repository, exit 0/1
+#   bin/check-changelog --baseline REV  # treat REV as the rule's start instead
+#   bin/check-changelog --self-test     # prove it is red on a plant of every arm
+#
+# Stdlib only: no bundle, no services, no database, no network.
+
+require "open3"
+require "fileutils"
+require "rbconfig"
+require "tmpdir"
+
+SELF_PATH = File.realpath(__FILE__)
+REPO      = File.dirname(File.dirname(SELF_PATH))
+SIBLING   = File.join(File.dirname(REPO), "reference", "bin", "check-changelog")
+
+NUL = "\u0000"  # git -z separator, spelled so this file stays text
+
+# The commit at which Phil's strong rule took effect in this repository.
+# Everything at or before it is the standing backlog and is CENSUS ONLY; every
+# entry added after it is held by CL-8 and CL-9. Move this only to record a NEW
+# starting point that has been agreed, never to make a red run green.
+BASELINE_REV = "15312262ca3e74ba4a06ab4470c01716384856b2"
+
+# One entry per block the two scripts must spell identically. A pair is added
+# here the moment a rule is shared, or the new rule drifts silently.
+SHARED_MARKERS = [["# >>> SHARED NEW-ENTRY RULE -- BEGIN",
+                   "# <<< SHARED NEW-ENTRY RULE -- END"],
+                  ["# >>> SHARED RELEASE-SECTION RULE -- BEGIN",
+                   "# <<< SHARED RELEASE-SECTION RULE -- END"]].freeze
+
+# >>> SHARED NEW-ENTRY RULE -- BEGIN
+# Byte-identical to the block of the same name in the SIBLING repository's
+# `bin/check-changelog`. The kiosk.tech copy compares itself against the
+# reference copy whenever that sibling is beside it, so the two repositories
+# cannot drift into two spellings of one rule. Edit both, or neither.
+LENGTH_CAP   = 200 # characters; an entry must be UNDER this
+SENTENCE_CAP = 2   # "one-two sentences"
+
+# A period that ends one of these is not a sentence boundary.
+ABBREVIATIONS = %w[e.g i.e etc vs cf al no approx Dr Mr Mrs Ms St Fig].freeze
+
+Entry = Struct.new(:line, :text)
+
+# An entry is a TOP-LEVEL `- ` bullet, running to the line before the next
+# top-level bullet or the next ATX heading. Wrapped lines are joined with one
+# space, the leading `- ` is dropped and the ends are stripped -- the unit the
+# umbrella constitution names. Same fence tracker as `headings`, and the same
+# honest limit: an unbalanced fence hides what follows it.
+def full_entries(source)
+  out   = []
+  fence = nil
+  cur   = nil
+  source.each_line.map(&:chomp).each_with_index do |line, i|
+    if (m = line.match(/\A {0,3}(`{3,}|~{3,})/))
+      marker = m[1][0]
+      if fence.nil?
+        fence = marker
+      elsif fence == marker
+        fence = nil
+      end
+      cur[:body] << line if cur
+      next
+    end
+    if fence
+      cur[:body] << line if cur
+      next
+    end
+    if line.start_with?("- ")
+      out << cur if cur
+      cur = { line: i + 1, body: [line] }
+    elsif line.match?(/\A\#{1,6}[ \t]/)
+      out << cur if cur
+      cur = nil
+    elsif cur
+      cur[:body] << line
+    end
+  end
+  out << cur if cur
+  out.map { |e| Entry.new(e[:line], normalise_entry(e[:body])) }
+end
+
+def normalise_entry(body)
+  body.join(" ").sub(/\A-[ \t]+/, "").gsub(/\s+/, " ").strip
+end
+
+# A scan, not a parser, and the header says so. Code spans, emphasis markers
+# and dotted numbers go first, because `**a thing.**` and `0.4.12` are the two
+# shapes that would otherwise decide this. Then every run of `.!?` that a
+# space or the end of the entry follows counts, unless it closes a known
+# abbreviation or a single-letter initial. An entry with no terminator at all
+# is one sentence, not zero.
+def sentence_count(text)
+  t = text.gsub(/`[^`]*`/, " CODE ")
+  t = t.gsub(/[*_]{1,3}/, "")
+  t = t.gsub(/\d+(?:\.\d+)+/, "NUM")
+  t = t.gsub("...", "…")
+  n = 0
+  t.scan(/[.!?]+["'»”)\]]*(?=\s|\z)/) do
+    pre = Regexp.last_match.pre_match
+    next if ABBREVIATIONS.any? { |a| pre.match?(/(?:\A|[^A-Za-z])#{Regexp.escape(a)}\z/i) }
+    next if pre.match?(/(?:\A|\s)[A-Za-z]\z/)
+
+    n += 1
+  end
+  n.zero? ? 1 : n
+end
+# <<< SHARED NEW-ENTRY RULE -- END
+
+# >>> SHARED RELEASE-SECTION RULE -- BEGIN
+# Byte-identical to the block of the same name in the SIBLING repository's
+# `bin/check-changelog`, for the reason the block above is: one rule must not
+# have two spellings. Edit both, or neither.
+#
+# The shapes a level-2 heading may take, and nothing else:
+#
+#   ## [Unreleased]                        where the next entry goes
+#   ## [0.4.1] — 2026-09-24                a cut: the version AND the date it was cut
+#   ## [skill 0.5.0] — 2026-09-25          the same, naming which artefact line was cut
+#   ## [skill 0.5.0 · listener 0.5.1] — …  a cut that moved two of them at once
+#   ## Before release sections             the entries written before this file grouped them
+#
+# THE VERSION IS THREE NUMBERS BECAUSE A PATCH CUT IS A RELEASE HERE. A heading
+# naming a MAJOR.MINOR alone cannot say which version carries a patch-sized
+# change, and saying that is the whole reason the sections exist -- a date could
+# never say it, which is what this rule was written to fix. The date is required
+# beside the version for the mirror reason: a version with no date says when
+# nothing.
+#
+# THE LABEL IS WHAT A REPOSITORY PUBLISHING MORE THAN ONE VERSIONED LINE NEEDS.
+# A bare version answers "which release has this" only where there is one line
+# to be a release of; `kiosk.tech` publishes the skill cut and the pinned event
+# listener on independent numbers, so a bare 0.5.0 there names two different
+# files. Each repository's own CHANGELOG-RULE.md says which lines it has.
+UNRELEASED_HEADING   = "[Unreleased]"
+PRE_GROUPING_HEADING = "Before release sections"
+# Either dash is accepted and the em dash is what to write: a writer copying the
+# shape off an existing heading must not be refused over the hyphen that Keep a
+# Changelog itself uses.
+LABELLED_CUT    = /[a-z][a-z0-9-]*[ \t]+\d+\.\d+\.\d+/
+RELEASE_HEADING = /\A\[(?:\d+\.\d+\.\d+|#{LABELLED_CUT}(?:[ \t]+·[ \t]+#{LABELLED_CUT})*)\]
+                   [ \t]+(?:—|--?)[ \t]+\d{4}-\d{2}-\d{2}\z/x
+# <<< SHARED RELEASE-SECTION RULE -- END
+
+# `- YYYY-MM-DD: ` and nothing looser. A bare year, a `[2026-09-06]` bracket or a
+# date in the middle of the sentence all fail: the point is that a reader
+# scanning the left margin can order the file, and only the prefix does that.
+DATED = /\A\d{4}-\d{2}-\d{2}: /
+
+# >>> ARM TABLE -- BEGIN
+#
+# Every failure this gate can report is declared here with the shape that
+# produces it, and `plant` is what the self-test does to a throwaway workspace to
+# make that arm fire. An arm without a way to demonstrate it cannot be added,
+# which is the property that keeps the self-test from drifting into a subset.
+ARMS = [
+  {
+    id: "CL-7",
+    what: "a top-level entry that does not open with its ISO date",
+    repair: "prefix the entry with the date the change landed, as `- YYYY-MM-DD: ` -- read it " \
+            "off the commit that introduced the line (`git log -S`), never off today",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        ## [Unreleased]
+
+        - an entry that never says when it happened, filed above one that does.
+
+        ## Before release sections
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-8",
+    what: "a NEW entry at or over #{LENGTH_CAP} characters",
+    repair: "cut it to the essence -- under #{LENGTH_CAP} characters; the commit message and " \
+            "the ledger row are where the details go",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        ## [Unreleased]
+
+        - 2026-01-04: #{"a very long single sentence about one small change " * 6}.
+
+        ## Before release sections
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-9",
+    what: "a NEW entry running past #{SENTENCE_CAP} sentences",
+    repair: "say it in one or two sentences; the commit message and the ledger row are where " \
+            "the rest goes",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        ## [Unreleased]
+
+        - 2026-01-05: One thing changed. A second sentence explains it. A third one runs on.
+
+        ## Before release sections
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-11",
+    what: "a level-2 heading that is neither `[Unreleased]`, nor a version section " \
+          "`[MAJOR.MINOR.PATCH] — YYYY-MM-DD`, nor `Before release sections`",
+    repair: "name the section for the cut that carries it -- the version AND the date, as " \
+            "`## [0.4.15] — 2026-09-17`; a MAJOR.MINOR alone cannot say which cut has a " \
+            "patch-sized change, which is what the sections are for",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        ## [Unreleased]
+
+        - 2026-01-07: **a change filed under a section naming a series.** Intent: it says why.
+
+        ## [0.4]
+
+        - 2026-01-06: **a cut that matches no published skill.** Intent: it says why.
+
+        ## Before release sections
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-12",
+    what: "a record whose first section is not `[Unreleased]`",
+    repair: "open a `## [Unreleased]` section above every other section: it is where the next " \
+            "entry goes, and a record without one has no answer to that question",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        ## [0.4.15] — 2026-09-17
+
+        - 2026-01-06: **a record that closed a cut and never opened the next.** Intent: why.
+
+        ## Before release sections
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-13",
+    what: "a top-level entry above the first section, which no release groups",
+    repair: "move the entry inside `## [Unreleased]`, or inside the section that carries it",
+    plant: lambda { |dir|
+      write(File.join(dir, "kiosk.tech"), "CHANGELOG.md", <<~MD)
+        # Changelog
+
+        The repository record: newest entry first.
+
+        - 2026-01-06: **an entry above every section.** Intent: nothing groups it.
+
+        ## [Unreleased]
+
+        - 2026-01-02: **something changed.** Intent: it says why.
+
+        ## Before release sections
+
+        #{BACKLOG_ENTRY}
+      MD
+    },
+  },
+  {
+    id: "CL-10",
+    what: "the shared rule block has drifted from the sibling's copy",
+    repair: "make the two blocks byte-identical again -- the rule is one rule, and whichever " \
+            "copy is right, two spellings of it is the defect",
+    plant: lambda { |dir|
+      sib = File.join(dir, "reference", "bin", "check-changelog")
+      File.write(sib, File.read(sib).sub("LENGTH_CAP   = 200", "LENGTH_CAP   = 400"))
+    },
+  },
+].freeze
+# <<< ARM TABLE -- END
+
+def write(root, rel, body)
+  abs = File.join(root, rel)
+  FileUtils.mkdir_p(File.dirname(abs))
+  File.write(abs, body)
+end
+
+def arm_for(id)
+  ARMS.find { |a| a[:id] == id } || raise("unknown arm #{id}")
+end
+
+# ── parsing ──────────────────────────────────────────────────────────────────
+
+Heading = Struct.new(:level, :text, :line)
+
+# Markdown ATX headings outside fenced code, with the fence tracker the shared
+# block's entry reader uses: an unbalanced fence hides what follows it, which is
+# the honest limit of a line scan.
+def headings(path)
+  out   = []
+  fence = nil
+  File.readlines(path, chomp: true).each_with_index do |line, i|
+    if (m = line.match(/\A {0,3}(`{3,}|~{3,})/))
+      marker = m[1][0]
+      if fence.nil?
+        fence = marker
+      elsif fence == marker
+        fence = nil
+      end
+      next
+    end
+    next if fence
+    next unless (m = line.match(/\A(\#{1,6})[ \t]+(.+?)[ \t]*\z/))
+
+    out << Heading.new(m[1].length, m[2].strip, i + 1)
+  end
+  out
+end
+
+# ── the corpus ───────────────────────────────────────────────────────────────
+
+def tracked(root, *pathspec)
+  out, err, status = Open3.capture3("git", "-C", root, "ls-files", "-z", *pathspec)
+  raise "git ls-files failed in #{root}: #{err}" unless status.success?
+
+  out.split(NUL).reject(&:empty?)
+end
+
+# The baseline entry set: the UNION of every top-level entry in every
+# `CHANGELOG.md` this repository tracked at `rev`.
+def baseline_of(root, rev)
+  rev ||= BASELINE_REV
+  _o, _e, st = Open3.capture3("git", "-C", root, "cat-file", "-e", "#{rev}^{commit}")
+  return { rev: rev, missing: true, set: {}, files: 0 } unless st.success?
+
+  out, err, s = Open3.capture3("git", "-C", root, "ls-tree", "-r", "-z", "--name-only", rev)
+  raise "git ls-tree failed in #{root}: #{err}" unless s.success?
+
+  paths = out.split(NUL).reject(&:empty?).select { |p| File.basename(p) == "CHANGELOG.md" }
+  set   = {}
+  paths.each do |p|
+    blob, _e2, s2 = Open3.capture3("git", "-C", root, "show", "#{rev}:#{p}")
+    next unless s2.success?
+
+    full_entries(blob).each { |e| set[e.text] = true }
+  end
+  { rev: rev, missing: false, set: set, files: paths.length }
+end
+
+# ── the shared block ─────────────────────────────────────────────────────────
+
+# The markers are matched AT COLUMN ZERO, which is not fussiness: their literal
+# text also occurs in the `SHARED_MARKERS` assignment above, and a plain
+# `index` finds that instead and extracts a two-line "block" that compares equal
+# to nothing. Anchoring is what makes this read the real block in both files.
+def shared_block(path, markers)
+  return nil unless File.file?(path)
+
+  re = /^#{Regexp.escape(markers[0])}$.*?^#{Regexp.escape(markers[1])}$/m
+  File.read(path)[re]
+end
+
+def shared_blocks(path)
+  SHARED_MARKERS.map { |markers| shared_block(path, markers) }
+end
+
+# ── scanning ─────────────────────────────────────────────────────────────────
+
+def scan(root, baseline)
+  findings   = []
+  releases   = 0
+  versioned  = 0
+  unreleased = 0
+  ungrouped  = 0
+  entries    = 0
+  dated      = 0
+  fresh      = 0
+  backlog    = 0
+  long_back  = 0
+  multi_back = 0
+
+  changelogs = tracked(root, "*CHANGELOG.md")
+
+  changelogs.each do |rel|
+    abs      = File.join(root, rel)
+    content  = File.read(abs)
+    hs       = headings(abs)
+    first_h2 = hs.find { |h| h.level == 2 }
+
+    # WHERE THE NEXT ENTRY GOES is a property of the file: the FIRST section has
+    # to be the open one.
+    if first_h2.nil? || first_h2.text != UNRELEASED_HEADING
+      arm = arm_for("CL-12")
+      findings << {
+        path: rel, line: first_h2&.line || 1, id: arm[:id], repair: arm[:repair],
+        what: if first_h2.nil?
+                "no section at all, so there is nowhere for the next entry to go"
+              else
+                "the first section is `#{first_h2.text}`, not `#{UNRELEASED_HEADING}`"
+              end,
+      }
+    else
+      unreleased += 1
+    end
+
+    hs.each do |h|
+      next unless h.level == 2
+
+      releases += 1
+      if h.text == UNRELEASED_HEADING || h.text == PRE_GROUPING_HEADING
+        nil
+      elsif h.text.match?(RELEASE_HEADING)
+        versioned += 1
+      else
+        arm = arm_for("CL-11")
+        findings << { path: rel, line: h.line, id: arm[:id], repair: arm[:repair],
+                      what: "section `#{h.text}` is none of the three shapes a heading may take" }
+      end
+    end
+
+    file_entries = full_entries(content)
+
+    # An entry ABOVE the first section names no release. Scoped to a file that
+    # HAS a section: one with none is CL-12's finding already, and reporting
+    # every bullet of it again would bury that one line under the whole file.
+    if first_h2
+      file_entries.each do |e|
+        next if e.line > first_h2.line
+
+        ungrouped += 1
+        arm = arm_for("CL-13")
+        findings << {
+          path: rel, line: e.line, id: arm[:id], repair: arm[:repair],
+          what: "entry `#{e.text[0, 58].strip}` sits above the first section",
+        }
+      end
+    end
+
+    file_entries.each do |e|
+      entries += 1
+
+      if e.text.match?(DATED)
+        dated += 1
+      else
+        arm = arm_for("CL-7")
+        findings << {
+          path: rel, line: e.line, id: arm[:id], repair: arm[:repair],
+          what: "entry opens `#{e.text[0, 60].strip}` with no `YYYY-MM-DD:` date",
+        }
+      end
+
+      if baseline[:set].key?(e.text)
+        backlog    += 1
+        long_back  += 1 if e.text.length >= LENGTH_CAP
+        multi_back += 1 if sentence_count(e.text) > SENTENCE_CAP
+        next
+      end
+
+      fresh += 1
+      gist  = e.text.length > 64 ? "#{e.text[0, 64]}…" : e.text
+      if e.text.length >= LENGTH_CAP
+        arm = arm_for("CL-8")
+        findings << {
+          path: rel, line: e.line, id: arm[:id], repair: arm[:repair],
+          what: "new entry is #{e.text.length} characters, cap #{LENGTH_CAP}: `#{gist}`",
+        }
+      end
+      sentences = sentence_count(e.text)
+      if sentences > SENTENCE_CAP
+        arm = arm_for("CL-9")
+        findings << {
+          path: rel, line: e.line, id: arm[:id], repair: arm[:repair],
+          what: "new entry runs to #{sentences} sentences, cap #{SENTENCE_CAP}: `#{gist}`",
+        }
+      end
+    end
+  end
+
+  mine   = shared_blocks(SELF_PATH)
+  theirs = shared_blocks(SIBLING)
+  twin =
+    if theirs.all?(&:nil?)
+      :absent
+    elsif theirs == mine
+      :identical
+    else
+      arm = arm_for("CL-10")
+      findings << { path: "bin/#{File.basename(SELF_PATH)}", line: 0, id: arm[:id],
+                    what: arm[:what], repair: arm[:repair] }
+      :drifted
+    end
+
+  { findings: findings, files: changelogs.length, entries: entries, dated: dated,
+    baseline: baseline[:rev], baseline_files: baseline[:files],
+    baseline_set: baseline[:set].length, fresh: fresh, backlog: backlog,
+    long_back: long_back, multi_back: multi_back, twin: twin,
+    shared_lines: mine.compact.sum { |b| b.lines.length },
+    releases: releases, versioned: versioned, unreleased: unreleased,
+    ungrouped: ungrouped }
+end
+
+# ── modes ────────────────────────────────────────────────────────────────────
+
+def report(result, quiet:)
+  unless quiet
+    puts "check-changelog: #{result[:files]} tracked changelog(s), #{result[:entries]} " \
+         "top-level entry(ies), #{result[:dated]} carrying an ISO date"
+    puts "  #{result[:releases]} section(s), #{result[:versioned]} naming a version and its " \
+         "date, #{result[:unreleased]} record(s) opening with `#{UNRELEASED_HEADING}`, " \
+         "#{result[:ungrouped]} entry(ies) above a first section"
+    puts "  baseline #{result[:baseline][0, 12]} -- #{result[:baseline_set]} entry(ies) over " \
+         "#{result[:baseline_files]} changelog(s) at that commit"
+    puts "  #{result[:backlog]} entry(ies) at or before the baseline, #{result[:fresh]} new " \
+         "since it; CL-8/CL-9 read the new ones only"
+    puts "  CENSUS, never failed: of the backlog, #{result[:long_back]} are #{LENGTH_CAP} " \
+         "characters or longer and #{result[:multi_back]} run past #{SENTENCE_CAP} sentences"
+    note = result[:twin] == :absent ? " -- ../reference is not beside this repository, so CL-10 did NOT run" : ""
+    puts "  shared rule block: #{result[:shared_lines]} line(s), sibling #{result[:twin]}#{note}"
+  end
+
+  if result[:findings].empty?
+    unless quiet
+      puts
+      puts "check-changelog: OK -- every entry says when and sits under a section named for the " \
+           "cut that carries it, the record opens with `#{UNRELEASED_HEADING}`, and every entry " \
+           "newer than the baseline is under #{LENGTH_CAP} characters and at most " \
+           "#{SENTENCE_CAP} sentences."
+      puts "(The standing backlog is counted above and never failed -- a changelog is " \
+           "append-only. See the header for what this cannot see.)"
+    end
+    return 0
+  end
+
+  $stdout.flush
+  warn ""
+  warn "check-changelog: FAIL -- #{result[:findings].length} defect(s)."
+  result[:findings].sort_by { |f| [f[:path], f[:line]] }.each do |f|
+    where = f[:line].positive? ? "#{f[:path]}:#{f[:line]}" : f[:path]
+    warn "  #{where}: [#{f[:id]}] #{f[:what]}"
+    warn "      repair: #{f[:repair]}"
+  end
+  1
+end
+
+def run_check(quiet: false, baseline: nil)
+  base = baseline_of(REPO, baseline)
+  if base[:missing]
+    warn "check-changelog: FAIL -- baseline commit #{base[:rev]} is not in this clone, so " \
+         "CL-8/CL-9 cannot tell a new entry from the standing backlog. It does not skip: a " \
+         "skipped arm exits 0 and reads exactly like a clean tree."
+    warn "      repair: fetch it (`git fetch --unshallow`, or check out with " \
+         "`fetch-depth: 0`), or pass `--baseline <rev>` naming a commit this clone has"
+    return 1
+  end
+
+  report(scan(REPO, base), quiet: quiet)
+end
+
+# ── self-test ────────────────────────────────────────────────────────────────
+#
+# A corpus scan whose file set came out empty exits 0 and reads exactly like a
+# clean repository. So this builds a throwaway WORKSPACE -- a `kiosk.tech` git
+# repository with a sibling `reference/bin/check-changelog` beside it, which is
+# the layout CL-10 needs -- commits the green shapes as the baseline, plants each
+# arm's own example in turn, and asserts the guard goes red UNDER THAT ARM'S ID.
+# Then it measures the real tree, because a fixture proves the logic and says
+# nothing about what this repository holds.
+
+# >>> GREEN FIXTURES -- BEGIN
+#
+# A PRE-BASELINE entry that is long and runs to four sentences is the K-1097
+# property under test: committed at the baseline, it must be COUNTED and never
+# failed, and every plant keeps it in the file so one run proves both halves.
+BACKLOG_ENTRY = "- 2026-01-01: **a long entry from before the rule, kept exactly as written.** " \
+                "It runs to several sentences and well past two hundred characters, which is " \
+                "what the whole standing corpus looks like. It is history, so it is never " \
+                "edited. The census counts it and no arm fails on it."
+
+GREEN = {
+  "CHANGELOG.md" => <<~MD,
+    # Changelog
+
+    The repository record: newest entry first.
+
+    ## [Unreleased]
+
+    - 2026-01-02: **something changed.** Intent: it says why.
+
+    ## [skill 0.5.1 · listener 0.5.2] — 2026-09-26
+
+    - 2026-01-02: **a cut that moved two artefact lines names both.** Intent: which listener has it.
+
+    ## [0.4.15] — 2026-09-17
+
+    - 2026-01-01: **a patch cut of the skill is a release here.** Intent: as visible as a minor.
+
+    ## Before release sections
+
+    #{BACKLOG_ENTRY}
+  MD
+}.freeze
+# <<< GREEN FIXTURES -- END
+
+def build_fixture(dir)
+  site = File.join(dir, "kiosk.tech")
+  FileUtils.mkdir_p(File.join(site, "bin"))
+  script = File.join(site, "bin", File.basename(SELF_PATH))
+  File.write(script, File.binread(SELF_PATH))
+  File.chmod(0o755, script)
+  GREEN.each { |rel, body| write(site, rel, body) }
+
+  sib = File.join(dir, "reference", "bin", "check-changelog")
+  FileUtils.mkdir_p(File.dirname(sib))
+  File.write(sib, File.binread(SELF_PATH))
+
+  _, err, st = Open3.capture3("git", "-C", site, "init", "-q")
+  raise "git init failed: #{err}" unless st.success?
+
+  script
+end
+
+def stage(dir)
+  _, err, st = Open3.capture3("git", "-C", File.join(dir, "kiosk.tech"), "add", "-A")
+  raise "git add failed: #{err}" unless st.success?
+end
+
+# The fixture needs a real BASELINE COMMIT, because "new" is defined against one.
+# Everything in GREEN is committed here; every plant is therefore
+# working-tree-only and reads as new, which is the arrangement the real
+# repository is in.
+def commit_fixture(dir)
+  site = File.join(dir, "kiosk.tech")
+  _, err, st = Open3.capture3("git", "-C", site,
+                              "-c", "user.email=fixture@example.invalid",
+                              "-c", "user.name=fixture",
+                              "commit", "-q", "--no-gpg-sign", "-m", "baseline")
+  raise "git commit failed: #{err}" unless st.success?
+
+  out, err2, st2 = Open3.capture3("git", "-C", site, "rev-parse", "HEAD")
+  raise "git rev-parse failed: #{err2}" unless st2.success?
+
+  out.strip
+end
+
+def run_guard_in(script, baseline = nil)
+  args = baseline ? ["--baseline", baseline] : []
+  Open3.capture3(RbConfig.ruby, script, *args)
+end
+
+def self_test_fixture(failures)
+  Dir.mktmpdir("check-changelog") do |dir|
+    script = build_fixture(dir)
+    stage(dir)
+    base = commit_fixture(dir)
+
+    out, err, st = run_guard_in(script, base)
+    if st.exitstatus.zero?
+      puts "  green tree: exit 0 with every legitimate shape present -- OK"
+    else
+      failures << "the green fixture tree should exit 0; it exited #{st.exitstatus}\n#{out}#{err}"
+    end
+    unless out.include?("carrying an ISO date")
+      failures << "the guard printed no entry-date census, so CL-7's non-vacuity cannot be read off it"
+    end
+    unless out.include?("sibling identical")
+      failures << "the fixture's sibling was not recognised, so CL-10 is untested here:\n#{out}"
+    end
+
+    # CL-11's GREEN side lives here rather than in the real tree, and deliberately:
+    # a well-formed version section must pass, and this repository has not named a
+    # cut in its changelog yet, so the fixture is the only place to prove the shape.
+    versioned = out[/(\d+) naming a version and its date/, 1].to_i
+    if versioned.positive?
+      puts "  fixture: #{versioned} section(s) naming a version and its date, still exit 0 -- OK"
+    else
+      failures << "the fixture counted no version section, so CL-11's green side is proved by " \
+                  "nothing:\n#{out}"
+    end
+
+    census = out[/CENSUS, never failed: of the backlog, (\d+) are/, 1].to_i
+    if census.positive?
+      puts "  backlog: #{census} committed entry(ies) over the cap, still exit 0 -- OK"
+    else
+      failures << "the fixture's pre-baseline long entry was not counted, so the never-redden " \
+                  "property is proved by nothing:\n#{out}"
+    end
+
+    outb, errb, stb = run_guard_in(script, "0" * 40)
+    combinedb = "#{outb}#{errb}"
+    if stb.exitstatus.zero?
+      failures << "an unresolvable baseline exited 0 -- the arms silently did not run"
+    elsif !combinedb.include?("not in this clone")
+      failures << "an unresolvable baseline failed without saying why:\n#{combinedb}"
+    else
+      puts "  unresolvable baseline: exit #{stb.exitstatus}, named with its remedy -- OK"
+    end
+
+    changelog = File.join(dir, "kiosk.tech", "CHANGELOG.md")
+    sibling   = File.join(dir, "reference", "bin", "check-changelog")
+    keep      = { changelog => File.binread(changelog), sibling => File.binread(sibling) }
+
+    ARMS.each do |arm|
+      arm[:plant].call(dir)
+      stage(dir)
+      out2, err2, st2 = run_guard_in(script, base)
+      combined = "#{out2}#{err2}"
+      if st2.exitstatus.zero?
+        failures << "planting #{arm[:id]} did not turn the guard red"
+      elsif !combined.include?("[#{arm[:id]}]")
+        failures << "#{arm[:id]}'s plant fired, but not under its own id:\n#{combined}"
+      else
+        puts "  plant #{arm[:id]}: exit #{st2.exitstatus}, reported by id -- OK"
+      end
+
+      keep.each { |abs, body| File.write(abs, body) }
+      stage(dir)
+    end
+
+    # CL-10 COMPARES EVERY DECLARED BLOCK, and its plant above drifts the FIRST
+    # one only -- so on its own it proves nothing about the second. This drifts
+    # the release-section block by itself: a marker pair that nothing compares
+    # reads exactly like coverage while covering nothing, which is the failure
+    # this workspace has already paid for once.
+    SHARED_MARKERS.each_with_index do |markers, i|
+      body = File.read(sibling)
+      inner = body[/^#{Regexp.escape(markers[0])}$(.*?)^#{Regexp.escape(markers[1])}$/m, 1]
+      if inner.nil?
+        failures << "the fixture's sibling carries no #{markers[0]} block, so CL-10 cannot " \
+                    "compare it"
+        next
+      end
+      File.write(sibling, body.sub(inner, "#{inner}# one line of drift, planted.\n"))
+      out6, err6, st6 = run_guard_in(script, base)
+      combined6 = "#{out6}#{err6}"
+      if st6.exitstatus.zero?
+        failures << "drifting shared block #{i + 1} (#{markers[0]}) did not turn the guard red"
+      elsif !combined6.include?("[CL-10]")
+        failures << "drift in shared block #{i + 1} fired, but not under CL-10:\n#{combined6}"
+      else
+        puts "  plant CL-10 in block #{i + 1}: exit #{st6.exitstatus}, reported by id -- OK"
+      end
+      keep.each { |abs, body2| File.write(abs, body2) }
+      stage(dir)
+    end
+
+    # THE SIBLING IS NOT ALWAYS THERE, and a run without it must SAY so rather
+    # than report a comparison it did not make.
+    FileUtils.rm_rf(File.join(dir, "reference"))
+    out5, err5, st5 = run_guard_in(script, base)
+    if !st5.exitstatus.zero?
+      failures << "a run with no sibling should stay green on its own arms; it exited " \
+                  "#{st5.exitstatus}\n#{out5}#{err5}"
+    elsif !out5.include?("CL-10 did NOT run")
+      failures << "a run with no sibling did not say that CL-10 could not run:\n#{out5}"
+    else
+      puts "  no sibling: exit 0 and says CL-10 did not run -- OK"
+    end
+  end
+end
+
+def run_self_test
+  failures = []
+  self_test_fixture(failures)
+
+  base = baseline_of(REPO, nil)
+  failures << "the declared baseline #{base[:rev]} is not in this clone" if base[:missing]
+  result = scan(REPO, base)
+
+  failures << "the real tree found no tracked changelog at all" if result[:files].zero?
+  if result[:entries] < 100
+    failures << "the real tree found #{result[:entries]} entry(ies) -- CL-7/CL-8/CL-9 are vacuous here"
+  end
+  if result[:backlog] < 100
+    failures << "the real tree found #{result[:backlog]} pre-baseline entry(ies) -- the baseline " \
+                "resolved to something that is not this repository's history"
+  end
+  if result[:long_back].zero?
+    failures << "not one pre-baseline entry is at or over #{LENGTH_CAP} characters, so the census " \
+                "tier is proving nothing here and CL-8 could be scoped to the whole file instead"
+  end
+  if result[:shared_lines] < 20
+    failures << "the shared rule block reads #{result[:shared_lines]} line(s) -- the markers are gone"
+  end
+  # The count of VERSION sections is NOT asserted over the real tree: no cut has
+  # been named in this changelog yet, so it is legitimately zero and an assertion
+  # would be red on arrival. The fixture above proves CL-11's green side. What
+  # holds here is the property that does not wait for a cut.
+  if result[:unreleased] < result[:files]
+    failures << "#{result[:files] - result[:unreleased]} record(s) do not open with " \
+                "`#{UNRELEASED_HEADING}`, so CL-12 is red over this repository"
+  end
+  puts "  real tree: #{result[:releases]} section(s), #{result[:versioned]} naming a version " \
+       "and its date, #{result[:unreleased]} of #{result[:files]} record(s) open with " \
+       "`#{UNRELEASED_HEADING}`, #{result[:ungrouped]} entry(ies) above a first section"
+  puts "  real tree: #{result[:files]} changelog(s), #{result[:dated]} of #{result[:entries]} " \
+       "entry(ies) dated, baseline #{result[:baseline][0, 12]}, #{result[:backlog]} at or before " \
+       "it (#{result[:long_back]} over the length cap, #{result[:multi_back]} over the sentence " \
+       "cap, all census only), #{result[:fresh]} newer and held; sibling #{result[:twin]}"
+
+  status = report(result, quiet: true)
+  failures << "the guard is not green over this repository (exit #{status})" unless status.zero?
+  puts "  real tree: check exits #{status}"
+
+  if failures.empty?
+    puts
+    puts "check-changelog --self-test: OK -- red on a plant of every arm (CL-7..CL-13) and on an " \
+         "unresolvable baseline, green on a committed entry over both caps and on a run with no " \
+         "sibling, and non-vacuous over this repository."
+    return 0
+  end
+
+  $stdout.flush
+  warn ""
+  warn "check-changelog --self-test: FAIL"
+  failures.each { |f| warn "  #{f}" }
+  1
+end
+
+# ── entry point ──────────────────────────────────────────────────────────────
+
+args     = ARGV.dup
+baseline = nil
+if (i = args.index("--baseline"))
+  baseline = args[i + 1]
+  args.slice!(i, 2)
+  if baseline.nil? || baseline.empty?
+    warn "usage: check-changelog [--baseline REV] [--self-test]"
+    exit 2
+  end
+end
+
+code =
+  case args[0]
+  when nil           then run_check(baseline: baseline)
+  when "--self-test" then run_self_test
+  else
+    warn "usage: check-changelog [--baseline REV] [--self-test]"
+    2
+  end
+exit code
