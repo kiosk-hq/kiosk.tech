@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.10] — 2026-10-08
+
+- 2026-10-08: **Skill 0.5.10 tells the assistant to read `detail` on a `403 forbidden`**: it names the operator-side precondition, which the assistant meets or hands to its human.
+
 - 2026-10-08: The onboarding page's `create_order` and `reschedule_delivery` require `delivery_date`, so a booked slot is always on the day its row was shown.
 
 - 2026-10-08: The onboarding page wires Stripe with the adapter's own customer table, laid down by one migration, instead of hand-written resolver lambdas and a model.
