@@ -259,8 +259,7 @@ module DeliverySlots
   # `example_params` says "copy this verbatim", so a calendar literal written
   # there stops being true on a day nobody notices — a date before today is
   # refused, so a frozen literal ages into a 400. Tomorrow rather than today
-  # because every window of a future day is still bookable, and because
-  # tomorrow is what an omitted date already means to the write verbs.
+  # because every window of a future day is still bookable.
   def example_date
     now.to_date + 1
   end
@@ -601,12 +600,11 @@ class Kiosk::OrdersController &lt; ApplicationController
                  # not expressible in a declaration. Both are
                  # `DeliverySlots.iso_date` and the two floors below.
                  delivery_date:    { type: "string", format: "date",
-                                     description: "The date of that same delivery_slots row, YYYY-MM-DD. " \
-                                                  "Optional; omitting it books tomorrow." },
+                                     description: "The date of that same delivery_slots row, YYYY-MM-DD." },
                  delivery_address: { type: "string",
                                      description: "Where to deliver it." },
                },
-               required: ["items", "delivery_slot_id", "delivery_address"]
+               required: ["items", "delivery_slot_id", "delivery_date", "delivery_address"]
   output_schema type: "object",
                 properties: { order_id:    { type: "string", format: "uuid" },
                               total_cents: { type: "integer", description: "EUR cents." },
@@ -662,21 +660,12 @@ class Kiosk::OrdersController &lt; ApplicationController
     slot_id = whole_number(params[:delivery_slot_id])
     return reject_bad_request("delivery_slot_id must be a whole number 1-#{DeliverySlots::COUNT} — got #{params[:delivery_slot_id].inspect}") if slot_id.nil?
     return reject_bad_request("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
-    # `delivery_date` IS OPTIONAL, for delivery_slots' reason one verb over: the
-    # caller cannot compute YOUR today, so a blank one means TOMORROW in your
-    # locale — the same day `DeliverySlots.example_date` publishes, so an
-    # assistant that copies the example gets exactly what omitting the argument
-    # would have given it. Requiring it here while `delivery_slots` leaves its
-    # own `date` optional would make the two verbs disagree about the same
-    # question, which is the drift this page exists not to teach.
-    delivery_date = if params[:delivery_date].to_s.strip.empty?
-      DeliverySlots.now.to_date + 1
-    else
-      day = DeliverySlots.iso_date(params[:delivery_date])
-      if day.nil?
-        return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD from the delivery_slots row you chose")
-      end
-      day
+    # `delivery_date` IS REQUIRED: a slot id names a window only together with
+    # the day of the row it came from. Any default here could book a day the
+    # assistant was never shown.
+    delivery_date = DeliverySlots.iso_date(params[:delivery_date])
+    if delivery_date.nil?
+      return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD from the delivery_slots row you chose")
     end
 
     # A DAY THAT HAS GONE, AND A WINDOW THAT HAS BEGUN, ARE TWO REFUSALS — and
@@ -757,12 +746,11 @@ class Kiosk::OrdersController &lt; ApplicationController
                                      description: "The delivery_slot_id of the new window." },
                  # Same declaration as create_order's, for the same reason.
                  delivery_date:    { type: "string", format: "date",
-                                     description: "The date of that new window, YYYY-MM-DD. " \
-                                                  "Optional; omitting it books tomorrow." },
+                                     description: "The date of that new window's delivery_slots row, YYYY-MM-DD." },
                  delivery_address: { type: "string",
                                      description: "A new address; the order keeps its current one when omitted." },
                },
-               required: ["order_id", "delivery_slot_id"]
+               required: ["order_id", "delivery_slot_id", "delivery_date"]
   output_schema type: "object",
                 properties: { order_id:       { type: "string", format: "uuid" },
                               rescheduled_at: { type: "string", format: "date-time" } }
@@ -805,15 +793,10 @@ class Kiosk::OrdersController &lt; ApplicationController
     slot_id = whole_number(params[:delivery_slot_id])
     return reject_bad_request("delivery_slot_id must be a whole number 1-#{DeliverySlots::COUNT} — got #{params[:delivery_slot_id].inspect}") if slot_id.nil?
     return reject_bad_request("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
-    # Optional here too, and it means the same thing: blank books tomorrow.
-    new_date = if params[:delivery_date].to_s.strip.empty?
-      DeliverySlots.now.to_date + 1
-    else
-      day = DeliverySlots.iso_date(params[:delivery_date])
-      if day.nil?
-        return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD")
-      end
-      day
+    # Required here too, for the same reason.
+    new_date = DeliverySlots.iso_date(params[:delivery_date])
+    if new_date.nil?
+      return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD")
     end
     # The SAME two refusals create_order takes, for the same reason: a move is
     # a booking too, and moving a paid order onto a day that is gone or a

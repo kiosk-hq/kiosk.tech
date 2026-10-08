@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-08: The onboarding page's `create_order` and `reschedule_delivery` require `delivery_date`, so a booked slot is always on the day its row was shown.
+
 - 2026-10-08: The onboarding page wires Stripe with the adapter's own customer table, laid down by one migration, instead of hand-written resolver lambdas and a model.
 
 - 2026-10-08: The hoteling demo card says it pays in Stripe test mode: hoteling and skooti now charge through kiosk-pay-stripe, no longer a stub.
