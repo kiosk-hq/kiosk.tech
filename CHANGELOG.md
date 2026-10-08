@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-09: Onboarding: handler controllers go in `app/controllers/kiosk/` and register themselves; the `c.handlers` line is gone.
+
 ## [skill 0.5.12] — 2026-10-08
 
 - 2026-10-08: **Skill 0.5.12 names a URL that carries a credential**, like skooti's `unlock_url`: hand it to the human once, as a card-setup link, and never paste the token elsewhere.
