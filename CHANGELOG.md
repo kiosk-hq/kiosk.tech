@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-08: The landing's «Potentially works» tier adds OpenAI dots and Meta Muse, read off their documentation and never run.
+
 ## [skill 0.5.11] — 2026-10-08
 
 - 2026-10-08: **Skill 0.5.11 and the spec say versions compare as integers, MAJOR then MINOR then PATCH**, so an assistant holding 0.5.9 adopts a 0.5.10 pin.
