@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.12] — 2026-10-08
+
+- 2026-10-08: **Skill 0.5.12 names a URL that carries a credential**, like skooti's `unlock_url`: hand it to the human once, as a card-setup link, and never paste the token elsewhere.
+
 - 2026-10-08: The landing's «Potentially works» tier adds OpenAI dots and Meta Muse, read off their documentation and never run.
 
 ## [skill 0.5.11] — 2026-10-08
