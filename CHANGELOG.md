@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.11] — 2026-10-08
+
+- 2026-10-08: **Skill 0.5.11 and the spec say versions compare as integers, MAJOR then MINOR then PATCH**, so an assistant holding 0.5.9 adopts a 0.5.10 pin.
+
 ## [skill 0.5.10] — 2026-10-08
 
 - 2026-10-08: **Skill 0.5.10 tells the assistant to read `detail` on a `403 forbidden`**: it names the operator-side precondition, which the assistant meets or hands to its human.

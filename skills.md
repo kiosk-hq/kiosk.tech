@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.11.md` | **0.5** | The same wire as 0.5.10. The assistant compares a pinned cut with its cached one as numbers, MAJOR, MINOR and PATCH each an integer, so 0.5.10 is newer than 0.5.9. |
 | `skill-v0.5.10.md` | **0.5** | The same wire as 0.5.9. On a `403 forbidden` the assistant reads `detail`, which names the operator-side precondition, and takes that step or tells its human. |
 | `skill-v0.5.9.md` | **0.5** | The same wire as 0.5.8. An event `id` names one delivery to one identity and is never compared across identities, the key directory is per origin (scheme, host and port) rather than per hostname, and the Intent mandate's `scope` is an optional label the operator defines. |
 | `skill-v0.5.8.md` | **0.5** | The same wire as 0.5.7. The dual-check example in the skill writes its pinned cut as `skill-vX.Y.Z.md` rather than naming an earlier cut. |
@@ -73,9 +74,9 @@ while 0.4.12 opens a new wire group of which it stayed the only member and
 and 0.4.16 opens a new wire group in which
 0.4.16 = 0.4.17 = 0.5.0 = 0.5.1,
 and 0.5.2 opens a new wire group, the one served now, in which
-0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8 = 0.5.9 = 0.5.10,
+0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8 = 0.5.9 = 0.5.10 = 0.5.11,
 but the six groups are NOT the same wire, and only the last describes
-what a 0.5.10 operator serves. The formal spec
+what a 0.5.11 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
