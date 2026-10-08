@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-09: Onboarding: the initializer sets `c.signing_key` from `KIOSK_SIGNING_KEY_B64` itself; the engine no longer reads it.
+
 - 2026-10-09: Onboarding: handler controllers go in `app/controllers/kiosk/` and register themselves; the `c.handlers` line is gone.
 
 ## [skill 0.5.12] — 2026-10-08

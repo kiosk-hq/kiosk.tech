@@ -75,7 +75,7 @@ rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</butto
   <p>First, generate a signing key. Kiosk signs the JWTs it issues with an RSA key; without it the server raises on the first registration. Generate one and put it in your environment (do <strong>not</strong> regenerate per boot — a fresh key invalidates every issued token, forcing agents to re-register and losing their saved-card associations):</p>
   <pre><code class="language-bash"># base64 so it fits on one line in .env / mise.toml / your secrets manager
 openssl genrsa 2048 | base64
-# → export KIOSK_SIGNING_KEY_B64="LS0tLS1CRUdJTi…"  (or set KIOSK_SIGNING_KEY_PEM to the raw PEM)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+# → export KIOSK_SIGNING_KEY_B64="LS0tLS1CRUdJTi…"; the initializer below reads it</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p><code>config/initializers/kiosk.rb</code>:</p>
   <pre><code class="language-ruby">Kiosk.configure do |c|
@@ -84,6 +84,7 @@ openssl genrsa 2048 | base64
   c.user_id_column = :id
 
   c.issuer = ENV.fetch("KIOSK_ISSUER", "https://your-domain.com")
+  c.signing_key = Base64.decode64(ENV.fetch("KIOSK_SIGNING_KEY_B64"))
   # Role vocabulary your authz branches on. If you declare roles at all, your
   # identity system MUST name one for EVERY human who can approve an assistant
   # binding — a role for staff and nothing for customers is not a supported
@@ -849,7 +850,7 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <h2>Step 6: Start the server and verify</h2>
   <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it's the AP2 <code>iss</code> anchor) — the request host only <em>selects</em> among the origins you configure and never adds one, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
   <pre><code class="language-bash">export KIOSK_ISSUER="http://localhost:3000"
-export KIOSK_SIGNING_KEY_B64="$(openssl genrsa 2048 | base64)"   # or KIOSK_SIGNING_KEY_PEM
+export KIOSK_SIGNING_KEY_B64="$(openssl genrsa 2048 | base64)"
 export STRIPE_SECRET_KEY=sk_test_…
 rails s</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
