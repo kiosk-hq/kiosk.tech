@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-11: Onboarding: Step 3 names queries and actions in a `kiosk do … end` block in `config/routes.rb`; the separate `config/routes/kiosk.rb` is gone.
+
 - 2026-10-09: Specification: an operator MAY answer a JSON caller at its human sign-in and sign-out pages with a JSON pointer to its /.well-known/kiosk.json.
 
 - 2026-10-09: The landing no longer claims a run against real Stripe; the site points at getgrocery's tests where it named its deleted walkthrough.
