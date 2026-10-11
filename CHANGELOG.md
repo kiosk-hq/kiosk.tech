@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.13] — 2026-10-11
+
+- 2026-10-11: **Skill 0.5.13 asks how much it may spend without asking**: once a card is saved the assistant keeps the human's amount and asks before any payment over it.
+
 - 2026-10-11: The landing says where things live: the card at Stripe, the assistant's keys with the assistant, kiosk.tech static with no server, the demos only examples.
 
 - 2026-10-11: Onboarding: Step 3 names queries and actions in a `kiosk do … end` block in `config/routes.rb`; the separate `config/routes/kiosk.rb` is gone.
