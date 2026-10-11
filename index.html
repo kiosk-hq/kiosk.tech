@@ -48,6 +48,9 @@
 
     /* shared section band — all major sections use this; they differ ONLY by background-color */
     .band{margin-bottom:16px;padding:28px 24px}
+    .where-list{list-style:none;display:flex;flex-direction:column;gap:12px}
+    .where-list li{font-size:14px;color:#bbb;line-height:1.6}
+    .where-list strong{color:#e0e0e0}
     .demo-box h2{
       font-size:20px;
       font-weight:700;
@@ -195,6 +198,7 @@
 
   <nav style="max-width:720px;margin:-24px auto 40px;padding:0 24px;text-align:center;font-size:12px;line-height:2;color:#888">
     <a href="#demo">What assistants can do</a> ·
+    <a href="#where">Where things live</a> ·
     <a href="#compatible">Compatible assistants</a> ·
     <a href="#add-kiosk">Add Kiosk</a> ·
     <a href="#try">Demos</a> ·
@@ -217,6 +221,17 @@
         <li>"Buy groceries for the week" — cart filled, delivery slot booked, paid by saved card (getgrocery)</li>
         <li>Second grocery order: zero human taps — the card is already on file (tested against stripe-mock)</li>
       </ol>
+    </div>
+
+    <div class="demo-box band" id="where" style="background:#0a0a0a">
+      <h2>Where things live<a href="#where" class="anchor-link">#</a></h2>
+      <p class="time">Nothing passes through kiosk.tech.</p>
+      <ul class="where-list">
+        <li><strong>Your card stays with the payment provider.</strong> You type it into Stripe's own page, on the business's own Stripe account. The business never sees the card number. Neither does your AI assistant: it only hands you the link.</li>
+        <li><strong>Your assistant's keys stay with your assistant.</strong> Its private key and its access tokens are kept by the assistant itself, on your side. The business only ever sees the public half of the key.</li>
+        <li><strong>kiosk.tech has no server of its own.</strong> It is static files on GitHub Pages: these pages, the skill your assistant reads, and two small helper scripts. A business can pin the exact skill version by its SHA-256 fingerprint, and the skill pins both scripts the same way. No request, order or payment goes through kiosk.tech.</li>
+        <li><strong>The demos are examples.</strong> The shops at <code>*.demo.kiosk.tech</code> are sample businesses we run so you can try Kiosk. A real business runs Kiosk on its own servers, and nothing of ours sits between it and its customers.</li>
+      </ul>
     </div>
 
     <section class="band" id="compatible" style="background:#011002">

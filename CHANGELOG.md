@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-11: The landing says where things live: the card at Stripe, the assistant's keys with the assistant, kiosk.tech static with no server, the demos only examples.
+
 - 2026-10-11: Onboarding: Step 3 names queries and actions in a `kiosk do … end` block in `config/routes.rb`; the separate `config/routes/kiosk.rb` is gone.
 
 - 2026-10-09: Specification: an operator MAY answer a JSON caller at its human sign-in and sign-out pages with a JSON pointer to its /.well-known/kiosk.json.
