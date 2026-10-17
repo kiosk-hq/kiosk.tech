@@ -10,6 +10,14 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: The landing and onboarding say the demos toll once per session at full strength, and a customer who spent there recently pays none.
+
+- 2026-10-18: The proof-of-work toll is paid once per access token, one hour by default, and an operator MAY lower it by reputation to no proof at all.
+
+- 2026-10-18: The spending cap is exact: an operator serialises one assistant's payments, counts every unfinished cart, and stops counting a declined charge at once.
+
+- 2026-10-18: A repeat of the same unfinished `pay` chain is charged again under the same key and settled, not refused; `409 conflict` now means a declined chain or a reused mandate id.
+
 - 2026-10-17: Onboarding's sample initializer drops `user_id_column`, which repeats the default, and no longer lists a reservations table.
 
 - 2026-10-17: Onboarding configures `PaymentClaim` with the payable model (`model: "Order"`) instead of a table name, as the reference now takes it.
