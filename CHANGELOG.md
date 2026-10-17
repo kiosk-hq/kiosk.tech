@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-17: The wire is bearer-only: the MAY that let an operator's own sign-in session call a wire verb is gone.
+
 - 2026-10-17: `auth/link` and `auth/unlink` MUST refuse a request that is not `application/json`, so a page on another origin cannot use the human's session.
 
 - 2026-10-17: The reference keeps revocation watermarks in a database table and holds the spending cap under concurrent pays; onboarding no longer says a session cookie reaches the wire.
