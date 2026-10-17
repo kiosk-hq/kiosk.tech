@@ -105,8 +105,8 @@ openssl genrsa 2048 | base64
   # kiosk-server uses its bundled kiosk-pop engine (DefaultAgentIdp): it
   # verifies exactly the JWTs the register/login endpoints mint, so the
   # zero-config install works end-to-end. Set this only to front another
-  # agent-identity system or to compose adapters; `c.user_idp` additionally
-  # lets your existing session auth (Devise etc.) call the same endpoints.
+  # agent-identity system or to compose adapters. Your human sign-in (Devise
+  # etc.) is `c.user_idp`: the binding pages read it, the wire never does.
   # c.agent_idp = MyCustomAgentIdp.new
 
   # Registration mints a fresh principal (an "assistant account").

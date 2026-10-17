@@ -828,6 +828,12 @@ ceremony still succeeds, still returns a fresh `access_token`, and the key's
 previous tokens still stop verifying. An operator **MUST NOT** treat the no-op
 case specially, and the response is indistinguishable from any other rebind's.
 
+`POST <endpoint>/auth/link` and `POST <endpoint>/auth/unlink` authenticate
+with the operator's session, which a browser sends from any page of the same
+site, so an operator **MUST** refuse either one with `400 bad_request` unless
+its `Content-Type` is `application/json`: a page on another origin cannot send
+that type without a CORS preflight.
+
 `POST <endpoint>/auth/unlink` (operator
 session, `{agent_id}`) is registration-layer revocation: the key's tokens stop
 verifying and `/auth/login` answers `404` (Section 15.4). It answers
@@ -2274,7 +2280,9 @@ currency, not the sender's.
 
 > *Reference note (non-normative).* The Ruby reference enforces this via the
 > `config.spending_cap` pay-hook seam and ships a column-backed default
-> (`agents.spending_cap_cents`) editable from the manage-assistants page. It takes
+> (`agents.spending_cap_cents`) editable from the manage-assistants page. It
+> serialises one assistant's `pay` calls and counts every cart whose capture
+> may still run, so concurrent captures do not overshoot the cap. It takes
 > the Section 11.1 rule that is the operator's to take by CANONICALISING `currency`
 > at the point a signed mandate becomes a verified value -- trimmed and lower-cased
 > -- so the Section 11.2 comparisons, the persisted mandate and settlement rows, the
