@@ -128,40 +128,55 @@ Entry = Struct.new(:line, :text)
 # umbrella constitution names. Same fence tracker as `headings`, and the same
 # honest limit: an unbalanced fence hides what follows it.
 def full_entries(source)
-  out   = []
-  fence = nil
-  cur   = nil
-  source.each_line.map(&:chomp).each_with_index do |line, i|
-    if (m = line.match(/\A {0,3}(`{3,}|~{3,})/))
-      marker = m[1][0]
-      if fence.nil?
-        fence = marker
-      elsif fence == marker
-        fence = nil
-      end
-      cur[:body] << line if cur
-      next
-    end
-    if fence
-      cur[:body] << line if cur
-      next
-    end
-    if line.start_with?("- ")
-      out << cur if cur
-      cur = { line: i + 1, body: [line] }
-    elsif line.match?(/\A\#{1,6}[ \t]/)
-      out << cur if cur
-      cur = nil
-    elsif cur
-      cur[:body] << line
-    end
+  out = []
+  cur = nil
+  fence_marked(source.each_line.map(&:chomp)).each_with_index do |(line, code), i|
+    cur = code ? add_to_entry(cur, line) : entry_step(out, cur, line, i + 1)
   end
   out << cur if cur
   out.map { |e| Entry.new(e[:line], normalise_entry(e[:body])) }
 end
 
+# Returns the entry that is open after `line`; a closed entry goes to `out`.
+def entry_step(out, cur, line, number)
+  if line.start_with?('- ')
+    out << cur if cur
+    { line: number, body: [line] }
+  elsif line.match?(/\A\#{1,6}[ \t]/)
+    out << cur if cur
+    nil
+  else
+    add_to_entry(cur, line)
+  end
+end
+
+def add_to_entry(cur, line)
+  cur[:body] << line if cur
+  cur
+end
+
+FENCE = /\A {0,3}(`{3,}|~{3,})/
+
+# Pairs every line with true when it opens, closes or sits inside a fence.
+def fence_marked(lines)
+  fence = nil
+  lines.map do |line|
+    code  = !fence.nil? || line.match?(FENCE)
+    fence = next_fence(fence, line)
+    [line, code]
+  end
+end
+
+def next_fence(fence, line)
+  m = line.match(FENCE)
+  return fence unless m
+  return m[1][0] if fence.nil?
+
+  fence == m[1][0] ? nil : fence
+end
+
 def normalise_entry(body)
-  body.join(" ").sub(/\A-[ \t]+/, "").gsub(/\s+/, " ").strip
+  body.join(' ').sub(/\A-[ \t]+/, '').gsub(/\s+/, ' ').strip
 end
 
 # A scan, not a parser, and the header says so. Code spans, emphasis markers
@@ -171,19 +186,23 @@ end
 # abbreviation or a single-letter initial. An entry with no terminator at all
 # is one sentence, not zero.
 def sentence_count(text)
-  t = text.gsub(/`[^`]*`/, " CODE ")
-  t = t.gsub(/[*_]{1,3}/, "")
-  t = t.gsub(/\d+(?:\.\d+)+/, "NUM")
-  t = t.gsub("...", "…")
   n = 0
-  t.scan(/[.!?]+["'»”)\]]*(?=\s|\z)/) do
-    pre = Regexp.last_match.pre_match
-    next if ABBREVIATIONS.any? { |a| pre.match?(/(?:\A|[^A-Za-z])#{Regexp.escape(a)}\z/i) }
-    next if pre.match?(/(?:\A|\s)[A-Za-z]\z/)
-
-    n += 1
+  sentence_scan_text(text).scan(/[.!?]+["'»”)\]]*(?=\s|\z)/) do
+    n += 1 unless abbreviation_end?(Regexp.last_match.pre_match)
   end
   n.zero? ? 1 : n
+end
+
+def sentence_scan_text(text)
+  t = text.gsub(/`[^`]*`/, ' CODE ')
+  t = t.gsub(/[*_]{1,3}/, '')
+  t = t.gsub(/\d+(?:\.\d+)+/, 'NUM')
+  t.gsub('...', '…')
+end
+
+def abbreviation_end?(pre)
+  ABBREVIATIONS.any? { |a| pre.match?(/(?:\A|[^A-Za-z])#{Regexp.escape(a)}\z/i) } ||
+    pre.match?(/(?:\A|\s)[A-Za-z]\z/)
 end
 # <<< SHARED NEW-ENTRY RULE -- END
 
@@ -212,8 +231,8 @@ end
 # to be a release of; `kiosk.tech` publishes the skill cut and the pinned event
 # listener on independent numbers, so a bare 0.5.0 there names two different
 # files. Each repository's own CHANGELOG-RULE.md says which lines it has.
-UNRELEASED_HEADING   = "[Unreleased]"
-PRE_GROUPING_HEADING = "Before release sections"
+UNRELEASED_HEADING   = '[Unreleased]'
+PRE_GROUPING_HEADING = 'Before release sections'
 # Either dash is accepted and the em dash is what to write: a writer copying the
 # shape off an existing heading must not be refused over the hyphen that Keep a
 # Changelog itself uses.
