@@ -272,32 +272,38 @@
   ],
   "events": [
     {
-      "name": "order_payment",
-      "description": "An order of yours was paid -- by you, or by somebody paying on your behalf.",
+      "name": "order_delivery",
+      "description": "The order is on its way (`out_for_delivery`, with the courier's ETA) or at the door (`delivered`).",
       "reach": "principal",
       "payload_schema": {
         "type": "object",
         "additionalProperties": false,
         "required": [
           "order_id",
-          "payment_state"
+          "status"
         ],
         "properties": {
           "order_id": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
-          "payment_state": {
+          "status": {
             "enum": [
-              "paid",
-              "refunded"
+              "out_for_delivery",
+              "delivered"
             ]
+          },
+          "eta": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the courier arrives."
           }
         }
       },
       "examples": [
         {
           "order_id": "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e",
-          "payment_state": "paid"
+          "status": "delivered"
         }
       ]
     }

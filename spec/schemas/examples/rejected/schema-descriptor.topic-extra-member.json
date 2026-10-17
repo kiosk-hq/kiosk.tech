@@ -3,8 +3,8 @@
   "actions": [],
   "events": [
     {
-      "name": "order_payment",
-      "description": "An order of yours was paid.",
+      "name": "order_delivery",
+      "description": "The order is on its way or at the door.",
       "reach": "principal",
       "payload_schema": { "type": "object" },
       "subject_reachable": "members_of(list_id)"
