@@ -82,7 +82,6 @@ openssl genrsa 2048 | base64
   <pre><code class="language-ruby">Kiosk.configure do |c|
   c.user_model     = "User"          # your existing account model
   c.user_id_type   = :uuid           # MUST match your PK type — :uuid, :bigint, :integer, or :text
-  c.user_id_column = :id
 
   c.issuer = ENV.fetch("KIOSK_ISSUER", "https://your-domain.com")
   c.signing_key = Base64.decode64(ENV.fetch("KIOSK_SIGNING_KEY_B64"))
@@ -125,7 +124,7 @@ openssl genrsa 2048 | base64
   c.payment_provider = Kiosk::PaymentProviders::Stripe.new(api_key: ENV["STRIPE_SECRET_KEY"])
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code>, and every kiosk migration that carries a user id bakes that type in — the schema helper functions, the identity tables (the <code>kiosk.agents.user_id</code> FK), reservations, device authorizations and the mandate tables. The KYC tables, <code>kiosk.kyc_attributes</code> and <code>kiosk.kyc_requests</code>, take the type from <code>c.user_id_type</code> in the initializer when they are migrated. <code>kiosk.events</code> bakes in nothing: its <code>identity_key</code> is text the engine writes and reads and never joins to your <code>users</code>. The <code>stripe_customers</code> table below takes it from <code>c.user_id_type</code> too. If your <code>users.id</code> is a Rails-default <code>bigint</code>, <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches) and set <code>c.user_id_type = :bigint</code> — otherwise migrations fail with a datatype mismatch.</blockquote>
+  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code>, and every kiosk migration that carries a user id bakes that type in — the schema helper functions, the identity tables (the <code>kiosk.agents.user_id</code> FK), device authorizations and the mandate tables. The KYC tables, <code>kiosk.kyc_attributes</code> and <code>kiosk.kyc_requests</code>, take the type from <code>c.user_id_type</code> in the initializer when they are migrated. <code>kiosk.events</code> bakes in nothing: its <code>identity_key</code> is text the engine writes and reads and never joins to your <code>users</code>. The <code>stripe_customers</code> table below takes it from <code>c.user_id_type</code> too. If your <code>users.id</code> is a Rails-default <code>bigint</code>, <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches) and set <code>c.user_id_type = :bigint</code> — otherwise migrations fail with a datatype mismatch.</blockquote>
 
   <p>The adapter keeps each principal's Stripe Customer in a <code>stripe_customers</code> table, which one migration lays down:</p>
   <pre><code class="language-ruby"># db/migrate/…_create_stripe_customers.rb

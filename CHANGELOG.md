@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-17: Onboarding's sample initializer drops `user_id_column`, which repeats the default, and no longer lists a reservations table.
+
 - 2026-10-17: Onboarding configures `PaymentClaim` with the payable model (`model: "Order"`) instead of a table name, as the reference now takes it.
 
 - 2026-10-17: The landing says an owner's linked assistant sees every salon booking with its price; stylish no longer answers a separate revenue forecast row.
