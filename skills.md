@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.14.md` | **0.5** | **A WIRE CHANGE in payment and the toll.** A repeat of the same unfinished payment chain is charged again under the same key, so it cannot charge twice; a declined charge stops counting against an exact spending cap at once; the proof-of-work toll is paid once per access token. The listener `listen-v0.5.14.py` shows a delivery topic in its usage line. The skill is rewritten in Simplified Technical English. |
 | `skill-v0.5.13.md` | **0.5** | The same wire as 0.5.12. Once a card is saved, the assistant asks the human how much it may pay at that operator without asking, keeps the amount beside its key, and asks before any payment over it. |
 | `skill-v0.5.12.md` | **0.5** | The same wire as 0.5.11. A URL that carries a credential, like skooti's `unlock_url`, is handed to the human once, as a card-setup link is, and the token it carries is never pasted elsewhere. |
 | `skill-v0.5.11.md` | **0.5** | The same wire as 0.5.10. The assistant compares a pinned cut with its cached one as numbers, MAJOR, MINOR and PATCH each an integer, so 0.5.10 is newer than 0.5.9. |
@@ -75,10 +76,11 @@ while 0.4.12 opens a new wire group of which it stayed the only member and
 0.4.13 opens a new wire group after it in which 0.4.13 = 0.4.14 = 0.4.15,
 and 0.4.16 opens a new wire group in which
 0.4.16 = 0.4.17 = 0.5.0 = 0.5.1,
-and 0.5.2 opens a new wire group, the one served now, in which
+and 0.5.2 opens a new wire group in which
 0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8 = 0.5.9 = 0.5.10 = 0.5.11 = 0.5.12 = 0.5.13,
-but the six groups are NOT the same wire, and only the last describes
-what a 0.5.13 operator serves. The formal spec
+and 0.5.14 opens a new wire group, the one served now, of which it is the only member,
+but the seven groups are NOT the same wire, and only the last describes
+what a 0.5.14 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

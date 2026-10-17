@@ -10,6 +10,12 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.14 · listener 0.5.14] — 2026-10-18
+
+- 2026-10-18: **Skill 0.5.14 is written in Simplified Technical English**, sends the same chain again after a lost or unknown payment, and pays the toll once per access token.
+
+- 2026-10-18: Listener 0.5.14 shows `--topic order_delivery:<order-id>` in its usage line, a topic the demos publish.
+
 - 2026-10-18: The landing and onboarding say the demos toll once per session at full strength, and a customer who spent there recently pays none.
 
 - 2026-10-18: The proof-of-work toll is paid once per access token, one hour by default, and an operator MAY lower it by reputation to no proof at all.
