@@ -1484,6 +1484,7 @@ descriptor carrying:
 | `description` | REQUIRED | Prose semantics, a string or `null`, on the same terms as a verb's. |
 | `reach` | REQUIRED | Whose events a subscriber may read: `principal`, `published`, `consented` or `role` -- the same four values, with the same meanings, as a verb's `reach` (Section 7.2). |
 | `payload_schema` | REQUIRED | JSON Schema for the event's `data`. |
+| `examples` | OPTIONAL | An array of example `data` objects, each satisfying `payload_schema`. They illustrate the contract; where an example and the schema disagree, the schema is right. |
 
 **A topic descriptor carries the members named above and NO OTHERS.**
 
@@ -2726,7 +2727,8 @@ The operator-authored strings an AI assistant reads are, for this protocol:
 
 - **the catalog** (Section 8.3) -- a verb's `description`; every `title`,
   `description`, `$comment`, `default` and `enum` member inside its
-  `input_schema` and `output_schema`; and `example_params` and `example_row`;
+  `input_schema` and `output_schema`; `example_params` and `example_row`; and a
+  topic's `description`, `payload_schema` and `examples`;
 - **the discovery document** (Section 4.1) -- `owner` and `min_client`;
 - **a problem document** (Section 9) -- `title`, `detail`, `hint`, and any
   extension member the operator adds;

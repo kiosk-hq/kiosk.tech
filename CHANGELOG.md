@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-17: A topic descriptor may carry `examples`, example payloads that satisfy its `payload_schema`.
+
 ## [skill 0.5.13] — 2026-10-11
 
 - 2026-10-11: **Skill 0.5.13 asks how much it may spend without asking**: once a card is saved the assistant keeps the human's amount and asks before any payment over it.
