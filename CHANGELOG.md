@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-17: Onboarding configures `PaymentClaim` with the payable model (`model: "Order"`) instead of a table name, as the reference now takes it.
+
 - 2026-10-17: The landing says an owner's linked assistant sees every salon booking with its price; stylish no longer answers a separate revenue forecast row.
 
 - 2026-10-17: The wire is bearer-only: the MAY that let an operator's own sign-in session call a wire verb is gone.
