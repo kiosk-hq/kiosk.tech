@@ -65,7 +65,8 @@
   <p><strong>These lines install from git.</strong> No Kiosk gem is on RubyGems yet, so <code>bundle add kiosk-all</code> and a bare <code>gem "kiosk-all"</code> do not resolve. Publication status and the canonical install are stated once, in the reference monorepo's <a href="https://github.com/kiosk-hq/kiosk#install">Install</a> section; when the gems ship, that is where the <code>github:</code> qualifier comes off.</p>
   <pre><code class="language-ruby"># Gemfile
 gem "kiosk-all",        github: "kiosk-hq/kiosk"   # meta-gem: kiosk-core + kiosk-server
-gem "kiosk-pay-stripe", github: "kiosk-hq/kiosk"   # Stripe card-on-file payment adapter (this walkthrough uses it)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+gem "kiosk-pay-stripe", github: "kiosk-hq/kiosk"   # Stripe card-on-file payment adapter (this walkthrough uses it)
+gem "jbuilder"                                     # the views that shape each answer; `rails new` adds it</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-bash">bundle install
 rails generate kiosk:install                # the kiosk migrations, initializer and the kiosk routes block
 rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
@@ -174,7 +175,7 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <h2>Step 4: Declare your queries</h2>
   <p>Queries are read-only data access. Agents use them to browse your catalog. Write the controller in <code>app/controllers/kiosk/</code>: the engine loads that directory and registers every class that includes <code>Kiosk::Handler</code>.</p>
 
-  <p>They live in <strong>controllers you own</strong>. Kiosk ships a mixin — <code>include Kiosk::Handler</code> into a controller with whatever superclass you use, and that include is the whole of the contract on the class side. Each class-level macro records a declaration; the <strong>next <code>def</code></strong> claims all pending ones and becomes a wire verb. A method with no declarations above it is not a verb, so private helpers stay invisible to agents. <code>kind :query</code> or <code>kind :action</code> says which verb reaches each one — a property of the <em>declaration</em>, so one controller may declare both. Inside a handler you are in an ordinary Rails action: <code>params</code>, <code>before_action</code> and <code>rescue_from</code> all apply, <code>kiosk_identity</code> is the principal the wire resolved (its <code>user_id</code> is your own model's PK), and whatever you <code>render json:</code> is the verb's result. The handler runs inside the wire's scoped transaction, so per-principal SQL scoping (and RLS, where you opted in) applies without you wiring anything.</p>
+  <p>They live in <strong>controllers you own</strong>. Kiosk ships a mixin — <code>include Kiosk::Handler</code> into a controller with whatever superclass you use, and that include is the whole of the contract on the class side. Each class-level macro records a declaration; the <strong>next <code>def</code></strong> claims all pending ones and becomes a wire verb. A method with no declarations above it is not a verb, so private helpers stay invisible to agents. <code>kind :query</code> or <code>kind :action</code> says which verb reaches each one — a property of the <em>declaration</em>, so one controller may declare both. Inside a handler you are in an ordinary Rails action: <code>params</code>, <code>before_action</code> and <code>rescue_from</code> all apply, <code>kiosk_identity</code> is the principal the wire resolved (its <code>user_id</code> is your own model's PK), and what the action renders is the verb's result. getgrocery's actions set instance variables and let Rails render the action's Jbuilder view in <code>app/views/kiosk/</code>; the wire renders the JSON template whatever <code>Accept</code> the caller sent. The handler runs inside the wire's scoped transaction, so per-principal SQL scoping (and RLS, where you opted in) applies without you wiring anything.</p>
 
   <blockquote><strong>Two things to know.</strong> Handler controllers are <em>not routable</em> — do not draw a route at one. They are reached only through the Kiosk wire, which is where authentication, the PoW gate and the transaction live; a direct request answers 404. And <strong>a handler outside <code>app/controllers/kiosk/</code> is not loaded in development</strong>, where nothing else references it. The engine re-registers handlers after every code reload, so an edited, added <em>or removed</em> verb lands without restarting the server. Registration is not reachability, though: a newly declared verb is in the catalog as soon as the file reloads, and answers on the wire once its name is in Step 3's <code>kiosk</code> block.</blockquote>
 
@@ -287,17 +288,19 @@ class Kiosk::CatalogController &lt; ActionController::API
     price_eur: "€4.49", currency: "eur",
   })
   def catalog
-    render json: Product.in_stock.order(:name).map { |product|
-      row = { "sku"         =&gt; product.sku,
-              "name"        =&gt; product.name,
-              "price_cents" =&gt; product.price_cents,
-              "price_eur"   =&gt; Product.format_eur(product.price_cents),
-              "currency"    =&gt; "eur" }
-      row["low"] = true if product.low_stock?
-      row["age_restricted"] = true if product.age_restricted?
-      row
-    }
+    @products = Product.in_stock.order(:name)
   end
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The action loads the products; its view shapes the answer. <code>ignore_nil!</code> leaves <code>low</code> and <code>age_restricted</code> out unless they are true, as the <code>output_schema</code> says:</p>
+  <pre><code class="language-ruby"># app/views/kiosk/catalog/catalog.json.jbuilder
+json.ignore_nil!
+json.array! @products do |product|
+  json.extract! product, :sku, :name, :price_cents
+  json.price_eur Product.format_eur(product.price_cents)
+  json.currency "eur"
+  json.low product.low_stock? || nil
+  json.age_restricted product.age_restricted? || nil
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p><code>app/controllers/kiosk/delivery_slots_controller.rb</code>:</p>
@@ -339,18 +342,18 @@ class Kiosk::DeliverySlotsController &lt; ActionController::API
                 label:    "08:00–10:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
                 timezone: DeliverySlots::DEFAULT_ZONE_NAME, district: "D02" })
   def delivery_slots
-    search = SlotSearch.new(delivery_address: params[:delivery_address], date: params[:date],
-                            caller_zone: Kiosk::Server::CurrentRequest.timezone)
-    search.validate!
-
-    zone = search.zone
-    render json: DeliverySlots.bookable(search.day, zone).map { |slot_at|
-      { "slot_at"  =&gt; slot_at.iso8601,
-        "label"    =&gt; DeliverySlots.label(slot_at, zone),
-        "timezone" =&gt; zone.name,
-        "district" =&gt; search.district }
-    }
+    @search = SlotSearch.new(delivery_address: params[:delivery_address], date: params[:date],
+                             caller_zone: Kiosk::Server::CurrentRequest.timezone)
+    @search.validate!
   end
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <pre><code class="language-ruby"># app/views/kiosk/delivery_slots/delivery_slots.json.jbuilder
+zone = @search.zone
+json.array! DeliverySlots.bookable(@search.day, zone) do |slot_at|
+  json.slot_at slot_at.iso8601
+  json.label DeliverySlots.label(slot_at, zone)
+  json.timezone zone.name
+  json.district @search.district
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The handler checks nothing itself. Its arguments are validated in a model, the way an order is in Step 5: <code>search.validate!</code> raises on a refusal, and the engine answers <code>400</code> with the model's own messages. <code>served_address: true</code> is getgrocery's <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/validators/served_address_validator.rb"><code>ServedAddressValidator</code></a>, which accepts a Dublin address in a district the shop serves.</p>
@@ -475,6 +478,7 @@ class Kiosk::OrdersController &lt; ActionController::API
   include Kiosk::Handler
 
   ORDER_ID = "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e"
+  ETA      = DeliverySlots.starts(DeliverySlots.default_zone.tomorrow).first + 40.minutes
 
   topic :order_delivery do
     description "The order is on its way (`out_for_delivery`, with the courier's ETA) or at the " \
@@ -487,8 +491,9 @@ class Kiosk::OrdersController &lt; ActionController::API
                                  eta_label: { type: "string", description: "The ETA as a human reads it." },
                                  timezone:  { type: "string", description: "The delivery address's IANA zone." } },
                    required: %w[order_id status]
-    example order_id: ORDER_ID, status: "out_for_delivery", eta: "2026-10-18T09:40:00Z",
-            eta_label: "10:40 (Europe/Dublin)", timezone: "Europe/Dublin"
+    example order_id: ORDER_ID, status: "out_for_delivery", eta: ETA.utc.iso8601,
+            eta_label: DeliverySlots.clock_label(ETA, DeliverySlots.default_zone),
+            timezone: DeliverySlots::DEFAULT_ZONE_NAME
     example order_id: ORDER_ID, status: "delivered"
     subject_reachable -&gt;(order_id, identity) { Order.readable_by?(order_id, identity.user_id) }
   end
@@ -511,20 +516,12 @@ class Kiosk::OrdersController &lt; ActionController::API
                     address:       { type: "string" },
                     payment_state: { type: "string", enum: %w[unpaid pending paid],
                                      description: "`pending`: a charge is under way, so wait and " \
-                                                  "re-read. Only `unpaid` calls for a new mandate." },
+                                                  "read again. Pay again only on `unpaid`." },
                   },
                   required: %w[order_id status total_cents slot_at slot_label address payment_state],
                 }
   def my_orders
-    render json: Order.own.with_settlement(Kiosk::Settlement.own).order(created_at: :desc).map { |order|
-      { "order_id"      =&gt; order.id,
-        "status"        =&gt; order.status,
-        "total_cents"   =&gt; order.total_cents,
-        "slot_at"       =&gt; order.slot_at.in_time_zone(order.zone).iso8601,
-        "slot_label"    =&gt; DeliverySlots.label(order.slot_at, order.zone),
-        "address"       =&gt; order.address,
-        "payment_state" =&gt; order.payment_state }
-    }
+    @orders = Order.own.with_settlement(Kiosk::Settlement.own).order(created_at: :desc)
   end
 
   kind :action
@@ -554,14 +551,14 @@ class Kiosk::OrdersController &lt; ActionController::API
                 description: "The order, priced.",
                 additionalProperties: false,
                 properties: {
-                  order_id:    { type: "string", description: "Name it in the cart mandate." },
+                  order_id:    { type: "string", description: "Put it in the cart you sign, as `pay_hint` says." },
                   total_cents: { type: "integer", description: "EUR cents; sign the cart at exactly this total." },
                   total_eur:   { type: "string", description: "The total as a human reads it." },
                   currency:    { type: "string" },
                   slot_at:     { type: "string", description: "The delivery window's start." },
                   slot_label:  { type: "string", description: "The window as a human reads it." },
                   timezone:    { type: "string", description: "The delivery address's IANA zone." },
-                  pay_hint:    { type: "string", description: "The cart mandate this order expects." },
+                  pay_hint:    { type: "string", description: "How to pay for this order." },
                 },
                 required: %w[order_id total_cents total_eur currency slot_at slot_label timezone pay_hint]
   example_params({
@@ -574,10 +571,10 @@ class Kiosk::OrdersController &lt; ActionController::API
     slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
     slot_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
     timezone: DeliverySlots::DEFAULT_ZONE_NAME,
-    pay_hint: "pay in EUR with a cart mandate whose line_items mirror this order …",
+    pay_hint: "Call `pay` in EUR with a cart mandate (a signed cart) for exactly this order …",
   })
   def create_order
-    render json: CreateOrderOperation.call(
+    @order = CreateOrderOperation.call(
       customer_id:      kiosk_identity.user_id,
       items:            params[:items].map { _1.permit(:sku, :qty).to_h.symbolize_keys },
       slot_at:          params[:slot_at],
@@ -615,7 +612,7 @@ class Kiosk::OrdersController &lt; ActionController::API
                 rescheduled_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
                 timezone: DeliverySlots::DEFAULT_ZONE_NAME })
   def reschedule_delivery
-    render json: RescheduleDeliveryOperation.call(
+    @order = RescheduleDeliveryOperation.call(
       order_id:         params[:order_id],
       slot_at:          params[:slot_at],
       delivery_address: params[:delivery_address],
@@ -623,10 +620,37 @@ class Kiosk::OrdersController &lt; ActionController::API
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The actions hand their work to an operation each:</p>
+  <p>One view per verb:</p>
+  <pre><code class="language-ruby"># app/views/kiosk/orders/my_orders.json.jbuilder
+json.array! @orders do |order|
+  json.order_id order.id
+  json.extract! order, :status, :total_cents
+  json.slot_at order.slot_at.in_time_zone(order.zone).iso8601
+  json.slot_label DeliverySlots.label(order.slot_at, order.zone)
+  json.extract! order, :address, :payment_state
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <pre><code class="language-ruby"># app/views/kiosk/orders/create_order.json.jbuilder
+json.order_id @order.id
+json.total_cents @order.total_cents
+json.total_eur Product.format_eur(@order.total_cents)
+json.currency "eur"
+json.slot_at @order.slot_at.in_time_zone(@order.zone).iso8601
+json.slot_label DeliverySlots.label(@order.slot_at, @order.zone)
+json.timezone @order.timezone
+json.pay_hint "Call `pay` in EUR with a cart mandate (a signed cart) for exactly this order. " \
+              "Its line_items: one {\"order_id\": \"#{@order.id}\"} entry, then one " \
+              "{\"sku\", \"qty\", \"price_cents\"} entry per item at catalog prices. " \
+              "The shop checks the currency, prices and total before it charges."</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <pre><code class="language-ruby"># app/views/kiosk/orders/reschedule_delivery.json.jbuilder
+json.order_id @order.id
+json.rescheduled_at @order.slot_at.in_time_zone(@order.zone).iso8601
+json.rescheduled_label DeliverySlots.label(@order.slot_at, @order.zone)
+json.timezone @order.timezone</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The actions hand their work to an operation each, which returns the order the view renders:</p>
   <pre><code class="language-ruby"># app/operations/create_order_operation.rb
 # Places one order for the customer: the basket, its delivery window and
-# address, priced at catalogue prices. Raises a wire error on a refusal.
+# address, priced at catalogue prices. Returns the order; raises a wire error on a refusal.
 class CreateOrderOperation
   def self.call(customer_id:, items:, slot_at:, delivery_address:)
     zone     = DeliverySlots.zone_at(delivery_address)
@@ -643,25 +667,12 @@ class CreateOrderOperation
     Kiosk::Server::Kyc.require! if order.order_items.any? { _1.product.age_restricted? }
 
     order.update!(total_cents: order.order_items.sum { _1.product.price_cents * _1.qty })
-
-    {
-      order_id:    order.id,
-      total_cents: order.total_cents,
-      total_eur:   Product.format_eur(order.total_cents),
-      currency:    "eur",
-      slot_at:     order.slot_at.in_time_zone(zone).iso8601,
-      slot_label:  DeliverySlots.label(order.slot_at, zone),
-      timezone:    zone.name,
-      pay_hint:    "pay in EUR with a cart mandate whose line_items mirror this order: " \
-                   "one {\"order_id\": \"#{order.id}\"} entry plus one " \
-                   "{\"sku\", \"qty\", \"price_cents\"} entry per item at catalog prices — " \
-                   "the operator verifies currency, prices, and total before charging",
-    }
+    order
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-ruby"># app/operations/reschedule_delivery_operation.rb
 # Moves a paid order to another delivery window, and optionally another
-# address, on the payment it already has. Raises a wire error on a refusal.
+# address, on the payment it already has. Returns the order; raises a wire error on a refusal.
 class RescheduleDeliveryOperation
   def self.call(order_id:, slot_at:, delivery_address:)
     order = Order.own.reschedulable.find_by(id: order_id)
@@ -675,11 +686,7 @@ class RescheduleDeliveryOperation
     order.assign_attributes(status: :rescheduled, address: address, timezone: zone.name, slot_at: slot_at)
     order.save!(context: :reschedule)
     CourierDispatchJob.arm!(order.id)
-
-    { order_id:          order.id,
-      rescheduled_at:    order.slot_at.in_time_zone(zone).iso8601,
-      rescheduled_label: DeliverySlots.label(order.slot_at, zone),
-      timezone:          zone.name }
+    order
   end
 
   def self.refuse(message)

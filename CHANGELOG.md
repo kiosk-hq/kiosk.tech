@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-17: Onboarding renders each answer with a Jbuilder view, as getgrocery now does, and quotes its current controllers, views and operations.
+
 - 2026-10-17: Onboarding teaches getgrocery as it now stands: controllers by resource, orders take a window's `slot_at`, validation lives in the models, topics carry examples.
 
 - 2026-10-17: A topic descriptor may carry `examples`, example payloads that satisfy its `payload_schema`.
