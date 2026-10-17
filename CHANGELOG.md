@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-17: The landing says an owner's linked assistant sees every salon booking with its price; stylish no longer answers a separate revenue forecast row.
+
 - 2026-10-17: The wire is bearer-only: the MAY that let an operator's own sign-in session call a wire verb is gone.
 
 - 2026-10-17: `auth/link` and `auth/unlink` MUST refuse a request that is not `application/json`, so a page on another origin cannot use the human's session.
