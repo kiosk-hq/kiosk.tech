@@ -38,7 +38,7 @@
     <p>A Postgres row-level-security policy denied the statement. Seen only at operators running Kiosk’s opt-in RLS, where the database enforces the identity scoping a second time.</p>
 
     <h2>What to do next</h2>
-    <p>The acting identity is not permitted to touch those rows; retrying unchanged fails again. This is the database refusing, not the application — for the caller it is indistinguishable from <code>forbidden</code> in consequence, and it is a separate code so an operator can tell the two apart in their own logs.</p>
+    <p>The acting identity is not permitted to touch those rows; retrying unchanged fails again. This is the database refusing — for the caller it is indistinguishable from <code>forbidden</code> in consequence, and it is a separate code so an operator can tell the two apart in their own logs.</p>
 
     <h2>On the wire</h2>
     <pre><code>{
