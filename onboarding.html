@@ -50,14 +50,14 @@
 <a href="/" class="back">← kiosk.tech</a>
 <article>
   <h1>Operator onboarding — from install to agent-ready</h1>
-  <p class="intro">A step-by-step guide for adding Kiosk to an existing Rails app. The controller shape below is kiosk-server's own — the two class names <code>rails generate kiosk:install</code> writes into your initializer as its worked example — and the domain it is worked through is the <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a> demo provider's: a grocery catalogue, delivery windows, a settlement-gated reschedule.</p>
+  <p class="intro">A step-by-step guide for adding Kiosk to an existing Rails app, worked through the <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a> demo operator: a grocery catalogue, delivery windows, and orders that are paid and can be moved once.</p>
 
-  <p class="intro"><strong>So the class names here are illustrative, and the demo's are different.</strong> <code>Kiosk::CatalogController</code> and <code>Kiosk::OrdersController</code> are this page's examples; getgrocery names its own handlers for its own domain and ships <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/storefront_controller.rb"><code>Kiosk::StorefrontController</code></a> (the read half — <code>catalog</code>, <code>delivery_slots</code>, <code>my_orders</code>) beside <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/orders_controller.rb"><code>Kiosk::OrdersController</code></a>. There is no <code>CatalogController</code> in that demo to grep for. Name yours after your own domain too — nothing depends on the word "catalog".</p>
+  <p class="intro">The controllers below are getgrocery's own, one per resource: <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/catalog_controller.rb"><code>Kiosk::CatalogController</code></a>, <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/delivery_slots_controller.rb"><code>Kiosk::DeliverySlotsController</code></a> and <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/orders_controller.rb"><code>Kiosk::OrdersController</code></a>. Name yours after your own domain; nothing depends on the word "catalog".</p>
   <p><strong>Check this first.</strong> <code>kiosk-server</code> declares <code>railties</code>, <code>actionpack</code>, <code>activerecord</code> and <code>activesupport</code> at <code>~&gt; 8.1</code>, so this integration needs <strong>Rails 8.1</strong>: <strong>Rails 7.x and 8.0.x are excluded</strong> and bundler will refuse to resolve against an app on either. Older Rails lines are untested, so they are not claimed. You also need <strong>Ruby 3.2.0 or newer</strong> — the floor every Kiosk gemspec declares — and <strong>PostgreSQL</strong>, which is the only database Kiosk supports.</p>
   <p>Two scopes, assuming a working Rails 8.1 + Postgres app you already know:</p>
   <ul>
-    <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, draw the routes, declare a couple of read-only queries in a controller by adapting the examples below, name that controller in the initializer, and verify discovery + one query. That's the minimal agent-ready surface.</li>
-    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> migration and payment-adapter wiring, actions that gate on a settlement, PK-type matching across the kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
+    <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, draw the routes, declare a couple of read-only queries in a controller by adapting the examples below, name them in the <code>kiosk</code> routes block, and verify discovery + one query. That's the minimal agent-ready surface.</li>
+    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> migration and payment-adapter wiring, an action that gates on payment, PK-type matching across the kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
   </ul>
   <p>The steps below walk the full payments integration <em>assuming you already have the accounts and keys in hand</em>; they don't cover Stripe signup, or debugging your own catalog's queries.</p>
 
@@ -189,651 +189,525 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>A parameter name written in prose is checked by nobody: it drifts away from the handler that consumes it, an assistant sends exactly what your sentence told it to send, and the call 400s. In the schema it is stated in the one place that can be checked. (There is no <code>params:</code> hint macro, for the same reason — a hint is either a constraint, which belongs in the schema, or a meaning, which belongs in the description — and a descriptor may not publish the key on the wire either, not even as null.)</p>
   <blockquote><strong>Both schemas are REQUIRED, and the input one is enforced.</strong> <code>input_schema</code> and <code>output_schema</code> are protocol requirements: a verb declared without either fails the boot, naming the verb and the missing macro. And <code>input_schema</code> is not merely published — the wire <strong>validates every request against it before your handler runs</strong>, unconditionally. A parameter you did not declare is refused with a typed <code>400 bad_request</code> naming it (<code>object property at `/user_id` is a disallowed additional property</code>), which is why <code>additionalProperties: false</code> below is load-bearing rather than tidy. The full rules are the <a href="/spec/descriptor-house-style.md">descriptor house style</a>.</blockquote>
 
-  <p>Errors are Rails' idiom, end to end. The wire's error <code>code</code> vocabulary is a closed table of seventeen, and three Rails-native moves cover it: <strong>render the code</strong> — <code>render json: { error: { code: "bad_request", message: "…" } }, status: :bad_request</code> — a body naming an in-vocabulary code that agrees with the rendered status travels to the assistant verbatim; <strong>raise what you would raise anyway</strong> — <code>params.require</code>, <code>ActiveRecord::RecordNotFound</code>, a failed <code>create!</code> — and the one <code>rescue_from</code> the include installs maps it by the status Rails already knows for it (a missing param answers <code>bad_request</code>, a lookup miss <code>not_found</code> — the addressed-thing-is-absent 404, which is a different fact from the unregistered-name <code>verb_not_found</code> in the vocabulary — a validation failure <code>bad_request</code>); and only a code a bare status cannot name (<code>rls_denied</code>, a <em>specific</em> 402) needs the explicit <code>{ error: { code: … } }</code> body. No Kiosk error classes in handler code.</p>
+  <p>Errors are Rails' idiom, end to end. The wire's error <code>code</code> vocabulary is a closed table of seventeen, and three Rails-native moves cover it: <strong>render the code</strong> — <code>render json: { error: { code: "bad_request", message: "…" } }, status: :bad_request</code> — a body naming an in-vocabulary code that agrees with the rendered status travels to the assistant verbatim; <strong>raise what you would raise anyway</strong> — <code>params.require</code>, <code>ActiveRecord::RecordNotFound</code>, a failed <code>create!</code> — and the one <code>rescue_from</code> the include installs maps it by the status Rails already knows for it (a missing param answers <code>bad_request</code>, a lookup miss <code>not_found</code> — the addressed-thing-is-absent 404, which is a different fact from the unregistered-name <code>verb_not_found</code> in the vocabulary — a validation failure <code>bad_request</code>, carrying the model's own messages); and only a code a bare status cannot name (<code>rls_denied</code>, a <em>specific</em> 402) needs the explicit <code>{ error: { code: … } }</code> body. No Kiosk error classes in handler code.</p>
   <blockquote><strong>What the assistant actually receives is not that hash.</strong> <code>{ error: { code: … } }</code> is the <em>handler-side</em> spelling; the wire renders every refusal as an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document, served as <code>application/problem+json</code>, with the code as a <strong>flat</strong> member — so the two are never confused:
   <pre><code class="language-json">{"type":"https://kiosk.tech/problems/bad_request",
  "title":"Malformed request","status":400,
  "detail":"unknown sku(s): nope","code":"bad_request"}</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   Your <code>message</code> becomes <code>detail</code>, your <code>code</code> stays <code>code</code>, and <code>type</code> is <code>https://kiosk.tech/problems/&lt;code&gt;</code> — an identifier, not a page to fetch. An assistant branches on <code>code</code>.</blockquote>
 
-  <blockquote><strong>On the raise-and-map path the CODE travels and the exception's own SENTENCE does not.</strong> That branch exists for exceptions you did not author &mdash; &ldquo;no Kiosk error classes in handler code&rdquo; is its whole purpose &mdash; so its message would be some library's wording (a sentence in the shape of actionpack's &ldquo;param is missing or the value is empty or invalid: sku&rdquo;) and it moves when a dependency moves. What the assistant receives instead is this engine's own sentence for the code the seam decided, plus a <code>hint</code> &mdash; for <code>bad_request</code>, <code>check the arguments against this verb's input_schema — GET .../schema publishes it.</code> &mdash; while the exception's class, message and backtrace go to your <code>Rails.logger</code>, where the diagnosis belongs and where the assistant could not have acted on it anyway.
+  <blockquote><strong>On the raise-and-map path the CODE travels and the exception's own SENTENCE does not.</strong> That branch exists for exceptions you did not author &mdash; &ldquo;no Kiosk error classes in handler code&rdquo; is its whole purpose &mdash; so its message would be some library's wording (a sentence in the shape of actionpack's &ldquo;param is missing or the value is empty or invalid: sku&rdquo;) and it moves when a dependency moves. What the assistant receives instead is this engine's own sentence for the code the seam decided, plus a <code>hint</code> &mdash; for <code>bad_request</code>, <code>check the arguments against this verb's input_schema — GET .../schema publishes it.</code> &mdash; while the exception's class, message and backtrace go to your <code>Rails.logger</code>, where the diagnosis belongs and where the assistant could not have acted on it anyway. A failed validation (<code>ActiveRecord::RecordInvalid</code>, <code>ActiveModel::ValidationError</code>) is the exception: its messages are written for the caller, so they travel as <code>detail</code>.
   <br><br><strong>So when you mean to say something to the assistant, say it deliberately.</strong> Two routes never reach that branch and carry your words verbatim: <em>render the envelope</em> with your own <code>message</code>, or <em>raise a <code>Kiosk::Server::Errors</code> class</em> with your own <code>message:</code> and <code>hint:</code> &mdash; the seam re-raises those untouched. &ldquo;No Kiosk error classes in handler code&rdquo; is the default, not a prohibition: it is what you write when you have nothing of your own to say.</blockquote>
 
-  <p>Delivery slots come up in both a query and an action below, so the arithmetic that says what a slot id <em>means</em> lives in one place — <code>app/models/delivery_slots.rb</code>, a plain Ruby module Rails autoloads; nothing to <code>require</code>:</p>
+  <p>A delivery window is offered by one verb and booked by two, so its arithmetic lives in one place — <code>app/models/delivery_slots.rb</code>, a plain Ruby module Rails autoloads. A window is named by its start, <code>slot_at</code>: an ISO 8601 time with its offset, which <code>delivery_slots</code> publishes and the two actions take back unchanged.</p>
   <pre><code class="language-ruby"># app/models/delivery_slots.rb
-#
-# The query that OFFERS a window and the action that BOOKS it must derive the
-# time from the same (date, slot_id) pair. When they each did their own
-# arithmetic, getgrocery booked deliveries for a day the assistant was never
-# shown. Keep it here and call it from both.
+# Two-hour delivery windows from 08:00, on the clock of the delivery district.
+# Every verb that offers, books, moves or reads a window computes it here.
 module DeliverySlots
-  FIRST_HOUR   = 8               # slot 1 opens at 08:00
-  WINDOW_HOURS = 2               # each window is two hours
-  COUNT        = 6               # so slot 6 (18:00-20:00) is the last
-  ZONE_NAME    = "Europe/Dublin" # the zone of the PLACE THE SERVICE HAPPENS.
-                                 # A DEFAULT: the clock belongs
-                                 # to the thing being SERVED, so the moment you
-                                 # serve two places you record it per place and
-                                 # this is only what fills that column.
-                                 # A real IANA zone, so DST is handled
+  FIRST_HOUR   = 8
+  WINDOW_HOURS = 2
+  COUNT        = 6
+
+  # After payment the shop picks the basket, then the courier drives it over.
+  PICKING = 20..30 # minutes
+  DRIVE   = 5.minutes
+
+  # The origin's zone, used where no address is involved: published examples.
+  DEFAULT_ZONE_NAME = "Europe/Dublin"
 
   module_function
 
-  def zone
-    Time.find_zone!(ZONE_NAME)
+  def default_zone = Time.find_zone!(DEFAULT_ZONE_NAME)
+
+  # The clock of the address's district; the origin's for an address it does not serve.
+  def zone_at(address) = Time.find_zone!(DublinZones::ZONES.fetch(DublinZones.check(address).district, DEFAULT_ZONE_NAME))
+
+  # Today, or tomorrow once today's last window has closed.
+  def soonest_date(zone)
+    today = zone.today
+    bookable(today, zone).empty? ? today + 1 : today
   end
 
-  # "Now" at the service place — the reference point for every date question
-  # below. Never `Date.today`, which reads the SERVER PROCESS's zone: around
-  # midnight a server-zone answer differs from the service-place one, and then
-  # delivery_slots refuses a day create_order still accepts. The process zone
-  # is a property of the box you deployed to, and nobody chose it.
-  def now
-    zone.now
+  # Each window's start on `date`, on the clock of `zone`.
+  def starts(date, zone = default_zone)
+    Array.new(COUNT) { date.in_time_zone(zone).change(hour: FIRST_HOUR + _1 * WINDOW_HOURS) }
   end
 
-  # THE DAY A PUBLISHED EXAMPLE NAMES: tomorrow, at the service place.
-  #
-  # `example_params` says "copy this verbatim", so a calendar literal written
-  # there stops being true on a day nobody notices — a date before today is
-  # refused, so a frozen literal ages into a 400. Tomorrow rather than today
-  # because every window of a future day is still bookable.
-  def example_date
-    now.to_date + 1
+  def start?(time, zone) = starts(time.in_time_zone(zone).to_date, zone).include?(time)
+
+  # "08:00–10:00 (Europe/Dublin)".
+  def label(time, zone = default_zone)
+    hour = time.in_time_zone(zone).hour
+    format("%02d:00–%02d:00 (%s)", hour, hour + WINDOW_HOURS, zone.name)
   end
 
-  # A DATE ON THE WIRE IS `YYYY-MM-DD`, AND NOTHING ELSE. One declared type
-  # admits one spelling — the same rule the wire already applies to an
-  # `integer` and to a `boolean`, and the reason every verb here that takes a
-  # day declares `format: "date"`. A machine is on the other end of the call and
-  # every row you hand it carries the day in this spelling, so a second way to
-  # write one buys nothing and costs the ambiguous case: `09/01/2026` is
-  # day-first to some senders and month-first to others.
-  #
-  # `Date.iso8601` BEHIND the pattern and not instead of it. ISO 8601 is a
-  # FAMILY: the basic form with no separators, a full datetime, an ISO week
-  # date and an ordinal date all parse through it, so on its own it would accept
-  # four spellings your description does not name — and one of them silently
-  # discards an hour the sender may have meant. What the parse is still for is
-  # the value that has the right shape and is not a day: a 30th of February.
-  #
-  # Nil rather than an exception, because the caller owns the sentence: each
-  # verb names the row an assistant gets a right value from, and those are
-  # different rows. Note what this method does NOT read: any clock. A partial
-  # value has nowhere to get the rest of itself from, so it is refused rather
-  # than completed, and the same string means the same day on every server.
-  ISO_DATE = /\A\d{4}-\d{2}-\d{2}\z/
-
-  def iso_date(raw)
-    value = raw.to_s
-    return nil unless ISO_DATE.match?(value)
-
-    begin
-      Date.iso8601(value)
-    rescue ArgumentError, TypeError
-      nil
-    end
+  # A window takes orders while a basket paid now still reaches the door inside it.
+  def closed?(slot_at)
+    (slot_at + WINDOW_HOURS.hours - PICKING.max.minutes - DRIVE).past?
   end
 
-  def slot_at(date, slot_id)
-    hour = FIRST_HOUR + (slot_id.to_i - 1) * WINDOW_HOURS
-    zone.local(date.year, date.month, date.day, hour, 0)
-  end
+  def bookable(date, zone) = starts(date, zone).reject { closed?(_1) }
 
-  # The window a HUMAN is read out, with the zone it is written in beside it.
-  # `slot_at` carries the resolved offset and is unambiguous already; nobody
-  # says an offset out loud, so the zone goes where the wall clock goes.
-  def label(slot_id)
-    hour = FIRST_HOUR + (slot_id.to_i - 1) * WINDOW_HOURS
-    format("%02d:00-%02d:00 (%s)", hour, hour + WINDOW_HOURS, ZONE_NAME)
-  end
-
-  # Still-bookable windows for a date: all of them on a later day; on TODAY only
-  # the ones that have not started, so an assistant is never offered a window it
-  # cannot actually have.
-  def bookable_ids(date)
-    (1..COUNT).reject { |slot_id| slot_at(date, slot_id) &lt;= now }
-  end
+  # "14:35 (Europe/Dublin)".
+  def clock_label(time, zone) = "#{time.in_time_zone(zone).strftime("%H:%M")} (#{zone.name})"
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>Which zone is <code>ZONE_NAME</code>? The place the service happens — and that place is a property of the thing being served.</strong> The rule is one line: <em>the time of the service, at the place the service happens.</em> For a table, a room, a chair, a workshop bay, the service is rendered at the address of <strong>that</strong> restaurant, hotel or salon. For a delivery it is rendered at the <strong>customer's</strong> door, and your zone is merely where your warehouse sits. Answer the question before you copy the constant.
-  <br><br><strong>A constant is only ever a default, and it stops being right the day you serve a second place.</strong> The specification is explicit: an operator <strong>MUST NOT</strong> answer from one zone configured on the origin, because an operator may run many stores in many time zones. So record the zone against the thing it belongs to — a <code>timezone</code> column on your restaurants, properties or served districts, <code>NOT NULL</code>, backfilled from the constant you already have — and read it off the row you are answering about. If you serve exactly one place today, you have one zone by arithmetic rather than by design, and the column costs you one migration now instead of a silent wrong answer later. <strong>Never DERIVE it</strong> from a city string, a postcode or a lat/long: a guess nobody wrote down is one nobody can check from the other side of the wire.
-  <br><br>getgrocery delivers only inside Dublin, so its map of served districts to clocks has one value in it today. What matters is that it is a map.
-  <br><br><strong>Two more things follow, and both are cheap.</strong> <em>Publish the zone in every row that carries a wall clock</em> — a <code>timezone</code> field, and the IANA name inside the label too (<code>08:00-10:00 (Europe/Dublin)</code>, never a bare <code>08:00-10:00</code>) — because the offset inside <code>slot_at</code> is already unambiguous and nobody says an offset out loud; the field a customer actually hears is the label. And <em>never compute "today" from the server process's zone</em>, which is what <code>now</code> above exists for: a box in another zone rolls its date over at a different moment from the place the service happens, and no environment variable is a statement about where your tables are.
-  <br><br><strong>And the other direction: a <code>date</code> an assistant SENDS is a day on its human's calendar.</strong> The assistant declares that calendar in the <code>Kiosk-Timezone</code> request header, as an IANA name; you read a caller-named day in it, and when the header is absent you read it on the service place's clock and say so in the row. A calendar day is an INTERVAL, so a day the caller is still IN is not "in the past" even when you have already rolled over — that is the midnight case the rule exists for. A day the caller has entirely finished is past, and is a <code>400</code> naming the earliest day you can serve.</blockquote>
+  <blockquote><strong>Which zone? The place the service happens.</strong> For a table, a room or a chair that is the venue's address; for a delivery it is the customer's door. getgrocery keeps a clock per served district in <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/models/dublin_zones.rb"><code>DublinZones::ZONES</code></a> and reads it with <code>zone_at(address)</code>; <code>DEFAULT_ZONE_NAME</code> fills the published examples, which name no address. The specification forbids answering from one zone configured on the origin, because an operator may run stores in many time zones: record the zone against the thing it belongs to.
+  <br><br><strong>Every row that carries a wall clock publishes its zone</strong> — a <code>timezone</code> field, and the IANA name inside the label (<code>08:00–10:00 (Europe/Dublin)</code>), because nobody reads an offset out loud. "Today" is <code>zone.today</code>, the day at the delivery address, never the server process's.
+  <br><br><strong>A <code>date</code> an assistant sends is a day on its human's calendar</strong>, declared in the <code>Kiosk-Timezone</code> request header as an IANA name; without the header it is read on the address's clock. A day the caller is still in is answered even when the shop has rolled over; a day it has entirely finished is a <code>400</code> naming the earliest day it can ask for.</blockquote>
 
   <p><code>app/controllers/kiosk/catalog_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/catalog_controller.rb
-class Kiosk::CatalogController &lt; ApplicationController   # your base class, your call
+# The shop's shelf.
+class Kiosk::CatalogController &lt; ActionController::API
   include Kiosk::Handler
 
-  # What can the agent browse?
   kind :query
-  description "Browse everything currently in stock. Out-of-stock products are hidden, " \
-              "so anything visible here is something that can actually be ordered. The " \
-              "whole in-stock catalogue comes back in one call — this is the complete " \
-              "set, not a page of a larger one. create_order prices every line from " \
-              "these rows, so a cart built here totals to what it will actually cost."
-  input_schema type: "object", additionalProperties: false,
-               properties: {}, required: []
+  description "The products in stock now, at the price a cart is signed at. Alcohol is marked " \
+              "`age_restricted`: `create_order` takes it only after an 18+ check (`request_kyc`)."
+  input_schema type: "object", additionalProperties: false, properties: {}, required: []
   output_schema type: "array",
-                items: { type: "object",
-                         properties: { sku:         { type: "string" },
-                                       name:        { type: "string" },
-                                       price_cents: { type: "integer",
-                                                      description: "EUR cents." },
-                                       currency:    { type: "string" } } }
+                description: "In-stock products, by name.",
+                items: {
+                  type: "object", additionalProperties: false,
+                  properties: {
+                    sku:            { type: "string", description: "The product's handle in a cart." },
+                    name:           { type: "string" },
+                    price_cents:    { type: "integer", description: "EUR cents." },
+                    price_eur:      { type: "string", description: "The price as a human reads it, e.g. \"€4.49\"." },
+                    currency:       { type: "string" },
+                    low:            { type: "boolean", description: "Present when stock is running out." },
+                    age_restricted: { type: "boolean", description: "Present on alcohol." },
+                  },
+                  required: %w[sku name price_cents price_eur currency],
+                }
   example_params({})
-  example_row({ sku: "sourdough-bread", name: "Sourdough Bread",
-                price_cents: 449, currency: "eur" })
+  example_row({
+    sku: "sourdough-bread", name: "Sourdough Bread", price_cents: 449,
+    price_eur: "€4.49", currency: "eur",
+  })
   def catalog
-    rows = Product.where(stock: 1..).map do |p|
-      { sku: p.sku, name: p.name, price_cents: p.price_cents, currency: "eur" }
-    end
-    render json: rows
+    render json: Product.in_stock.order(:name).map { |product|
+      row = { "sku"         =&gt; product.sku,
+              "name"        =&gt; product.name,
+              "price_cents" =&gt; product.price_cents,
+              "price_eur"   =&gt; Product.format_eur(product.price_cents),
+              "currency"    =&gt; "eur" }
+      row["low"] = true if product.low_stock?
+      row["age_restricted"] = true if product.age_restricted?
+      row
+    }
   end
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  # Delivery time slots. Each row carries the id create_order books, under the
-  # SAME name that action takes — so the assistant copies it straight through
-  # instead of guessing that your `id` is its `delivery_slot_id`.
+  <p><code>app/controllers/kiosk/delivery_slots_controller.rb</code>:</p>
+  <pre><code class="language-ruby"># app/controllers/kiosk/delivery_slots_controller.rb
+# The delivery windows at an address.
+class Kiosk::DeliverySlotsController &lt; ActionController::API
+  include Kiosk::Handler
+
   kind :query
-  description "Get the delivery windows still bookable on a chosen day at a chosen " \
-              "address. Whichever window the human picks is booked as part of the order " \
-              "itself, so get their choice before ordering, not after. OMIT the date for " \
-              "the soonest day this operator can deliver — you cannot work that out " \
-              "yourself, because the day rolls over in the operator's locale and not in " \
-              "yours; send one only when your human named a day. An EMPTY array means " \
-              "every window on that day has already begun: ask for a later one. Get the " \
-              "REAL address from your human before calling — create_order needs the same " \
-              "address again, so an invented one books a delivery to nowhere."
-  input_schema type: "object", additionalProperties: false,
+  description "The delivery windows still bookable on a day at a Dublin address in a served " \
+              "district. Ask the customer for their real address first; an empty answer means " \
+              "that day is full, so try a later one."
+  input_schema type: "object",
+               additionalProperties: false,
                properties: {
                  date:             { type: "string", format: "date",
-                                     description: "OPTIONAL. Delivery day, YYYY-MM-DD, read in " \
-                                                  "YOUR own calendar when you declare it in " \
-                                                  "`Kiosk-Timezone`. OMIT IT for the soonest day " \
-                                                  "this operator can deliver. A day you have " \
-                                                  "entirely finished is refused; every row says " \
-                                                  "which day and which clock it is for." },
-                 delivery_address: { type: "string",
-                                     description: "Where to deliver — the same address " \
-                                                  "create_order will be given." },
+                                     description: "The day on the customer's calendar (send " \
+                                                  "`Kiosk-Timezone`), else the address's. Omit it " \
+                                                  "for the soonest day the shop delivers." },
+                 delivery_address: { type: "string", description: "A Dublin address naming its postal district, e.g. \"Dublin 2\"." },
                },
                required: ["delivery_address"]
   output_schema type: "array",
-                items: { type: "object",
-                         properties: { delivery_slot_id: { type: "integer" },
-                                       date:     { type: "string", format: "date" },
-                                       slot_at:  { type: "string", format: "date-time" },
-                                       label:    { type: "string" },
-                                       timezone: { type: "string" } } }
-  # THE DAY IS RESOLVED, NOT WRITTEN DOWN. A `Proc` in a declaration is called
-  # lazily, memoized and re-resolved as the day rolls over, so a published
-  # example stays correct every morning with no deploy. A calendar literal here
-  # would be a `date` this very verb refuses, on a day nobody is watching.
-  example_params({ delivery_address: "42 Camden Street, Dublin 2",
-                   date: -&gt; { DeliverySlots.example_date.iso8601 } })
-  example_row({ delivery_slot_id: 3,
-                date:     -&gt; { DeliverySlots.example_date.iso8601 },
-                slot_at:  -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 3).iso8601 },
-                label:    "12:00-14:00 (Europe/Dublin)",
-                timezone: DeliverySlots::ZONE_NAME })
+                description: "Bookable windows, earliest first.",
+                items: {
+                  type: "object", additionalProperties: false,
+                  properties: {
+                    slot_at:  { type: "string", description: "The window's start; pass it to create_order." },
+                    label:    { type: "string", description: "The window as a human reads it, e.g. " \
+                                                             "\"08:00–10:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})\"." },
+                    timezone: { type: "string", description: "The delivery address's IANA zone." },
+                    district: { type: "string", description: "The postal district the address routed to, e.g. \"D02\"." },
+                  },
+                  required: %w[slot_at label timezone district],
+                }
+  example_params({ date:             -&gt; { DeliverySlots.default_zone.tomorrow.iso8601 },
+                   delivery_address: "42 Camden Street, Dublin 2" })
+  example_row({ slot_at:  -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow).first.iso8601 },
+                label:    "08:00–10:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
+                timezone: DeliverySlots::DEFAULT_ZONE_NAME, district: "D02" })
   def delivery_slots
-    # ADDRESS-UPFRONT, asked BEFORE the date: it is what forces the assistant to
-    # obtain the address from its human before it can see any window at all, so
-    # the address that got slots is the address create_order will be handed.
-    address = params[:delivery_address].to_s
-    return reject_bad_request("missing param: delivery_address") if address.strip.empty?
+    search = SlotSearch.new(delivery_address: params[:delivery_address], date: params[:date],
+                            caller_zone: Kiosk::Server::CurrentRequest.timezone)
+    search.validate!
 
-    # `date` IS OPTIONAL, AND OMITTING IT IS THE CORRECT CALL for "the soonest
-    # you can deliver". The caller cannot compute YOUR today: you deliver in
-    # your own locale, and for an hour either side of midnight the assistant's
-    # own date is a different day. Requiring the field makes that gap the
-    # CALLER's problem and gives it no way to solve one — it would have to trust
-    # a timezone named in a description string, carry tzdata, and still race the
-    # boundary. You know your own date, so use it. One step is enough: every
-    # window of a future day is still bookable, so the day after today always
-    # has slots.
-    unless params.key?(:date)
-      soonest = DeliverySlots.now.to_date
-      soonest += 1 if DeliverySlots.bookable_ids(soonest).empty?
-      return render json: slot_rows(soonest)
-    end
-
-    # A date that IS sent is validated exactly as before, past dates included:
-    # "deliver on Friday" is a different request from "deliver as soon as you
-    # can", and only the caller knows which one it is making. The wire has
-    # ALREADY checked this against `input_schema` above — it is a
-    # `format: "date"` string or the call never reached this method. What a
-    # schema cannot say is that the string names a real calendar day (a
-    # February 31st passes `format: "date"` under draft 2020-12), so the
-    # SEMANTIC check stays the handler's job.
-    date = DeliverySlots.iso_date(params[:date])
-    if date.nil?
-      # A malformed date is the agent's mistake — answer a
-      # typed 400, never a Date::Error 500 that just points at your logs.
-      return reject_bad_request("invalid date: #{params[:date]} — use YYYY-MM-DD")
-    end
-
-    # A day already gone is outside this verb's DOMAIN, so it is refused by
-    # name rather than answered `200 []` — an empty list for a past date is
-    # byte-identical to the honest empty answer for today once the last window
-    # has begun, and the assistant cannot tell the two apart.
-    today = DeliverySlots.now.to_date
-    if date &lt; today
-      return reject_bad_request("date #{date.iso8601} is in the past — " \
-                                "this operator delivers from #{today.iso8601} onwards")
-    end
-
-    render json: slot_rows(date)
+    zone = search.zone
+    render json: DeliverySlots.bookable(search.day, zone).map { |slot_at|
+      { "slot_at"  =&gt; slot_at.iso8601,
+        "label"    =&gt; DeliverySlots.label(slot_at, zone),
+        "timezone" =&gt; zone.name,
+        "district" =&gt; search.district }
+    }
   end
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  # The agent can check its own orders
-  kind :query
-  description "List this principal's own orders, newest first — the operator scopes them " \
-              "to the authenticated assistant account, so an assistant only ever sees its " \
-              "own. It is how an assistant finds the order reschedule_delivery should " \
-              "move, and how it re-reads where an order actually got to after a call whose " \
-              "response never arrived, instead of retrying blind."
-  input_schema type: "object", additionalProperties: false,
-               properties: {}, required: []
-  output_schema type: "array",
-                items: { type: "object",
-                         properties: { order_id:    { type: "string", format: "uuid" },
-                                       status:      { type: "string" },
-                                       total_cents: { type: "integer",
-                                                      description: "EUR cents." },
-                                       slot_at:     { type: "string", format: "date-time" } } }
-  example_params({})
-  example_row({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e", status: "created",
-                total_cents: 1287,
-                slot_at: -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 3).iso8601 } })
-  def my_orders
-    # Name the fields rather than `map(&amp;:attributes)`: what the wire publishes
-    # is a decision this handler makes, and `output_schema` above is the
-    # published statement of it. A blanket dump would put every future column
-    # on the wire the day it is added.
-    render json: Order.where(user_id: kiosk_identity.user_id)
-                      .order(created_at: :desc)
-                      .map { |o| { order_id: o.id, status: o.status,
-                                   total_cents: o.total_cents,
-                                   slot_at: o.slot_at.iso8601 } }
+  <p>The handler checks nothing itself. Its arguments are validated in a model, the way an order is in Step 5: <code>search.validate!</code> raises on a refusal, and the engine answers <code>400</code> with the model's own messages. <code>served_address: true</code> is getgrocery's <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/validators/served_address_validator.rb"><code>ServedAddressValidator</code></a>, which accepts a Dublin address in a district the shop serves.</p>
+  <pre><code class="language-ruby"># app/models/slot_search.rb
+# The arguments of a delivery-slots search: an address, and the day the caller
+# names on its own calendar (`Kiosk-Timezone`, else the address's).
+class SlotSearch
+  include ActiveModel::Model
+  include ActiveModel::Attributes
+
+  attribute :delivery_address, :string
+  attribute :date, :date
+  attribute :caller_zone
+
+  validates :delivery_address, served_address: true
+  validate :date_not_ended, if: :date
+
+  def zone = DeliverySlots.zone_at(delivery_address)
+
+  def district = DublinZones.check(delivery_address).district
+
+  # The shop's day the caller's day starts on, never before the soonest it delivers.
+  def day
+    soonest = DeliverySlots.soonest_date(zone)
+    date ? [date.in_time_zone(calendar).in_time_zone(zone).to_date, soonest].max : soonest
   end
 
   private
 
-  # ONE place that renders a slot row, because the date-supplied and the
-  # date-omitted paths must answer in exactly the same shape: a caller that
-  # omitted the date is not getting a lesser response, it is getting the same
-  # one for the day you picked. `date` on each row is what create_order books,
-  # so it is how that caller learns which day it got.
-  def slot_rows(date)
-    DeliverySlots.bookable_ids(date).map { |slot_id|
-      { delivery_slot_id: slot_id,
-        date:     date.iso8601,
-        slot_at:  DeliverySlots.slot_at(date, slot_id).iso8601,
-        label:    DeliverySlots.label(slot_id),
-        # EVERY ROW THAT CARRIES A WALL CLOCK SAYS WHICH CLOCK IT IS. Read off
-        # the thing being served, never off the origin — here one served area,
-        # so one value, and a second area is a second row in that map.
-        timezone: DeliverySlots::ZONE_NAME }
-    }
-  end
+  def calendar = caller_zone || zone
 
-  # The one guard idiom for this controller, same as the orders one next door.
-  def reject_bad_request(message)
-    render json: { error: { code: "bad_request", message: message } },
-           status: :bad_request
+  # A day the caller is still in is answered even when the shop has rolled over.
+  def date_not_ended
+    return unless date.in_time_zone(calendar).tomorrow.past?
+
+    errors.add(:date, "#{date.iso8601} is in the past on the calendar it is read in (#{calendar.name}); " \
+                      "the earliest day you can ask for is #{calendar.today.iso8601}. The day is read in " \
+                      "YOUR calendar when you declare Kiosk-Timezone, and in the delivery address's when " \
+                      "you do not.")
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 5: Declare your actions</h2>
-  <p>Actions mutate state — create orders, move a paid delivery. They are the same shape as Step 4's queries, marked <code>kind :action</code> instead of <code>kind :query</code>. They go in a second controller here because orders and the catalogue are different things — not because they have to: one controller may declare both.</p>
-  <p>One of the actions below gates on the order being <em>paid</em>, and the receipts live in tables the Kiosk engine writes (<code>kiosk.settlements</code>, linked to the signed cart mandate it settled). Read them the Rails way — two small models over the engine's tables, no SQL by hand:</p>
-  <pre><code class="language-ruby"># app/models/kiosk_settlement.rb — a read window onto the capture receipts
-# the Kiosk engine records after a successful /pay.
-class KioskSettlement &lt; ApplicationRecord
-  self.table_name = "kiosk.settlements"
-  belongs_to :cart_mandate, class_name: "KioskCartMandate"
-end
+  <p>Actions mutate state — place an order, move a paid delivery. They are the same shape as Step 4's queries, marked <code>kind :action</code>. getgrocery groups its verbs by resource, so the orders controller holds the <code>my_orders</code> query beside the two actions and the order's event topic: one controller declares all three.</p>
 
-# app/models/kiosk_cart_mandate.rb — the signed cart mandate a settlement
-# points back at; its line_items mirror the order that was paid.
-class KioskCartMandate &lt; ApplicationRecord
-  self.table_name = "kiosk.cart_mandates"
+  <p>The rules an order is held to live on the model, in validation contexts: <code>:place</code> for <code>create_order</code>, <code>:reschedule</code> for <code>reschedule_delivery</code>. <code>window_bookable</code> takes a <code>slot_at</code> only when it is the start of a window on the address's clock that is still open.</p>
+  <pre><code class="language-ruby"># app/models/order.rb
+# One basket, its delivery window and address. `timezone` is the clock of the
+# delivery district the window was quoted on.
+class Order &lt; ApplicationRecord
+  include Kiosk::Owned
+
+  MAX_ITEMS = 50
+
+  enum :status, {
+    created:          "created",
+    paying:           "paying",
+    paid:             "paid",
+    rescheduled:      "rescheduled",
+    out_for_delivery: "out_for_delivery",
+    delivered:        "delivered",
+  }
+
+  belongs_to :user
+  has_many :order_items, dependent: :destroy, autosave: true
+
+  # What a caller placing or moving an order is held to.
+  validates :order_items, length: { in: 1..MAX_ITEMS, too_short: "must name a product",
+                                    too_long: "are at most %{count} lines" }, on: :place
+  validates :address, served_address: true, on: %i[place reschedule]
+  validate :window_bookable, on: %i[place reschedule]
+
+  # One move per order, and none once the courier has the basket.
+  scope :reschedulable,    -&gt; { where.not(status: %i[rescheduled out_for_delivery delivered]) }
+
+  # A settlement whose cart names this order (`line_items @&gt; [{order_id}]`).
+  SETTLEMENT_FOR_ROW = Arel.sql(
+    "kiosk.cart_mandates.line_items @&gt; json_build_array(json_build_object('order_id', orders.id::text))::jsonb",
+  ).freeze
+
+  # Adds `settled` and `settled_currency`, read from the given settlements: the
+  # caller's own on the wire, all of them in the back office.
+  scope :with_settlement, lambda { |settlements|
+    settlement = settlements.joins(:cart_mandate).where(SETTLEMENT_FOR_ROW)
+    select(arel_table[Arel.star],
+           Arel::Nodes::Exists.new(settlement.select(Arel.sql("1")).arel).as("settled"),
+           Arel::Nodes::Grouping.new(settlement.select(:currency).limit(1).arel).as("settled_currency"))
+  }
+
+  def self.readable_by?(order_id, user_id) = where(id: order_id, user_id: user_id).exists?
+
+  # What `my_orders` publishes about the money. `pending` means a capture is in
+  # flight: the caller must reconcile, not sign a new mandate.
+  def payment_state
+    return "paid"    if paid? || settled
+    return "pending" if paying?
+
+    "unpaid"
+  end
+
+  def zone = Time.find_zone!(timezone)
+
+  private
+
+  # A window takes orders while a basket paid now still reaches the door inside it.
+  def window_bookable
+    if slot_at.nil? || !DeliverySlots.start?(slot_at, zone)
+      errors.add(:slot_at, "must be the slot_at of a delivery_slots row")
+    elsif DeliverySlots.closed?(slot_at)
+      errors.add(:slot_at, "#{DeliverySlots.label(slot_at, zone)} on #{slot_at.in_time_zone(zone).to_date.iso8601} " \
+                           "is no longer bookable; call delivery_slots for the open windows")
+    end
+  end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p><code>Kiosk::Owned</code> gives the model <code>own</code>, the signed-in customer's rows. <code>Kiosk::Settlement</code> is the engine's model over the capture receipts it records after a successful <code>pay</code>.</p>
 
   <p><code>app/controllers/kiosk/orders_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/orders_controller.rb
-class Kiosk::OrdersController &lt; ApplicationController
+# The customer's orders: placing, moving and following them. The work is in app/operations.
+class Kiosk::OrdersController &lt; ActionController::API
   include Kiosk::Handler
 
-  # The canonical 8-4-4-4-12 uuid shape your app hands out. Checked BEFORE an
-  # agent-supplied id is used, so a malformed one is answered as the agent's
-  # typed 400.
-  ORDER_ID_FORMAT = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
+  ORDER_ID = "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e"
 
-  # The widest total one order can carry: the width of PostgreSQL `integer`,
-  # which is the type `orders.total_cents` is declared with. THE BOUND IS THE
-  # COLUMN'S — it refuses exactly the carts that
-  # cannot be REPRESENTED and leaves every one that can. `qty` gets the same
-  # width as a declared `maximum` below, because `order_items.qty` is the same
-  # column type; a different number reaches each of them, which is why both are
-  # here. See the guard in create_order.
-  MAX_TOTAL_CENTS = 2_147_483_647
+  topic :order_delivery do
+    description "The order is on its way (`out_for_delivery`, with the courier's ETA) or at the " \
+                "door (`delivered`)."
+    payload_schema type: "object", additionalProperties: false,
+                   properties: { order_id:  { type: "string", format: "uuid" },
+                                 status:    { enum: %w[out_for_delivery delivered] },
+                                 eta:       { type: "string", format: "date-time",
+                                              description: "When the courier arrives." },
+                                 eta_label: { type: "string", description: "The ETA as a human reads it." },
+                                 timezone:  { type: "string", description: "The delivery address's IANA zone." } },
+                   required: %w[order_id status]
+    example order_id: ORDER_ID, status: "out_for_delivery", eta: "2026-10-18T09:40:00Z",
+            eta_label: "10:40 (Europe/Dublin)", timezone: "Europe/Dublin"
+    example order_id: ORDER_ID, status: "delivered"
+    subject_reachable -&gt;(order_id, identity) { Order.readable_by?(order_id, identity.user_id) }
+  end
 
-  # Create an order. Delivery is PART of the order — the window and the address
-  # are inputs here (getgrocery's shape: an assistant that
-  # cannot deliver has not finished shopping).
+  kind :query
+  description "The signed-in customer's orders, with their delivery window and where the money " \
+              "stands. Re-read it after a payment whose answer never arrived."
+  input_schema type: "object", additionalProperties: false, properties: {}, required: []
+  output_schema type: "array",
+                description: "Orders, newest first.",
+                items: {
+                  type: "object", additionalProperties: false,
+                  properties: {
+                    order_id:      { type: "string" },
+                    status:        { type: "string", enum: Order.statuses.keys,
+                                     description: "Where the basket stands." },
+                    total_cents:   { type: "integer", description: "EUR cents." },
+                    slot_at:       { type: "string", description: "The delivery window's start." },
+                    slot_label:    { type: "string", description: "The window as a human reads it." },
+                    address:       { type: "string" },
+                    payment_state: { type: "string", enum: %w[unpaid pending paid],
+                                     description: "`pending`: a charge is under way, so wait and " \
+                                                  "re-read. Only `unpaid` calls for a new mandate." },
+                  },
+                  required: %w[order_id status total_cents slot_at slot_label address payment_state],
+                }
+  def my_orders
+    render json: Order.own.with_settlement(Kiosk::Settlement.own).order(created_at: :desc).map { |order|
+      { "order_id"      =&gt; order.id,
+        "status"        =&gt; order.status,
+        "total_cents"   =&gt; order.total_cents,
+        "slot_at"       =&gt; order.slot_at.in_time_zone(order.zone).iso8601,
+        "slot_label"    =&gt; DeliverySlots.label(order.slot_at, order.zone),
+        "address"       =&gt; order.address,
+        "payment_state" =&gt; order.payment_state }
+    }
+  end
+
   kind :action
-  description "Place an order for the authenticated principal and book its delivery in " \
-              "the same call — an order with nowhere and no time to go is not something " \
-              "this operator can fulfil, so get both from the human first. The order " \
-              "comes back UNPAID and nothing is charged here: paying is a separate step, " \
-              "with a cart mandate that mirrors this order. Once it is paid, " \
-              "reschedule_delivery moves the delivery without a second payment. A cart " \
-              "whose catalogue total is larger than this operator can put on one order " \
-              "is refused outright, naming the maximum, rather than partly taken."
-  input_schema type: "object", additionalProperties: false,
+  description "Place an order for delivery in a window at an address. The answer carries the " \
+              "quote to pay. Alcohol needs a completed 18+ check (`request_kyc`); a cart is at " \
+              "most #{Order::MAX_ITEMS} lines of at most #{OrderItem::MAX_QTY} each."
+  input_schema type: "object",
+               additionalProperties: false,
                properties: {
                  items: {
-                   type: "array", minItems: 1,
-                   description: "The complete cart, one entry per product.",
+                   type: "array", minItems: 1, maxItems: Order::MAX_ITEMS,
                    items: {
                      type: "object", additionalProperties: false,
                      properties: {
-                       sku: { type: "string", description: "A sku from the catalog query." },
-                       # THE CEILING IS DECLARED, because a refusal the published
-                       # schema does not predict is its own defect. `order_items.qty`
-                       # is a PostgreSQL `integer`, so this is that column's own width
-                       # and not an invented basket size: declare it and an oversized
-                       # quantity is a schema 400 the assistant can correct, leave it
-                       # out and the same value reaches `create!` and comes back as a
-                       # 500 about your database.
-                       qty: { type: "integer", minimum: 1, maximum: 2_147_483_647,
-                              description: "How many of it. The order's total — each " \
-                                           "line's catalogue price times its qty, summed " \
-                                           "— is bounded too; a cart too large to price " \
-                                           "is refused, not partly taken." },
+                       sku: { type: "string", description: "A catalog sku." },
+                       qty: { type: "integer", minimum: 1, maximum: OrderItem::MAX_QTY },
                      },
                      required: ["sku", "qty"],
                    },
                  },
-                 delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
-                                     description: "The delivery_slot_id of a row delivery_slots returned." },
-                 # `format: "date"` because the handler behind it is exactly
-                 # that strict, and the two go together: an assistant reads the
-                 # declaration as the contract, and the strictest of the two
-                 # layers is what it actually meets. Declare a `format` when it
-                 # is true, never as decoration — a keyword stricter than the
-                 # handler makes the WIRE refuse values your own code accepts,
-                 # and a handler stricter than the keyword refuses values you
-                 # told the assistant to send.
-                 #
-                 # WHAT THE KEYWORD STILL CANNOT SAY, and why the handler
-                 # checks anyway: `format: "date"` says the string is shaped
-                 # like a calendar date, not that it names a real day (a
-                 # 30th of February passes it) and not that the day is still
-                 # bookable — a horizon that rolls forward every midnight is
-                 # not expressible in a declaration. Both are
-                 # `DeliverySlots.iso_date` and the two floors below.
-                 delivery_date:    { type: "string", format: "date",
-                                     description: "The date of that same delivery_slots row, YYYY-MM-DD." },
-                 delivery_address: { type: "string",
-                                     description: "Where to deliver it." },
+                 slot_at:          { type: "string", format: "date-time",
+                                     description: "The `slot_at` of a delivery_slots row." },
+                 delivery_address: { type: "string", description: "The address delivery_slots was asked about." },
                },
-               required: ["items", "delivery_slot_id", "delivery_date", "delivery_address"]
+               required: ["items", "slot_at", "delivery_address"]
   output_schema type: "object",
-                properties: { order_id:    { type: "string", format: "uuid" },
-                              total_cents: { type: "integer", description: "EUR cents." },
-                              currency:    { type: "string" },
-                              slot_at:     { type: "string", format: "date-time" } }
-  # Resolved rather than written down, for delivery_slots' reason: a literal
-  # here would publish a `delivery_date` this action refuses as past. `slot_at`
-  # derives from the SAME day and the slot id beside it, so the two examples
-  # cannot drift apart either.
+                description: "The order, priced.",
+                additionalProperties: false,
+                properties: {
+                  order_id:    { type: "string", description: "Name it in the cart mandate." },
+                  total_cents: { type: "integer", description: "EUR cents; sign the cart at exactly this total." },
+                  total_eur:   { type: "string", description: "The total as a human reads it." },
+                  currency:    { type: "string" },
+                  slot_at:     { type: "string", description: "The delivery window's start." },
+                  slot_label:  { type: "string", description: "The window as a human reads it." },
+                  timezone:    { type: "string", description: "The delivery address's IANA zone." },
+                  pay_hint:    { type: "string", description: "The cart mandate this order expects." },
+                },
+                required: %w[order_id total_cents total_eur currency slot_at slot_label timezone pay_hint]
   example_params({
     items: [{ sku: "sourdough-bread", qty: 2 }, { sku: "greek-yogurt", qty: 1 }],
-    delivery_slot_id: 3,
-    delivery_date:    -&gt; { DeliverySlots.example_date.iso8601 },
+    slot_at:          -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
     delivery_address: "42 Camden Street, Dublin 2",
   })
-  example_row({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e", total_cents: 1287,
-                currency: "eur",
-                slot_at: -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 3).iso8601 } })
+  example_row({
+    order_id: ORDER_ID, total_cents: 1287, total_eur: "€12.87", currency: "eur",
+    slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
+    slot_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
+    timezone: DeliverySlots::DEFAULT_ZONE_NAME,
+    pay_hint: "pay in EUR with a cart mandate whose line_items mirror this order …",
+  })
   def create_order
-    # Wire input again — guard before use (see the delivery_slots note): typed
-    # 400s the assistant can correct, never a NoMethodError/Date::Error 500.
-    items = params[:items]
-    return reject_bad_request("items must be a non-empty array") unless items.is_a?(Array) &amp;&amp; items.any?
-
-    lines = items.map do |item|
-      # SHAPE BEFORE CONTENT. `items` is declared as an array of OBJECTS, and
-      # the next line indexes one — so a well-formed request carrying the wrong
-      # shape (`items: ["bread"]`, which an assistant does write) would raise
-      # inside your handler and reach the agent as a 500 about your server. It
-      # is the agent's mistake and it deserves the agent's error: a typed 400
-      # naming the shape you wanted. `additionalProperties`/`required` in the
-      # schema above constrain the OBJECT's members; nothing there makes the
-      # element an object at all once the array itself validated.
-      return reject_bad_request("each item must be a {sku, qty} object — got " \
-                                "#{item.class}; e.g. {\"sku\": \"sourdough-bread\", \"qty\": 2}") unless item.is_a?(Hash)
-
-      sku = item[:sku].to_s
-      return reject_bad_request("each item needs a sku") if sku.empty?
-      # `whole_number`, never `.to_i` — see the note beside it below.
-      qty = whole_number(item[:qty])
-      return reject_bad_request("qty must be a whole number >= 1 — got #{item[:qty].inspect}") if qty.nil?
-      return reject_bad_request("qty must be >= 1") if qty &lt; 1
-      # An unknown sku is a bad cart line, not a missing page: answer the typed
-      # 400. (A find_by! would answer `not_found` — true, but useless to an
-      # assistant that needs to fix ONE line of its cart.)
-      product = Product.find_by(sku: sku)
-      return reject_bad_request("unknown sku: #{sku} — use skus the catalog query returned") if product.nil?
-      { product: product, qty: qty }
-    end
-
-    delivery_address = params[:delivery_address].to_s
-    return reject_bad_request("missing param: delivery_address") if delivery_address.strip.empty?
-    slot_id = whole_number(params[:delivery_slot_id])
-    return reject_bad_request("delivery_slot_id must be a whole number 1-#{DeliverySlots::COUNT} — got #{params[:delivery_slot_id].inspect}") if slot_id.nil?
-    return reject_bad_request("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
-    # `delivery_date` IS REQUIRED: a slot id names a window only together with
-    # the day of the row it came from. Any default here could book a day the
-    # assistant was never shown.
-    delivery_date = DeliverySlots.iso_date(params[:delivery_date])
-    if delivery_date.nil?
-      return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD from the delivery_slots row you chose")
-    end
-
-    # A DAY THAT HAS GONE, AND A WINDOW THAT HAS BEGUN, ARE TWO REFUSALS — and
-    # this verb owes both even though `delivery_slots` above already hides
-    # both. The offer and the booking are separate calls minutes apart: nothing
-    # stops an assistant sending a day it read yesterday, or a window that
-    # started while its human was deciding. Skip these and you book a slot your
-    # own read verb would never have offered, and nobody finds out until a van
-    # does not arrive. The DAY first, because "that day is gone" is the more
-    # useful sentence than "that window has started" when both are true.
-    if delivery_date &lt; DeliverySlots.now.to_date
-      return reject_bad_request("delivery_date is in the past: #{delivery_date.iso8601} — " \
-                                "choose a current/future delivery slot")
-    end
-    slot_at = DeliverySlots.slot_at(delivery_date, slot_id)
-    if slot_at &lt;= DeliverySlots.now
-      return reject_bad_request("delivery slot #{slot_id} on #{delivery_date.iso8601} has already " \
-                                "started (#{slot_at.iso8601}) — choose a later slot; call " \
-                                "delivery_slots again for the still-bookable windows")
-    end
-
-    # A CART NOBODY CAN PRICE IS A 400, NOT A 500 — and it is a SECOND bound,
-    # not a restatement of the `maximum` on `qty` above. Every quantity that
-    # declaration calls valid is a body the wire hands you, and the ORDER'S
-    # TOTAL is a different number: `price_cents * qty` summed over the cart
-    # passes `orders.total_cents` while every single line is still well inside
-    # its own ceiling. Leave it unguarded and `create!` raises
-    # ActiveModel::RangeError in RUBY, before any SQL — which reaches the
-    # assistant as a 500 about your server for an argument it simply got wrong.
-    #
-    # WHY THIS ONE IS NOT IN `input_schema`, where `qty`'s ceiling is: the bound
-    # is on a SUM of YOUR OWN catalogue prices, and no per-property JSON Schema
-    # keyword can express one. So the published contract splits — the schema
-    # declares the half it can, and the verb description above states this half
-    # in words, so no refusal is one your contract failed to predict. Ask it as
-    # soon as the prices are resolved and BEFORE anything is written.
-    total_cents = lines.sum { |l| l[:product].price_cents * l[:qty] }
-    if total_cents &gt; MAX_TOTAL_CENTS
-      return reject_bad_request("this cart totals #{total_cents} cents, more than this " \
-                                "operator can put on one order (max #{MAX_TOTAL_CENTS}) — " \
-                                "order fewer units, or split the cart across several orders")
-    end
-
-    order = Order.create!(user_id: kiosk_identity.user_id, status: "created",
-                          total_cents: total_cents,
-                          slot_at: slot_at, address: delivery_address)
-    lines.each { |line| order.order_items.create!(product: line[:product], qty: line[:qty]) }
-
-    render json: { order_id: order.id, total_cents: order.total_cents, currency: "eur",
-                   slot_at: slot_at.iso8601 }
+    render json: CreateOrderOperation.call(
+      customer_id:      kiosk_identity.user_id,
+      items:            params[:items].map { _1.permit(:sku, :qty).to_h.symbolize_keys },
+      slot_at:          params[:slot_at],
+      delivery_address: params[:delivery_address],
+    )
   end
 
-  # Move a paid order's delivery — gated on the order being PAID.
-  # There is no `payment_gated:` option. You gate inside the action by checking
-  # for a settlement: after a successful /pay, Kiosk records the capture in
-  # kiosk.settlements (linked to the signed cart mandate). Look it up and refuse
-  # if it's absent — the same settlement gate the getgrocery demo enforces on
-  # reschedule_delivery.
   kind :action
-  description "Move an ALREADY-PAID order to a different delivery window, and optionally " \
-              "to a new address. The existing payment carries over: there is nothing new " \
-              "to sign and this does not charge again. An unpaid order cannot be moved " \
-              "this way — there is no payment to carry over, so place the order you " \
-              "wanted instead. One move per order; after that the human has to talk " \
-              "to the operator."
-  input_schema type: "object", additionalProperties: false,
+  description "Move a paid order to another delivery window, optionally to another address. The " \
+              "payment already made covers it. Once per order."
+  input_schema type: "object",
+               additionalProperties: false,
                properties: {
-                 # `pattern` BESIDE `format`, and both deliberately. ORDER_ID_FORMAT
-                 # above is a Ruby Regexp no declaration can name, so the same
-                 # 8-4-4-4-12 shape is written out here in the language a schema
-                 # speaks — which is what makes your handler's guard a PUBLISHED
-                 # contract, and lets the wire refuse a
-                 # malformed id before your handler is reached at all.
                  order_id:         { type: "string", format: "uuid",
-                                     pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-                                     description: "The order_id create_order returned (my_orders lists them too)." },
-                 delivery_slot_id: { type: "integer", minimum: 1, maximum: 6,
-                                     description: "The delivery_slot_id of the new window." },
-                 # Same declaration as create_order's, for the same reason.
-                 delivery_date:    { type: "string", format: "date",
-                                     description: "The date of that new window's delivery_slots row, YYYY-MM-DD." },
-                 delivery_address: { type: "string",
-                                     description: "A new address; the order keeps its current one when omitted." },
+                                     pattern: Kiosk::UuidCheck::JSON_SCHEMA_PATTERN },
+                 slot_at:          { type: "string", format: "date-time",
+                                     description: "The `slot_at` of a delivery_slots row." },
+                 delivery_address: { type: "string", description: "The new address; the order's own if omitted." },
                },
-               required: ["order_id", "delivery_slot_id", "delivery_date"]
+               required: ["order_id", "slot_at"]
   output_schema type: "object",
-                properties: { order_id:       { type: "string", format: "uuid" },
-                              rescheduled_at: { type: "string", format: "date-time" } }
-  # Resolved for the reason DeliverySlots.example_date gives.
-  example_params({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e",
-                   delivery_slot_id: 5,
-                   delivery_date: -&gt; { DeliverySlots.example_date.iso8601 } })
-  example_row({ order_id: "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e",
-                rescheduled_at: -&gt; { DeliverySlots.slot_at(DeliverySlots.example_date, 5).iso8601 } })
+                description: "The moved order.",
+                additionalProperties: false,
+                properties: {
+                  order_id:          { type: "string" },
+                  rescheduled_at:    { type: "string", description: "The new window's start." },
+                  rescheduled_label: { type: "string", description: "The new window as a human reads it." },
+                  timezone:          { type: "string", description: "The delivery address's IANA zone." },
+                },
+                required: %w[order_id rescheduled_at rescheduled_label timezone]
+  example_params({ order_id: ORDER_ID,
+                   slot_at:  -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 } })
+  example_row({ order_id: ORDER_ID,
+                rescheduled_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
+                rescheduled_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
+                timezone: DeliverySlots::DEFAULT_ZONE_NAME })
   def reschedule_delivery
-    # This id names a row: check its shape first, so a malformed one is a
-    # typed 400 with the fix in the message.
-    order_id = params[:order_id].to_s
-    return reject_bad_request("order_id #{order_id.inspect} is not a uuid — pass the order_id from my_orders or create_order") unless ORDER_ID_FORMAT.match?(order_id)
-
-    # Gate 1: order exists, belongs to this principal, not already moved.
-    order = Order.where.not(status: "rescheduled")
-                 .find_by(id: order_id, user_id: kiosk_identity.user_id)
-    if order.nil?
-      return render json: { error: { code: "forbidden",
-                                     message: "order not found, not yours, or already rescheduled" } },
-                    status: :forbidden
-    end
-
-    # Gate 2: a settlement (capture receipt) referencing this order must exist.
-    # The containment check (line_items @> [{order_id: …}]) is the load-bearing
-    # bit: it matches the exact order inside the signed cart mandate.
-    paid = KioskSettlement.joins(:cart_mandate)
-                          .where(user_id: kiosk_identity.user_id)
-                          .where("cart_mandates.line_items @> ?::jsonb",
-                                 [{ order_id: order_id }].to_json)
-                          .exists?
-    unless paid
-      return render json: { error: { code: "forbidden",
-                                     message: "no settlement for this order — pay first" } },
-                    status: :forbidden
-    end
-
-    # Same wire-input guards as create_order: a bad window is a typed 400.
-    slot_id = whole_number(params[:delivery_slot_id])
-    return reject_bad_request("delivery_slot_id must be a whole number 1-#{DeliverySlots::COUNT} — got #{params[:delivery_slot_id].inspect}") if slot_id.nil?
-    return reject_bad_request("delivery_slot_id must be 1-#{DeliverySlots::COUNT}") unless (1..DeliverySlots::COUNT).cover?(slot_id)
-    # Required here too, for the same reason.
-    new_date = DeliverySlots.iso_date(params[:delivery_date])
-    if new_date.nil?
-      return reject_bad_request("invalid delivery_date: #{params[:delivery_date]} — use YYYY-MM-DD")
-    end
-    # The SAME two refusals create_order takes, for the same reason: a move is
-    # a booking too, and moving a paid order onto a day that is gone or a
-    # window that has started is the one outcome nobody can undo without
-    # touching the money. Repeating the pair per verb rather than sharing a
-    # helper is this page's shape, not a recommendation — in your own app put
-    # them in one place and call it from both.
-    if new_date &lt; DeliverySlots.now.to_date
-      return reject_bad_request("delivery_date is in the past: #{new_date.iso8601}")
-    end
-    slot_at = DeliverySlots.slot_at(new_date, slot_id)
-    if slot_at &lt;= DeliverySlots.now
-      return reject_bad_request("delivery slot #{slot_id} on #{new_date.iso8601} has already " \
-                                "started (#{slot_at.iso8601}) — choose a later slot; call " \
-                                "delivery_slots again for the still-bookable windows")
-    end
-
-    order.update!(status: "rescheduled", slot_at: slot_at,
-                  address: params[:delivery_address].to_s.presence || order.address)
-    render json: { order_id: order.id, rescheduled_at: slot_at.iso8601 }
-  end
-
-  private
-
-  # One guard idiom for the whole controller — helpers are something a handler
-  # in an initializer block could never share. The body names an in-vocabulary
-  # code that agrees with the status, so it reaches the assistant verbatim; the
-  # dispatch seam renders it as the RFC 9457 problem document the wire speaks
-  # ({"type", "title", "status", "detail", "code"}, code flat).
-  def reject_bad_request(message)
-    render json: { error: { code: "bad_request", message: message } },
-           status: :bad_request
-  end
-
-  # JSON Schema's `integer`, in Ruby — and NOTHING LOOSER. This is the whole of
-  # why the obvious `params[:delivery_slot_id].to_i` is not above.
-  #
-  # `.to_i` answers every String, Integer and Float, and it DISAGREES with the
-  # `{type: "integer", minimum: 1, maximum: 6}` declared in front of it:
-  # `"1.5".to_i` is 1, so a fractional slot comes out of that line INSIDE the
-  # declared range and is quietly booked as slot 1 rather than refused. Every
-  # other hostile shape collapses to 0 and the range check catches it, which is
-  # exactly what makes `.to_i` feel safe — the one value it gets wrong is the
-  # one nothing else is looking at. A guard that only holds while the layer in
-  # front of it holds is not a second layer at all.
-  #
-  # NOT `is_a?(Integer)` either, and the difference is measurable:
-  # draft 2020-12 defines `integer` NUMERICALLY, not by wire type, so
-  # a JSON `2.0` IS a valid integer and your published schema accepts it. A bare
-  # class test would refuse a call your own contract allows. JSON parsing yields
-  # Integer or Float and nothing else, so those are the two cases; nil, booleans,
-  # strings, arrays, hashes and every fractional Float are not quantities.
-  def whole_number(raw)
-    return raw if raw.is_a?(Integer)
-    return nil unless raw.is_a?(Float) &amp;&amp; raw.finite?
-
-    raw == raw.truncate ? raw.truncate : nil
+    render json: RescheduleDeliveryOperation.call(
+      order_id:         params[:order_id],
+      slot_at:          params[:slot_at],
+      delivery_address: params[:delivery_address],
+    )
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <p>The actions hand their work to an operation each:</p>
+  <pre><code class="language-ruby"># app/operations/create_order_operation.rb
+# Places one order for the customer: the basket, its delivery window and
+# address, priced at catalogue prices. Raises a wire error on a refusal.
+class CreateOrderOperation
+  def self.call(customer_id:, items:, slot_at:, delivery_address:)
+    zone     = DeliverySlots.zone_at(delivery_address)
+    products = Product.where(sku: items.pluck(:sku)).index_by(&amp;:sku)
+    order    = Order.new(
+      user_id:     customer_id,
+      slot_at:     slot_at,
+      address:     delivery_address,
+      timezone:    zone.name,
+      order_items: items.map { OrderItem.new(sku: _1[:sku], product: products[_1[:sku]], qty: _1[:qty]) },
+    )
+    order.validate!(:place)
+
+    Kiosk::Server::Kyc.require! if order.order_items.any? { _1.product.age_restricted? }
+
+    order.update!(total_cents: order.order_items.sum { _1.product.price_cents * _1.qty })
+
+    {
+      order_id:    order.id,
+      total_cents: order.total_cents,
+      total_eur:   Product.format_eur(order.total_cents),
+      currency:    "eur",
+      slot_at:     order.slot_at.in_time_zone(zone).iso8601,
+      slot_label:  DeliverySlots.label(order.slot_at, zone),
+      timezone:    zone.name,
+      pay_hint:    "pay in EUR with a cart mandate whose line_items mirror this order: " \
+                   "one {\"order_id\": \"#{order.id}\"} entry plus one " \
+                   "{\"sku\", \"qty\", \"price_cents\"} entry per item at catalog prices — " \
+                   "the operator verifies currency, prices, and total before charging",
+    }
+  end
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <pre><code class="language-ruby"># app/operations/reschedule_delivery_operation.rb
+# Moves a paid order to another delivery window, and optionally another
+# address, on the payment it already has. Raises a wire error on a refusal.
+class RescheduleDeliveryOperation
+  def self.call(order_id:, slot_at:, delivery_address:)
+    order = Order.own.reschedulable.find_by(id: order_id)
+    # One answer for absent, foreign and already moved, so ids cannot be probed.
+    refuse "no order of yours with this id can be moved: it was moved once already or is with the courier" unless order
+    refuse "this order's payment is still in progress; reschedule once my_orders reads `paid`" if order.paying?
+    refuse "this order is not paid; only a paid order can be moved" unless order.paid?
+
+    address = delivery_address.presence || order.address
+    zone    = DeliverySlots.zone_at(address)
+    order.assign_attributes(status: :rescheduled, address: address, timezone: zone.name, slot_at: slot_at)
+    order.save!(context: :reschedule)
+    CourierDispatchJob.arm!(order.id)
+
+    { order_id:          order.id,
+      rescheduled_at:    order.slot_at.in_time_zone(zone).iso8601,
+      rescheduled_label: DeliverySlots.label(order.slot_at, zone),
+      timezone:          zone.name }
+  end
+
+  def self.refuse(message)
+    raise Kiosk::Server::Errors::Forbidden, message
+  end
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+
+  <blockquote><strong>Paid is the order's own status.</strong> The reschedule operation reads <code>order.paid?</code>. <code>paid</code> is written by the engine's <code>Kiosk::Server::PaymentClaim</code>, which wraps the payment provider: it moves the order from <code>created</code> to <code>paying</code> before the capture, checks the cart against your price, and writes <code>paid</code> once the capture returns. getgrocery configures it in place of Step 2's bare provider:
+  <pre><code class="language-ruby"># config/initializers/kiosk.rb
+  # There is no `payment_gated:` option. PaymentClaim writes the status an action gates on.
+  c.payment_provider = Kiosk::Server::PaymentClaim.new(
+    Kiosk::PaymentProviders::Stripe.new(api_key: ENV.fetch("STRIPE_SECRET_KEY")),
+    currency: "eur", table: "orders", reference: "order_id", query: "my_orders",
+    status_column: "status", unpaid: "created",
+  )
+  c.cart_price_checker = PriceChecker</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <code>c.cart_price_checker</code> answers the order's total once the cart mirrors it; getgrocery's is <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/services/price_checker.rb"><code>PriceChecker</code></a>.</blockquote>
+
+  <blockquote><strong>Topics.</strong> A <code>topic</code> block declares an event an assistant can follow on <code>GET /kiosk/events</code> (Step 3): a <code>description</code>, a <code>payload_schema</code>, and <code>subject_reachable</code>, which says whether a subscriber may follow a given order. Each <code>example</code> call adds one sample payload; it is checked against <code>payload_schema</code> when the class loads and published as <code>examples</code> on the topic's entry in <code>GET /kiosk/schema</code>. Your code emits the event when it happens:
+  <pre><code class="language-ruby"># app/jobs/courier_dispatch_job.rb, once the courier leaves
+Kiosk::Server::Events.emit(
+  topic: :order_delivery, subject: order.id, identity_scope: [order.user_id],
+  data: { "order_id"  =&gt; order.id,
+          "status"    =&gt; "out_for_delivery",
+          "eta"       =&gt; arrival.utc.iso8601,
+          "eta_label" =&gt; DeliverySlots.clock_label(arrival, order.zone),
+          "timezone"  =&gt; order.timezone },
+)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre></blockquote>
 
   <h2>Step 6: Start the server and verify</h2>
   <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it's the AP2 <code>iss</code> anchor) — the request host only <em>selects</em> among the origins you configure and never adds one, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
@@ -898,7 +772,7 @@ curl -s http://localhost:3000/kiosk/schema | jq '.queries | map(.name)'
 curl -s http://localhost:3000/kiosk/catalog \
   -H "Authorization: Bearer $TOKEN" | jq '.[0]'
 # => { "sku": "sourdough-bread", "name": "Sourdough Bread",
-#      "price_cents": 449, "currency": "eur" }
+#      "price_cents": 449, "price_eur": "€4.49", "currency": "eur" }
 
 # Arguments travel in the QUERY STRING, checked against the input_schema
 # before your handler runs. `date` is OPTIONAL here: omit it and the operator
@@ -908,17 +782,16 @@ SLOT=$(curl -s -G http://localhost:3000/kiosk/delivery_slots \
   --data-urlencode "delivery_address=42 Camden Street, Dublin 2" \
   -H "Authorization: Bearer $TOKEN" | jq '.[0]')
 echo "$SLOT"
-# => { "delivery_slot_id": 1, "date": "…", "slot_at": "…", "label": "08:00-10:00" }
+# => { "slot_at": "…", "label": "08:00–10:00 (Europe/Dublin)",
+#      "timezone": "Europe/Dublin", "district": "D02" }
 
-# An action is a POST at its own name, with a JSON body. The window comes
-# STRAIGHT from the row above — never a day you typed here, which ages into a
-# 400 the morning after you wrote it.
+# An action is a POST at its own name, with a JSON body. `slot_at` comes
+# straight from the row above.
 curl -s -X POST http://localhost:3000/kiosk/create_order \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d "$(jq -n --argjson slot "$SLOT" \
         '{items: [{sku: "sourdough-bread", qty: 2}],
-          delivery_slot_id: $slot.delivery_slot_id,
-          delivery_date:    $slot.date,
+          slot_at:          $slot.slot_at,
           delivery_address: "42 Camden Street, Dublin 2"}')"</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <blockquote><strong>Got an empty catalog back?</strong> Your controllers are not in <code>app/controllers/kiosk/</code>. That is the state where a booted app serves no verbs: every <code>/kiosk/&lt;name&gt;</code> answers a <code>404</code> problem document whose <code>hint</code> lists what IS registered, and the <code>capabilities</code> you checked above come back without <code>schema</code>, <code>queries</code> or <code>actions</code>. kiosk-server says the same thing on the log at boot when nothing at all is registered.</blockquote>
   <blockquote><strong>Two shapes worth seeing once.</strong> A <strong>long list</strong> paginates by <a href="https://www.rfc-editor.org/rfc/rfc8288">RFC 8288</a>: the body is still a bare array, the total is in <code>X-Total-Count</code>, and a truncated page carries <code>Link: &lt;…&gt;; rel="next"</code>. <em>The absence of that link is the only signal there is no more</em> — there is no <code>next</code> field in the body. And a <strong>GET at an action's name</strong> (or a POST at a query's) is a <code>405 method_not_allowed</code> that tells you which method to use — a different fact from "no such verb", which is a <code>404</code>. Add <code>-i</code> to any call above to see both.</blockquote>
@@ -963,7 +836,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
     <li><strong>Discovery:</strong> <code>GET /.well-known/kiosk.json</code> → finds your endpoint</li>
     <li><strong>Registration <em>or</em> binding — one of two, not always the first:</strong> a new assistant account is proof-of-possession (<code>GET /kiosk/auth/challenge</code> → sign → <code>POST /kiosk/auth/register</code>) → <code>access_token</code>, and a returning key refreshes at <code>POST /kiosk/auth/login</code>. When the human <em>already has an account with you</em>, the assistant binds to it instead: the claim ceremony it opens itself (<code>POST /kiosk/oauth/device_authorization</code> → the human approves the <code>user_code</code> at <code>/kiosk/oauth/device/verify</code> → <code>POST /kiosk/oauth/token</code>), or a link code the human generated on «Link an assistant» (<code>/kiosk/auth/assistants</code> → <code>POST /kiosk/auth/link</code>) and handed over, which the assistant redeems at <code>POST /kiosk/auth/claim</code>. Both end in a token; only whose rows it sees differs, and every step below is the same either way.</li>
     <li><strong>Read the contract:</strong> <code>GET /kiosk/schema</code> (no token) → learns every verb's name, prose and both schemas before it spends anything</li>
-    <li><strong>Browse:</strong> <code>GET /kiosk/catalog</code> and <code>GET /kiosk/delivery_slots?date=…</code> → sees your products and when you can deliver</li>
+    <li><strong>Browse:</strong> <code>GET /kiosk/catalog</code> and <code>GET /kiosk/delivery_slots?delivery_address=…</code> → sees your products and when you can deliver</li>
     <li><strong>Order:</strong> <code>POST /kiosk/create_order</code> → order created, delivery window booked with it</li>
     <li><strong>Card setup:</strong> <code>POST /kiosk/payment_setup</code> → human enters card once on Stripe</li>
     <li><strong>Pay:</strong> agent signs 3 JWS mandates, <code>POST /kiosk/pay</code> → payment settled</li>
@@ -990,7 +863,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
     <li><a href="https://github.com/kiosk-hq/kiosk">github.com/kiosk-hq/kiosk</a> — OSS reference implementation</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#draw-the-routes">kiosk-server — draw the routes</a> — the engine behind Step 3: the <code>kiosk</code> block, everything the mount draws, the root-relative discovery documents it installs, and what answers a path you drew no route for</li>
     <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-server#declaring-queries-and-actions">kiosk-server — declaring queries and actions</a> — the <code>Kiosk::Handler</code> mixin this page's controllers use: the full macro list, where handlers live, the dispatch mechanics, and the error seam</li>
-    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>test/stories/shop_test.rb</code> (<code>bin/rails test</code>) drives the entire register → order → pay flow end-to-end over HTTP, as an assistant does. Read it as the runnable original: its own handler classes are named for its domain — <code>Kiosk::StorefrontController</code> carries the read half, not the <code>Kiosk::CatalogController</code> the generator's example names — and it factors the argument guards this page inlines into one shared <code>WireArguments</code> module. Same shape, different names, a different factoring.</li>
+    <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">kiosk-demo-getgrocery</a> — the full runnable provider this guide is based on; its <code>test/stories/shop_test.rb</code> (<code>bin/rails test</code>) drives the entire register → order → pay flow end-to-end over HTTP, as an assistant does. Its controllers, models and operations are the ones on this page.</li>
   </ul>
 </article>
 
