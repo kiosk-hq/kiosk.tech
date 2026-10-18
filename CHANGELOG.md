@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.15] — 2026-10-18
+
+- 2026-10-18: **Skill 0.5.15** signs the `cart` that an action answers, reads `payment_state`, and listens on the `payment` topic.
+
 - 2026-10-18: The specification defines the `cart` an action answers, the `payment_state` a per-user query gives, and the `payment` topic; onboarding uses `Kiosk::Payable`.
 
 - 2026-10-18: Onboarding creates the `stripe_customers` table with `rails generate kiosk:pay_stripe:install`, given the same `--user-id-type` as `kiosk:install`.

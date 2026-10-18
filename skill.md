@@ -1,6 +1,6 @@
 ---
 name: kiosk-agent-protocol
-version: "0.5.14"
+version: "0.5.15"
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 tags: [kiosk, agent-protocol, ap2]
 trigger: <link rel="kiosk">
@@ -332,7 +332,7 @@ Sign 3 RS256 JWS mandates (intent -> cart -> payment). `iss` must match the `iss
 
 - **`200` with the settlement** -- one charge, and the work is done. The operator gives this answer if the first call charged the card and if this call charged it. You do not need to know which. Report the settlement and stop. Do not pay again.
 - **`402 payment_failed`** -- read `hint`, as for a first call. If no money moved, the chain is closed: fix the card and sign a new chain. If the outcome is still unknown after three tries, stop and tell your human.
-- **`409 conflict`** -- the operator will not charge this chain: an earlier call with it was declined, or these `id`s came before with other content. Before you sign a new chain, read the order's paid state through the operator's own query (e.g. `my_orders`). Sign a new chain only on a clear "not paid". If the order is paid, report it and stop. If the answer is pending or unknown, if the query does not show the order, if the operator has no such query, or if the query fails, stop and tell your human.
+- **`409 conflict`** -- the operator will not charge this chain: an earlier call with it was declined, or these `id`s came before with other content. Before you sign a new chain, read the order's `payment_state` through the operator's own query (e.g. `my_orders`). Sign a new chain only on `unpaid`, a clear "not paid". If it is `paid`, report it and stop. If it is `pending` or unknown, if the query does not show the order, if the operator has no such query, or if the query fails, stop and tell your human.
 
 If the mandates' `exp` has passed, you cannot send them again. Read the order's paid state first, as for a `409`, before you sign a new chain.
 
@@ -502,7 +502,9 @@ Each mandate points to the one before it -- intent -> cart -> payment -- so they
 
 **`currency` is an ISO 4217 three-letter code** (`"eur"`, `"EUR"`), never a name, a number or a symbol. One operator can refuse a currency that another accepts. That refusal is the operator's limit, not a defect in the mandates that you signed. The `currency` in the `pay` answer is the operator's form and can be different byte for byte from yours (`"eur"` for `"EUR"`). Compare the two as codes, and never read a different form as a failed or wrong payment.
 
-The operator interprets `line_items`. In addition to your own item lines, include every reference that the operator's catalogue or an action result asks for. For example, a `pay_hint` that names an order id means: include `{"order_id": "..."}` with your items. Operators find the order for a settlement by those references, and actions that need a paid order depend on that match.
+**Sign the `cart` that the action gave you.** An action that creates an order (or a booking, or a reservation) gives `cart`: `{currency, total_amount_cents, line_items}`. Put these three values into the cart mandate, unchanged. Do not write line items of your own. The first line item names the order, e.g. `{"order_id": "..."}`: the operator finds the paid order by it. If the operator refuses the cart, read the refusal's `detail`: it says what to do.
+
+**`payment_state` tells you where the money stands.** The operator's own query (e.g. `my_orders`) gives it on each row: `unpaid` (pay for it), `pending` (a charge is in progress: read again later, do not pay again), `paid`, or `refunded` (the charge went back to the card). Where the catalogue's `events` array has the `payment` topic, subscribe to it (Step 3b). Its event tells you when an order is `paid` or `refunded`; `data` names the order with the same key as the cart's first line item.
 
 ### Signing in Python
 
@@ -523,16 +525,17 @@ intent_jws = jwt.encode({**common, "id": intent_id,
     "scope": "grocery", "cap_amount_cents": 5000, "currency": "eur"
 }, private_key, algorithm="RS256")
 
+cart = order["cart"]                  # `order`: the answer of the action -- copy its `cart` VERBATIM
 cart_id = str(uuid4())
 cart_jws = jwt.encode({**common, "id": cart_id,
     "intent_mandate_id": intent_id,
-    "line_items": [{"sku": "milk", "qty": 2}],
-    "total_amount_cents": 398, "currency": "eur"
+    "line_items": cart["line_items"],
+    "total_amount_cents": cart["total_amount_cents"], "currency": cart["currency"]
 }, private_key, algorithm="RS256")
 
 payment_jws = jwt.encode({**common, "id": str(uuid4()),
     "cart_mandate_id": cart_id, "payment_method": "on_file",
-    "amount_cents": 398, "currency": "eur"
+    "amount_cents": cart["total_amount_cents"], "currency": cart["currency"]
 }, private_key, algorithm="RS256")
 ```
 
