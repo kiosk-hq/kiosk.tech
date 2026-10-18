@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: The landing says registration and each session pay the toll, recent spend lowers it, and two items are open; onboarding says the generator sets the KYC tables' user-id type.
+
 ## [skill 0.5.14 · listener 0.5.14] — 2026-10-18
 
 - 2026-10-18: **Skill 0.5.14 is written in Simplified Technical English**, sends the same chain again after a lost or unknown payment, and pays the toll once per access token.
