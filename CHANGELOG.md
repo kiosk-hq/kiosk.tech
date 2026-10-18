@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: The specification and the landing say the reference policy tolls a session with the chance `max(0, (cap - spend) / cap)`, linear in recent spend.
+
 - 2026-10-18: The landing says registration and each session pay the toll, recent spend lowers it, and two items are open; onboarding says the generator sets the KYC tables' user-id type.
 
 ## [skill 0.5.14 · listener 0.5.14] — 2026-10-18
