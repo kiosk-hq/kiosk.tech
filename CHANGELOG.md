@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.18] — 2026-10-18
+
+- 2026-10-18: **Skill 0.5.18** resolves a relative `next` link against the request URL, and does not guess the order of the rows from a cursor.
+
 - 2026-10-18: The specification page says that an AI assistant ignores unknown members in every response, as the formal specification does.
 
 ## [skill 0.5.17] — 2026-10-18

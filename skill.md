@@ -1,6 +1,6 @@
 ---
 name: kiosk-agent-protocol
-version: "0.5.17"
+version: "0.5.18"
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 tags: [kiosk, agent-protocol, ap2]
 trigger: <link rel="kiosk">
@@ -105,7 +105,7 @@ Link: <https://host/kiosk/search_hotels?city=Lisbon&cursor=b2Zmc2V0OjIw>; rel="n
 X-Total-Count: 97
 ```
 
-If a `rel="next"` link is **there**, more rows exist: **get that URI exactly as written** (same headers, same token) for the next page. If it is **not there**, you have the full list. Only that absence tells you the list is complete, so follow the link until there is none. A `Link` value can list several relations, with commas between them: use the one whose `rel` is `next`, and ignore the others. The cursor inside the URI is **opaque**: never parse it and never make one. If you build the request yourself, copy the `cursor` parameter byte for byte. Where a query has pages, an optional `limit` sets the page size. A query without pages ignores it and gives all rows. `limit` and `cursor` are RESERVED names: an operator always accepts them and never declares them in an `input_schema`. Actions and `pay` never have a `next` link.
+If a `rel="next"` link is **there**, more rows exist: **get that URI exactly as written** (same headers, same token) for the next page. If the link is a relative reference, resolve it against the URL of your request first ([RFC 3986](https://www.rfc-editor.org/rfc/rfc3986)). If it is **not there**, you have the full list. Only that absence tells you the list is complete, so follow the link until there is none. A `Link` value can list several relations, with commas between them: use the one whose `rel` is `next`, and ignore the others. The cursor inside the URI is **opaque**: never parse it, never make one, and do not guess the order of the rows from it. If you build the request yourself, copy the `cursor` parameter byte for byte. Where a query has pages, an optional `limit` sets the page size. A query without pages ignores it and gives all rows. `limit` and `cursor` are RESERVED names: an operator always accepts them and never declares them in an `input_schema`. Actions and `pay` never have a `next` link.
 
 `X-Total-Count` is the number of rows that MATCH on all pages, not the number in this response. It is a **common practice, not a standard**, and an operator that does not know the total omits it. Use it to show progress, never as a loop limit.
 
