@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.16.md` | **0.5** | The same wire as 0.5.15. A topic's `description`, `payload_schema` and `examples` join the list of operator-written strings that the assistant reads as data. |
 | `skill-v0.5.15.md` | **0.5** | **A WIRE CHANGE in payment.** An action that creates an order answers `cart`, which the assistant signs unchanged; a per-user query gives `payment_state`; the `payment` topic says when an order is paid or refunded. |
 | `skill-v0.5.14.md` | **0.5** | **A WIRE CHANGE in payment and the toll.** A repeat of the same unfinished payment chain is charged again under the same key, so it cannot charge twice; a declined charge stops counting against an exact spending cap at once; the proof-of-work toll is paid once per access token. The listener `listen-v0.5.14.py` shows a delivery topic in its usage line. The skill is rewritten in Simplified Technical English. |
 | `skill-v0.5.13.md` | **0.5** | The same wire as 0.5.12. Once a card is saved, the assistant asks the human how much it may pay at that operator without asking, keeps the amount beside its key, and asks before any payment over it. |
@@ -80,9 +81,9 @@ and 0.4.16 opens a new wire group in which
 and 0.5.2 opens a new wire group in which
 0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8 = 0.5.9 = 0.5.10 = 0.5.11 = 0.5.12 = 0.5.13,
 and 0.5.14 opens a new wire group of which it stayed the only member,
-and 0.5.15 opens a new wire group, the one served now, of which it is the only member,
+and 0.5.15 opens a new wire group, the one served now, in which 0.5.15 = 0.5.16,
 but the eight groups are NOT the same wire, and only the last describes
-what a 0.5.15 operator serves. The formal spec
+what a 0.5.16 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
