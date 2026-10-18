@@ -1,80 +1,56 @@
 # kiosk.tech (published site) — constitution
 
 This repo is everything published at https://kiosk.tech (GitHub Pages,
-`CNAME`): `specification.html` — **the normative spec**, `skill.md` — the
-universal agent skill (the "latest" alias, which must come to REST byte-identical
-to the newest cut; the immutable published versions are `skill-vX.Y.Z.md`,
-current `skill-v0.5.14.md` (before 1.0 its whole version is the framework release's)
-— a published version file is never edited, every change ships a new one, and a
-skill edit ends in a version bump plus a re-pin of every consumer in the same
-wave: `bin/check-skill-immutability` enforces both halves. K-847, and the three
-standing rules are in the umbrella `CLAUDE.md`.), `index.html` —
-landing, `onboarding.html`, and `spec/` — the **formal** specification (`spec/protocol.md`,
-RFC-style) plus machine-readable JSON Schemas (`spec/schemas/`) for adopters and
-porters (`specification.html` is the narrative spec, the formal spec is
-its precise companion; both are kept consistent). Static files, no build step — nothing
-here is compiled, and NO workflow builds the site: every workflow in
-`.github/workflows/` runs a guard over the checked-in files. Each `bin/check-*`
-has exactly one workflow that runs it, so the guards answer the same in CI as
-they do locally — that pairing is the fact worth knowing, and it is enforced
-rather than restated here. **Do not enumerate or count the workflows in this
-paragraph.**
-`ls .github/workflows/` and `ls bin/` are the list, and that same umbrella
-check fails if one is written back here.
+`CNAME`). Static files, no build step.
 
-Extra weight of rule 1 here: the spec is the ROOT of the authority chain.
-Changing normative spec text is a decision — it needs an ADR or a ledger
-`decision` reference. Landing and skill text must trace to behavior
-demonstrated by the reference implementation.
+- `specification.html` — the normative spec, in narrative form.
+- `spec/` — the formal spec (`spec/protocol.md`) and JSON Schemas
+  (`spec/schemas/`) for adopters and porters. Keep it consistent with
+  `specification.html`.
+- `skill.md` — the agent skill. It is the alias of the newest cut and must be
+  byte-identical to it. The current cut is `skill-v0.5.14.md`.
+- `index.html` (landing), `onboarding.html`, `known-issues.html`.
+
+Every workflow in `.github/workflows/` runs one `bin/check-*` guard over the
+checked-in files, and each guard has exactly one workflow. `ls` the two
+directories for the list.
+
+## Skill cuts
+
+- Never edit a published `skill-vX.Y.Z.md`. Every change ships a new cut.
+- A skill edit ends in a version bump and a re-pin of every consumer in the
+  same change. `bin/check-skill-immutability` enforces both.
 
 ## The five rules
 
-1. **Authority chain.** The spec (`specification.html`, this repository's own) is
-   normative. Code and skill conform to the spec; landing/HN/README claim
-   only what the code demonstrably does. An ADR may override the spec — then
-   the spec must be updated to match.
-2. **Conflict rule.** On a conflict with no recorded decision (ADR or a
-   ledger `decision`): do NOT pick a side. Record it in the findings ledger
-   as `decision-needed` and skip that item.
-3. **Scope rule.** Found a problem outside your current task? Record it in
-   the findings ledger. Do not fix it inline.
-4. **Merge gate.** Tests covering the change must be green before merge; for
-   `reference` that means the touched gem's own suite + `e2e/run.sh`.
-5. **Changelog rule.** Significant changes — anything altering behavior, spec
-   text, skill instructions, or claims — get an entry in the touched repo's
-   `CHANGELOG.md` stating the essence and intent of the change, not its
-   content. Tests-only changes, refactors, typos do not qualify.
-   **THE STRONG RULE (Phil, 2026-09-11), his words. It binds EVERY
-   `CHANGELOG.md` in this workspace, and this repository tracks exactly one
-   (it ships no gem — zero `.gemspec` files tracked). There is no second
-   register and no exception; the «journal for the root file, release notes
-   for the gems» split this rule used to carry is REPEALED:**
-
-   > **Keep the entries short, always under 200 characters and one-two
-   > sentences. Only keep the essence of the change. git commit messages will
-   > keep the details. In the CHANGELOG, only keep the essence.**
-
-   The details belong in the git commit message and in the ledger row. Nothing
-   already written is edited — a changelog is append-only history — so the long
-   standing corpus stays as it is.
-
-   **AND THE ENTRY SAYS WHICH VERSION CARRIES IT, NOT ONLY WHEN IT LANDED (Phil,
-   2026-09-24).** An entry is grouped by the cut that carries it:
-   `## [Unreleased]` holds what no cut has closed yet, and a cut renames it to
-   `## [<line> MAJOR.MINOR.PATCH] — YYYY-MM-DD` and opens a fresh empty one above
-   — **a skill PATCH getting a section exactly as a MINOR does**, since a date
-   cannot say which version has a change. This repository publishes TWO versioned
-   lines on independent numbers — the skill cut and the pinned event listener — so
-   the heading names which one it cut, and everything published since the previous
-   section belongs to it, a specification sentence and a landing claim included.
-   The entries written before the grouping sit
-   below the `## Before release sections` heading, unedited and naming no version.
-   **`CHANGELOG-RULE.md` at the root is the authority for how**, and the changelog
-   points at it instead of repeating it.
+1. **Authority chain.** `specification.html` is normative and the root of the
+   chain. Code and skill conform to it. Landing and skill text claim only what
+   the reference implementation does. An ADR may override the spec; then
+   update the spec. A change to normative spec text is a decision: it needs an
+   ADR or a recorded ledger `decision`.
+2. **Conflict rule.** On a conflict with no recorded decision, do not pick a
+   side. Record it in the findings ledger as `decision-needed` and skip it.
+3. **Scope rule.** Record a problem outside your task in the findings ledger.
+   Do not fix it inline.
+4. **Merge gate.** Tests that cover the change are green before merge.
+5. **Changelog rule.** A change to behaviour, spec text, skill instructions or
+   claims gets an entry in `CHANGELOG.md`. Tests-only changes, refactors and
+   typo fixes get none.
+   - One or two sentences, under 200 characters, the essence only. Details go
+     in the commit message.
+   - New entries go under `## [Unreleased]`. A cut renames it to
+     `## [<line> MAJOR.MINOR.PATCH] — YYYY-MM-DD` and opens a new empty one
+     above. A skill PATCH gets a section too.
+   - This repo publishes two versioned lines on independent numbers: the skill
+     and the pinned event listener. The heading names the line it cut.
+     Everything published since the previous section belongs to it.
+   - Never edit a written entry.
+   - `CHANGELOG-RULE.md` at the root is the procedure.
 
 ## The skill stays audience-neutral
 
-`skill.md` is normative and read by every assistant on every OS. A workaround for
-one OS, one Python install or one assistant runtime does not go in it unless its
-absence blocks a significant share of readers. It goes on `known-issues.html`:
-symptom, cause, fix, and only for a stumble a live run actually hit.
+`skill.md` is read by every assistant on every OS. A workaround for one OS,
+one Python install or one assistant runtime goes in it only when its absence
+blocks a significant share of readers. Otherwise it goes on
+`known-issues.html` (symptom, cause, fix), and only for a problem a live run
+hit.
