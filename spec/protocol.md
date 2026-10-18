@@ -2399,12 +2399,51 @@ new one -- an expired chain gives the assistant the same duty as `409 conflict`.
 > (`unpaid` -> `paying`) BEFORE the capture -- an atomic compare-and-set that
 > also makes a second capture impossible -- and flips it to `paid` the instant
 > the capture returns, a hair BEFORE the settlement row is written. The three
-> paying demos keep only their cashier check, and their
-> per-user queries (`my_orders`, `my_bookings`, `my_reservations`) publish a
-> `payment_state` of `unpaid` | `pending` | `paid` read from that marker first
-> and the settlement row second, so a claimed-but-unresolved capture answers
-> `pending` and the gap between capture and settlement never reads as "not
-> paid".
+> paying demos keep only their cashier check. Their payable models include the
+> engine's `Kiosk::Payable`, and their per-user queries (`my_orders`,
+> `my_bookings`, `my_reservations`) publish its `payment_state`, read from that
+> marker first and the settlement row second, so a claimed-but-unresolved
+> capture answers `pending` and the gap between capture and settlement never
+> reads as "not paid".
+
+### 11.7 The cart to sign, the payment state, and the `payment` topic
+
+An action that creates an item to pay for answers `cart`: an object with three
+members, `currency`, `total_amount_cents` and `line_items`. The AI assistant
+signs the cart mandate with these three values, unchanged. It does not compose
+line items of its own.
+
+- The first line item names the item to pay for with one key and the item's
+  id, for example `{"order_id": "e2b1c0d4-..."}`. The operator finds the paid
+  item by this line.
+- Each other line item carries `qty` and `price_cents`, and MAY carry more
+  members, for example `sku`. The sum of `qty` x `price_cents` over these lines
+  is `total_amount_cents`.
+- The operator MUST accept the `cart` it answered while the item is unpaid and
+  its price holds.
+
+A per-user query that lists items to pay for carries `payment_state` on each
+row. The value is one of four:
+
+| `payment_state` | Meaning |
+|---|---|
+| `unpaid` | Nothing is charged. This is the only clear "not paid" of Section 11.6. |
+| `pending` | A capture started, and its outcome is not known. The AI assistant reads again later and does not sign a new chain. |
+| `paid` | The capture went through. |
+| `refunded` | The charge went back to the card. |
+
+An operator that serves the event stream (Section 8.5) and `pay` publishes the
+topic `payment`, with `reach` `principal`. When a capture goes through, the
+operator pushes one event to the owner of the paid item. `subject` is the
+item's id. `data` has two members: the key and id of the cart's first line
+item, and `payment_state`, for example
+`{"order_id": "e2b1c0d4-...", "payment_state": "paid"}`. When the operator
+refunds the charge, it pushes the same event with `"payment_state": "refunded"`.
+
+> *Reference note (non-normative).* `Kiosk::Payable` gives the payable model
+> `payment_state`, `cart(lines)` and `settlement`; `Kiosk::Server::PaymentClaim`
+> registers the `payment` topic and pushes `paid` when the capture returns, and
+> its `announce` pushes `refunded` after the operator refunds.
 
 ---
 

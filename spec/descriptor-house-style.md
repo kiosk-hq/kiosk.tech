@@ -280,7 +280,7 @@ included, since it answers a one-element array rather than a bare object --
 with EVERY field the real row carries, so the assistant learns the field names,
 the currency field, and the id it will feed to the next call, at a glance. For
 an ACTION: the example RETURN value the `POST` hands back (e.g.
-`{booking_id, total_cents, currency, pay_hint}`), which documents the follow-on
+`{booking_id, total_cents, currency, cart}`), which documents the follow-on
 the assistant must act on.
 
 Examples ILLUSTRATE the contracts, they are not the contracts. If an example

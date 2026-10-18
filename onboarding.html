@@ -402,6 +402,7 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 # delivery district the window was quoted on.
 class Order &lt; ApplicationRecord
   include Kiosk::Owned
+  include Kiosk::Payable
 
   MAX_ITEMS = 50
 
@@ -426,30 +427,7 @@ class Order &lt; ApplicationRecord
   # One move per order, and none once the courier has the basket.
   scope :reschedulable,    -&gt; { where.not(status: %i[rescheduled out_for_delivery delivered]) }
 
-  # A settlement whose cart names this order (`line_items @&gt; [{order_id}]`).
-  SETTLEMENT_FOR_ROW = Arel.sql(
-    "kiosk.cart_mandates.line_items @&gt; json_build_array(json_build_object('order_id', orders.id::text))::jsonb",
-  ).freeze
-
-  # Adds `settled` and `settled_currency`, read from the given settlements: the
-  # caller's own on the wire, all of them in the back office.
-  scope :with_settlement, lambda { |settlements|
-    settlement = settlements.joins(:cart_mandate).where(SETTLEMENT_FOR_ROW)
-    select(arel_table[Arel.star],
-           Arel::Nodes::Exists.new(settlement.select(Arel.sql("1")).arel).as("settled"),
-           Arel::Nodes::Grouping.new(settlement.select(:currency).limit(1).arel).as("settled_currency"))
-  }
-
   def self.readable_by?(order_id, user_id) = where(id: order_id, user_id: user_id).exists?
-
-  # What `my_orders` publishes about the money. `pending` means a capture is in
-  # flight: the caller must reconcile, not sign a new mandate.
-  def payment_state
-    return "paid"    if paid? || settled
-    return "pending" if paying?
-
-    "unpaid"
-  end
 
   def zone = Time.find_zone!(timezone)
 
@@ -466,7 +444,7 @@ class Order &lt; ApplicationRecord
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p><code>Kiosk::Owned</code> gives the model <code>own</code>, the signed-in customer's rows. <code>Kiosk::Settlement</code> is the engine's model over the capture receipts it records after a successful <code>pay</code>.</p>
+  <p><code>Kiosk::Owned</code> gives the model <code>own</code>, the signed-in customer's rows. <code>Kiosk::Payable</code> gives each order its <code>payment_state</code> (<code>unpaid</code>, <code>pending</code> while a capture is in flight, <code>paid</code> or <code>refunded</code>), <code>cart(lines)</code>, the cart the assistant signs, and <code>settlement</code>. <code>with_settlement</code> reads the payment state of many orders in one query from <code>Kiosk::Settlement</code>, the engine's model over the capture receipts it records after a successful <code>pay</code>.</p>
 
   <p><code>app/controllers/kiosk/orders_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/orders_controller.rb
@@ -511,9 +489,7 @@ class Kiosk::OrdersController &lt; ActionController::API
                     slot_at:       { type: "string", description: "The delivery window's start." },
                     slot_label:    { type: "string", description: "The window as a human reads it." },
                     address:       { type: "string" },
-                    payment_state: { type: "string", enum: %w[unpaid pending paid],
-                                     description: "`pending`: a charge is under way, so wait and " \
-                                                  "read again. Pay again only on `unpaid`." },
+                    payment_state: Kiosk::Payable::STATE_SCHEMA,
                   },
                   required: %w[order_id status total_cents slot_at slot_label address payment_state],
                 }
@@ -548,16 +524,16 @@ class Kiosk::OrdersController &lt; ActionController::API
                 description: "The order, priced.",
                 additionalProperties: false,
                 properties: {
-                  order_id:    { type: "string", description: "Put it in the cart you sign, as `pay_hint` says." },
-                  total_cents: { type: "integer", description: "EUR cents; sign the cart at exactly this total." },
+                  order_id:    { type: "string", description: "`my_orders` lists it." },
+                  total_cents: { type: "integer", description: "EUR cents." },
                   total_eur:   { type: "string", description: "The total as a human reads it." },
                   currency:    { type: "string" },
                   slot_at:     { type: "string", description: "The delivery window's start." },
                   slot_label:  { type: "string", description: "The window as a human reads it." },
                   timezone:    { type: "string", description: "The delivery address's IANA zone." },
-                  pay_hint:    { type: "string", description: "How to pay for this order." },
+                  cart:        Kiosk::Payable::CART_SCHEMA,
                 },
-                required: %w[order_id total_cents total_eur currency slot_at slot_label timezone pay_hint]
+                required: %w[order_id total_cents total_eur currency slot_at slot_label timezone cart]
   example_params({
     items: [{ sku: "sourdough-bread", qty: 2 }, { sku: "greek-yogurt", qty: 1 }],
     slot_at:          -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
@@ -568,7 +544,9 @@ class Kiosk::OrdersController &lt; ActionController::API
     slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
     slot_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
     timezone: DeliverySlots::DEFAULT_ZONE_NAME,
-    pay_hint: "Call `pay` in EUR with a cart mandate (a signed cart) for exactly this order …",
+    cart: { currency: "eur", total_amount_cents: 1287,
+            line_items: [{ order_id: ORDER_ID }, { sku: "sourdough-bread", qty: 2, price_cents: 449 },
+                         { sku: "greek-yogurt", qty: 1, price_cents: 389 }] },
   })
   def create_order
     @order = CreateOrderOperation.call(
@@ -634,10 +612,7 @@ json.currency "eur"
 json.slot_at @order.slot_at.in_time_zone(@order.zone).iso8601
 json.slot_label DeliverySlots.label(@order.slot_at, @order.zone)
 json.timezone @order.timezone
-json.pay_hint "Call `pay` in EUR with a cart mandate (a signed cart) for exactly this order. " \
-              "Its line_items: one {\"order_id\": \"#{@order.id}\"} entry, then one " \
-              "{\"sku\", \"qty\", \"price_cents\"} entry per item at catalog prices. " \
-              "The shop checks the currency, prices and total before it charges."</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+json.cart @order.cart(@order.order_items.map { { sku: it.product.sku, qty: it.qty, price_cents: it.price_cents } })</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-ruby"># app/views/kiosk/orders/reschedule_delivery.json.jbuilder
 json.order_id @order.id
 json.rescheduled_at @order.slot_at.in_time_zone(@order.zone).iso8601
@@ -691,7 +666,7 @@ class RescheduleDeliveryOperation
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>Paid is the order's own status.</strong> The reschedule operation reads <code>order.paid?</code>. <code>paid</code> is written by the engine's <code>Kiosk::Server::PaymentClaim</code>, which wraps the payment provider: it moves the order from <code>created</code> to <code>paying</code> before the capture, checks the cart against your price, and writes <code>paid</code> once the capture returns. getgrocery configures it in place of Step 2's bare provider:
+  <blockquote><strong>Paid is the order's own status.</strong> The reschedule operation reads <code>order.paid?</code>. <code>paid</code> is written by the engine's <code>Kiosk::Server::PaymentClaim</code>, which wraps the payment provider: it moves the order from <code>created</code> to <code>paying</code> before the capture, checks the cart against your price, writes <code>paid</code> once the capture returns, and tells the customer on the <code>payment</code> topic. getgrocery configures it in place of Step 2's bare provider:
   <pre><code class="language-ruby"># config/initializers/kiosk.rb
   # There is no `payment_gated:` option. PaymentClaim writes the status an action gates on.
   c.payment_provider = Kiosk::Server::PaymentClaim.new(

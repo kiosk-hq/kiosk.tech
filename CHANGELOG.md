@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: The specification defines the `cart` an action answers, the `payment_state` a per-user query gives, and the `payment` topic; onboarding uses `Kiosk::Payable`.
+
 - 2026-10-18: Onboarding creates the `stripe_customers` table with `rails generate kiosk:pay_stripe:install`, given the same `--user-id-type` as `kiosk:install`.
 
 - 2026-10-18: The specification and the landing say the reference policy tolls a session with the chance `max(0, (cap - spend) / cap)`, linear in recent spend.
