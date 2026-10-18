@@ -123,8 +123,8 @@ proof-of-work gate.
 2. All wire verb requests are authenticated with `Authorization: Bearer <jwt>`
    except where a section marks an endpoint unauthenticated.
 3. Signatures -- access tokens, possession proofs, and payment mandates -- use
-   **RS256** (RSASSA-PKCS1-v1_5 with SHA-256) over 2048-bit RSA keys, encoded as
-   compact JWS.
+   **RS256** (RSASSA-PKCS1-v1_5 with SHA-256) over RSA keys of 2048 to 4096 bits,
+   encoded as compact JWS. An operator refuses any other key with `400 bad_request`.
 4. Endpoint paths derive from the discovery document's `endpoint` value plus the
    fixed verb-to-path binding in Section 8; an AI assistant MUST derive URLs this way and MUST
    NOT hard-code a mount path.

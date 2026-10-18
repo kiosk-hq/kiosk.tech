@@ -390,7 +390,7 @@ ETag: "1f0c7a3e9b5d24618af03c9d7e2b5a04"
   <h2>Registration &amp; login (kiosk-pop)</h2>
   <p>Kiosk's auth scheme is <strong>kiosk-pop</strong> — a proof-of-possession challenge-response, advertised as <code>auth.kind: "kiosk-pop"</code> in the discovery document. It is <strong>not</strong> OAuth. A public key is not a credential — it is public. Before issuing a token, the operator requires <strong>proof of possession</strong> of the matching private key: it hands out a single-use challenge, the AI assistant signs it as an RS256 JWS. This also separates two operations the naïve flow conflates — <strong>register</strong> (a key the operator has never seen) and <strong>login</strong> (refresh a token for a key it already knows).</p>
 
-  <p><strong>Step 1 — get a challenge</strong> for your public key. Single-use, short-lived.</p>
+  <p><strong>Step 1 — get a challenge</strong> for your public key. Single-use, short-lived. The key is an RSA public key of 2048 to 4096 bits; an operator refuses any other key with <code>400 bad_request</code>.</p>
   <pre><code class="language-json">GET /kiosk/auth/challenge?public_key=&lt;url-encoded PEM&gt;
 
 → 200 OK
