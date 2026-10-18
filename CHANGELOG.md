@@ -13,6 +13,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 - 2026-10-18: An operator keys its processor capture by the principal together with the cart mandate id.
 - 2026-10-18: The specification's reputation section names recent spend as the reference input, and its refunds TODO names only a refund or cancellation that an assistant asks for.
 - 2026-10-18: The onboarding guide keeps the money in `payment_status`, shows how to refund, and predicts the `events` capability.
+- 2026-10-18: The landing names the event listener beside the solver, about 20 ms to verify a proof, and the visits that count as spend.
 - 2026-10-18: `POST /kiosk/agents/kyc` refuses with `403 forbidden` an attestation the operator's KYC provider does not accept, as the provider callback does.
 - 2026-10-18: Money that the operator refunds is not recent spend, so it does not lower the chance to pay the proof-of-work toll.
 - 2026-10-18: The reference reputation policy draws once for each customer in each access-token lifetime, so a new token in the same lifetime meets the same outcome.
