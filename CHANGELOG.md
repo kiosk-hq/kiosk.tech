@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: The published JSON Schemas' long `description`s are one to three short sentences; the rules stay in the specification.
 - 2026-10-18: The onboarding guide sends the `rel="kiosk"` Link header with `include Kiosk::SkillLink`.
 - 2026-10-18: An assistant's RSA key is 2048 to 4096 bits; an operator refuses any other key with `400 bad_request`.
 
