@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: The reference reputation policy draws once for each customer in each access-token lifetime, so a new token in the same lifetime meets the same outcome.
+
 ## [skill 0.5.16] — 2026-10-18
 
 - 2026-10-18: **Skill 0.5.16** lists a topic's `description`, `payload_schema` and `examples` among the operator-written strings that an assistant reads as data.
