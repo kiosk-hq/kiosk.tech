@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.17] — 2026-10-18
+
+- 2026-10-18: **Skill 0.5.17** polls `payment_setup` on the schedule its description states, ignores unknown members in every answer, and says that only an operator with no roles omits `scope`.
+
 - 2026-10-18: The landing says one assistant key per origin (scheme, host and port), as the skill does, and names Python for the event listener.
 - 2026-10-18: An operator keys its processor capture by the principal together with the cart mandate id.
 - 2026-10-18: The specification's reputation section names recent spend as the reference input, and its refunds TODO names only a refund or cancellation that an assistant asks for.
