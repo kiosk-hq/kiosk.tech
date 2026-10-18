@@ -124,13 +124,11 @@ openssl genrsa 2048 | base64
   c.payment_provider = Kiosk::PaymentProviders::Stripe.new(api_key: ENV["STRIPE_SECRET_KEY"])
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code>, and every kiosk migration that carries a user id bakes that type in — the schema helper functions, the identity tables (the <code>kiosk.agents.user_id</code> FK), device authorizations, the mandate tables, the KYC tables (<code>kiosk.kyc_attributes</code> and <code>kiosk.kyc_requests</code>) and <code>kiosk.visits</code>. <code>kiosk.events</code> bakes in nothing: its <code>identity_key</code> is text the engine writes and reads and never joins to your <code>users</code>. The <code>stripe_customers</code> table below takes the type from <code>c.user_id_type</code> in the initializer when it is migrated. If your <code>users.id</code> is a Rails-default <code>bigint</code>, <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> (so every kiosk table matches) and set <code>c.user_id_type = :bigint</code> — otherwise migrations fail with a datatype mismatch.</blockquote>
+  <blockquote><strong>PK type must match.</strong> The install generator defaults to <code>--user-id-type=uuid</code>, and every kiosk migration that carries a user id bakes that type in — the schema helper functions, the identity tables (the <code>kiosk.agents.user_id</code> FK), device authorizations, the mandate tables, the KYC tables (<code>kiosk.kyc_attributes</code> and <code>kiosk.kyc_requests</code>) and <code>kiosk.visits</code>. <code>kiosk.events</code> bakes in nothing: its <code>identity_key</code> is text the engine writes and reads and never joins to your <code>users</code>. The <code>stripe_customers</code> generator below takes the same <code>--user-id-type</code> flag. If your <code>users.id</code> is a Rails-default <code>bigint</code>, <strong>regenerate the kiosk migrations</strong> with <code>rails generate kiosk:install --user-id-type=bigint</code> and <code>rails generate kiosk:pay_stripe:install --user-id-type=bigint</code> (so every kiosk table matches) and set <code>c.user_id_type = :bigint</code> — otherwise migrations fail with a datatype mismatch.</blockquote>
 
-  <p>The adapter keeps each principal's Stripe Customer in a <code>stripe_customers</code> table, which one migration lays down:</p>
-  <pre><code class="language-ruby"># db/migrate/…_create_stripe_customers.rb
-class CreateStripeCustomers &lt; ActiveRecord::Migration[8.1]
-  def change = Kiosk::PaymentProviders::Stripe::CustomerRecord.create_table(self)
-end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p>The adapter keeps each principal's Stripe Customer in a <code>stripe_customers</code> table. The kiosk-pay-stripe generator writes the migration that creates it:</p>
+  <pre><code class="language-bash">rails generate kiosk:pay_stripe:install --user-id-type=uuid
+rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 3: Draw the routes</h2>
   <p>Step 1's generator already wrote a <code>kiosk</code> block at the top of your <code>config/routes.rb</code>, with an example query and action commented out, because it knows none of your verbs. Naming the five that Steps 4 and 5 declare is this step's work:</p>

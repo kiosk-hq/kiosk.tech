@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: Onboarding creates the `stripe_customers` table with `rails generate kiosk:pay_stripe:install`, given the same `--user-id-type` as `kiosk:install`.
+
 - 2026-10-18: The specification and the landing say the reference policy tolls a session with the chance `max(0, (cap - spend) / cap)`, linear in recent spend.
 
 - 2026-10-18: The landing says registration and each session pay the toll, recent spend lowers it, and two items are open; onboarding says the generator sets the KYC tables' user-id type.
