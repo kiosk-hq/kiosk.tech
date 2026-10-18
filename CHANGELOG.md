@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: Money that the operator refunds is not recent spend, so it does not lower the chance to pay the proof-of-work toll.
 - 2026-10-18: The reference reputation policy draws once for each customer in each access-token lifetime, so a new token in the same lifetime meets the same outcome.
 
 ## [skill 0.5.16] — 2026-10-18
