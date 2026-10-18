@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-18: The specification page says that an AI assistant ignores unknown members in every response, as the formal specification does.
+
 ## [skill 0.5.17] — 2026-10-18
 
 - 2026-10-18: **Skill 0.5.17** polls `payment_setup` on the schedule its description states, ignores unknown members in every answer, and says that only an operator with no roles omits `scope`.
