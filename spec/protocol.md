@@ -2317,8 +2317,10 @@ both sides do when a `pay` response is lost.
 
 **Operator.** The mandate `id` of each of the three mandates is unique per
 `user_id`. An operator **MUST NOT** charge one chain twice. It **MUST** key its
-PSP capture by the cart mandate `id`, so that a second capture of the same cart
-returns the first one's result and charges nothing.
+PSP capture by the principal together with the cart mandate `id`. A second
+capture of the same cart then returns the first one's result and charges
+nothing. The key names the principal because a PSP shares one key space across
+the operator's whole account.
 
 **Operator -- what a repeated chain is answered with.** `pay` is
 **idempotent**: a repeat of the IDENTICAL chain gets the answer that chain has
@@ -2585,16 +2587,16 @@ issuer, public key and audience; that serves both paths and the topic.
 
 ## 13. Reputation
 
-Reputation is an **operator-local** signal on an identity: successful transactions
-raise it, suspicious behavior lowers it. It is operator-local because a keypair is
+Reputation is an **operator-local** signal on an identity, for example what the
+customer recently spent here. It is operator-local because a keypair is
 unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. An operator **MAY** vary the PoW **proof count** of the session toll
    (Section 10) as a function of reputation rather than varying difficulty, down
    to no proof for a trusted customer.
-2. Minting a fresh identity **MUST NOT** be blocked; it starts at the unknown tier
-   and pays the corresponding toll. Shedding a reputation therefore costs at least
-   as much work as complying and forfeits accrued standing -- whitewashing is
+2. Minting a fresh identity **MUST NOT** be blocked; it starts with no record
+   at this operator and pays the toll of an unknown customer. A fresh key therefore
+   costs a registration proof and forfeits the record already earned -- whitewashing is
    priced, not prevented.
 3. **A policy decides per CALL KIND, and the write kind is named `run`.** An
    operator DECLARES a handler as a *query* or an *action* (Section 8.1), but a
