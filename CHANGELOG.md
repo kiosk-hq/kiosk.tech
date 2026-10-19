@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-19: Both specifications say skooti gates `rent_motorcycle` on `age_over_18` and the licence category the motorcycle needs.
 - 2026-10-19: Both specifications say a spending cap counts each settled charge less what the operator refunded of it: a refund gives its amount back to the cap.
 - 2026-10-19: Onboarding states the demos' session toll as the chance (cap − spend) / cap: certain with no recorded spend, none at the cap.
 - 2026-10-19: The specification's reputation section says a keypair is unique per origin, as the formal specification and the skill do.

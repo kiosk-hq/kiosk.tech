@@ -2507,9 +2507,9 @@ required") and the way to verify that this origin serves: `request_kyc` at an
 operator serving Section 12.4, otherwise `POST <endpoint>/agents/kyc` when it
 accepts attestations; where it serves neither, the hint says verification is not
 available here. The
-reference `kiosk-demo-skooti` gates `rent_motorcycle` (a
-combustion-engine motorcycle) on `age_over_18` **AND** `licence_a`, while the
-licence-free electric scooter needs neither -- the gate is per-Action. The record
+reference `kiosk-demo-skooti` gates `rent_motorcycle` on `age_over_18` **AND**
+the licence category that motorcycle needs (`licence_a1` or `licence_a`); the
+licence-free electric scooter needs neither. The gate is per call. The record
 belongs to the principal, so every AI assistant acting for that human passes the
 same gate; when an AI assistant's principal changes -- a placeholder principal
 bound to the human's account -- the new principal starts with no attributes and
