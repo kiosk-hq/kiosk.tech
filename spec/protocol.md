@@ -2259,9 +2259,11 @@ natural governance control when one human has several assistants bound to their
 account. When a cap is configured for the acting `agent_id`, the operator **MUST**
 enforce it exactly:
 
-1. It counts the assistant's settled total (optionally within a rolling window)
-   and every cart whose charge can still go through: a cart with no settlement,
-   whose mandate has not expired, and whose charge was not declined.
+1. It counts each settled charge of the assistant (optionally within a rolling
+   window) less what the operator refunded of it, never below zero, and every
+   cart whose charge can still go through: a cart with no settlement, whose
+   mandate has not expired, and whose charge was not declined. A refund
+   gives its amount back to the cap at once.
 2. It **MUST** reject a `pay` that would push that count past the cap with
    `403 spending_cap_exceeded` **before** the irreversible capture -- no charge, no
    settlement row.
@@ -2299,7 +2301,8 @@ currency, not the sender's.
 > `config.spending_cap` pay-hook seam and ships a column-backed default
 > (`agents.spending_cap_cents`) editable from the manage-assistants page. It
 > serialises one assistant's `pay` calls under a per-assistant advisory lock,
-> records a declined charge as `cart_mandates.declined_at`, and counts the
+> records a declined charge as `cart_mandates.declined_at` and a refund through
+> `PaymentClaim#refund` in `refunds`, and counts the
 > settled and the unfinished carts in ONE statement, so a settlement that
 > commits between two reads cannot drop out of both. It takes
 > the Section 11.1 rule that is the operator's to take by CANONICALISING `currency`
