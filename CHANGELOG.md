@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-19: The specification's reputation section says a keypair is unique per origin, as the formal specification and the skill do.
 - 2026-10-19: The formal specification's reference note says the Stripe adapter keys a capture by the principal's Stripe customer and the cart mandate id.
 
 ## [skill 0.5.18] — 2026-10-18
