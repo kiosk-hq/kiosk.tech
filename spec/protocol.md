@@ -2386,27 +2386,28 @@ new one -- an expired chain gives the assistant the same duty as `409 conflict`.
 
 > *Reference note (non-normative).* The Ruby reference enforces the mandate
 > uniqueness as `UNIQUE (user_id, mandate_id)` on each of the three mandate
-> tables plus `UNIQUE (cart_mandate_id)` on settlements, and the unique violation
-> is raised in the phase that persists the trail, which runs before the capture.
-> Its Stripe adapter passes the cart mandate `id` as the PSP idempotency key. On
-> that violation it looks the chain up once -- the stored `raw_jws` of all three
-> mandate rows against the three presented now, with the cart's `declined_at`
-> and its settlement, if any. A settled chain answers `200` with the stored
-> settlement. An unfinished chain is captured again through the adapter's
-> `resume`, and `PaymentClaim` lets it reclaim the payable row only when it is
-> the newest unfinished chain for that row. A declined chain, or no match, keeps
-> the `409`, with a `hint` saying what it means. The operator half of the rule is
-> the engine's `Kiosk::Server::PaymentClaim`, which an operator wraps around its
-> PSP adapter and points at its own payable table: it claims the row
-> (`unpaid` -> `paying`) BEFORE the capture -- an atomic compare-and-set that
-> also makes a second capture impossible -- and flips it to `paid` the instant
-> the capture returns, a hair BEFORE the settlement row is written. The three
-> paying demos keep only their cashier check. Their payable models include the
-> engine's `Kiosk::Payable`, and their per-user queries (`my_orders`,
-> `my_bookings`, `my_reservations`) publish its `payment_state`, read from that
-> marker first and the settlement row second, so a claimed-but-unresolved
-> capture answers `pending` and the gap between capture and settlement never
-> reads as "not paid".
+> tables plus `UNIQUE (cart_mandate_id)` on settlements, and the unique
+> violation is raised in the phase that persists the trail, which runs before
+> the capture. Its Stripe adapter keys the capture by the principal's Stripe
+> customer and the cart mandate `id`. On that violation it looks the chain up
+> once -- the stored `raw_jws` of all three mandate rows against the three
+> presented now, with the cart's `declined_at` and its settlement, if any. A
+> settled chain answers `200` with the stored settlement. An unfinished chain is
+> captured again through the adapter's `resume`, and `PaymentClaim` lets it
+> reclaim the payable row only when it is the newest unfinished chain for that
+> row. A declined chain, or no match, keeps the `409`, with a `hint` saying what
+> it means. The operator half of the rule is the engine's
+> `Kiosk::Server::PaymentClaim`, which an operator wraps around its PSP adapter
+> and points at its own payable table: it claims the row (`unpaid` -> `paying`)
+> BEFORE the capture -- an atomic compare-and-set that also makes a second
+> capture impossible -- and flips it to `paid` the instant the capture returns,
+> a hair BEFORE the settlement row is written. The three paying demos keep only
+> their cashier check. Their payable models include the engine's
+> `Kiosk::Payable`, and their per-user queries (`my_orders`, `my_bookings`,
+> `my_reservations`) publish its `payment_state`, read from that marker first
+> and the settlement row second, so a claimed-but-unresolved capture answers
+> `pending` and the gap between capture and settlement never reads as "not
+> paid".
 
 ### 11.7 The cart to sign, the payment state, and the `payment` topic
 

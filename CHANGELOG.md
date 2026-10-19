@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-19: The formal specification's reference note says the Stripe adapter keys a capture by the principal's Stripe customer and the cart mandate id.
+
 ## [skill 0.5.18] — 2026-10-18
 
 - 2026-10-18: **Skill 0.5.18** resolves a relative `next` link against the request URL, and does not guess the order of the rows from a cursor.
