@@ -27,11 +27,11 @@ directories for the list.
    chain. Code and skill conform to it. Landing and skill text claim only what
    the reference implementation does. An ADR may override the spec; then
    update the spec. A change to normative spec text is a decision: it needs an
-   ADR or a recorded ledger `decision`.
+   ADR or a ruling recorded in the task store.
 2. **Conflict rule.** On a conflict with no recorded decision, do not pick a
-   side. Record it in the findings ledger as `decision-needed` and skip it.
-3. **Scope rule.** Record a problem outside your task in the findings ledger.
-   Do not fix it inline.
+   side. Ask the question on its task in the task store and skip the item.
+3. **Scope rule.** A problem outside your task goes into the task store, not
+   into an inline fix.
 4. **Merge gate.** Tests that cover the change are green before merge.
 5. **Changelog rule.** A change to behaviour, spec text, skill instructions or
    claims gets an entry in `CHANGELOG.md`. Tests-only changes, refactors and
