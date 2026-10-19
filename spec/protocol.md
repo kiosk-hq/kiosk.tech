@@ -2306,7 +2306,7 @@ currency, not the sender's.
 > settled and the unfinished carts in ONE statement, so a settlement that
 > commits between two reads cannot drop out of both. It takes
 > the Section 11.1 rule that is the operator's to take by CANONICALISING `currency`
-> at the point a signed mandate becomes a verified value -- trimmed and lower-cased
+> at the point a signed mandate becomes a verified value -- lower-cased
 > -- so the Section 11.2 comparisons, the persisted mandate and settlement rows, the
 > PSP call and this tally are keyed on one value by construction rather than by
 > everyone remembering to fold. Lower case because that is the spelling its shipped

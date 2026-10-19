@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-20: Both specifications say the reference canonicalises a currency by lower-casing it. A currency with surrounding spaces is refused.
 - 2026-10-20: The landing says the scooter demo asks for the licence category a motorcycle needs, A1 or A.
 - 2026-10-19: Both specifications say skooti gates `rent_motorcycle` on `age_over_18` and the licence category the motorcycle needs.
 - 2026-10-19: Both specifications say a spending cap counts each settled charge less what the operator refunded of it: a refund gives its amount back to the cap.
