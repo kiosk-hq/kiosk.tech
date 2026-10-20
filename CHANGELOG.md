@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-20: Both specifications say a spending cap has one currency, and a `pay` in another currency is refused with `403 spending_cap_exceeded`.
 - 2026-10-20: Both specifications say `Kiosk-Min-Client` is the oldest skill version that works with the operator: the same MAJOR.MINOR as `Kiosk-API-Version`, no newer, before 1.0 too.
 - 2026-10-20: Both specifications say a verb never declares `cursor`, and a query may declare `limit` as an integer to set its page size. The descriptor house style shows how.
 - 2026-10-20: Both specifications say the reference canonicalises a currency by lower-casing it. A currency with surrounding spaces is refused.

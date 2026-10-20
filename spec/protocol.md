@@ -1846,7 +1846,7 @@ members it does not recognise.
 | `unauthenticated` | 401 | Missing, invalid, expired, wrong-issuer, or revoked Bearer token. |
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
-| `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay` (Section 11.5); the human must raise the cap. |
+| `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay`, or the cart is in a currency other than the cap's (Section 11.5); the human must raise the cap or set it in the cart's currency. |
 | `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.3); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
 | `verb_not_found` | 404 | **No verb by that NAME is registered at this operator** -- the path's last segment matches nothing in the catalogue (Section 8.1). `hint` carries the names that ARE registered, so a mistyped `listings` for `browse_listings` self-corrects without a catalogue round-trip. The AI assistant re-reads `GET <endpoint>/schema` and picks a name that exists; it **MUST NOT** report to its human that the operator cannot do the thing, because a different verb may well do it. |
 | `not_found` | 404 | **The verb exists and an argument ADDRESSES a resource which does not exist** (Section 9.1 rule 2) -- a `property_id` no property has, a login for a key nobody registered. The call was well formed and the answer is final: no retry finds it, and the AI assistant tells its human the thing is not there. Distinct from `verb_not_found`, which is about the NAME of the call rather than about what the call addressed. |
@@ -2276,6 +2276,9 @@ enforce it exactly:
 4. A declined charge -- refused by the operator or its processor, with no money
    moved -- stops counting at once. A repeat of a chain already counted
    (Section 11.6) does not count twice.
+5. A cap has one currency. The operator **MUST** reject a `pay` whose cart is in
+   another currency with `403 spending_cap_exceeded` **before** the capture: a cap
+   in one currency allows no payment in another.
 
 A cap of `0` disables the assistant's payments entirely. The AI assistant cannot
 pay past the cap; it surfaces the condition to the human, who raises the cap out
@@ -2303,7 +2306,8 @@ currency, not the sender's.
 
 > *Reference note (non-normative).* The Ruby reference enforces this via the
 > `config.spending_cap` pay-hook seam and ships a column-backed default
-> (`agents.spending_cap_cents`) editable from the manage-assistants page. It
+> (`agents.spending_cap_cents` and `agents.spending_cap_currency`) editable from
+> the manage-assistants page. It
 > serialises one assistant's `pay` calls under a per-assistant advisory lock,
 > records a declined charge as `cart_mandates.declined_at` and a refund through
 > `PaymentClaim#refund` in `refunds`, and counts the
