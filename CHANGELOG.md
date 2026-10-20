@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-20: The onboarding guide says each verb route reaches the controller action that declares the verb.
+
 ## [skill 0.5.19 · listener 0.5.19] — 2026-10-20
 
 - 2026-10-20: **Skill 0.5.19** sends a declared `limit` inside its range, says that a spending cap has one currency, and uses the pinned cut when it is older than `Kiosk-Min-Client`.
