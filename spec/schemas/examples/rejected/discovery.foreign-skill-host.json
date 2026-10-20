@@ -1,0 +1,34 @@
+{
+  "kiosk": {
+    "version": "1.0",
+    "issuer": "https://getgrocery.demo.kiosk.tech",
+    "endpoint": "https://getgrocery.demo.kiosk.tech/kiosk",
+    "capabilities": [
+      "schema",
+      "queries",
+      "actions",
+      "pay",
+      "events"
+    ],
+    "schema_url": "https://getgrocery.demo.kiosk.tech/kiosk/schema?v=1f0c7a3e9b5d24618af03c9d7e2b5a04",
+    "events_url": "wss://getgrocery.demo.kiosk.tech/kiosk/events",
+    "min_client": "0.5.20",
+    "owner": {
+      "name": "GetGrocery",
+      "support": "demo@kiosk.tech"
+    },
+    "auth": {
+      "kind": "kiosk-pop",
+      "challenge_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/challenge",
+      "register_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/register",
+      "login_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/login",
+      "revoke_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/revoke",
+      "device_authorization_url": "https://getgrocery.demo.kiosk.tech/kiosk/oauth/device_authorization",
+      "claim_url": "https://getgrocery.demo.kiosk.tech/kiosk/auth/claim"
+    },
+    "skill": {
+      "url": "https://kiosk-tech.example/skill-v0.5.21.md",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }
+}

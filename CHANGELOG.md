@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-21: Both specifications say every skill URL an operator publishes names a cut on kiosk.tech, and an assistant refuses one on another host. The discovery schema holds the pin to it.
+- 2026-10-21: agents.txt and agents.json name `x-kiosk-pop` and claim no AP2, no required payment and no required identity. `/.well-known/agent-configuration` is not served.
+- 2026-10-21: Both specifications add RFC 8414 OAuth metadata, the agent skills index and `ard.json`, and put the api-catalog's descriptions on the endpoint as RFC 9727 shows.
+- 2026-10-21: The onboarding guide says an operator does not put a bot challenge in front of `/kiosk/*` and the discovery documents.
 - 2026-10-20: The onboarding guide names `Kiosk.clock_gap_note` as the stock way to tell the caller how far the place's clock is from theirs.
 
 ## [skill 0.5.20] — 2026-10-20

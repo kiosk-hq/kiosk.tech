@@ -110,6 +110,9 @@ echo "== reject what the schemas must refuse =="
 # accepted sibling with that ONE array carrying verb names instead, so the only
 # thing that can make it pass is the enum going soft.
 chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discovery.verb-names.json
+# A skill pin names a cut on kiosk.tech and on no other host (Section 15.6 of
+# the formal spec). This sibling differs only in the host of `skill.url`.
+chkfail validate "${F[@]}" -s discovery.schema.json -d examples/rejected/discovery.foreign-skill-host.json
 # The `code` vocabulary is CLOSED, and an enum that is never tested against a
 # near-miss is an enum nothing proves. `module_not_found` for
 # `module_not_served` is the shape a porter actually emits -- one plausible
