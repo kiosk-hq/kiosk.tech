@@ -85,14 +85,15 @@ if `input_schema` still says the same thing, the sentence was duplication, and
 duplication is what drifts.
 
 **One carve-out, and it follows from the rule rather than bending it: the
-RESERVED argument names `limit` and `cursor`.** A verb never declares them
-(Section 8.1 item 6), so there is no schema for the sentence to duplicate --
-and a page-size default and its clamp are facts an assistant must have. State
-them in prose, and only them: "page size defaults to 20 and is CLAMPED to 1..50
--- send `limit` to override it". The same paragraph is where a paginating query
-says how to walk the pages, because that too is protocol behaviour and not a
-field: fetch the `Link` header's `rel="next"` URI verbatim and keep going until
-there is no such link.
+RESERVED argument name `limit`, on a query that does not declare it.** A query
+MAY declare `limit` (Section 8.1 item 6), and then its schema carries the page
+size. A query that does not declare it has no schema for the sentence to
+duplicate -- and a page-size default and its clamp are facts an assistant must
+have. State them in prose, and only them: "page size defaults to 20 and is
+CLAMPED to 1..50 -- send `limit` to override it". A paginating query also says
+in `description` how to walk the pages, because that is protocol behaviour and
+not a field: fetch the `Link` header's `rel="next"` URI verbatim and keep going
+until there is no such link.
 
 #### 1a. Your prose is read by a MODEL, and then acted on
 
@@ -181,19 +182,26 @@ before you write an `input_schema` for a query, check that the shape you are
 about to declare survives the trip. If it does not, the verb you are writing is
 not a query.
 
-#### 2b. `limit` and `cursor` are RESERVED -- never declare them
+#### 2b. `limit` and `cursor` are RESERVED -- declare `limit` only
 
 Normative, Section 8.1 item 6 and Section 8.4. The wire ALWAYS accepts both on
-a query and a verb NEVER declares either. Their absence from your
-`input_schema` is the declaration, and it is what lets a schema show an
-assistant this verb's BUSINESS parameters only. Two consequences to write down
-rather than rediscover:
+a query. A verb NEVER declares `cursor`: it is the token your own `next` link
+carries, and the Ruby reference refuses at boot a verb that declares it.
 
-- the page-size default and its clamp cannot live in a schema, so they live in
-  `description` -- the carve-out in Section 1 above;
-- a declaration is honoured as the more specific statement, so declaring them
-  is not an error the wire will catch. It is just wrong, and the derived
-  OpenAPI document will publish your local pair instead of the generic one.
+A query MAY declare `limit` to set its page size. Declare it as an integer
+with its range and its default:
+
+```
+limit: { type: "integer", minimum: 1, maximum: 50, default: 20,
+         description: "Hotels in one page." }
+```
+
+The wire then refuses a `limit` outside that range with `400 bad_request`
+naming it, and your handler reads the value it declared. The page size is in
+the schema, so `description` does not repeat it. The derived OpenAPI document
+publishes your `limit` in place of the generic one. A query that does not
+declare `limit` MAY clamp it, and states the default and the clamp in
+`description` -- the carve-out in Section 1 above.
 
 ### 3. `output_schema` -- the result contract (REQUIRED)
 
@@ -321,9 +329,7 @@ class Kiosk::HotelSearchController < ApplicationController   # your base class, 
               "constraints are one search, not several. A row is a SUMMARY " \
               "of one property -- enough to shortlist on, priced at the " \
               "cheapest room's nightly rate, not a total for the stay. " \
-              "Page size defaults to 20 and is CLAMPED to 1..50 -- send " \
-              "`limit` to override it (a value outside that range is clamped, " \
-              "never refused). The BODY is always a bare array; when more " \
+              "The BODY is always a bare array; when more " \
               "hotels match, the response carries a Link header with " \
               "rel=\"next\" -- fetch that URI verbatim for the following page " \
               "and keep going until there is no such link. X-Total-Count is " \
@@ -341,11 +347,12 @@ class Kiosk::HotelSearchController < ApplicationController   # your base class, 
                                     description: "Star-rating floor." },
                  amenity:         { type: "string", enum: ["wifi", "breakfast", "pool", "..."],
                                     description: "Property must offer this amenity." },
+                 # Reserved: the wire accepts `limit` on every query, and this
+                 # declaration sets the page size (Section 8.1 item 6). A verb
+                 # never declares `cursor`.
+                 limit:           { type: "integer", minimum: 1, maximum: 50, default: 20,
+                                    description: "Hotels in one page." },
                },
-               # `limit` and `cursor` are NOT here, and their absence IS the
-               # declaration: they are reserved names the wire always accepts
-               # and a verb never declares (Section 8.1 item 6). The page-size
-               # clamp is stated in `description` above.
                required: []
   output_schema "$defs": {
                   hotel: {
@@ -393,22 +400,21 @@ end
 What each field is doing for the cold assistant:
 
 - `description` tells it to filter rather than fetch everything, warns that a
-  row is a summary and its price is per night, gives it the page-size default
-  and clamp and the loop that walks the pages -- both of which are facts no
-  schema on this verb may carry -- and points at the verb that comes next. It
-  names not one DECLARED parameter, type or unit while doing it.
+  row is a summary and its price is per night, gives it the loop that walks
+  the pages -- a fact no schema may carry -- and points at the verb that comes
+  next. It names not one DECLARED parameter, type or unit while doing it.
 - `input_schema` names every BUSINESS parameter exactly once, closes the object
   (`additionalProperties: false`, now enforced on every request), enumerates
   the neighbourhoods and amenities so the assistant picks a valid one, bounds
   `min_stars` to 1..5, carries the EUR-cents unit on the field it belongs to,
-  and marks everything optional (`required: []`) -- a bare `search_hotels` is a
-  valid whole-catalogue page 1. It declares neither reserved name.
+  sets the page size on `limit`, and marks everything optional
+  (`required: []`) -- a bare `search_hotels` is a valid whole-catalogue page 1.
+  It does not declare `cursor`.
 - `output_schema` declares ONE shape. A truncated page and a complete one are
   the same array, so there is no union to write: `$defs` names the row, `items`
   points at it, and the per-property `description` lines carry the units.
 - `example_params` shows three filters set together (they AND) with real values,
-  plus `limit: 20` -- legal, because a reserved name is always accepted even
-  though no schema declares it.
+  plus `limit: 20`, inside the range the schema declares.
 - `example_row` shows the `property_id` the assistant will pass straight to
   `hotel_detail` (SAME key name -- no remapping), the `currency` field, and the
   summary shape -- one concrete element of the array `output_schema` declares.
@@ -432,8 +438,9 @@ Three facts, and none of them is a field of your descriptor:
   the loop belongs in `description`: an assistant that does not know to stop on
   a missing link either stops early or never stops.
 
-And `limit`/`cursor` are declared nowhere, so the page-size default and clamp
-belong in `description` too. That is the whole of it.
+The page size goes in a declared `limit`. A query that does not declare it
+states the page-size default and clamp in `description`. That is the whole of
+it.
 
 ---
 
@@ -446,13 +453,14 @@ Before shipping a query or an action, confirm:
       currency, date format, default or range.
 - [ ] A LIST query's `description` says the result is a page of a larger set,
       AND says the loop: follow `Link` rel="next" until there is no such link.
-- [ ] A paginating query's `description` states the page-size default and clamp,
-      because no schema on that verb may carry them.
+- [ ] A paginating query declares `limit` with its range and default, or its
+      `description` states the page-size default and clamp.
 - [ ] A SEARCH query's `description` tells the assistant to filter, not fetch-all.
 - [ ] A WRITE action's `description` names the follow-on verb (pay/confirm).
 - [ ] `input_schema` is present, `type: "object"`, `additionalProperties: false`
       (empty `properties` for a verb that takes nothing).
-- [ ] `input_schema` declares NEITHER `limit` NOR `cursor` (Section 8.1 item 6).
+- [ ] `input_schema` does not declare `cursor`, and declares `limit` only as an
+      integer (Section 8.1 item 6).
 - [ ] A QUERY's inputs are one level deep with scalar leaves (arrays of scalars
       are fine); anything richer means the verb should be an ACTION.
 - [ ] `output_schema` is present and declares the FULL result -- `type:
@@ -476,5 +484,5 @@ Before shipping a query or an action, confirm:
 - [ ] `example_params` uses real, valid values (a seeded id, an enum member).
 - [ ] `example_row` carries every field the real row has, including `currency`.
 - [ ] The examples agree with the schemas -- except that `example_params` MAY
-      carry `limit`/`cursor`, which are accepted but never declared.
+      carry an undeclared `limit` or `cursor`, which the wire always accepts.
 - [ ] A cold assistant reaching this verb from `schema` alone would call it right.

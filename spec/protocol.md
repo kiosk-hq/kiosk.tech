@@ -554,7 +554,7 @@ Where an operator serves it, two encoding rules matter, because leaving them to
 the defaults makes the document disagree with Section 8.1 in common tooling:
 every query parameter **SHOULD** carry `style` and `explode` written
 explicitly, and the reserved `limit`/`cursor` of Section 8.4 **SHOULD** be
-declared on every query operation even though no `input_schema` declares them
+declared on every query operation whose `input_schema` does not declare them
 (Section 8.1 item 6) -- a strict request validator otherwise refuses the very
 pagination this specification invites.
 
@@ -1098,8 +1098,11 @@ The query-string encoding is:
    parameter to its declared type before validating it and before the handler
    sees it, and a value that cannot be that type is `400 bad_request` naming
    the parameter.
-6. `limit` and `cursor` (Section 8.4) are **RESERVED** parameter names: always
-   accepted, never declared in a verb's `input_schema`.
+6. `limit` and `cursor` (Section 8.4) are **RESERVED** parameter names. An
+   operator always accepts both on a query. A verb **MUST NOT** declare
+   `cursor` in its `input_schema`. A query **MAY** declare `limit` as an
+   `integer` to set its page size, for example with a `maximum`. A `limit`
+   outside that declaration is `400 bad_request` naming the parameter (rule 5).
 7. **Absent is not empty.** `?title=` decodes to the empty string, not to an
    absent parameter.
 8. **A query-string `integer` is an integer LITERAL; a body `integer` is a JSON
@@ -1436,12 +1439,13 @@ and **MUST NOT** substitute the number of rows returned. An AI assistant
 The loop bound is the `next` link's absence.
 
 Two OPTIONAL request params drive pagination, both read by the operator's query
-handler and both RESERVED names (Section 8.1 item 6) an operator always accepts
-and never declares:
+handler and both RESERVED names (Section 8.1 item 6) an operator always accepts:
 
-- `limit` -- integer, the maximum rows the assistant wants in one page. The
-  operator MAY clamp it to a maximum.
-- `cursor` -- the opaque string an operator put in its own `next` link.
+- `limit` -- integer, the maximum rows the assistant wants in one page. A query
+  that declares `limit` sets its page size in that declaration. A query that
+  does not declare it MAY clamp it to a maximum.
+- `cursor` -- the opaque string an operator put in its own `next` link. No verb
+  declares it.
 
 **Caching.** A page is a per-caller answer to a per-caller question, so
 Section 3 point 7 applies to it unchanged: `private, no-store` by default,
