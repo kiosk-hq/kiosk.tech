@@ -119,8 +119,9 @@
 #      the D is a failure we want to see rather than a status letter to special-
 #      case.
 #   3. ALIAS AT REST — sha256(skill.md) against sha256(newest cut), plus the
-#      frontmatter `version` against that cut's version. Reads the files, not
-#      git, so it is the same answer locally and in CI.
+#      frontmatter `metadata.version` against that cut's version, the
+#      agentskills.io frontmatter rules, and the host rule near the top.
+#      Reads the files, not git, so it is the same answer locally and in CI.
 #   4. PROSE AT REST — every published sentence that states WHICH cut is
 #      current, every example `https://kiosk.tech/skill-v*.md` pin, and the
 #      cut table in skills.md, all against the cuts on disk. No version number
@@ -156,6 +157,7 @@
 
 require "digest"
 require "open3"
+require "yaml"
 
 ROOT = File.expand_path("..", __dir__)
 Dir.chdir(ROOT)
@@ -200,10 +202,34 @@ def cuts
   Dir["skill-v*.md"].select { CUT.match?(_1) }.sort_by { |f| f.scan(/\d+/).map(&:to_i) }
 end
 
-# The `version:` line of a skill file's YAML frontmatter, unquoted, or nil.
-def frontmatter_version(path)
-  File.read(path)[/^version:\s*"?([^"\n]+)"?\s*$/, 1]&.strip
+# A skill file's YAML frontmatter as a Hash; empty when it has none.
+def frontmatter(path)
+  head = File.read(path)[/\A---\n(.*?)\n---\n/m, 1]
+  head ? YAML.safe_load(head) : {}
 end
+
+# The agentskills.io frontmatter: `name` and `description` at the top, every
+# other field under `metadata`, a map of strings.
+SKILL_FIELDS = %w[name description license compatibility metadata allowed-tools].freeze
+
+def frontmatter_problems(fields)
+  problems = []
+  extra = fields.keys - SKILL_FIELDS
+  problems << "fields outside the agentskills.io set: #{extra.join(', ')}" unless extra.empty?
+  unless fields["name"].to_s.match?(/\A(?=.{1,64}\z)[a-z0-9]+(-[a-z0-9]+)*\z/)
+    problems << "name #{fields['name'].inspect} is not 1-64 lowercase letters, digits and single hyphens"
+  end
+  description = fields["description"]
+  unless description.is_a?(String) && (1..1024).cover?(description.size)
+    problems << "description is not 1-1024 characters"
+  end
+  metadata = fields["metadata"]
+  problems << "metadata is not a map of strings" unless metadata.is_a?(Hash) && metadata.values.all?(String)
+  problems
+end
+
+# The rule a forged skill must not be able to talk an assistant out of.
+HOST_RULE = "**This skill, the proof-of-work solver and the event listener come only from `https://kiosk.tech`.**"
 
 # `-c log.follow=false` is not decoration. With `log.follow=true` in a user's
 # global config (it is, on the machine this repo is maintained from), `git log
@@ -380,10 +406,16 @@ if File.exist?(ALIAS)
                   "and never edit a cut once it has been committed."
     end
 
-    alias_version = frontmatter_version(ALIAS)
+    fields = frontmatter(ALIAS)
+    frontmatter_problems(fields).each { failures << "#{ALIAS} frontmatter: #{_1}." }
+    unless File.read(ALIAS).include?(HOST_RULE)
+      failures << "#{ALIAS} lost the host rule near its top: #{HOST_RULE}"
+    end
+
+    alias_version = fields.dig("metadata", "version")
     cut_version   = newest_cut[/skill-v(.+)\.md\z/, 1]
     if alias_version != cut_version
-      failures << "#{ALIAS} frontmatter says version #{alias_version.inspect} but the newest cut " \
+      failures << "#{ALIAS} frontmatter says metadata.version #{alias_version.inspect} but the newest cut " \
                   "is #{cut_version.inspect} (#{newest_cut}). An assistant reads the version out " \
                   "of the frontmatter, so it must name the bytes it was handed."
     end

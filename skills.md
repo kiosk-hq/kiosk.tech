@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.21.md` | **0.5** | The same wire as 0.5.20. Its frontmatter follows agentskills.io: `version`, `tags` and `trigger` are under `metadata`. It says near its top that the skill, the solver and the listener come only from kiosk.tech. |
 | `skill-v0.5.20.md` | **0.5** | A new wire. The operator reads every service time on the clock of the place where the service happens, and MAY toll the link-code claim and the first binding poll of a `device_code`. The assistant resolves a time on that clock and pays those tolls. |
 | `skill-v0.5.19.md` | **0.5** | The same wire as 0.5.18. The assistant sends a declared `limit` inside its range, knows that a spending cap has one currency, and uses the pinned cut when it is older than `Kiosk-Min-Client`. It pins a new solver and listener `listen-v0.5.19.py`, whose usage line names an origin folder. |
 | `skill-v0.5.18.md` | **0.5** | The same wire as 0.5.17. The assistant resolves a relative `next` link against the URL of its request, and does not guess the order of the rows from a cursor. |
@@ -86,9 +87,9 @@ and 0.5.2 opens a new wire group in which
 0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8 = 0.5.9 = 0.5.10 = 0.5.11 = 0.5.12 = 0.5.13,
 and 0.5.14 opens a new wire group of which it stayed the only member,
 and 0.5.15 opens a new wire group in which 0.5.15 = 0.5.16 = 0.5.17 = 0.5.18 = 0.5.19,
-and 0.5.20 opens a new wire group, the one served now, of which it is the only member,
+and 0.5.20 opens a new wire group, the one served now, in which 0.5.20 = 0.5.21,
 but the nine groups are NOT the same wire, and only the last describes
-what a 0.5.20 operator serves. The formal spec
+what a 0.5.21 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

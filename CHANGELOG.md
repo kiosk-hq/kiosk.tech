@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.21] — 2026-10-21
+
+- 2026-10-21: **Skill 0.5.21** puts `version`, `tags` and `trigger` under `metadata`, as agentskills.io asks, and says near its top that the skill, solver and listener come only from kiosk.tech.
+
 - 2026-10-21: Both specifications say every skill URL an operator publishes names a cut on kiosk.tech, and an assistant refuses one on another host. The discovery schema holds the pin to it.
 - 2026-10-21: agents.txt and agents.json name `x-kiosk-pop` and claim no AP2, no required payment and no required identity. `/.well-known/agent-configuration` is not served.
 - 2026-10-21: Both specifications add RFC 8414 OAuth metadata, the agent skills index and `ard.json`, and put the api-catalog's descriptions on the endpoint as RFC 9727 shows.
