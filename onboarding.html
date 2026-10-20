@@ -252,7 +252,8 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <blockquote><strong>Which zone? The place the service happens.</strong> For a table, a room or a chair that is the venue's address; for a delivery it is the customer's door. getgrocery keeps a clock per served district in <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/models/dublin_zones.rb"><code>DublinZones::ZONES</code></a> and reads it with <code>zone_at(address)</code>; <code>DEFAULT_ZONE_NAME</code> fills the published examples, which name no address. The specification forbids answering from one zone configured on the origin, because an operator may run stores in many time zones: record the zone against the thing it belongs to.
   <br><br><strong>Every row that carries a wall clock publishes its zone</strong> — a <code>timezone</code> field, and the IANA name inside the label (<code>08:00–10:00 (Europe/Dublin)</code>), because nobody reads an offset out loud. "Today" is <code>zone.today</code>, the day at the delivery address, never the server process's.
-  <br><br><strong>A <code>date</code> an assistant sends is a day on its human's calendar</strong>, declared in the <code>Kiosk-Timezone</code> request header as an IANA name; without the header it is read on the address's clock. A day the caller is still in is answered even when the shop has rolled over; a day it has entirely finished is a <code>400</code> naming the earliest day it can ask for.</blockquote>
+  <br><br><strong>A <code>date</code> an assistant sends is a day at the same place</strong>, the delivery address. The assistant reads the zone from the row and resolves its human's words on that clock. A day that has ended at the address is a <code>400</code> naming the zone and the earliest day it can ask for.
+  <br><br><strong>Tell the caller when the clocks differ.</strong> An assistant declares its human's zone in the <code>Kiosk-Timezone</code> request header, and <code>Kiosk.reader_zone</code> reads it. The header never moves a service time. When the place's zone differs from the declared one, say so in the answer, briefly and clearly: the place, its zone, how far it is from the caller, and that every time in the answer is the place's. hoteling does this in a <code>timezone_note</code> on its <code>hotel_detail</code> row: <em>"Bosphorus Palace runs on Europe/Istanbul time, 2 hours ahead of your Europe/Lisbon. Every date and time here is the hotel's."</em></blockquote>
 
   <p><code>app/controllers/kiosk/catalog_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/catalog_controller.rb
@@ -314,8 +315,7 @@ class Kiosk::DeliverySlotsController &lt; ActionController::API
                additionalProperties: false,
                properties: {
                  date:             { type: "string", format: "date",
-                                     description: "The day on the customer's calendar (send " \
-                                                  "`Kiosk-Timezone`), else the address's. Omit it " \
+                                     description: "A day on the delivery address's clock. Omit it " \
                                                   "for the soonest day the shop delivers." },
                  delivery_address: { type: "string", description: "A Dublin address naming its postal district, e.g. \"Dublin 2\"." },
                },
@@ -339,8 +339,7 @@ class Kiosk::DeliverySlotsController &lt; ActionController::API
                 label:    "08:00–10:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
                 timezone: DeliverySlots::DEFAULT_ZONE_NAME, district: "D02" })
   def delivery_slots
-    @search = SlotSearch.new(delivery_address: params[:delivery_address], date: params[:date],
-                             caller_zone: Kiosk::Server::CurrentRequest.timezone)
+    @search = SlotSearch.new(delivery_address: params[:delivery_address], date: params[:date])
     @search.validate!
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
@@ -355,15 +354,14 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The handler checks nothing itself. Its arguments are validated in a model, the way an order is in Step 5: <code>search.validate!</code> raises on a refusal, and the engine answers <code>400</code> with the model's own messages. <code>served_address: true</code> is getgrocery's <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/validators/served_address_validator.rb"><code>ServedAddressValidator</code></a>, which accepts a Dublin address in a district the shop serves.</p>
   <pre><code class="language-ruby"># app/models/slot_search.rb
-# The arguments of a delivery-slots search: an address, and the day the caller
-# names on its own calendar (`Kiosk-Timezone`, else the address's).
+# The arguments of a delivery-slots search: an address, and a day on that
+# address's clock.
 class SlotSearch
   include ActiveModel::Model
   include ActiveModel::Attributes
 
   attribute :delivery_address, :string
   attribute :date, :date
-  attribute :caller_zone
 
   validates :delivery_address, served_address: true
   validate :date_not_ended, if: :date
@@ -372,24 +370,19 @@ class SlotSearch
 
   def district = DublinZones.check(delivery_address).district
 
-  # The shop's day the caller's day starts on, never before the soonest it delivers.
+  # The named day at the address, never before the soonest day the shop delivers.
   def day
     soonest = DeliverySlots.soonest_date(zone)
-    date ? [date.in_time_zone(calendar).in_time_zone(zone).to_date, soonest].max : soonest
+    date ? [date, soonest].max : soonest
   end
 
   private
 
-  def calendar = caller_zone || zone
-
-  # A day the caller is still in is answered even when the shop has rolled over.
   def date_not_ended
-    return unless date.in_time_zone(calendar).tomorrow.past?
+    return unless date &lt; zone.today
 
-    errors.add(:date, "#{date.iso8601} is in the past on the calendar it is read in (#{calendar.name}); " \
-                      "the earliest day you can ask for is #{calendar.today.iso8601}. The day is read in " \
-                      "YOUR calendar when you declare Kiosk-Timezone, and in the delivery address's when " \
-                      "you do not.")
+    errors.add(:date, "#{date.iso8601} is in the past at the delivery address (#{zone.name}); " \
+                      "the earliest day you can ask for is #{zone.today.iso8601}.")
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -775,7 +768,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
   <blockquote><strong>Got an empty catalog back?</strong> Your controllers are not in <code>app/controllers/kiosk/</code>. That is the state where a booted app serves no verbs: every <code>/kiosk/&lt;name&gt;</code> answers a <code>404</code> problem document whose <code>hint</code> lists what IS registered, and the <code>capabilities</code> you checked above come back without <code>schema</code>, <code>queries</code> or <code>actions</code>. kiosk-server says the same thing on the log at boot when nothing at all is registered.</blockquote>
   <blockquote><strong>Two shapes worth seeing once.</strong> A <strong>long list</strong> paginates by <a href="https://www.rfc-editor.org/rfc/rfc8288">RFC 8288</a>: the body is still a bare array, the total is in <code>X-Total-Count</code>, and a truncated page carries <code>Link: &lt;…&gt;; rel="next"</code>. <em>The absence of that link is the only signal there is no more</em> — there is no <code>next</code> field in the body. And a <strong>GET at an action's name</strong> (or a POST at a query's) matches no route: it is the ordinary <code>404</code> of Rails, with no problem document, as for a name you never registered. <code>GET /kiosk/schema</code> gives each verb's method. Add <code>-i</code> to any call above to see the headers.</blockquote>
   <blockquote>The full register → order → <strong>pay</strong> flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow driven end-to-end, run <code>bin/rails test test/stories/shop_test.rb</code> in <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>; it pays a local stripe-mock.</blockquote>
-  <blockquote><strong>Running a demo needs one thing this integration does not.</strong> Every demo sets <code>c.registration_pow_count = 1</code> and the <code>RecentSpend</code> session toll, so each assistant it registers pays an Equihash toll that the bundled solver solves. Each access token then pays one more toll with the chance (cap − spend) / cap, where spend is what its customer spent there recently: with no recorded spend the toll is certain, and at the cap it is none. That solver is Python, so a demo needs <strong>python3 with numpy</strong> on PATH (<code>python3 -c "import numpy"</code>). A demo's <code>bin/rails db:reset</code> is also destructive: it <strong>drops and recreates</strong> that demo's database every time it runs. Your own integration needs no Python: the engine's tolls default to none, and verifying a proof is pure Ruby. Each demo's README states its own prerequisites, derived from that demo's files.</blockquote>
+  <blockquote><strong>Running a demo needs one thing this integration does not.</strong> Every demo sets <code>c.registration_pow_count = 1</code> and the <code>RecentSpend</code> session toll, so each assistant it registers pays an Equihash toll that the bundled solver solves. The same toll prices a link-code claim and the first binding poll of each device code. Each access token then pays one more toll with the chance (cap − spend) / cap, where spend is what its customer spent there recently: with no recorded spend the toll is certain, and at the cap it is none. That solver is Python, so a demo needs <strong>python3 with numpy</strong> on PATH (<code>python3 -c "import numpy"</code>). A demo's <code>bin/rails db:reset</code> is also destructive: it <strong>drops and recreates</strong> that demo's database every time it runs. Your own integration needs no Python: the engine's tolls default to none, and verifying a proof is pure Ruby. Each demo's README states its own prerequisites, derived from that demo's files.</blockquote>
 
   <h2>Pointers from your human site <span style="font-weight:400;font-size:14px;color:#666">(optional, invisible to humans)</span></h2>
   <p>Discovery is already done: the mount in Step 3 installed the six machine-readable documents agents actually read — <code>/agents.txt</code>, <code>/agents.json</code>, <code>/auth.md</code> and the <code>/.well-known/</code> trio — at your origin root, and nothing below is needed for an agent to find them. What follows is the layer <em>on top</em>: three optional pointers you can drop into the HTML site your human customers already browse, so an agent that lands on a page rather than at the root is sent to the root. Two are machine-readable, one is a visual cue for the curious. None interfere with your existing site.</p>
