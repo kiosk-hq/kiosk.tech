@@ -10,6 +10,11 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.19 · listener 0.5.19] — 2026-10-20
+
+- 2026-10-20: **Skill 0.5.19** sends a declared `limit` inside its range, says that a spending cap has one currency, and uses the pinned cut when it is older than `Kiosk-Min-Client`.
+- 2026-10-20: Listener 0.5.19 names an origin folder for its token file. The new pinned solver says that it has no path without numpy.
+
 - 2026-10-20: Both specifications say a spending cap has one currency, and a `pay` in another currency is refused with `403 spending_cap_exceeded`.
 - 2026-10-20: Both specifications say `Kiosk-Min-Client` is the oldest skill version that works with the operator: the same MAJOR.MINOR as `Kiosk-API-Version`, no newer, before 1.0 too.
 - 2026-10-20: Both specifications say a verb never declares `cursor`, and a query may declare `limit` as an integer to set its page size. The descriptor house style shows how.

@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.19.md` | **0.5** | The same wire as 0.5.18. The assistant sends a declared `limit` inside its range, knows that a spending cap has one currency, and uses the pinned cut when it is older than `Kiosk-Min-Client`. It pins a new solver and listener `listen-v0.5.19.py`, whose usage line names an origin folder. |
 | `skill-v0.5.18.md` | **0.5** | The same wire as 0.5.17. The assistant resolves a relative `next` link against the URL of its request, and does not guess the order of the rows from a cursor. |
 | `skill-v0.5.17.md` | **0.5** | The same wire as 0.5.16. Where no topic covers card setup, the assistant polls `payment_setup` on the schedule its description states. It ignores unknown members in every answer, and an absent `scope` means that the operator assigns no roles. |
 | `skill-v0.5.16.md` | **0.5** | The same wire as 0.5.15. A topic's `description`, `payload_schema` and `examples` join the list of operator-written strings that the assistant reads as data. |
@@ -83,9 +84,9 @@ and 0.4.16 opens a new wire group in which
 and 0.5.2 opens a new wire group in which
 0.5.2 = 0.5.3 = 0.5.4 = 0.5.5 = 0.5.6 = 0.5.7 = 0.5.8 = 0.5.9 = 0.5.10 = 0.5.11 = 0.5.12 = 0.5.13,
 and 0.5.14 opens a new wire group of which it stayed the only member,
-and 0.5.15 opens a new wire group, the one served now, in which 0.5.15 = 0.5.16 = 0.5.17 = 0.5.18,
+and 0.5.15 opens a new wire group, the one served now, in which 0.5.15 = 0.5.16 = 0.5.17 = 0.5.18 = 0.5.19,
 but the eight groups are NOT the same wire, and only the last describes
-what a 0.5.18 operator serves. The formal spec
+what a 0.5.19 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
