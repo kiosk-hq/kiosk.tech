@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-20: The onboarding guide names `Kiosk.clock_gap_note` as the stock way to tell the caller how far the place's clock is from theirs.
+
 ## [skill 0.5.20] — 2026-10-20
 
 - 2026-10-20: **Skill 0.5.20** resolves every service time on the clock of the place where the service happens, and pays the toll on a link-code claim and on the first binding poll.
