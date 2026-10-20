@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.20] — 2026-10-20
+
+- 2026-10-20: **Skill 0.5.20** resolves every service time on the clock of the place where the service happens, and pays the toll on a link-code claim and on the first binding poll.
+
 - 2026-10-20: The onboarding guide reads a getgrocery `date` on the address's clock, recommends telling the caller when the clocks differ, and names the binding toll.
 - 2026-10-20: Both specifications read every service time on the clock of the place where the service happens. An operator SHOULD say so when the caller's declared zone differs.
 - 2026-10-20: Both specifications let an operator toll the link-code claim and the first token poll of each device code. It decides on the toll before it reads the code.
