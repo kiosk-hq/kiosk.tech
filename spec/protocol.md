@@ -174,8 +174,9 @@ proof-of-work gate.
       `Kiosk-PoW` it serves a paid `200` to an unpaid retry -- defeating the
       toll -- or a stale `402` to a paid one, which is a retry loop the AI
       assistant cannot break; without `Kiosk-Timezone` it serves an answer
-      computed for one caller's calendar day to a caller on another clock that
-      sent the identical URL (point 8).
+      written for one caller's clock -- a note that the service place is on
+      another clock, or a time rendered on the caller's clock -- to a caller on
+      another clock that sent the identical URL (point 8).
    2. A `402` **MUST** carry `Cache-Control: no-store`. A proof-of-work
       challenge is single-use, request-bound and expiring (Section 10); storing
       one is never correct.
@@ -219,22 +220,35 @@ proof-of-work gate.
       **serviced resource** and **MUST NOT** be a single constant per operator:
       one operator may run many stores in many zones, and an answer read off
       the operator is right only for as long as it happens to run one store.
-   2. **An operator reads an ARGUMENT in the CALLER's clock, which the caller
-      states.** A human has one clock; an operator has as many as it has
-      addresses. An AI assistant that sends a bare `YYYY-MM-DD` means a day on
-      its human's calendar, and at 23:05 on the sixth in one place it is
-      already the seventh three hours east. The assistant declares its clock in
-      an OPTIONAL request header:
+   2. **An operator reads an ARGUMENT on the same clock: the clock of the
+      place where the service happens.** A dinner start, a check-in, a
+      departure, a haircut start, a stay night and a delivery day are each
+      times at one place, in the arguments and in the rows. A bare
+      `YYYY-MM-DD` that an AI assistant sends is a day at that place, and
+      "tomorrow at 14:00" at a salon is 14:00 on the salon's clock. The AI
+      assistant reads the place's zone from the row or the catalogue (rule 9)
+      and resolves its human's words on that clock. A human has one clock and
+      an operator has as many as it has addresses, so the assistant ALSO
+      declares its human's clock in an OPTIONAL request header:
 
       | Header | Example | Meaning |
       |---|---|---|
       | `Kiosk-Timezone` | `Europe/Istanbul` | The clock of the human the AI assistant is acting for, as an IANA `Area/Location` identifier or the literal `UTC`. |
 
+      The header never changes how a service time is read or rendered. An
+      operator uses it for two things only. (a) When the zone of the service
+      place differs from the declared zone, the operator **SHOULD** tell the
+      caller so in the answer, briefly and clearly: the place, its zone, and
+      that every time in the answer is the place's. (b) A time that is not a
+      service time and belongs to no place -- when a listing was posted, a
+      deadline on a shared list -- **MAY** be rendered on the declared clock;
+      it is an instant and carries its offset (rule 7).
+
       It is a header rather than an argument because it is a fact about the
       CALLER and not about the verb: as an argument it would have to be
-      declared in every time-bearing `input_schema` in every catalogue, and a
-      descriptor is a closed object (Section 8.3), so each of those would be a
-      published slot an operator could spell differently.
+      declared in every `input_schema` in every catalogue, and a descriptor is
+      a closed object (Section 8.3), so each of those would be a published
+      slot an operator could spell differently.
    3. **An IANA name, never a UTC offset.** `Kiosk-Timezone: +03:00` is
       refused: an offset cannot carry a DST transition, so an operator holding
       one cannot say which side of a boundary a FUTURE date falls on. A value
@@ -248,13 +262,13 @@ proof-of-work gate.
       hostname, or the geolocation of its IP. An assistant commonly runs
       nowhere near the person it serves. This is the same rule Section 15.9's
       neighbours already state for a delivery address.
-   5. **When the caller declares no zone, the operator reads the argument on
-      the SERVICE PLACE's clock and says so in the row.** That is a declared
-      default, not a guess. And an operator **MUST NOT** source the caller's
-      zone from anywhere else -- not from the access token, not from
-      `Accept-Language`, not from IP geolocation, not from the TCP peer.
-      Either the caller declared it or it did not: an unfalsifiable guess is
-      worse than a declared default, because the client cannot see it happen.
+   5. **The caller's zone is what the caller declares, and nothing else.**
+      An operator **MUST NOT** source it from anywhere else -- not from the
+      access token, not from `Accept-Language`, not from IP geolocation, not
+      from the TCP peer. Either the caller declared it or it did not: a guess
+      is worse than no zone, because the client cannot see it happen. A
+      caller that declares no zone gets the same service times, and no note
+      about the zone.
    6. **A CALENDAR DAY is never converted, in either direction, by anyone.** A
       room-night is a day at the property; attaching an offset to one is not
       more precise, it invites a conversion that sells the night before. An
@@ -265,21 +279,14 @@ proof-of-work gate.
       an operator **MUST** answer `400 bad_request` naming the field rather
       than completing it from any clock. One declared type admits one spelling,
       exactly as in Section 8.1 rules 8 and 9.
-   8. **The same bare date means two things in the two directions.** In an
-      ARGUMENT a bare `YYYY-MM-DD` is a day on the CALLER's calendar; in a ROW
-      it is a day at the SERVICE PLACE. The direction of travel disambiguates
-      it. This is stated rather than inferred because it is the most confusable
-      sentence in this document.
-
-      **The one exception is an argument that ECHOES a row**, and it follows
-      from the same sentence rather than qualifying it: where a verb takes back
-      a value the operator itself published -- the `date` of a window the caller
-      is now booking -- that value is read on the clock it was PUBLISHED on,
-      because it is the row's day and not a day the caller named. An operator
-      **MUST** say which of the two a time-bearing argument is, in that
-      argument's own `description`. Re-reading an echoed day in the caller's
-      calendar would break the round trip: the caller hands back the day it was
-      offered and is booked onto a different one.
+   8. **A bare date means the same thing in both directions: a day at the
+      SERVICE PLACE.** In an ARGUMENT and in a ROW, `YYYY-MM-DD` is a day on
+      the calendar of the place where the service happens. So an argument
+      that gives back a day a row published -- the `date` of a window the
+      caller now books -- is read on the clock it was published on, and the
+      round trip holds. An operator **MUST** name, in a time-bearing
+      argument's own `description`, the place whose clock it is read on. An
+      operator refuses, by name, a day that has ended at the service place.
    9. **Wherever a row publishes a wall-clock rendering it MUST publish, in the
       same row, the IANA zone that rendering is in.** A window rendered
       `08:00-10:00` with no zone anywhere is read by every human as their own
@@ -452,7 +459,7 @@ ceremony and branches on the answer, rather than looking for a flag first.
 **And the answer it branches on is NAMED.** An operator that does not serve the
 binding module **MUST** answer `501 module_not_served` (Section 9) at BOTH
 `device_authorization_url` and `claim_url` -- as an ordinary Kiosk problem
-document at each, which for the `/oauth/*` half is the one carve-out from
+document at each, which for the `/oauth/*` half is a carve-out from
 Section 6.1's OAuth error object, argued in Section 9. An AI assistant that
 receives it **MUST** stop the ceremony and fall back to plain registration
 (Section 5); it **MUST NOT** retry, and **MUST NOT** report to its human that
@@ -638,7 +645,8 @@ neither. An
 operator **MAY** price fresh-identity minting: `POST /auth/register` **MAY**
 answer `402 pow_required` (Section 10) bound to the registering public key; the AI assistant
 solves and resubmits the same `signed`, sending the proof(s) in the `Kiosk-PoW`
-request header (Section 10.1). Default is no toll.
+request header (Section 10.1). Default is no toll. The same toll **MAY** price
+the two binding requests that present a code (Section 6.4).
 
 ---
 
@@ -685,7 +693,8 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
    **MUST NOT** answer it `invalid_client` for a missing proof. An AI assistant
    cannot know which poll is the completing one, so sending a freshly signed
    challenge on every poll is conforming and is what the skill instructs.
-   On success it returns OAuth-shaped
+   The first poll for a `device_code` can be answered `402 pow_required`
+   (Section 6.4). On success it returns OAuth-shaped
    `{access_token, token_type: "Bearer", expires_in}`, plus `scope` when -- and
    only when -- the binding carries a role: `scope` is RFC 6749 Section 5.1's
    scope actually GRANTED, which here is the approving human's role and never an
@@ -728,16 +737,21 @@ here because **this section requires them**:
 **The status is `400` for every one of them except `invalid_client`, which is
 `401`** -- RFC 6749 Section 5.2 makes a failed client authentication the one error
 the server SHOULD signal that way. An operator **MUST NOT** answer these two
-endpoints with a problem document, and **MUST NOT** emit an `error` code outside
-this list; every other endpoint answers problem documents (Section 9).
+endpoints with a problem document except in the two cases below, and **MUST
+NOT** emit an `error` code outside this list; every other endpoint answers
+problem documents (Section 9).
 
-**ONE CARVE-OUT, AND IT IS THE ONLY ONE:** an operator that does not serve the
-binding module at all answers `501 module_not_served` -- a Kiosk problem
-document -- at both of these endpoints, because none of the eight codes above
-means it and neither RFC 6749 Section 5.2 nor RFC 8628 has one. The reasoning
-is in Section 9 and the assistant-side rule is in Section 4.3. The distinction
-holds: the eight codes are errors WITHIN a device grant this operator runs, and
-`module_not_served` says there is no device grant here to be inside of.
+**TWO CARVE-OUTS, AND THEY ARE THE ONLY ONES.** (a) An operator that does not
+serve the binding module at all answers `501 module_not_served` -- a Kiosk
+problem document -- at both of these endpoints, because none of the eight codes
+above means it and neither RFC 6749 Section 5.2 nor RFC 8628 has one. The
+reasoning is in Section 9 and the assistant-side rule is in Section 4.3. The
+distinction holds: the eight codes are errors WITHIN a device grant this
+operator runs, and `module_not_served` says there is no device grant here to be
+inside of. (b) The binding toll on the token poll (Section 6.4) answers with the
+toll's own problem documents: `402 pow_required`, and the `400 bad_request` or
+`403 forbidden` that refuses a proof. The toll comes before the device grant
+reads the code, so its answers are not errors within the grant.
 
 The list is complete and closed, and it is the vocabulary the `/oauth/*` error
 body's schema is written from: a schema written from an incomplete vocabulary
@@ -837,8 +851,34 @@ that type without a CORS preflight.
 `POST <endpoint>/auth/unlink` (operator
 session, `{agent_id}`) is registration-layer revocation: the key's tokens stop
 verifying and `/auth/login` answers `404` (Section 15.4). It answers
-`204 No Content` (Section 6.2). Codes are stored hashed,
-single-use, short-TTL, and attempt-capped.
+`204 No Content` (Section 6.2). Codes are stored hashed, are single-use and
+expire on a short TTL. The verify page caps the attempts at a user code. A
+link code and a device code are long random values, and the binding toll
+prices each guess at one (Section 6.4).
+
+### 6.4 The binding toll
+
+An operator **MAY** ask the registration toll (Section 5.5) on the two binding
+requests that present a code: the link-code claim `POST <endpoint>/auth/claim`
+(Section 6.2) and the token poll `POST <endpoint>/oauth/token` (Section 6.1).
+The operator **MUST** decide whether a proof is required BEFORE it reads the
+code. So a wrong code costs the same work as a right one, and the answer about
+the toll never tells a caller whether a code exists.
+
+- **The claim pays on every request**, as registration does. Its proofs bind to
+  the request's `code` and `public_key`.
+- **The token poll pays once per `device_code`.** The first poll that carries a
+  `device_code` pays. The operator **MUST** then serve every later poll with
+  the same `device_code` without a toll until that code expires. Its proofs
+  bind to the `device_code`. An honest AI assistant pays once per ceremony; a
+  caller that guesses codes pays once per guess.
+- **The toll's answers are problem documents on both paths** (Section 10):
+  `402 pow_required` with `challenges` and `WWW-Authenticate: Kiosk-PoW`,
+  `400 bad_request` for a `Kiosk-PoW` header that is not valid JSON, and
+  `403 forbidden` for a proof that is not valid. The AI assistant solves every
+  challenge and sends the same request again, with the same `signed`, and with
+  the proofs in the `Kiosk-PoW` header (Section 10.1). A `402` does not use up
+  the possession proof.
 
 ---
 
@@ -1922,7 +1962,8 @@ section, the branch is `code`, not the status class.
 
 The auth endpoints answer the same problem documents; the only exception on the
 wire is the account-binding `/oauth/*` pair, which uses the OAuth error object
-(Section 6.1) -- with a single carve-out, `module_not_served`. RFC 6749 Section
+(Section 6.1) -- with two carve-outs, `module_not_served` and the binding
+toll's answers on the token poll (Section 6.4). RFC 6749 Section
 5.2, which RFC 8628 Section 3.2 defers to, has no member meaning "this server
 does not offer this endpoint" (`unsupported_grant_type` is a token-endpoint
 error about a grant this server does not implement, not about an absent
@@ -2016,8 +2057,9 @@ credential at all -- and they are the only mandate checks rule 1 reaches.
 Schema: [`pow.schema.json`](./schemas/pow.schema.json).
 
 An operator **MAY** require proof-of-work before serving a request. The toll MAY
-gate any query, any action, and `pay`, as well as `POST /auth/register`. That
-list is EXHAUSTIVE: no other request is tollable, and the two SELF-DESCRIPTION
+gate any query, any action, and `pay`, as well as `POST /auth/register`, the
+link-code claim `POST /auth/claim` and the token poll `POST <endpoint>/oauth/token`
+(Section 6.4). That list is EXHAUSTIVE: no other request is tollable, and the two SELF-DESCRIPTION
 endpoints are exempt by construction rather than as a courtesy --
 `GET <endpoint>/schema` (Section 8.3) and, where served,
 `GET <endpoint>/openapi.json` (Section 4.6) **MUST NOT** be tolled. A toll
@@ -2026,8 +2068,8 @@ one, and each answers the same bytes to everyone and is cacheable, so serving
 them costs the operator nothing to begin with. Because the tollable list is closed, the always-free
 surfaces are everything else the operator serves: the discovery layer
 (`/.well-known/*`, `agents.json`/`agents.txt`, `/auth.md`), the JWKS document
-(Section 4.4), the catalog, every auth and binding endpoint except
-`POST /auth/register`, the KYC attestation endpoint, and, where served, the
+(Section 4.4), the catalog, every auth and binding endpoint except those
+three, the KYC attestation endpoint, and, where served, the
 OpenAPI description. The gate
 responds `402` with `code: "pow_required"` and `WWW-Authenticate: Kiosk-PoW
 realm="<issuer>"` (Section 9), carrying a `challenges` array. The `realm` is an
@@ -2060,8 +2102,8 @@ actions or `pay` asks for proof-of-work on the first tolled call made with an
 access token. When that call has paid, the operator **MUST** serve every later
 call made with the same token without a toll, until the token expires. An access
 token lives one hour unless the operator configures another lifetime. The operator **MAY** lower the toll by reputation, to no proof at all
-for a trusted customer (Section 13). The registration toll (Section 5.5) is
-separate and unchanged. A new token pays again, so registering a new key to
+for a trusted customer (Section 13). The registration toll (Section 5.5) and
+the binding toll (Section 6.4) are separate and unchanged. A new token pays again, so registering a new key to
 avoid the toll costs more work, not less.
 
 **A proof's `nonce` is the ALGORITHM's shape, not this protocol's.** The
@@ -2778,7 +2820,9 @@ PSP's hosted page (Section 11). The AI assistant only relays the setup URL to th
 
 The claim/link ceremonies (Section 6) require BOTH human approval AND a valid possession
 proof before a binding is created; a failed proof binds nothing. Codes are stored
-hashed, are single-use, expire on a short TTL, and are attempt-capped; the human
+hashed, are single-use and expire on a short TTL; the verify page caps the
+attempts at a user code, and the binding toll prices each guess at a link code
+or a device code (Section 6.4); the human
 verify page **MUST** require an authenticated session and **MUST** display what is
 being bound -- both WHICH key (an identifier the AI assistant can also show, so
 the two can be compared) and WHAT ACCESS the approval hands over, meaning the
@@ -2885,10 +2929,9 @@ the discovery document, and are absent from `capabilities` for that reason:
    with an empty array for a filter that matched nothing -- the caching rules
    (Section 3, point 7), the time rules (Section 3, point 8) -- every row that
    publishes a wall clock names the IANA zone it is rendered in, that zone is
-   the SERVICED RESOURCE's and never one constant per operator, an argument is
-   read in the caller's declared zone or, absent one, on the service place's
-   clock, and the caller's zone is never INFERRED from the token, the language
-   header, the IP or the peer -- the schema self-description format (Section
+   the SERVICED RESOURCE's and never one constant per operator, a service time
+   in an argument is read on the service place's clock, and the caller's zone
+   is never INFERRED from the token, the language header, the IP or the peer -- the schema self-description format (Section
    8.3, and the descriptor schema of Section 17), and the three
    version-handshake response headers on every mount-path response (Section 3,
    point 6).
@@ -2920,7 +2963,8 @@ the discovery document, and are absent from `capabilities` for that reason:
    a solution whose indices are not in canonical order, `WWW-Authenticate:
    Kiosk-PoW` on the 402, and a spent-id set shared across every process the
    operator runs (Section 15.2) -- plus the OPTIONAL registration toll, whose
-   proofs bind to the registering public key (Section 5.5).
+   proofs bind to the registering public key (Section 5.5), and the OPTIONAL
+   binding toll, decided before the code is read (Section 6.4).
 7. **Module binding** (Section 6): the claim ceremony (device authorization, the
    session-authenticated verify page that names the access being handed over, and
    the possession-proof token poll) and/or the link-code redeem, with fresh/rebind
@@ -2986,9 +3030,11 @@ it is absent, rather than by reading a body field or trusting `X-Total-Count`
 descriptor that carries none as `principal` and never treating a `published`,
 `consented` or `role` verb's rows as its own human's data; fills the proof
 `aud` from the origin it dialed; declares its human's clock in `Kiosk-Timezone`
-on every time-bearing call and takes that zone FROM THE HUMAN rather than from
-the machine it runs on, reads a row's own `timezone` before relaying any time to
-a human, and never converts a bare `YYYY-MM-DD` (Section 3, point 8); solves
+and takes that zone FROM THE HUMAN rather than from the machine it runs on,
+resolves a service time on the clock of the place where the service happens,
+reads a row's own `timezone` before relaying any time to a human, and never
+converts a bare `YYYY-MM-DD` (Section 3, point 8); pays the binding toll where
+the operator asks it (Section 6.4); solves
 every challenge in a `pow_required` list and retries the identical request --
 same method, same path, same query string, same body -- with the proof(s) in the
 `Kiosk-PoW` request header; runs `payment_setup` and hands `setup_url` to the human rather than
