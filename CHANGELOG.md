@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.24] — 2026-10-21
+
+- 2026-10-21: **Skill 0.5.24** keeps the two receipts that `pay` answers with its mandates. `Kiosk-Min-Client` stays 0.5.23: a 0.5.23 assistant pays as before.
+
 - 2026-10-21: Both specifications make a successful `pay` answer the AP2 v0.2 checkout and payment receipts: JWTs that the operator signs PS256, each naming its mandate.
 - 2026-10-21: `mandates.schema.json` describes the two receipts and their claims; its examples follow. The landing page names the receipts.
 

@@ -155,7 +155,7 @@ proof-of-work gate.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.5.23` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-API-Version` | `0.5.24` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
    | `Kiosk-Min-Client` | `0.5.23` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
@@ -2810,7 +2810,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.5.23**: a 0.5.23 operator pins the 0.5.23 skill against the 0.5.23 wire. A new
+   **0.5.24**: a 0.5.24 operator pins the 0.5.24 skill against the 0.5.24 wire. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -2868,11 +2868,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.23**, the twenty-fourth
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.24**, the twenty-fifth
    cut on this series. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.4.17 cuts
    describe protocol 0.1-0.4 and cannot transact with a 0.5 origin at all, and
-   0.5.0-0.5.22 describe earlier 0.5 cuts a 0.5.23 operator no longer pins; none of them sends the DPoP proof that every call with a token needs there, and 0.5.23 is also its `Kiosk-Min-Client`. Published skill
+   0.5.0-0.5.23 describe earlier 0.5 cuts a 0.5.24 operator no longer pins; 0.5.0-0.5.22 send no DPoP proof, which every call with a token needs there, and 0.5.23, its `Kiosk-Min-Client`, pays but does not keep the receipts. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
