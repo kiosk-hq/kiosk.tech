@@ -163,7 +163,7 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <ul>
     <li><code>/agents.txt</code> and <code>/agents.json</code> — the agents.txt envelope and its structured companion. They name <code>x-kiosk-pop</code> as the authorization method and the skill you pin.</li>
     <li><code>/auth.md</code> — the agent-auth handbook: which auth methods you accept and how each ceremony runs.</li>
-    <li><code>/.well-known/kiosk.json</code> — the machine-readable handshake — plus <code>/.well-known/api-catalog</code> (RFC 9727), <code>/.well-known/oauth-authorization-server</code> (RFC 8414, the claim ceremony's endpoints) and <code>/.well-known/ard.json</code>.</li>
+    <li><code>/.well-known/kiosk.json</code> — the machine-readable handshake — plus <code>/.well-known/api-catalog</code> (RFC 9727), <code>/.well-known/oauth-authorization-server</code> (RFC 8414, the claim ceremony's endpoints), <code>/.well-known/oauth-protected-resource</code> (RFC 9728) and <code>/.well-known/ard.json</code>, also at <code>/.well-known/ai-catalog.json</code>.</li>
     <li><code>/.well-known/agent-skills/index.json</code> — the skill you pin and its digest. It answers only when you set <code>skill_sha256</code>.</li>
   </ul>
   <p>All of them come from kiosk-server's <code>DiscoveryController</code>, which renders every document from <code>Kiosk::Server::WellKnown</code> — the single generator seam. They're built on the fly from <code>Kiosk.configuration</code> and the live registry, so discovery can't drift from what you actually serve. The engine appends them to <em>your</em> app's route set, and only when it is mounted: bundling the gem without the <code>kiosk</code> block adds no routes at all.</p>
@@ -693,15 +693,16 @@ rails s</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-bash">curl -s http://localhost:3000/.well-known/kiosk.json | jq '.kiosk | {issuer, capabilities}'
 # => { "issuer": "http://localhost:3000", "capabilities": ["schema","queries","actions","pay","events"] }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p><strong>Now check the surface the mount installed, not only the path this page walks.</strong> The two calls below exist because the walkthrough is a bad test of the walkthrough: everything from here to the end of Step 6 exercises discovery-plus-register-plus-one-verb, so an app serving <em>nothing else</em> Step 3 promised would still get a clean run. Discovery is <strong>eight</strong> documents, and the mount also draws the account-binding ceremony — so verify those directly, before you trust a green walkthrough:</p>
+  <p><strong>Now check the surface the mount installed, not only the path this page walks.</strong> The two calls below exist because the walkthrough is a bad test of the walkthrough: everything from here to the end of Step 6 exercises discovery-plus-register-plus-one-verb, so an app serving <em>nothing else</em> Step 3 promised would still get a clean run. Discovery is <strong>ten</strong> documents, and the mount also draws the account-binding ceremony — so verify those directly, before you trust a green walkthrough:</p>
   <pre><code class="language-bash"># The discovery documents, at the ORIGIN ROOT (not under /kiosk).
 for p in /agents.txt /agents.json /auth.md /.well-known/kiosk.json \
-         /.well-known/api-catalog /.well-known/oauth-authorization-server /.well-known/ard.json; do
+         /.well-known/api-catalog /.well-known/oauth-authorization-server \
+         /.well-known/oauth-protected-resource /.well-known/ard.json /.well-known/ai-catalog.json; do
   printf '%s %s\n' "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3000$p")" "$p"
 done
-# => 200 for all seven. A 404 means the engine is bundled but NOT mounted: these
+# => 200 for all nine. A 404 means the engine is bundled but NOT mounted: these
 #    routes are appended to your app only when Step 3's kiosk block is present.
-#    The eighth, /.well-known/agent-skills/index.json, answers 200 once you pin
+#    The tenth, /.well-known/agent-skills/index.json, answers 200 once you pin
 #    skill_sha256.
 
 # The account-binding ceremony is mounted too. Ask for it with no parameters and

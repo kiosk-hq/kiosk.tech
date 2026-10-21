@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-21: Both specifications and the onboarding guide add RFC 9728 protected resource metadata, and the ARD manifest also at `/.well-known/ai-catalog.json`.
 - 2026-10-21: The landing page is short: the open way in for any assistant, how it works in five steps, operators and assistants, the demos, and what ships.
 
 ## [skill 0.5.25] — 2026-10-21

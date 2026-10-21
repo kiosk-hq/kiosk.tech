@@ -72,8 +72,9 @@ wire only where they do not:
   [RFC 7235](https://www.rfc-editor.org/rfc/rfc7235); the payment gate names the
   IETF `Payment` scheme.
 - Discovery is additionally emitted into the standard agent-web surfaces
-  (`agents.txt`, `agents.json`, RFC 8414 OAuth metadata, the Agent Skills
-  discovery index, ARD `ard.json`, RFC 9727 `api-catalog`) as envelopes around
+  (`agents.txt`, `agents.json`, RFC 8414 OAuth metadata, RFC 9728 protected
+  resource metadata, the Agent Skills discovery index, ARD `ard.json`, RFC 9727
+  `api-catalog`) as envelopes around
   the canonical `kiosk.json` (Section 4.5).
 
 Kiosk-specific is the **wire contract**: the per-verb endpoints, the response
@@ -544,13 +545,21 @@ capability the origin does not serve:
   pointing at `/auth.md`, and `dpop_signing_alg_values_supported: ["RS256"]`
   because every token it issues is DPoP-bound (Section 5.6). It names no
   `revocation_endpoint`: `POST <endpoint>/auth/revoke` is not an RFC 7009 endpoint.
+- `/.well-known/oauth-protected-resource` (RFC 9728): `resource` is the origin,
+  because RFC 9728 Section 3.3 binds a document at this path to the origin;
+  `authorization_servers` holds the RFC 8414 `issuer` above, only where the
+  origin serves account binding; `bearer_methods_supported: ["header"]`,
+  `dpop_signing_alg_values_supported: ["RS256"]`,
+  `dpop_bound_access_tokens_required: true` (Section 5.6), and
+  `resource_documentation` pointing at `/auth.md`.
 - `/.well-known/agent-skills/index.json` (Agent Skills Discovery v0.2.0), where
   the operator pins a skill: one `skill-md` entry with the pinned `url` and
   `digest: "sha256:<the pinned sha256>"`.
-- `/.well-known/ard.json` (Agentic Resource Discovery v0.91): an
-  `application/json` entry for `/.well-known/kiosk.json` and an
-  `application/agent-skills+md` entry for the pinned skill, each with an
-  `urn:air:<host>:kiosk:` identifier.
+- `/.well-known/ard.json` (Agentic Resource Discovery v0.91), and the same
+  document at `/.well-known/ai-catalog.json`, the path that AI Catalog 1.0 and
+  ARD before v0.91 name: `specVersion: "1.0"`, an `application/json` entry for
+  `/.well-known/kiosk.json` and an `application/agent-skills+md` entry for the
+  pinned skill, each with an `urn:air:<host>:kiosk:` identifier.
 - `/.well-known/api-catalog` (RFC 9727), below.
 - `/auth.md`, a Markdown description of the methods in the auth.md section
   order, whose first heading names auth.md. It says that the origin does not
@@ -3300,7 +3309,8 @@ wire and not in this section reads the omission as an oversight.
 | `/.well-known/api-catalog`, Section 4.5 (OPTIONAL) | [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) |
 | `/.well-known/oauth-authorization-server`, Section 4.5 (OPTIONAL) | [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) |
 | `/.well-known/agent-skills/index.json`, Section 4.5 (OPTIONAL) | [Agent Skills Discovery v0.2.0](https://github.com/cloudflare/agent-skills-discovery-rfc) |
-| `/.well-known/ard.json`, Section 4.5 (OPTIONAL) | [Agentic Resource Discovery v0.91](https://agenticresourcediscovery.org/spec) |
+| `/.well-known/oauth-protected-resource`, Section 4.5 (OPTIONAL) | [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) |
+| `/.well-known/ard.json` and `/.well-known/ai-catalog.json`, Section 4.5 (OPTIONAL) | [Agentic Resource Discovery v0.91](https://agenticresourcediscovery.org/spec) and [AI Catalog 1.0](https://github.com/Agent-Card/ai-catalog) |
 | `agents.txt`, `agents.json`, `/auth.md`, Section 4.5 (OPTIONAL) | the agent-web conventions each is named for. Section 4.5 binds their CONTENT to `kiosk.json` -- they are envelopes around it and MUST NOT drift from it -- so what this document has to say about them is a non-drift rule, not a shape |
 
 **What has no oracle here at all, and why.** No count is written in this
