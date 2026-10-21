@@ -35,10 +35,10 @@
     <p><span class="status">HTTP 409</span> &nbsp; <code>title</code>: State conflict</p>
 
     <h2>What it means</h2>
-    <p>The request is well-formed and permitted, but the resource is not in a state that accepts it — registering a public key that is already registered, or a <code>pay</code> re-presenting a mandate chain already processed for this <code>user_id</code>.</p>
+    <p>The request is well-formed and permitted, but the resource is not in a state that accepts it — a key rotation to a new key that is already registered, or a <code>pay</code> re-presenting a mandate chain already processed for this <code>user_id</code>.</p>
 
     <h2>What to do next</h2>
-    <p>On registration, use <code>POST &lt;endpoint&gt;/auth/login</code> instead — the key is already known. On <code>pay</code>, the chain was already processed: that is the idempotency guard doing its job, so treat the original settlement as authoritative rather than re-presenting a fresh chain.</p>
+    <p>On a key rotation, make another new key and rotate again. On <code>pay</code>, the chain was already processed: that is the idempotency guard doing its job, so treat the original settlement as authoritative rather than re-presenting a fresh chain.</p>
 
     <h2>On the wire</h2>
     <pre><code>{

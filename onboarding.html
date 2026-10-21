@@ -101,8 +101,8 @@ openssl genrsa 2048 | base64
   c.registration_role = :customer
 
   # OPTIONAL — which identity provider verifies agent tokens. When omitted,
-  # kiosk-server uses its bundled kiosk-pop engine (DefaultAgentIdp): it
-  # verifies exactly the JWTs the register/login endpoints mint, so the
+  # kiosk-server uses its bundled DefaultAgentIdp: it verifies exactly the
+  # access tokens its OAuth token endpoint issues, so the
   # zero-config install works end-to-end. Set this only to front another
   # agent-identity system or to compose adapters. Your human sign-in (Devise
   # etc.) is `c.user_idp`: the binding pages read it, the wire never does.
@@ -150,20 +150,20 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>Under the prefix, the mount draws:</p>
   <ul>
     <li><strong>The reserved endpoints</strong> — <code>GET /kiosk/schema</code> (the catalog — public, no token), <code>POST /kiosk/pay</code>, and <code>POST /kiosk/payment_setup</code> with <code>GET /kiosk/payment_setup/return</code>, the page the payment provider sends the human back to once they finish its setup page; with a payment provider configured, <code>payment_setup</code> is listed among your actions. <code>pay</code> and <code>payment_setup</code> are drawn whether or not you configured a payment provider: without one they refuse with a <code>501 module_not_served</code> problem document, and discovery leaves <code>pay</code> out of the capabilities it advertises, so nothing invites an agent to call it. There is also <code>GET /kiosk/openapi.json</code> — the same catalog rendered as OpenAPI 3.1, also public. You draw none of these, and you cannot collide with one: <code>Kiosk::Handler</code> refuses a reserved verb name when the class body loads, naming the class, the method and the name that is taken.</li>
-    <li><strong>The proof-of-possession auth plane</strong> — <code>GET /kiosk/auth/challenge</code> plus <code>POST /kiosk/auth/register</code>, <code>/kiosk/auth/login</code> and <code>/kiosk/auth/revoke</code>: the handshake the <code>register.rb</code> script in Step 6 performs.</li>
+    <li><strong>Registration and tokens (OAuth)</strong> — <code>POST /kiosk/oauth/register</code> (RFC 7591 client registration of the agent's public key), <code>POST /kiosk/oauth/token</code> (the <code>client_credentials</code> grant with an RFC 7523 client assertion and a DPoP proof) and <code>POST /kiosk/auth/rotate</code> (the agent replaces its key): the handshake the <code>register.rb</code> script in Step 6 performs.</li>
     <li><strong>JWKS</strong> — <code>GET /kiosk/.well-known/jwks.json</code>, the public keys agents verify Kiosk-issued JWTs against. It sits under the mount, and that is the URL discovery publishes as <code>jwks_uri</code>.</li>
     <li><strong>KYC</strong> — <code>POST /kiosk/agents/kyc</code>, where an agent presents a broker-signed identity fact, and <code>POST /kiosk/request_kyc</code> with <code>POST /kiosk/kyc/callback</code>, where the engine opens a verification at your KYC provider and the provider reports the human's approval. The engine records the attested attributes against the person, so you write only the gate: <code>Kiosk::Server::Kyc.require!</code> in the action, and <code>c.kyc_provider</code> (for example <code>Kiosk::KycProviders::Prove</code> from <code>kiosk-kyc-prove</code>) with <code>c.kyc_claims</code>, <code>c.kyc_issuer</code>, <code>c.kyc_public_key</code> and <code>c.kyc_audience</code> in the initializer. Set <code>c.kyc_claims</code> whenever you set <code>c.kyc_provider</code>: without it the app does not boot. Drawn unconditionally for the same reason as <code>pay</code>: without that configuration they answer <code>501 module_not_served</code>, and a provider that never advertises KYC loses nothing.</li>
     <li><strong>The event stream</strong> — <code>GET /kiosk/events</code>, a WebSocket upgrade on the <code>actioncable-v1-json</code> subprotocol that an agent holds open to be told when something happens. Drawn on the same terms as the two above: an origin that declares no <code>topic</code> serves no events module, so the path answers a <code>501 module_not_served</code> problem document — for a plain request and for an upgrade alike, and before any credential is read — and discovery publishes no <code>events_url</code>, so nothing sends an agent there. Your first <code>topic</code> block beside a verb in a handler controller is what turns it on; <a href="/spec/protocol.md">§8.5 of the protocol</a> is the stream itself.</li>
-    <li><strong>The account-binding ceremony</strong> — how an assistant gets attached to a human's <em>existing</em> account. That is the RFC 8628 claim wire (<code>POST /kiosk/oauth/device_authorization</code>, <code>POST /kiosk/oauth/token</code>), the link/claim/unlink endpoints (<code>POST /kiosk/auth/link</code>, <code>/kiosk/auth/claim</code>, <code>/kiosk/auth/unlink</code>), and two human-facing HTML pages: the consent page at <code>/kiosk/oauth/device/verify</code>, which shows the key's fingerprint and when it asked, and «Link an assistant» at <code>/kiosk/auth/assistants</code> with its link/update/unlink form posts. Both pages are session-authenticated through your own <code>user_idp</code> — approving a binding is the human channel's job, not the agent's — and both render minimal engine views you override by shipping same-named templates under <code>app/views/kiosk/server/</code>.</li>
+    <li><strong>The account-binding ceremony</strong> — how an assistant gets attached to a human's <em>existing</em> account. That is the RFC 8628 claim wire (<code>POST /kiosk/oauth/device_authorization</code>, <code>POST /kiosk/oauth/token</code>, each authenticated by the agent's client assertion), the link/claim/unlink endpoints (<code>POST /kiosk/auth/link</code>, <code>/kiosk/auth/claim</code>, <code>/kiosk/auth/unlink</code>), and two human-facing HTML pages: the consent page at <code>/kiosk/oauth/device/verify</code>, which shows the key's fingerprint and when it asked, and «Link an assistant» at <code>/kiosk/auth/assistants</code> with its link/update/unlink form posts. Both pages are session-authenticated through your own <code>user_idp</code> — approving a binding is the human channel's job, not the agent's — and both render minimal engine views you override by shipping same-named templates under <code>app/views/kiosk/server/</code>.</li>
   </ul>
 
   <blockquote><strong>Roles are total, or you have none.</strong> The role a binding carries is the approving human's — the engine reads it from your <code>user_idp</code> and never from anything the assistant sent. So if you declare <code>c.roles</code> at all, your identity system MUST name a role for <em>every</em> human who can approve a binding. A role for staff and nothing for customers is not a supported configuration: on an origin with more than one role, a member of staff your identity system answers no role for gets an assistant at your <em>default</em> role instead of theirs, and it can see nothing they could see themselves. Declaring no roles at all is the other supported shape — then no binding carries a role and no token has one. If you write <code>#kiosk_role</code> on your user model, make it total: return your least-privileged declared role rather than <code>nil</code>. Whether a Ruby <em>method</em> is total over your humans is not something a configuration file says, so kiosk-server cannot check that half at boot — it warns in your log the first time a ceremony resolves no role on a multi-role origin. The <em>configuration</em> half it does check, and refuses: declaring <code>c.roles</code> without a <code>c.registration_role</code> stops the app from starting, because that default is the role an assistant lands on when nothing else resolves one — a self-registration, or a binding whose approving human you answer no role for. <a href="/spec/protocol.md">§6.3 of the protocol</a> states the requirement.</blockquote>
 
   <p>The mount also installs the <strong>discovery documents</strong>, which live at the <em>origin root</em> — the agents.txt v1.0 standard and RFC 8615 put them there, outside any mount:</p>
   <ul>
-    <li><code>/agents.txt</code> and <code>/agents.json</code> — the agents.txt envelope and its structured companion. They name <code>x-kiosk-pop</code> as the authorization method and the skill you pin.</li>
+    <li><code>/agents.txt</code> and <code>/agents.json</code> — the agents.txt envelope and its structured companion. They name <code>oauth2</code> as the authorization method, with <code>/.well-known/oauth-authorization-server</code> as its discovery document in <code>agents.json</code>, and the skill you pin.</li>
     <li><code>/auth.md</code> — the agent-auth handbook: which auth methods you accept and how each ceremony runs.</li>
-    <li><code>/.well-known/kiosk.json</code> — the machine-readable handshake — plus <code>/.well-known/api-catalog</code> (RFC 9727), <code>/.well-known/oauth-authorization-server</code> (RFC 8414, the claim ceremony's endpoints), <code>/.well-known/oauth-protected-resource</code> (RFC 9728) and <code>/.well-known/ard.json</code>, also at <code>/.well-known/ai-catalog.json</code>.</li>
+    <li><code>/.well-known/kiosk.json</code> — the machine-readable handshake — plus <code>/.well-known/api-catalog</code> (RFC 9727), <code>/.well-known/oauth-authorization-server</code> (RFC 8414: the registration and token endpoints, and the device endpoint where you serve binding), <code>/.well-known/oauth-protected-resource</code> (RFC 9728) and <code>/.well-known/ard.json</code>, also at <code>/.well-known/ai-catalog.json</code>.</li>
     <li><code>/.well-known/agent-skills/index.json</code> — the skill you pin and its digest. It answers only when you set <code>skill_sha256</code>.</li>
   </ul>
   <p>All of them come from kiosk-server's <code>DiscoveryController</code>, which renders every document from <code>Kiosk::Server::WellKnown</code> — the single generator seam. They're built on the fly from <code>Kiosk.configuration</code> and the live registry, so discovery can't drift from what you actually serve. The engine appends them to <em>your</em> app's route set, and only when it is mounted: bundling the gem without the <code>kiosk</code> block adds no routes at all.</p>
@@ -706,36 +706,40 @@ done
 #    skill_sha256.
 
 # The account-binding ceremony is mounted too. Ask for it with no parameters and
-# it must REFUSE — a 400 is the route answering; a 404 is the route missing.
+# it must REFUSE — a 401 is the route answering; a 404 is the route missing.
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:3000/kiosk/oauth/device_authorization
-# => 400   (invalid_request: "client_id parameter required")</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+# => 401   (invalid_client: the request carries no client assertion)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The catalog is public — <code>GET /kiosk/schema</code> takes no token and pays no toll, so you can read it before you have one. <em>Every other</em> endpoint under the mount is authenticated, so to call a verb first obtain a token by registering. Registration is a proof-of-possession handshake: fetch a challenge for your public key, sign it as an RS256 JWS whose payload is <code>{aud, nonce, jti}</code> (<code>aud</code> = the origin you dialed, <code>nonce</code> = the challenge), then POST the public key + signature. A Kiosk-compatible agent does this for you, but here it is as a self-contained script (Ruby stdlib + the <code>jwt</code> gem — the same gem kiosk-server uses) so registration is followable without any external CLI:</p>
-  <pre><code class="language-ruby"># register.rb — PoP handshake against a local Kiosk provider. `gem install jwt`
+  <p>The catalog is public — <code>GET /kiosk/schema</code> takes no token and pays no toll, so you can read it before you have one. <em>Every other</em> endpoint under the mount is authenticated, so to call a verb first register and get a token, on OAuth standards: register your public key (RFC 7591), then ask the token endpoint with the <code>client_credentials</code> grant, a client assertion that your key signs (RFC 7523, <code>aud</code> = the origin you dialed) and a DPoP proof (RFC 9449). A Kiosk-compatible agent does this for you, but here it is as a self-contained script (Ruby stdlib + the <code>jwt</code> gem — the same gem kiosk-server uses) so registration is followable without any external CLI:</p>
+  <pre><code class="language-ruby"># register.rb — OAuth client registration and a token, against a local Kiosk provider. `gem install jwt`
 require "openssl"; require "json"; require "net/http"; require "uri"
-require "securerandom"; require "jwt"
+require "securerandom"; require "base64"; require "jwt"
 
 origin = ENV.fetch("KIOSK_ISSUER", "http://localhost:3000")   # the origin you dial == aud
 key    = OpenSSL::PKey::RSA.new(2048)                          # your identity keypair
 File.write("key.pem", key.to_pem)                             # dpop.rb below signs with it
-pub    = key.public_key.to_pem
+b64    = ->(bytes) { Base64.urlsafe_encode64(bytes, padding: false) }
+jwk    = { kty: "RSA", n: b64.(key.n.to_s(2)), e: b64.(key.e.to_s(2)) }
 
-# 1. GET a single-use challenge nonce for this public key.
-chal = JSON.parse(Net::HTTP.get(URI(
-  "#{origin}/kiosk/auth/challenge?public_key=#{URI.encode_www_form_component(pub)}")))
+# 1. Register the public key (RFC 7591) → 201 Created { client_id, … }.
+res = Net::HTTP.post(URI("#{origin}/kiosk/oauth/register"),
+  { jwks: { keys: [jwk] } }.to_json, "Content-Type" => "application/json")
+client_id = JSON.parse(res.body).fetch("client_id")          # = your agent_id; keep it
 
-# 2. Sign {aud, nonce, jti} as a compact RS256 JWS with the PRIVATE key.
-signed = JWT.encode(
-  { aud: origin, nonce: chal.fetch("challenge"), jti: SecureRandom.uuid },
-  key, "RS256")
-
-# 3. POST public_key + signed → 201 Created { user_id, agent_id, access_token }.
-res = Net::HTTP.post(URI("#{origin}/kiosk/auth/register"),
-  { public_key: pub, signed: signed }.to_json, "Content-Type" => "application/json")
-puts res.code                                   # => 201
-puts JSON.parse(res.body)["access_token"]       # export this as $TOKEN
-# (Returning key? Challenges are single-use — fetch a FRESH one, sign {aud, nonce, jti},
-#  POST to /kiosk/auth/login → 200 { access_token }. No new user_id: login just refreshes the token.)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+# 2. Ask for a token: a client assertion (RFC 7523) and a DPoP proof with no `ath`.
+token_url = "#{origin}/kiosk/oauth/token"
+now = Time.now.to_i
+assertion = JWT.encode({ iss: client_id, sub: client_id, aud: origin, exp: now + 60,
+                         jti: SecureRandom.uuid }, key, "RS256", { typ: "client-authentication+jwt" })
+proof = JWT.encode({ jti: SecureRandom.uuid, htm: "POST", htu: token_url, iat: now },
+                   key, "RS256", { typ: "dpop+jwt", jwk: jwk })
+req = Net::HTTP::Post.new(URI(token_url), "DPoP" => proof)
+req.set_form_data(grant_type: "client_credentials",
+                  client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+                  client_assertion: assertion)
+res = Net::HTTP.start(req.uri.host, req.uri.port, use_ssl: req.uri.scheme == "https") { |http| http.request(req) }
+puts "export TOKEN=#{JSON.parse(res.body).fetch("access_token")}"   # token_type "DPoP", expires_in 3600
+# When it expires, repeat step 2 with the same key.pem and client_id.</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>The token works only with the key that registered it (DPoP, RFC 9449): each call sends it as <code>Authorization: DPoP $TOKEN</code> with a <code>DPoP</code> header, a proof that the key signs for that method and URL. This script prints one:</p>
   <pre><code class="language-ruby"># dpop.rb METHOD URL — the DPoP proof for one call, signed by key.pem. Reads $TOKEN.
 require "openssl"; require "json"; require "jwt"; require "securerandom"; require "digest"; require "base64"
@@ -798,7 +802,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order -H "Authorization: DPoP
 
   <blockquote><strong>Do not put a bot challenge in front of the agent paths.</strong> A CDN or firewall bot rule that challenges <code>/kiosk/*</code>, <code>/agents.txt</code>, <code>/agents.json</code>, <code>/auth.md</code> or <code>/.well-known/*</code> stops every assistant: an assistant cannot solve a browser challenge. Exempt these paths from bot challenges. The proof-of-work toll already prices the calls that cost you CPU.</blockquote>
 
-  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.5.26.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together.</blockquote>
+  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.5.27.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together.</blockquote>
 
   <h3>3. Visual "Agents — over here" card (human-readable, subtle)</h3>
   <p>Add a small section somewhere unobtrusive on your homepage &mdash; a thin bar above the header, or a card below the fold. It tells agent users that your store speaks Kiosk without distracting regular customers:</p>
@@ -821,7 +825,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order -H "Authorization: DPoP
   <p>From the agent's perspective, once the steps above are done:</p>
   <ol class="steps">
     <li><strong>Discovery:</strong> <code>GET /.well-known/kiosk.json</code> → finds your endpoint</li>
-    <li><strong>Registration <em>or</em> binding — one of two, not always the first:</strong> a new assistant account is proof-of-possession (<code>GET /kiosk/auth/challenge</code> → sign → <code>POST /kiosk/auth/register</code>) → <code>access_token</code>, and a returning key refreshes at <code>POST /kiosk/auth/login</code>. When the human <em>already has an account with you</em>, the assistant binds to it instead: the claim ceremony it opens itself (<code>POST /kiosk/oauth/device_authorization</code> → the human approves the <code>user_code</code> at <code>/kiosk/oauth/device/verify</code> → <code>POST /kiosk/oauth/token</code>), or a link code the human generated on «Link an assistant» (<code>/kiosk/auth/assistants</code> → <code>POST /kiosk/auth/link</code>) and handed over, which the assistant redeems at <code>POST /kiosk/auth/claim</code>. Both end in a token; only whose rows it sees differs, and every step below is the same either way.</li>
+    <li><strong>Registration, then binding when the human has an account:</strong> the assistant registers its key (<code>POST /kiosk/oauth/register</code> → <code>client_id</code>), then asks <code>POST /kiosk/oauth/token</code> for an <code>access_token</code> with a client assertion and a DPoP proof, and asks again when the token expires. When the human <em>already has an account with you</em>, the registered assistant then binds to it: the claim ceremony it opens itself (<code>POST /kiosk/oauth/device_authorization</code> → the human approves the <code>user_code</code> at <code>/kiosk/oauth/device/verify</code> → <code>POST /kiosk/oauth/token</code>), or a link code the human generated on «Link an assistant» (<code>/kiosk/auth/assistants</code> → <code>POST /kiosk/auth/link</code>) and handed over, which the assistant redeems at <code>POST /kiosk/auth/claim</code> and then asks the token endpoint. After a binding the token is the human's account's; only whose rows it sees differs, and every step below is the same either way.</li>
     <li><strong>Read the contract:</strong> <code>GET /kiosk/schema</code> (no token) → learns every verb's name, prose and both schemas before it spends anything</li>
     <li><strong>Browse:</strong> <code>GET /kiosk/catalog</code> and <code>GET /kiosk/delivery_slots?delivery_address=…</code> → sees your products and when you can deliver</li>
     <li><strong>Order:</strong> <code>POST /kiosk/create_order</code> → order created, delivery window booked with it</li>

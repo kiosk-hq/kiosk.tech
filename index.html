@@ -86,8 +86,8 @@
   <section id="how">
     <h2>How it works</h2>
     <ol class="steps">
-      <li><strong>Find.</strong> Your site serves the standard discovery files: <code>agents.txt</code>, <code>auth.md</code>, an API catalog (RFC&nbsp;9727) and <code>/.well-known/kiosk.json</code>. Where humans link accounts, it also serves OAuth server metadata (RFC&nbsp;8414).</li>
-      <li><strong>Register.</strong> The assistant makes a new key for your site and proves that it holds it. Its access tokens are bound to that key (DPoP, RFC&nbsp;9449). There is no email and no password. Another site gets a different key, so the key gives two operators nothing to connect.</li>
+      <li><strong>Find.</strong> Your site serves the standard discovery files: <code>agents.txt</code>, <code>auth.md</code>, an API catalog (RFC&nbsp;9727) and <code>/.well-known/kiosk.json</code>. It also serves OAuth server metadata (RFC&nbsp;8414).</li>
+      <li><strong>Register.</strong> The assistant makes a new key for your site and registers it as an OAuth client (RFC&nbsp;7591). It signs a client assertion with that key for each token (RFC&nbsp;7523). Its access tokens are bound to that key (DPoP, RFC&nbsp;9449). There is no email and no password. Another site gets a different key, so the key gives two operators nothing to connect.</li>
       <li><strong>Pay the toll.</strong> Registration and each new session cost a memory-hard proof of work: about 10&nbsp;seconds on one laptop core. Your server checks it in about 20&nbsp;ms. The more a customer spent with you in the past week, the fewer sessions pay, down to none at 100&nbsp;euros.</li>
       <li><strong>Call.</strong> Each query and action that you declare is its own REST endpoint, listed in a public catalog. <a href="/skill.md">One skill file</a> teaches an assistant to use every Kiosk operator.</li>
       <li><strong>Pay.</strong> You sign a checkout with the exact items and price. The assistant pays it with two signed AP2&nbsp;v0.2 mandates, and you answer with two signed receipts. The human saves a card once, on your own Stripe page. <strong>After that, every payment at your service needs no form and no click.</strong></li>
@@ -211,7 +211,7 @@
       <div class="box">
         <p>Built on open standards:</p>
         <ul class="standards">
-          <li>agents.txt</li><li>auth.md</li><li>Agent Skills</li><li>RFC 8414</li><li>RFC 9727</li><li>DPoP (RFC 9449)</li><li>RFC 9457 problems</li><li>AP2 v0.2</li>
+          <li>agents.txt</li><li>auth.md</li><li>Agent Skills</li><li>OAuth registration (RFC 7591)</li><li>Client assertions (RFC 7523)</li><li>DPoP (RFC 9449)</li><li>Device grant (RFC 8628)</li><li>RFC 8414</li><li>RFC 9727</li><li>RFC 9457 problems</li><li>AP2 v0.2</li>
         </ul>
         <p style="margin-top:12px">The reference is Rails. On the wire it is HTTPS, JSON and JWS, so you can port it to any stack.</p>
       </div>

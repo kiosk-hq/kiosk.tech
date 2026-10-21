@@ -35,10 +35,10 @@
     <p><span class="status">HTTP 401</span> &nbsp; <code>title</code>: Not authenticated</p>
 
     <h2>What it means</h2>
-    <p>The Bearer token was missing, invalid, expired, issued by a different issuer, or revoked. Every endpoint under the mount except <code>schema</code> is authenticated.</p>
+    <p>The access token or its DPoP proof was missing, invalid or expired, the token was issued by a different issuer or revoked, or a client assertion failed on <code>POST &lt;endpoint&gt;/auth/claim</code> or <code>POST &lt;endpoint&gt;/auth/rotate</code>. Every operation except <code>schema</code> needs an access token.</p>
 
     <h2>What to do next</h2>
-    <p>Get a token by proving possession of your key: <code>GET &lt;endpoint&gt;/auth/challenge?public_key=…</code>, sign <code>{aud, nonce, jti}</code> as a compact RS256 JWS (<code>aud</code> is the origin you dialed), then <code>POST &lt;endpoint&gt;/auth/register</code> for a new key or <code>POST &lt;endpoint&gt;/auth/login</code> for one already registered. Retry the original call with <code>Authorization: Bearer …</code>.</p>
+    <p>Read <code>detail</code>: it says what to fix. For a token, ask <code>POST &lt;endpoint&gt;/oauth/token</code> with the <code>client_credentials</code> grant, a new client assertion that your registered key signs (<code>aud</code> is the origin you dialed) and a DPoP proof (see <a href="/specification.html#registration">Registration and tokens</a>). Then send the call again with <code>Authorization: DPoP &lt;access_token&gt;</code> and a new <code>DPoP</code> proof.</p>
 
     <h2>On the wire</h2>
     <pre><code>{
