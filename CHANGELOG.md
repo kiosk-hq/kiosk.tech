@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-21: The landing page is short: the open way in for any assistant, how it works in five steps, operators and assistants, the demos, and what ships.
+
 ## [skill 0.5.25] — 2026-10-21
 
 - 2026-10-21: **Skill 0.5.25** gives the same rules in less than half the words, in tables and short lists. The wire does not change, and `Kiosk-Min-Client` stays 0.5.23.
