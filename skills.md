@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | Wire it describes |
 |---|---|---|
+| `skill-v0.5.27.md` | **0.5** | **A WIRE CHANGE: registration and tokens move onto OAuth.** The assistant registers its public key (RFC 7591) and gets each token with a client assertion (RFC 7523) and a DPoP proof (RFC 9449). Revoke is gone. `Kiosk-Min-Client` is 0.5.27, so an older cut cannot register. |
 | `skill-v0.5.26.md` | **0.5** | The same wire as 0.5.25. Every file that the assistant writes for an operator goes in that operator's directory, and the receipts of each payment go in a file of their own. |
 | `skill-v0.5.25.md` | **0.5** | The same wire as 0.5.24, in less than half the words. Rules are in tables and short lists, and the specification gives the reasons. |
 | `skill-v0.5.24.md` | **0.5** | **An addition in payment.** `pay` also answers `checkout_receipt` and `payment_receipt`, the AP2 receipts that the operator signs. The cut tells the assistant to keep them with its mandates. A 0.5.23 assistant still pays at a 0.5.24 operator. |
@@ -95,9 +96,10 @@ and 0.5.15 opens a new wire group in which 0.5.15 = 0.5.16 = 0.5.17 = 0.5.18 = 0
 and 0.5.20 opens a new wire group in which 0.5.20 = 0.5.21,
 and 0.5.22 opens a new wire group of which it stayed the only member,
 and 0.5.23 opens a new wire group of which it stayed the only member,
-and 0.5.24 opens a new wire group, the one served now, in which 0.5.24 = 0.5.25 = 0.5.26,
-but the twelve groups are NOT the same wire, and only the last describes
-what a 0.5.26 operator serves. The formal spec
+and 0.5.24 opens a new wire group in which 0.5.24 = 0.5.25 = 0.5.26,
+and 0.5.27 opens a new wire group, the one served now, of which it is the only member,
+but the thirteen groups are NOT the same wire, and only the last describes
+what a 0.5.27 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

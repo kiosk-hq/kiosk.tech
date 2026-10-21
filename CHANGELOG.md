@@ -10,6 +10,16 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.27] — 2026-10-21
+
+- 2026-10-21: **Skill 0.5.27** registers its key as an OAuth client and gets each token with a client assertion and a DPoP proof. `Kiosk-Min-Client` is 0.5.27: an older cut cannot register.
+
+- 2026-10-21: Both specifications move registration and tokens onto OAuth: RFC 7591 registration, RFC 7523 client assertions and the `client_credentials` grant, with DPoP on each token request.
+- 2026-10-21: The challenge, register, login and revoke endpoints under `/auth/` are removed.
+- 2026-10-21: The specification lists every standard that Kiosk follows and what it uses each one for, and names AAuth and Web Bot Auth as related work.
+- 2026-10-21: The auth, binding and discovery schemas describe the OAuth wire, and their examples follow.
+- 2026-10-21: The landing page, the onboarding guide and the problem pages describe the OAuth registration and token request.
+
 ## [skill 0.5.26] — 2026-10-21
 
 - 2026-10-21: **Skill 0.5.26** keeps every file for an operator in that operator's directory, and saves the receipts of each payment in a file of their own. `Kiosk-Min-Client` stays 0.5.23.

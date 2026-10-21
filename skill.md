@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.5.26"
+  version: "0.5.27"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -47,7 +47,7 @@ Two terms; do not mix them up. **`origin`** is the operator's base URL: scheme, 
 
 The operator names its own queries and actions. `GET <endpoint>/catalog` IS the catalog call: there is no `name` field, and no path that carries all operations.
 
-**Auth.** Every call under `<endpoint>` needs the access token from Step 2 as `Authorization: DPoP <access_token>`, plus a `DPoP` header with a proof for that call (see "DPoP"). Without both, the answer is `401`. These paths are public: `schema`; `<endpoint>/openapi.json`, an optional description for tools (read `schema`, not this); `<endpoint>/.well-known/jwks.json`, the operator's public keys; and the auth paths. `revoke` needs the two DPoP headers. `challenge`, `register`, `login` and `rotate` take a possession proof instead.
+**Auth.** Every call under `<endpoint>` needs the access token from Step 2 as `Authorization: DPoP <access_token>`, plus a `DPoP` header with a proof for that call (see "DPoP"). Without both, the answer is `401`. These paths are public: `schema`; `<endpoint>/openapi.json`, an optional description for tools (read `schema`, not this); `<endpoint>/.well-known/jwks.json`, the operator's public keys; and the auth paths. The registration takes no credential. The token request, the device authorization, the link-code claim and `rotate` take a client assertion instead (see "Auth handshake").
 
 **Query arguments** go in the query string:
 
@@ -81,7 +81,7 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 |---|---|---|
 | `200 []` | Your filter matched nothing. | Tell your human. It is a real answer, not an error. |
 | `400 bad_request` | A value does not match `input_schema`, or is outside its domain. `detail`/`hint` name the parameter and the valid values. | Fix the value and send again. |
-| `401`, `WWW-Authenticate: DPoP` | The token or the DPoP proof is wrong. `detail` says what. | Make a new proof. Log in again if the token expired. |
+| `401`, `WWW-Authenticate: DPoP` | The token or the DPoP proof is wrong. `detail` says what. | Make a new proof. If the token expired, get a new token (Step 2). |
 | `402` | `pow_required`, `payment_setup_required` or `payment_failed`. | See "The three 402s". |
 | `403 forbidden` | A condition on the operator's side stops the call. `detail` names it. | Do the step that it names if this skill gives it to you (pay, read the state and wait, KYC). Else tell your human in its words. Never send the same call again unchanged. |
 | `403 kyc_required` | The operator needs a signed attestation. | See "Identity checks (KYC)". |
@@ -89,10 +89,10 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 | `404 verb_not_found` | No operation has that NAME. `hint` lists the names. | Call a name that exists. Do not tell your human that the operator cannot do the thing. |
 | `404 not_found` | The operation is real. The thing that an ARGUMENT points to is not there. | Stop. Tell your human that this specific thing is not there. Do not read the catalogue again, and do not retry. |
 | `404` with no problem document | No route matched: an unknown name, or the wrong method. | Read `schema` again. Call a name in it, with the method of its kind. The operator is not broken. |
-| `409 conflict` | On `register`: the key is known, so log in. On `rotate`: the new key is registered, so make another. On `pay`: the operator will not charge these mandates. | See Step 2, "Key rotation" or Step 6. |
+| `409 conflict` | On `rotate`: the new key is registered, so make another. On `pay`: the operator will not charge these mandates. | See "Key rotation" or Step 6. |
 | `429 quota_exceeded` | A rate limit, or too many open things. The ONE refusal that means "later", not "no". | Wait as `hint` says, then send the SAME call. Never open the same flow again to go around it. |
 | `500 action_failed` | The operator's own action failed. Your arguments are not the problem. | Read the state back through a query. Retry one time at most, a short time later. Then tell your human. |
-| `501 module_not_served` | The operator does not serve that capability: binding, payment, KYC or the event stream. **Do NOT retry, and do NOT think that the server has a temporary problem.** | Do what you would do at an operator that never offered it. No binding: register (Step 2). No payment: give the transaction to your human. No KYC: do not promise the gated actions. No events: wait as the step says. |
+| `501 module_not_served` | The operator does not serve that capability: binding, payment, KYC or the event stream. **Do NOT retry, and do NOT think that the server has a temporary problem.** | Do what you would do at an operator that never offered it. No binding: keep your own account (Step 2). No payment: give the transaction to your human. No KYC: do not promise the gated actions. No events: wait as the step says. |
 
 **Pages.** A query with more rows sends an [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288) header, `Link: <https://host/kiosk/search_hotels?city=Lisbon&cursor=b2Zm>; rel="next"`. If the `next` link is there, get that URI exactly as written, with the same headers. If the link is a relative reference, resolve it against the URL of your request first. If a `Link` value lists several relations, use the one whose `rel` is `next`, and ignore the others. If there is no `next` link, you have the full list. Only that absence tells you the list is complete. The cursor is opaque: never parse it, never make one, and do not guess the order of the rows from it. If you build the request yourself, copy the `cursor` parameter byte for byte. `limit` and `cursor` are reserved names that every operator accepts. `limit` sets the page size of a query with pages; where `input_schema` declares `limit`, send a value inside its range. `X-Total-Count`, when it is there, is the number of matching rows on all pages. Use it to show progress, never as a loop limit.
 
@@ -114,39 +114,42 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 - `schema_url`: the URL of the catalogue. It can carry a `?v=` that changes on each deploy, so you can cache it.
 - `capabilities`: the modules that the endpoint serves, some of `schema`, `queries`, `actions`, `pay`, `events`. Only this document publishes them.
 - `events_url`: an absolute `wss://` URL. It is there if and only if `capabilities` has `events`.
-- `auth`: `kind` (`"kiosk-pop"`) and seven absolute URLs: `challenge_url`, `register_url`, `login_url`, `revoke_url`, `rotate_url`, `device_authorization_url` and `claim_url`. All seven are always there, so they do not tell you that the operator offers binding. Use them exactly as written.
+- `auth`: five absolute URLs: `registration_url`, `token_url`, `rotate_url`, `device_authorization_url` and `claim_url`. All five are always there, so they do not tell you that the operator offers binding. Use them exactly as written.
 - `skill` (optional): the pin of a skill version (see "Versioning & verification").
 
 ### Step 2: Identity (REUSE if possible)
 
-**First look for `~/.kiosk/<origin-dir>/identity.json`.** `<origin-dir>` names ONE origin with its scheme, host AND port, e.g. `https_getgrocery.demo.kiosk.tech_443` or `http_127.0.0.1_3002`. Never use a bare hostname: two ports on one host are two operators.
+**First look for `~/.kiosk/<origin-dir>/identity.json`.** `<origin-dir>` names ONE origin with its scheme, host AND port, e.g. `https_getgrocery.demo.kiosk.tech_443` or `http_127.0.0.1_3002`. Never use a bare hostname: two ports on one host are two operators. Registration and tokens are OAuth (see "Auth handshake").
 
-The operator gives a token only after you prove that you hold the private key (see "Auth handshake"): `GET {challenge_url}?public_key=<url-encoded PEM>` gives `{challenge}`, you sign it with `aud` = the origin that you called, and you POST the result. This `challenge` is a nonce that you sign. It is NOT the proof-of-work toll, so never give it to the solver.
-
-- **Identity exists** -> `POST {login_url} {public_key, signed}` -> `200 {access_token}`. Keep `user_id` and `agent_id` from `identity.json`. If login gives `404`, the operator does not know your key: register. Do not register a known key: that gives `409`.
-- **No identity** -> make an RSA-2048 keypair, then `POST {register_url} {public_key, signed}` -> `201 {user_id, agent_id, access_token}`. Keep the PRIVATE key at `~/.kiosk/<origin-dir>/key.pem` and the identity `{"user_id":"...","agent_id":"..."}` at `~/.kiosk/<origin-dir>/identity.json`.
-- Tokens are short-lived: call `/auth/login` again to get a new one when yours expires, and not before. Each new token pays the toll again.
+- **No identity** -> make an RSA-2048 keypair, then `POST {registration_url} {"jwks": {"keys": [<your public JWK>]}}` (RFC 7591) -> `201` with your `client_id`. Keep the PRIVATE key at `~/.kiosk/<origin-dir>/key.pem` and the identity `{"client_id": "..."}` at `~/.kiosk/<origin-dir>/identity.json`.
+- **Get a token** -> `POST {token_url}` as a form with `grant_type=client_credentials`, a client assertion (RFC 7523) and a `DPoP` header (RFC 9449) -> `200 {access_token, token_type: "DPoP", expires_in}`, plus `scope` when your account has a role. The token's `sub` is your `user_id`, and its `agent_id` claim is your `client_id`.
+- Tokens are short-lived. Send a new token request when yours expires, and not before. Each new token can pay the toll again.
+- **`invalid_client`** -> sign a new client assertion and send the token request again, one time. If it fails again, register the same key again. When the same `client_id` comes back, continue with it. A NEW `client_id` means that your human unlinked you: ask them before you go on.
 - **To change your key, rotate it** (see "Key rotation"). A new registration is a new account, with no reputation, no binding and no saved card. Rotate when your human asks, or when someone else can have seen `key.pem`.
-- `POST {revoke_url}` with the two DPoP headers signs out your other sessions and gives you a new token.
 - **A second account at one origin** goes in its own directory, `~/.kiosk/<origin-dir>/<name>/`, with its own files. `<name>` is the label that your human gives it. Never overwrite a directory. When it is not clear which account to use, ask.
 
 ### Step 2b: Bind to the human's account (only when they ask)
 
-Registration makes a self-standing assistant account. When your human says that the account is theirs, **bind** your key to their account. You do this one time, and then you log in as usual. A binding of a registered key MOVES that account to your human: to keep it, bind a NEW key in a new directory.
+Registration makes a self-standing assistant account. When your human says that the account is theirs, **bind** it to their account. Register first (Step 2). You do this one time, and then you get tokens as usual. A binding MOVES your account to your human: to keep it, register a NEW key in a new directory and bind that one.
 
-- **No code from the human** -> `POST {device_authorization_url} {"client_id": "<a name your human knows>", "public_key": pem}` -> `{device_code, user_code, verification_uri, expires_in, interval}`. In one message, give your human `verification_uri`, `user_code` and the fingerprint of your key (see "Auth handshake"). Your human opens the page in their own browser, checks the fingerprint and confirms. Never open the page yourself. While you wait, poll: sign a new challenge, then `POST <endpoint>/oauth/token` as a form (`application/x-www-form-urlencoded`, not JSON) with `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code` and `signed`. The first poll can give `402 pow_required`: solve it and send the same poll again. Here the errors are RFC 8628 OAuth error objects, not problem documents:
-    - `authorization_pending` -> your human has not acted yet. Poll again after `interval` seconds.
-    - `slow_down` -> add 5 seconds to your interval, and keep the larger value. Do not reset it after a success.
-    - `access_denied` -> **TERMINAL.** Your human refused. Stop and tell them. Do not start a second ceremony to get a different answer.
-    - `expired_token` -> **TERMINAL.** The code is dead. Stop. Start ONE new ceremony only if your human says yes.
-    - `invalid_grant` -> **TERMINAL.** The `device_code` is unknown or used. Stop, and start a new ceremony.
-    - `invalid_client` -> your possession proof failed. Sign a NEW challenge and poll again with the SAME `device_code`. Stop after two failures.
-    - **GIVE UP at the `expires_in` that you got** (usually ~15 minutes), also with no `expired_token`. Tell your human that the binding is not complete.
+- **No code from the human** (RFC 8628) -> `POST {device_authorization_url}` as a form with your client assertion -> `{device_code, user_code, verification_uri, expires_in, interval}`. In one message, give your human `verification_uri`, `user_code` and the fingerprint of your key (see "Auth handshake"). Your human opens the page in their own browser, checks the fingerprint and confirms. Never open the page yourself. While you wait, poll `POST {token_url}` as a form with `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, a new client assertion and a new DPoP proof. The first poll can give `402 pow_required`: solve it and send the same poll again.
+- **The human hands you a code** (from the operator's "link an assistant" page) -> `POST {claim_url}` with the JSON body `{"code": code, "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", "client_assertion": assertion}` -> `204`. Then send a token request. The claim can give `402 pow_required`.
 
-  On approval the poll gives `200 {access_token, token_type, expires_in}`, plus `scope` only when the binding has a role. `scope` is the role of the human who approved, and you cannot ask for a role. An operator that assigns no roles omits the member; that is NOT an error and NOT a refusal. Decode the token's payload (its middle part, base64url JSON) and write `identity.json` again: `sub` is your `user_id`, and the `agent_id` claim is your `agent_id`.
-- **The human hands you a code** (from the operator's "link an assistant" page) -> sign a challenge, then `POST {claim_url} {"code": code, "public_key": pem, "signed": signed}` -> `201 {agent_id, user_id, access_token}`. It can give `402 pow_required`.
+The two `/oauth/*` requests answer RFC 6749 error objects `{error, error_description}`, not problem documents. Branch on `error`:
 
-At an operator with no binding, both URLs answer `501 module_not_served`. Register as usual, and do not tell your human that the binding failed. After a binding, your old token stops working: log in again. If your human unlinks you, your token gets `401` and login gets `404`. Ask your human before you register or bind again.
+- `authorization_pending` -> your human has not acted yet. Poll again after `interval` seconds.
+- `slow_down` -> add 5 seconds to your interval, and keep the larger value. Do not reset it after a success.
+- `access_denied` -> **TERMINAL.** Your human refused. Stop and tell them. Do not start a second ceremony to get a different answer.
+- `expired_token` -> **TERMINAL.** The code is dead. Stop. Start ONE new ceremony only if your human says yes.
+- `invalid_grant` -> **TERMINAL.** The `device_code` is unknown, used, or not yours. Stop, and start a new ceremony.
+- `invalid_client` -> your client assertion failed. Sign a new one and poll again with the SAME `device_code`. Stop after two failures.
+- `invalid_dpop_proof` -> make a new DPoP proof and send the request again.
+- `invalid_request` or `unsupported_grant_type` -> your request is wrong. Fix it as `error_description` says.
+- **GIVE UP at the `expires_in` that you got** (usually ~15 minutes), also with no `expired_token`. Tell your human that the binding is not complete.
+
+On approval the poll gives `200 {access_token, token_type, expires_in}`, plus `scope` only when the binding has a role. `scope` is the role of the human who approved, and you cannot ask for a role. An operator that assigns no roles omits the member; that is NOT an error and NOT a refusal.
+
+At an operator with no binding, both URLs answer `501 module_not_served`. Keep your own account, and do not tell your human that the binding failed. After a binding, your old token stops working: get a new token. If your human unlinks you, your token gets `401` and the token request gets `invalid_client` (see Step 2).
 
 ### Step 3: Learn the catalogue
 
@@ -186,7 +189,7 @@ The stream is the one place where the OPERATOR speaks first. It is optional. You
 **While the stream is up:**
 
 - `{"type":"unsubscribed","reason":"reach_revoked"}` -- that subscription has ended; the socket has not.
-- `{"type":"disconnect","reason":"revoked","reconnect":false}` -- **TERMINAL for this token.** Do not retry. Get a new token (Step 2) and open a new stream. If login gives `404`, your human unlinked you: ask them.
+- `{"type":"disconnect","reason":"revoked","reconnect":false}` -- **TERMINAL for this token.** Do not retry. Get a new token (Step 2) and open a new stream. If the token request gives `invalid_client`, do as Step 2 says.
 - `{"type":"disconnect","reason":"token_expired","reconnect":true}` -- get a new token and open the stream again with `since` at your cursor. Act on `reconnect`, not on `reason`.
 
 #### Use the pinned listener -- do not write your own client
@@ -276,73 +279,76 @@ If the mandates' `exp` has passed, you cannot send them again. Read the order's 
 
 **Pay once per order.** An action on a paid order (e.g. a new delivery time) uses the existing settlement: call it, and do NOT pay again. A description that says "requires a settlement" means that the order must already be paid; it does not tell you to pay. Never pay a NEW checkout for an order that is paid: not every operator refuses it, and then your human pays two times.
 
-## Auth handshake (register / login)
+## Auth handshake (registration and tokens)
 
-Prove that you hold your private key. The proof is bound to the origin, so nobody can use it again at another operator:
+A client assertion proves that you hold your private key. Its `aud` is the origin, so nobody can use it at another operator:
 
 ```python
-import jwt, time, json, urllib.parse, urllib.request
-from uuid import uuid4
+import hashlib, json, os, sys, time, urllib.parse, urllib.request, uuid
+import jwt
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+sys.path.insert(0, os.path.expanduser("~/.kiosk"))
+from dpop import b64, dpop_proof, public_jwk    # see "DPoP"
 
-auth   = doc["kiosk"]["auth"]                  # the discovery document, Step 1
-origin = "https://getgrocery.demo.kiosk.tech"  # the origin you dialed
-pem    = pub_pem                               # your PUBLIC key PEM
-ch = json.load(urllib.request.urlopen(
-    f"{auth['challenge_url']}?public_key={urllib.parse.quote(pem)}"))
+auth    = doc["kiosk"]["auth"]                  # the discovery document, Step 1
+origin  = "https://getgrocery.demo.kiosk.tech"  # the origin you dialed
+key_pem = open(os.path.expanduser("~/.kiosk/<origin-dir>/key.pem"), "rb").read()
+key     = load_pem_private_key(key_pem, password=None)
+ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
-signed = jwt.encode(
-    {"aud": origin, "nonce": ch["challenge"], "jti": str(uuid4()), "iat": int(time.time())},
-    private_key, algorithm="RS256")
+def post(url, body, headers):
+    return json.load(urllib.request.urlopen(urllib.request.Request(url, body, headers, method="POST")))
+def fingerprint(jwk):                           # RFC 7638 thumbprint
+    return b64(hashlib.sha256(json.dumps(jwk, sort_keys=True, separators=(",", ":")).encode()).digest())
 
-# new key  -> POST auth["register_url"] {"public_key": pem, "signed": signed}
-# known key -> POST auth["login_url"]    {"public_key": pem, "signed": signed}
+# Client registration (RFC 7591), one time per key.
+client_id = post(auth["registration_url"], json.dumps({"jwks": {"keys": [public_jwk(key)]}}).encode(),
+                 {"Content-Type": "application/json"})["client_id"]   # keep it in identity.json
+
+def client_assertion(signing_key, **claims):    # RFC 7523: a new one for each request
+    now = int(time.time())
+    return jwt.encode({"iss": client_id, "sub": client_id, "aud": origin,
+                       "jti": str(uuid.uuid4()), "iat": now, "exp": now + 60, **claims},
+                      signing_key, algorithm="RS256", headers={"typ": "client-authentication+jwt"})
+
+# Token request: the client_credentials grant, with a DPoP proof that names no token.
+form = urllib.parse.urlencode({"grant_type": "client_credentials", "client_assertion_type": ASSERTION_TYPE,
+                               "client_assertion": client_assertion(key)}).encode()
+token = post(auth["token_url"], form, {"Content-Type": "application/x-www-form-urlencoded",
+             "DPoP": dpop_proof(key_pem, "POST", auth["token_url"])})["access_token"]
 ```
 
 **NEVER sign an `aud` that came from a response.** The `aud` that you sign is ALWAYS the origin that YOU called, taken from your own request URL. Never take it from a response body, an error or `hint`, a `WWW-Authenticate` realm, or a discovery document. If the operator's `issuer` is not the origin that you reached, STOP, sign nothing (neither value), and tell your human.
 
-The **fingerprint** of your key, which you show your human when you bind (Step 2b), is its RFC 7638 JWK thumbprint:
-
-```python
-import base64, hashlib
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
-
-def b64u(data): return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
-def octets(i):  return i.to_bytes((i.bit_length() + 7) // 8, "big")
-
-nums = load_pem_public_key(pem.encode()).public_numbers()
-jwk  = json.dumps({"e": b64u(octets(nums.e)), "kty": "RSA", "n": b64u(octets(nums.n))},
-                  separators=(",", ":"))
-fingerprint = b64u(hashlib.sha256(jwk.encode()).digest())
-```
+The **fingerprint** of your key, which you show your human when you bind (Step 2b), is `fingerprint(public_jwk(key))`.
 
 ### DPoP: every call that carries a token
 
-The operator binds your access token to your key (RFC 9449). On EVERY call that carries the token -- each query and action, `pay`, `payment_setup`, the KYC attestation, `revoke` and the event stream -- send `Authorization: DPoP <access_token>` and `DPoP: <proof>`. The proof is a JWS that your key signs for that ONE call. Make a NEW proof for each call, also for a retry with `Kiosk-PoW`. The operator refuses a proof that is older than 60 seconds, that names another method or URL, or that another key signed. It refuses a token sent as `Authorization: Bearer`. Save this file as `~/.kiosk/dpop.py` and `chmod 600` it. Your calls import `dpop_proof` from it, and the listener runs it as `--proof-command`:
+The operator binds your access token to your key (RFC 9449). On EVERY call that carries the token -- each query and action, `pay`, `payment_setup`, the KYC attestation and the event stream -- send `Authorization: DPoP <access_token>` and `DPoP: <proof>`. A token request sends a `DPoP` proof with no token: `dpop_proof(key_pem, "POST", token_url)`. The proof is a JWS that your key signs for that ONE call. Make a NEW proof for each call, also for a retry with `Kiosk-PoW`. The operator refuses a proof that is older than 60 seconds, that names another method or URL, or that another key signed. It refuses a token sent as `Authorization: Bearer`. Save this file as `~/.kiosk/dpop.py` and `chmod 600` it. Your calls import `dpop_proof` from it, and the listener runs it as `--proof-command`:
 
 ```python
 # Prints a DPoP proof (RFC 9449) for one request: python3 dpop.py <key.pem>,
 # with the URL on the first line of stdin and the access token on the second.
+# dpop_proof() with no token makes the proof for a token request.
 import base64, hashlib, sys, time, uuid
 import jwt
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-
 def b64(data):
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
-
-def octets(number):
-    return number.to_bytes((number.bit_length() + 7) // 8, "big")
-
-
-def dpop_proof(key_pem, method, url, token):
-    key = load_pem_private_key(key_pem, password=None)
+def public_jwk(key):
     nums = key.public_key().public_numbers()
-    jwk = {"kty": "RSA", "e": b64(octets(nums.e)), "n": b64(octets(nums.n))}
-    claims = {"jti": str(uuid.uuid4()), "htm": method, "htu": url.split("?")[0].split("#")[0],
-              "iat": int(time.time()), "ath": b64(hashlib.sha256(token.encode()).digest())}
-    return jwt.encode(claims, key, algorithm="RS256", headers={"typ": "dpop+jwt", "jwk": jwk})
+    octets = lambda i: i.to_bytes((i.bit_length() + 7) // 8, "big")
+    return {"e": b64(octets(nums.e)), "kty": "RSA", "n": b64(octets(nums.n))}
 
+def dpop_proof(key_pem, method, url, token=None):
+    key = load_pem_private_key(key_pem, password=None)
+    claims = {"jti": str(uuid.uuid4()), "htm": method, "htu": url.split("?")[0].split("#")[0],
+              "iat": int(time.time())}
+    if token:
+        claims["ath"] = b64(hashlib.sha256(token.encode()).digest())
+    return jwt.encode(claims, key, algorithm="RS256", headers={"typ": "dpop+jwt", "jwk": public_jwk(key)})
 
 if __name__ == "__main__":
     url, token = sys.stdin.read().split()
@@ -351,36 +357,29 @@ if __name__ == "__main__":
 ```
 
 ```python
-import os, sys, urllib.request
-sys.path.insert(0, os.path.expanduser("~/.kiosk"))
-from dpop import dpop_proof
-
-key_pem = open(os.path.expanduser("~/.kiosk/<origin-dir>/key.pem"), "rb").read()
 url = f"{endpoint}/catalog"
-req = urllib.request.Request(url, headers={
-    "Authorization": f"DPoP {token}",
-    "DPoP": dpop_proof(key_pem, "GET", url, token)})
+req = urllib.request.Request(url, headers={"Authorization": f"DPoP {token}",
+                                           "DPoP": dpop_proof(key_pem, "GET", url, token)})
 ```
 
 ### Key rotation
 
-Make a new keypair, get one challenge for EACH key, and sign each challenge with its own key. The proof of the OLD key also carries `new_key`: the fingerprint of the NEW key.
+Make a new keypair. Sign one client assertion with EACH key, both for your `client_id`. The assertion of the OLD key also carries `new_key`: the fingerprint of the NEW key.
 
 ```python
-old_signed = jwt.encode({"aud": origin, "nonce": old_challenge, "jti": str(uuid4()),
-                         "new_key": fingerprint_of_new_key}, old_private_key, algorithm="RS256")
-new_signed = jwt.encode({"aud": origin, "nonce": new_challenge, "jti": str(uuid4())},
-                        new_private_key, algorithm="RS256")
-# POST auth["rotate_url"] {"public_key": old_pem, "signed": old_signed,
-#                          "new_public_key": new_pem, "new_signed": new_signed}
-# -> 200 {"access_token": "..."}, bound to the new key
+new_jwk = public_jwk(new_key)
+body = {"client_assertion_type": ASSERTION_TYPE,
+        "client_assertion": client_assertion(key, new_key=fingerprint(new_jwk)),
+        "new_client_assertion": client_assertion(new_key),
+        "jwks": {"keys": [new_jwk]}}
+# POST auth["rotate_url"] with this JSON body -> 200, your client information with the new key
 ```
 
-On `200`: write the new key to `key.pem` and the new token to `token`, and keep `identity.json`. Every older token is revoked, so start a running listener again. Sign every new mandate with the new key. `404`: the operator does not know the old key. `409`: the new key is registered already; make another keypair.
+On `200`: write the new key to `key.pem`, and keep `identity.json`. Every older token is revoked: send a token request with the new key, write the new token to `token`, and start a running listener again. Sign every new mandate with the new key. `401`: an assertion failed; sign both again. `409`: the new key is registered already; make another keypair.
 
 ## Proof-of-work (HTTP 402)
 
-A query, an action, `pay`, `register`, the link-code claim and the binding poll can give `402` with `code: "pow_required"`: the operator charges a proof-of-work toll. Nothing else has a toll: the discovery documents, `schema`, `openapi.json`, the JWKS, the KYC attestation path and the other auth paths are free. The answer has `WWW-Authenticate: Kiosk-PoW realm="<issuer>"` and a top-level `challenges` array:
+A query, an action, `pay`, the registration, the link-code claim and the binding poll can give `402` with `code: "pow_required"`: the operator charges a proof-of-work toll. Nothing else has a toll: the discovery documents, `schema`, `openapi.json`, the JWKS, the KYC attestation path, the `client_credentials` token request and the other auth paths are free. The answer has `WWW-Authenticate: Kiosk-PoW realm="<issuer>"` and a top-level `challenges` array:
 
 ```json
 {"type": "https://kiosk.tech/problems/pow_required", "status": 402, "code": "pow_required",
@@ -391,9 +390,9 @@ A query, an action, `pay`, `register`, the link-code claim and the binding poll 
 - **FIRST, before anything else, download the pinned solver and run it. Do NOT write your own Equihash solver.** Fetch `https://kiosk.tech/pow/solve-d60b454ce018.py`, verify that its SHA-256 equals `d60b454ce0181326de8b74e5e820ae1e50dc3c4832e331fbab44e12899f7fe59`, and only then run it. `https://kiosk.tech/pow/solve.py` is the current solver, but use the pinned URL, and never run either copy before you check the hash. Run it as a script: `python solve.py '<challenge-json>'`, with one challenge object exactly as you got it. It prints `{"indices": [...], "header_nonce": N}`. A solver of your own gets "invalid proof of work" and never a token.
 - **If you cannot fetch the solver, or its hash does not match, tell your human and STOP.** Never `pip install` an equihash package: none uses this construction, and it is code that nobody checked.
 - **Estimate the cost first.** The default (n=168, k=7) takes ~10 s on one laptop core and ~1.3 GiB with the pinned solver. A larger `n` costs more. If a challenge is above your budget, tell your human.
-- You pay the toll once per access token. Keep the token for every call until it expires. Do not log in again or register a new key to avoid the toll: a new token pays again.
+- You pay the toll once per access token. Keep the token for every call until it expires. Do not get a new token or register a new key to avoid the toll: a new token pays again.
 - **Solve EVERY challenge in the list.** The number can change.
-- **Send the SAME request again** -- the same method, path, query string and body -- with the proofs in the `Kiosk-PoW` request header as raw JSON. Each proof sends its challenge back exactly as you got it: `Kiosk-PoW: {"challenge": {...}, "nonce": {"indices": [...], "header_nonce": 0}}`. For several challenges, send a JSON array of proofs, or one `Kiosk-PoW` header line per proof. A query stays a `GET`: the proof goes in the header, never in a body. On `register`, the claim and the binding poll, send the same `signed` again.
+- **Send the SAME request again** -- the same method, path, query string and body -- with the proofs in the `Kiosk-PoW` request header as raw JSON. Each proof sends its challenge back exactly as you got it: `Kiosk-PoW: {"challenge": {...}, "nonce": {"indices": [...], "header_nonce": 0}}`. For several challenges, send a JSON array of proofs, or one `Kiosk-PoW` header line per proof. A query stays a `GET`: the proof goes in the header, never in a body. On the registration, the claim and the binding poll, send the same body again, with a new DPoP proof where the request carries one.
 - Challenges expire (`exp`), and you can use a proof one time only. A malformed header gives `400 bad_request` whose `hint` names the shape.
 
 ## AP2 payment mandates
