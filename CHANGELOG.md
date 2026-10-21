@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.25] — 2026-10-21
+
+- 2026-10-21: **Skill 0.5.25** gives the same rules in less than half the words, in tables and short lists. The wire does not change, and `Kiosk-Min-Client` stays 0.5.23.
+
 ## [skill 0.5.24] — 2026-10-21
 
 - 2026-10-21: **Skill 0.5.24** keeps the two receipts that `pay` answers with its mandates. `Kiosk-Min-Client` stays 0.5.23: a 0.5.23 assistant pays as before.
