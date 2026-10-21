@@ -1,0 +1,12 @@
+{
+  "iss": "https://getgrocery.demo.kiosk.tech",
+  "sub": "a7f3c1d2-5b8e-4f6a-9c0d-1e2f3a4b5c6d",
+  "iat": 1751846340,
+  "merchant": {
+    "id": "https://getgrocery.demo.kiosk.tech",
+    "name": "getgrocery",
+    "website": "https://getgrocery.demo.kiosk.tech"
+  },
+  "currency": "eur",
+  "total_amount_cents": 847
+}

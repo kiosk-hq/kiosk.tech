@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.5.21"
+  version: "0.5.22"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -22,7 +22,7 @@ A site speaks Kiosk if it shows the discovery signal: a `<link rel="kiosk">` tag
 | `schema` -- the catalogue, which a machine can read (**no token needed**) | `GET` | `schema_url`, or `<endpoint>/schema` | -- |
 | a **query** (a read, e.g. `catalog`) | `GET` | `<endpoint>/catalog` | in the **query string** |
 | an **action** (a write, e.g. `create_order`) | `POST` | `<endpoint>/create_order` | in a **JSON body** |
-| `pay` -- pay an AP2 cart | `POST` | `<endpoint>/pay` | in a JSON body |
+| `pay` -- pay a checkout with AP2 mandates | `POST` | `<endpoint>/pay` | in a JSON body |
 | the **event stream** -- where the OPERATOR speaks first (optional; Step 3b) | WebSocket upgrade | `events_url`, or `<endpoint>/events` | topics named on the upgrade |
 
 The names of the queries and actions are the operator's own. You learn them from `schema`, and then you call each one at its own path. No single path carries all operations, and there is no `name` field: `GET <endpoint>/catalog` IS the catalog call.
@@ -306,7 +306,7 @@ Operators are different only in what their catalogue lists. Choose queries and a
 
 **The `kyc_verification` event is the ONLY way that the attestation gets to you.** An operator that serves `request_kyc` publishes that topic, so subscribe BEFORE you call `request_kyc`. Leave `subject` off to get every identity check of yours, or name the `request_id` to get only this one. When your human approves, the operator records the attributes at once, for your human. Every AI assistant of that human passes the same gate, and an assistant that already has the attributes does not need a new check. The event's `data` is `{request_id, status: "approved", kyc_jws}`: take `kyc_jws` from it and continue. No operation reads the attestation back, and there is nothing to poll. **This is a WAIT (Step 3b, "How to wait"), with a ~10-minute horizon.** It is longer than for a card, because your human must find a document. **The operator never reports a refusal.** A KYC provider that keeps the person anonymous -- which is the purpose of the attestation -- tells the operator only that a human approved. So a check that your human refused, stopped or never opened gives no event. When the horizon passes, tell your human that the check is still not done, and ask what happened. When they say they finished, wait again with `--since` at the cursor you kept; this also gets an event that came in between. If that cursor gives `truncated: true`, call `request_kyc` again. A `429 quota_exceeded` from `request_kyc` is not a refusal either. Operators limit how many identity checks one human -- your human, with all of their assistants -- can have open at one time. Its `hint` gives the number, and how long a check that nobody approved stays in that count. So wait for a free place; do not open another check, and never start a second check to get a different answer.
 
-**JWS tokens are long: use the FULL value, never a shortened copy.** A `kyc_jws` (and every mandate JWS that you sign for `pay`) is a compact JWS: a long string on one line, with dots between its parts. Take it directly from the field that carries it (the event's `data.kyc_jws`) and send it byte for byte. Do NOT copy it from a console or log line, which can wrap it or cut it with `...`, and do NOT trust a short display. If you are not sure that you have the full token, read it again from the listener's own output line, or replay the event with `since`. Do not use what you printed. A shortened token fails the signature check and costs a round trip.
+**JWS tokens are long: use the FULL value, never a shortened copy.** A `kyc_jws` (and a `checkout_jwt`, and every mandate that you sign for `pay`) is a compact JWS: a long string on one line, with dots between its parts. Take it directly from the field that carries it (the event's `data.kyc_jws`) and send it byte for byte. Do NOT copy it from a console or log line, which can wrap it or cut it with `...`, and do NOT trust a short display. If you are not sure that you have the full token, read it again from the listener's own output line, or replay the event with `since`. Do not use what you printed. A shortened token fails the signature check and costs a round trip.
 
 **When an answer field is a CREDENTIAL, give it to your human ONE time, and never repeat it.** Most things that an operator gives you for your human are POINTERS: a card-setup URL, a KYC `verification_url`. They are pages on the operator's own site, for one use, and useless to a person who cannot also sign in. A few are BEARER CAPABILITIES: a signed string that operates a physical thing for whoever holds it, during its time window. Only that thing checks it. skooti's `rental_token` unlocks a scooter: the lock checks the signature offline and asks nobody if you are the renter. A URL can also be a credential: skooti also gives an `unlock_url`, a page that shows the token and its QR code and has the token in the URL itself. Give such a URL to your human one time, complete and exactly as written, as you give a card-setup link, and never paste the token in it anywhere else. The operation's `description` and `output_schema` tell you which kind you have. When they do not, treat a value that you must give to a device as a credential. For a credential: give it to your human, say what it is and how long it is valid, and then stop. Do NOT repeat it in a later message, do NOT put it in a summary, do NOT write it to a log, a file or a scratchpad. Use a channel that your human can close if you can; your own transcript is not one. Neither you nor the operator can take it back after it is out.
 
@@ -330,19 +330,19 @@ Steps 5-6 apply only when the task includes a payment and the operator advertise
 **When the card is saved, ask how much you can spend here without a question.** When `payment_setup` gets to `ready` and you have no amount for this origin yet, ask your human in plain words -- e.g. "Up to what amount may I pay here without checking with you?" Write the answer to `~/.kiosk/<origin-dir>/spend.json` as `{"amount_cents": 2500, "currency": "eur"}`, `chmod 600`, next to `identity.json`. If there is no answer, ask before every payment. When your human gives a new amount, at any time, write it at once.
 
 ### Step 6: Pay
-**Before every `pay`, compare the cart's `total_amount_cents` with that ask-first amount.** At or below it, in the same currency -> pay. Above it, in a different currency, or with no amount saved -> ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?" -- and pay only if they say yes. A retry of the SAME chain is not a new payment and needs no second yes. This is YOUR rule, on your side, and the operator never sees it. It is not the operator's spending cap. Your human sets that cap in their operator account, the operator enforces it, and it answers `403 spending_cap_exceeded` (see "Spending cap (HTTP 403)").
+**Before every `pay`, compare the checkout's `total_amount_cents` with that ask-first amount.** At or below it, in the same currency -> pay. Above it, in a different currency, or with no amount saved -> ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?" -- and pay only if they say yes. A retry of the SAME mandates is not a new payment and needs no second yes. This is YOUR rule, on your side, and the operator never sees it. It is not the operator's spending cap. Your human sets that cap in their operator account, the operator enforces it, and it answers `403 spending_cap_exceeded` (see "Spending cap (HTTP 403)").
 
-Sign 3 RS256 JWS mandates (intent -> cart -> payment). `iss` must match the `issuer` from `/.well-known/kiosk.json` (under the `kiosk` key) exactly. Send them with `POST <endpoint>/pay {intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}` and the Bearer header. The success body is the settlement object. In the payment mandate, use `payment_method: "on_file"` to pay with the saved card. A `402 payment_setup_required` here means that there is no saved card: do `payment_setup` (Step 5), then try again. A `402 payment_failed` means that the operator accepted the mandates but the charge did not complete. Read `hint` first: it says if no money moved (fix the card, then sign a new chain) or if the outcome is unknown (send the same chain again). Both are `402`, so branch on `code` (see "The three 402s"). A `403 spending_cap_exceeded` means that your human set a spending cap for this assistant, and this purchase would go above it, or it is in a currency other than the cap's. You CANNOT pay above it. Read `hint`. Tell your human to raise this assistant's spending cap, or to set it in the cart's currency, in their operator account, then try again (see "Spending cap (HTTP 403)").
+Sign the 2 AP2 mandates for the `checkout_jwt` that the action gave you: a checkout mandate and a payment mandate (see "AP2 payment mandates"). Send them with `POST <endpoint>/pay {checkout_mandate, payment_mandate}` and the Bearer header. The success body is the settlement object. In the payment mandate, `payment_instrument: {"id": "on_file", "type": "card"}` pays with the saved card. A `402 payment_setup_required` here means that there is no saved card: do `payment_setup` (Step 5), then try again. A `402 payment_failed` means that the operator accepted the mandates but the charge did not complete. Read `hint` first: it says if no money moved (fix the card, then sign a new chain) or if the outcome is unknown (send the same chain again). Both are `402`, so branch on `code` (see "The three 402s"). A `403 spending_cap_exceeded` means that your human set a spending cap for this assistant, and this purchase would go above it, or it is in a currency other than the cap's. You CANNOT pay above it. Read `hint`. Tell your human to raise this assistant's spending cap, or to set it in the checkout's currency, in their operator account, then try again (see "Spending cap (HTTP 403)").
 
-**If you get no answer to `pay`, or an unknown `payment_failed`, send the SAME chain again.** A timeout, a dropped connection, a response you cannot read, or a `hint` that says the outcome is unknown: you do not know if the charge happened. Send the IDENTICAL chain again: the same three mandate `id`s and the same three signed JWS strings, byte for byte. Do NOT sign a new chain. The operator charges one chain at most once: it runs the charge again under the same key, and the payment provider does not charge that key twice. A new chain has new `id`s, so it is a SECOND payment. Wait a few seconds between tries, and send the same chain at most three times. The repeat has three answers:
+**If you get no answer to `pay`, or an unknown `payment_failed`, send the SAME mandates again.** A timeout, a dropped connection, a response you cannot read, or a `hint` that says the outcome is unknown: you do not know if the charge happened. Send the IDENTICAL two mandates again, byte for byte. Do NOT sign new ones. The operator charges one pair of mandates at most once: it runs the charge again under the same key, and the payment provider does not charge that key twice. New mandates have a new salt and a new signature, so they are a new pair, and the operator refuses a new pair for a checkout while the first pair can still be charged. Wait a few seconds between tries, and send the same mandates at most three times. The repeat has three answers:
 
 - **`200` with the settlement** -- one charge, and the work is done. The operator gives this answer if the first call charged the card and if this call charged it. You do not need to know which. Report the settlement and stop. Do not pay again.
-- **`402 payment_failed`** -- read `hint`, as for a first call. If no money moved, the chain is closed: fix the card and sign a new chain. If the outcome is still unknown after three tries, stop and tell your human.
-- **`409 conflict`** -- the operator will not charge this chain: an earlier call with it was declined, or these `id`s came before with other content. Before you sign a new chain, read the order's `payment_state` through the operator's own query (e.g. `my_orders`). Sign a new chain only on `unpaid`, a clear "not paid". If it is `paid`, report it and stop. If it is `pending` or unknown, if the query does not show the order, if the operator has no such query, or if the query fails, stop and tell your human.
+- **`402 payment_failed`** -- read `hint`, as for a first call. If no money moved, these mandates are closed: fix the card and sign new mandates for the same `checkout_jwt`. If the outcome is still unknown after three tries, stop and tell your human.
+- **`409 conflict`** -- the operator will not charge these mandates: an earlier call with them was declined, or another pair for this checkout is paid or still in progress. Before you sign new mandates, read the order's `payment_state` through the operator's own query (e.g. `my_orders`). Sign new mandates only on `unpaid`, a clear "not paid". If it is `paid`, report it and stop. If it is `pending` or unknown, if the query does not show the order, if the operator has no such query, or if the query fails, stop and tell your human.
 
-If the mandates' `exp` has passed, you cannot send them again. Read the order's paid state first, as for a `409`, before you sign a new chain.
+If the mandates' `exp` has passed, you cannot send them again. Read the order's paid state first, as for a `409`, before you sign new mandates.
 
-**Pay once per order.** Some actions on an order that is ALREADY PAID (e.g. a new delivery time) use the order's EXISTING settlement: call the action directly, and do NOT pay again. When such an action's description says that it "requires a settlement" (or "requires a paid order"), it means "the order must already be paid". It does NOT tell you to pay now. **Do not expect the operator to stop you.** Many operators refuse a new mandate chain for an order that is already paid, usually with a `403` whose `detail` says so and names the correct action. But that refusal is the operator's own business rule. **This protocol does not require it, and no operator must give it to you.** A new chain has new mandate `id`s, so an operator without that check charges it again, and your human pays two times. Nothing on the wire protects you here; only your own rule does: send the IDENTICAL chain again, never a new one, and read the paid state before you sign a new chain.
+**Pay once per order.** Some actions on an order that is ALREADY PAID (e.g. a new delivery time) use the order's EXISTING settlement: call the action directly, and do NOT pay again. When such an action's description says that it "requires a settlement" (or "requires a paid order"), it means "the order must already be paid". It does NOT tell you to pay now. **Do not expect the operator to stop you.** The operator refuses a second pair of mandates for one `checkout_jwt` while the first pair is paid or in progress. But a NEW checkout for the same order is a new payment: many operators refuse it, usually with a `403` whose `detail` says so and names the correct action, and that refusal is the operator's own business rule. **This protocol does not require it, and no operator must give it to you.** An operator without that check charges a new checkout again, and your human pays two times. Only your own rule protects you here: send the IDENTICAL mandates again, never new ones, and read the paid state before you sign new mandates.
 
 ## Technical constraints
 - **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Keep access tokens in Python memory, and send them only as the `Authorization: Bearer` header on calls. The listener's `--token-file` is the one file where you write a token. Never give tokens as shell command arguments, where the shell history and the process list show them. Use Python's `urllib` (stdlib) or `requests` for all HTTP calls.
@@ -350,7 +350,7 @@ If the mandates' `exp` has passed, you cannot send them again. Read the order's 
 - **Dependencies:** `pyjwt` and `cryptography` for signing, plus `numpy`, which is there only because the pinned solver script (see "Proof-of-work (HTTP 402)") imports it. `numpy` is a dependency OF that script. It is not a toolkit to write a solver yourself; you never write one. `websockets` (>= 12) is the same for the pinned listener (Step 3b): you need it only at an operator that serves `events`, and you run that file; you do not write a client. If they are missing, install them: `pip install pyjwt cryptography numpy websockets`. If pip refuses with `externally-managed-environment` (PEP 668, common on system Python), do not force it. Make a venv first: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography numpy websockets`, then run your script with `~/.kiosk/venv/bin/python`. Use that ONE venv for every Kiosk operator and every snippet in this skill. A mix of system and embedded interpreters is the most common failure.
 - **Event stream:** where `capabilities` has `events`, subscribe; that is better than a poll and it is the default. Open ONE socket to `events_url` with the token in the `Authorization` header of the upgrade, subscribe to the topics that the catalogue names, keep `head` as your cursor in the conversation, and ignore an `id` that you already saw. Never put the token in the URL, never write your own client, and never run a poll loop next to a subscription (Step 3b).
 - **Card setup:** only your human does it. Give your human the `setup_url`, then subscribe to this origin's card-setup topic where it publishes one (Step 3b). Where it does not, poll `payment_setup` on the schedule that its `description` states, or every ~5 s (then every ~15 s after the first minute), until `status:"ready"`. Stop at the end of that schedule (~5 minutes) and tell your human that it is not complete. Never fill in the payment provider's card form, and never poll without a limit.
-- **Mandates:** Always send all 3; the server can refuse with `payment_mandate_jws required`. Every mandate needs `id`, `user_id`, `agent_id`, `iss` (exactly as published), `iat`, `exp`.
+- **Mandates:** Always send both; the server can refuse with `args.payment_mandate required`. Each is an SD-JWT signed RS256 with your `key.pem`, and its mandate needs `vct`, `iat` and `exp` (see "AP2 payment mandates").
 - **Proof-of-work:** ANY tolled path under `<endpoint>` -- any query, any action, `pay` -- and also `POST /auth/register`, the link-code claim `POST {auth.claim_url}` and the binding poll `POST <endpoint>/oauth/token` can give HTTP 402 `pow_required` (an operator MAY put a toll on any of them). That list is closed: nothing else can have a toll. These are always free: the discovery documents at `/.well-known/*` and `agents.json`/`agents.txt`, **`schema`** and, where served, `<endpoint>/openapi.json` (the operator charges a toll to an identity, and neither self-description path resolves one), the JWKS document, the KYC attestation path, and every other auth and binding path. Solve every challenge and send the SAME request again -- same method, same path, same query string, same body -- with the proof(s) in the `Kiosk-PoW` request header (raw JSON). `POST /pay` can instead give 402 with `payment_setup_required` (no `challenges`): do `payment_setup`, not the solver. Or it can give 402 with `payment_failed`, which is not a gate: the charge did not complete, and there is nothing to solve or set up. Never decide which one you got from the status, and never from a `WWW-Authenticate` header: `payment_failed` has none. Branch on `code` (see "The three 402s"). And `POST /pay` at an operator that takes no card is `501 module_not_served`, not a 402. There is no gate to clear, so give the transaction to your human; do not run the solver or the card-setup flow.
 - **Login vs register:** a known key -> `/auth/login` (new token, same `user_id`, the card stays); a new key -> `/auth/register`. To register a known key again gives `409`; use login. And `/auth/login` with a key that the operator never saw gives `404` ("register first"); then register. Tokens are short-lived: call `/auth/login` again to get a new one when yours expires, and not before, because each new token pays the proof-of-work toll again. To sign out other sessions, `POST /auth/revoke` **with the Bearer header**. It identifies the caller from that token, then gives a new token.
 
@@ -471,88 +471,87 @@ HTTP 402 carries **three** different errors, and only two of them are gates. **B
 
 **On `payment_failed`, `hint` tells you which of two outcomes you have, and they need OPPOSITE steps:**
 
-- **Definitive** -- the hint says that the charge did not go through. No money moved, and this chain is closed. Tell your human what failed. Ask them to fix the card through `payment_setup` (Step 5). Then sign a new chain and pay again.
-- **Unknown** -- the hint says that the payment provider did not confirm the charge. The charge MAY have gone through. Send the SAME chain again, byte for byte, as Step 6 says. Do NOT sign a new chain: a new chain is a second payment.
+- **Definitive** -- the hint says that the charge did not go through. No money moved, and these mandates are closed. Tell your human what failed. Ask them to fix the card through `payment_setup` (Step 5). Then sign new mandates for the same `checkout_jwt` and pay again.
+- **Unknown** -- the hint says that the payment provider did not confirm the charge. The charge MAY have gone through. Send the SAME mandates again, byte for byte, as Step 6 says. Do NOT sign new mandates: the operator refuses them while the first pair is in progress.
 
-**A `pay` you got no answer to is the unknown case too.** Send the IDENTICAL chain again; see "If you get no answer to `pay`" in Step 6.
+**A `pay` you got no answer to is the unknown case too.** Send the IDENTICAL mandates again; see "If you get no answer to `pay`" in Step 6.
 
 In both cases, the `detail` of a `payment_failed` is safe to show to a human. The operator removes the internal details of the payment provider before the error gets to you, so give it as it is; do not guess at a cause.
 
 ### Spending cap (HTTP 403)
 
-`POST <endpoint>/pay` MAY also give `403` with `code: "spending_cap_exceeded"`. Your human set a spending cap for this assistant in their operator account, and this purchase would go above it, or it is in a currency other than the cap's. A cap of `0` stops the PAYMENTS of that assistant: it can still register, read and act on this kiosk, but it cannot pay. The operator counts every payment of this assistant that went through or that can still go through. It stops counting a declined payment at once. A repeat of the same chain does not count twice. This is not a setup gate and not the toll: there is no `payment_setup`, no challenge, and nothing to solve. You CANNOT pay above the cap. Read `hint`. Tell your human to raise this assistant's spending cap, or to set it in the cart's currency, in their operator account, and try again after they do. Your own ask-first amount in `spend.json` (Step 6) is a different thing: it only decides when you ask your human, and the operator does not know it. Branch on `code` here too. A `403` is a hard stop from your human's own policy, different from every `402` above.
+`POST <endpoint>/pay` MAY also give `403` with `code: "spending_cap_exceeded"`. Your human set a spending cap for this assistant in their operator account, and this purchase would go above it, or it is in a currency other than the cap's. A cap of `0` stops the PAYMENTS of that assistant: it can still register, read and act on this kiosk, but it cannot pay. The operator counts every payment of this assistant that went through or that can still go through. It stops counting a declined payment at once. A repeat of the same mandates does not count twice. This is not a setup gate and not the toll: there is no `payment_setup`, no challenge, and nothing to solve. You CANNOT pay above the cap. Read `hint`. Tell your human to raise this assistant's spending cap, or to set it in the checkout's currency, in their operator account, and try again after they do. Your own ask-first amount in `spend.json` (Step 6) is a different thing: it only decides when you ask your human, and the operator does not know it. Branch on `code` here too. A `403` is a hard stop from your human's own policy, different from every `402` above.
 
 ## AP2 payment mandates
 
-Kiosk uses a chain of three mandates for every payment. This makes a record that anyone can verify: the AI assistant signs *what* it intends to buy, *what* it actually ordered, and *how* it paid.
+Kiosk pays with two **closed mandates** of AP2 v0.2 (the Agent Payments Protocol): a **checkout mandate** and a **payment mandate**. The operator signs the checkout: what to pay, and for which account. You sign the two mandates. Together they make a record that anyone can verify: the operator's price, and your agreement to pay it with a given card.
 
-### What is a mandate?
+### The checkout
 
-A mandate is a JSON payload that the AI assistant signs with its RSA-2048 private key as an **RS256 JWS** (RFC 7515). Every mandate MUST have these claims; the server refuses a mandate without any one of them:
+An action that creates an order (or a booking, or a reservation) gives `checkout_jwt`. It is a JWT that the operator signs. Its claims are `iss` (the operator's issuer), `sub` (your account), `merchant` (`{id, name, website}`), `currency`, `total_amount_cents` and `line_items`. Read them without a signature check, to know what you pay. Do NOT change the string: put it into the checkout mandate exactly as you got it. You write no line items and no amount of your own. The first line item names the order, e.g. `{"order_id": "..."}`: the operator finds the paid order by it. If the operator refuses the checkout, read the refusal's `detail`: it says what to do.
 
-- `id` -- a unique UUID for this mandate (the next mandates point to it)
-- `user_id`, `agent_id` -- from your `~/.kiosk/<origin-dir>/identity.json`; the server compares them with the authenticated identity
-- `iss` -- the operator's issuer string from `/.well-known/kiosk.json`, copied exactly
-- `iat` -- the time of issue
-- `exp` -- the expiry, REQUIRED. The server refuses a mandate without `exp`. Use a few minutes (e.g. now + 600).
+**`currency` is an ISO 4217 three-letter code** (`"eur"`, `"EUR"`), never a name, a number or a symbol. One operator can refuse a currency that another accepts. That refusal is the operator's limit, not a defect in the mandates that you signed. The `currency` in the `pay` answer is the operator's form and can be different byte for byte from the checkout's (`"eur"` for `"EUR"`). Compare the two as codes, and never read a different form as a failed or wrong payment.
 
-### The three mandates (in order)
+**`payment_state` tells you where the money stands.** The operator's own query (e.g. `my_orders`) gives it on each row: `unpaid` (pay for it), `pending` (a charge is in progress: read again later, do not pay again), `paid`, or `refunded` (the charge went back to the card). Where the catalogue's `events` array has the `payment` topic, subscribe to it (Step 3b). Its event tells you when an order is `paid` or `refunded`; `data` names the order with the same key as the checkout's first line item.
 
-| # | Mandate | What it says | Fields for this type (in addition to the required claims) |
-|---|---------|-------------|------------|
-| 1 | **Intent** | "I plan to spend up to X on Y" | `cap_amount_cents`, `currency`; optionally `scope` -- a free label that the operator defines (e.g. `"grocery"`), with no fixed set of values and never required |
-| 2 | **Cart** | "This is exactly what I ordered" | `intent_mandate_id` (= intent's `id`), `line_items`, `total_amount_cents`, `currency` |
-| 3 | **Payment** | "Charge my saved card" | `cart_mandate_id` (= cart's `id`), `payment_method: "on_file"`, `amount_cents`, `currency` |
+### The two mandates
 
-Each mandate points to the one before it -- intent -> cart -> payment -- so they make a chain that the signatures link together. The server verifies all three signatures with the AI assistant's registered public key, and it enforces the links: the cart total is not more than the intent cap, and the payment `amount_cents` equals the cart total in the same currency.
+Each mandate is an **SD-JWT** (RFC 9901) that you sign with your `key.pem`:
 
-**`currency` is an ISO 4217 three-letter code** (`"eur"`, `"EUR"`), never a name, a number or a symbol. One operator can refuse a currency that another accepts. That refusal is the operator's limit, not a defect in the mandates that you signed. The `currency` in the `pay` answer is the operator's form and can be different byte for byte from yours (`"eur"` for `"EUR"`). Compare the two as codes, and never read a different form as a failed or wrong payment.
+- a JWT with the header `{"alg": "RS256", "typ": "dc+sd-jwt"}` and the payload `{"_sd_alg": "sha-256", "delegate_payload": [{"...": <digest>}]}`;
+- one **disclosure**: the base64url form of the JSON array `[<random salt>, <mandate>]`. The digest is the base64url SHA-256 of the disclosure string. Base64url has no `=` padding;
+- the compact form `<JWT>~<disclosure>~`, with the `~` at the end.
 
-**Sign the `cart` that the action gave you.** An action that creates an order (or a booking, or a reservation) gives `cart`: `{currency, total_amount_cents, line_items}`. Put these three values into the cart mandate, unchanged. Do not write line items of your own. The first line item names the order, e.g. `{"order_id": "..."}`: the operator finds the paid order by it. If the operator refuses the cart, read the refusal's `detail`: it says what to do.
+| Mandate | `vct` | Members (all REQUIRED, with `iat` and `exp`) |
+|---|---|---|
+| Checkout | `mandate.checkout.1` | `checkout_jwt` (the string, unchanged), `checkout_hash` (the base64url SHA-256 of `checkout_jwt`) |
+| Payment | `mandate.payment.1` | `transaction_id` (= `checkout_hash`), `payee` (= the checkout's `merchant`), `payment_amount` (`{"amount": total_amount_cents, "currency": currency}` of the checkout), `payment_instrument` (`{"id": "on_file", "type": "card"}` for the saved card) |
 
-**`payment_state` tells you where the money stands.** The operator's own query (e.g. `my_orders`) gives it on each row: `unpaid` (pay for it), `pending` (a charge is in progress: read again later, do not pay again), `paid`, or `refunded` (the charge went back to the card). Where the catalogue's `events` array has the `payment` topic, subscribe to it (Step 3b). Its event tells you when an order is `paid` or `refunded`; `data` names the order with the same key as the cart's first line item.
+`exp` is REQUIRED: use a few minutes (e.g. now + 600). The operator refuses an `exp` more than 24 hours ahead. The operator verifies both signatures with your registered key, and refuses a mandate that does not match the checkout: another `transaction_id`, another payee, or another amount or currency.
 
 ### Signing in Python
 
 ```python
-import jwt, json, os, time
-from uuid import uuid4
+import base64, hashlib, json, os, secrets, time
+import jwt
 
 private_key = open(os.path.expanduser("~/.kiosk/<origin-dir>/key.pem")).read()
-identity = json.load(open(os.path.expanduser("~/.kiosk/<origin-dir>/identity.json")))
-iss = well_known["kiosk"]["issuer"]   # from /.well-known/kiosk.json -- copy VERBATIM
+
+def b64(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+def mandate(content):
+    disclosure = b64(json.dumps([b64(secrets.token_bytes(16)), content]).encode())
+    digest = b64(hashlib.sha256(disclosure.encode()).digest())
+    signed = jwt.encode({"_sd_alg": "sha-256", "delegate_payload": [{"...": digest}]},
+                        private_key, algorithm="RS256", headers={"typ": "dc+sd-jwt"})
+    return f"{signed}~{disclosure}~"
+
+checkout_jwt = order["checkout_jwt"]  # `order`: the answer of the action -- copy it VERBATIM
+checkout = jwt.decode(checkout_jwt, options={"verify_signature": False})
+checkout_hash = b64(hashlib.sha256(checkout_jwt.encode()).digest())
 now = int(time.time())
 
-common = {"user_id": identity["user_id"], "agent_id": identity["agent_id"],
-          "iss": iss, "iat": now, "exp": now + 600}
-
-intent_id = str(uuid4())
-intent_jws = jwt.encode({**common, "id": intent_id,
-    "scope": "grocery", "cap_amount_cents": 5000, "currency": "eur"
-}, private_key, algorithm="RS256")
-
-cart = order["cart"]                  # `order`: the answer of the action -- copy its `cart` VERBATIM
-cart_id = str(uuid4())
-cart_jws = jwt.encode({**common, "id": cart_id,
-    "intent_mandate_id": intent_id,
-    "line_items": cart["line_items"],
-    "total_amount_cents": cart["total_amount_cents"], "currency": cart["currency"]
-}, private_key, algorithm="RS256")
-
-payment_jws = jwt.encode({**common, "id": str(uuid4()),
-    "cart_mandate_id": cart_id, "payment_method": "on_file",
-    "amount_cents": cart["total_amount_cents"], "currency": cart["currency"]
-}, private_key, algorithm="RS256")
+checkout_mandate = mandate({"vct": "mandate.checkout.1", "checkout_jwt": checkout_jwt,
+                            "checkout_hash": checkout_hash, "iat": now, "exp": now + 600})
+payment_mandate = mandate({"vct": "mandate.payment.1", "transaction_id": checkout_hash,
+                           "payee": checkout["merchant"],
+                           "payment_amount": {"amount": checkout["total_amount_cents"],
+                                              "currency": checkout["currency"]},
+                           "payment_instrument": {"id": "on_file", "type": "card"},
+                           "iat": now, "exp": now + 600})
 ```
 
-Send all three in one call:
+Send both in one call:
 
 ```
 POST <endpoint>/pay
 Authorization: Bearer <access_token>
-{"intent_mandate_jws": "...", "cart_mandate_jws": "...", "payment_mandate_jws": "..."}
+{"checkout_mandate": "...", "payment_mandate": "..."}
 ```
 
-### Why three mandates?
+Keep the two strings until you have the answer: a repeat sends them again, byte for byte (Step 6).
 
-Without mandates that the AI assistant signs, nobody can prove who agreed to what. If the operator charges $500 and the AI assistant says "I authorized $50", neither side can prove what they agreed. The intent mandate sets a maximum. The cart mandate lists the exact items. The payment mandate permits the charge. Three signed JWS documents settle any dispute.
+### Why two mandates?
+
+Without mandates that the AI assistant signs, nobody can prove who agreed to what. If the operator charges $500 and the AI assistant says "I authorized $50", neither side can prove what they agreed. The checkout is the operator's signed price. The checkout mandate is your agreement to that exact checkout. The payment mandate permits the charge of that amount, to that operator, with that card. These signed documents settle any dispute.

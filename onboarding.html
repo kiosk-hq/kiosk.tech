@@ -263,7 +263,7 @@ class Kiosk::CatalogController &lt; ActionController::API
   include Kiosk::Handler
 
   kind :query
-  description "The products in stock now, at the price a cart is signed at. Alcohol is marked " \
+  description "The products in stock now, at the price a checkout is signed at. Alcohol is marked " \
               "`age_restricted`: `create_order` takes it only after an 18+ check (`request_kyc`)."
   input_schema type: "object", additionalProperties: false, properties: {}, required: []
   output_schema type: "array",
@@ -271,7 +271,7 @@ class Kiosk::CatalogController &lt; ActionController::API
                 items: {
                   type: "object", additionalProperties: false,
                   properties: {
-                    sku:            { type: "string", description: "The product's handle in a cart." },
+                    sku:            { type: "string", description: "The product's handle in an order." },
                     name:           { type: "string" },
                     price_cents:    { type: "integer", description: "EUR cents." },
                     price_eur:      { type: "string", description: "The price as a human reads it, e.g. \"€4.49\"." },
@@ -439,7 +439,7 @@ class Order &lt; ApplicationRecord
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p><code>Kiosk::Owned</code> gives the model <code>own</code>, the signed-in customer's rows. <code>Kiosk::Payable</code> gives each order its <code>payment_state</code> (<code>unpaid</code>, <code>pending</code> while a capture is in flight, <code>paid</code> or <code>refunded</code>), <code>cart(lines)</code>, the cart the assistant signs, and <code>settlement</code>. <code>with_settlement</code> reads the payment state of many orders in one query from <code>Kiosk::Settlement</code>, the engine's model over the capture receipts it records after a successful <code>pay</code>.</p>
+  <p><code>Kiosk::Owned</code> gives the model <code>own</code>, the signed-in customer's rows. <code>Kiosk::Payable</code> gives each order its <code>payment_state</code> (<code>unpaid</code>, <code>pending</code> while a capture is in flight, <code>paid</code> or <code>refunded</code>), <code>checkout(lines)</code>, the checkout it signs for the assistant to pay, and <code>settlement</code>. <code>with_settlement</code> reads the payment state of many orders in one query from <code>Kiosk::Settlement</code>, the engine's model over the capture receipts it records after a successful <code>pay</code>.</p>
 
   <p><code>app/controllers/kiosk/orders_controller.rb</code>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/orders_controller.rb
@@ -494,7 +494,7 @@ class Kiosk::OrdersController &lt; ActionController::API
 
   kind :action
   description "Place an order for delivery in a window at an address. The answer carries the " \
-              "quote to pay. Alcohol needs a completed 18+ check (`request_kyc`); a cart is at " \
+              "checkout to pay. Alcohol needs a completed 18+ check (`request_kyc`); an order is at " \
               "most #{Order::MAX_ITEMS} lines of at most #{OrderItem::MAX_QTY} each."
   input_schema type: "object",
                additionalProperties: false,
@@ -526,9 +526,9 @@ class Kiosk::OrdersController &lt; ActionController::API
                   slot_at:     { type: "string", description: "The delivery window's start." },
                   slot_label:  { type: "string", description: "The window as a human reads it." },
                   timezone:    { type: "string", description: "The delivery address's IANA zone." },
-                  cart:        Kiosk::Payable::CART_SCHEMA,
+                  checkout_jwt: Kiosk::Payable::CHECKOUT_SCHEMA,
                 },
-                required: %w[order_id total_cents total_eur currency slot_at slot_label timezone cart]
+                required: %w[order_id total_cents total_eur currency slot_at slot_label timezone checkout_jwt]
   example_params({
     items: [{ sku: "sourdough-bread", qty: 2 }, { sku: "greek-yogurt", qty: 1 }],
     slot_at:          -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
@@ -539,9 +539,7 @@ class Kiosk::OrdersController &lt; ActionController::API
     slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
     slot_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
     timezone: DeliverySlots::DEFAULT_ZONE_NAME,
-    cart: { currency: "eur", total_amount_cents: 1287,
-            line_items: [{ order_id: ORDER_ID }, { sku: "sourdough-bread", qty: 2, price_cents: 449 },
-                         { sku: "greek-yogurt", qty: 1, price_cents: 389 }] },
+    checkout_jwt: "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJjdXJyZW5jeSI6ImV1ciIsInRvdGFsX2Ftb3VudF9jZW50cyI6MTI4N30.c2lnbmF0dXJl",
   })
   def create_order
     @order = CreateOrderOperation.call(
@@ -607,7 +605,7 @@ json.currency "eur"
 json.slot_at @order.slot_at.in_time_zone(@order.zone).iso8601
 json.slot_label DeliverySlots.label(@order.slot_at, @order.zone)
 json.timezone @order.timezone
-json.cart @order.cart(@order.order_items.map { { sku: it.product.sku, qty: it.qty, price_cents: it.price_cents } })</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+json.checkout_jwt @order.checkout(@order.order_items.map { { sku: it.product.sku, qty: it.qty, price_cents: it.price_cents } })</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-ruby"># app/views/kiosk/orders/reschedule_delivery.json.jbuilder
 json.order_id @order.id
 json.rescheduled_at @order.slot_at.in_time_zone(@order.zone).iso8601
@@ -661,15 +659,15 @@ class RescheduleDeliveryOperation
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>Paid is the order's own <code>payment_status</code>.</strong> The orders table carries it: <code>t.string :payment_status, null: false, default: "unpaid"</code>. The reschedule operation reads <code>order.paid?</code>. <code>paid</code> is written by the engine's <code>Kiosk::Server::PaymentClaim</code>, which wraps the payment provider: it moves the order's <code>payment_status</code> from <code>unpaid</code> to <code>paying</code> before the capture, checks the cart against your price, writes <code>paid</code> once the capture returns, and tells the customer on the <code>payment</code> topic. getgrocery configures it in place of Step 2's bare provider:
+  <blockquote><strong>Paid is the order's own <code>payment_status</code>.</strong> The orders table carries it: <code>t.string :payment_status, null: false, default: "unpaid"</code>. The reschedule operation reads <code>order.paid?</code>. <code>paid</code> is written by the engine's <code>Kiosk::Server::PaymentClaim</code>, which wraps the payment provider: it moves the order's <code>payment_status</code> from <code>unpaid</code> to <code>paying</code> before the capture, checks the checkout against your price, writes <code>paid</code> once the capture returns, and tells the customer on the <code>payment</code> topic. getgrocery configures it in place of Step 2's bare provider:
   <pre><code class="language-ruby"># config/initializers/kiosk.rb
   # There is no `payment_gated:` option. PaymentClaim writes the payment_status an action gates on.
   c.payment_provider = Kiosk::Server::PaymentClaim.new(
     Kiosk::PaymentProviders::Stripe.new(api_key: ENV.fetch("STRIPE_SECRET_KEY")),
     currency: "eur", model: "Order", reference: "order_id", query: "my_orders",
   )
-  c.cart_price_checker = PriceChecker</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <code>c.cart_price_checker</code> answers the order's total once the cart mirrors it; getgrocery's is <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/services/price_checker.rb"><code>PriceChecker</code></a>. Refund through the same object: <code>claim.refund(psp_reference:, amount_cents:, key:)</code> records the refund in <code>kiosk.refunds</code>, so that money stops counting as recent spend. Then write <code>payment_status: :refunded</code> and call <code>claim.announce(order.id, Kiosk::Payable::REFUNDED)</code>. A refund made only in the processor's dashboard still counts as spend. getgrocery's <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/models/order.rb"><code>Order#refund!</code></a> refunds a line that the shelf cannot fill.</blockquote>
+  c.checkout_price_checker = PriceChecker</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <code>c.checkout_price_checker</code> answers the order's total once the checkout mirrors it; getgrocery's is <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/services/price_checker.rb"><code>PriceChecker</code></a>. Refund through the same object: <code>claim.refund(psp_reference:, amount_cents:, key:)</code> records the refund in <code>kiosk.refunds</code>, so that money stops counting as recent spend. Then write <code>payment_status: :refunded</code> and call <code>claim.announce(order.id, Kiosk::Payable::REFUNDED)</code>. A refund made only in the processor's dashboard still counts as spend. getgrocery's <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/models/order.rb"><code>Order#refund!</code></a> refunds a line that the shelf cannot fill.</blockquote>
 
   <blockquote><strong>Topics.</strong> A <code>topic</code> block declares an event an assistant can follow on <code>GET /kiosk/events</code> (Step 3): a <code>description</code>, a <code>payload_schema</code>, and <code>subject_reachable</code>, which says whether a subscriber may follow a given order. Each <code>example</code> call adds one sample payload; it is checked against <code>payload_schema</code> when the class loads and published as <code>examples</code> on the topic's entry in <code>GET /kiosk/schema</code>. Your code emits the event when it happens:
   <pre><code class="language-ruby"># app/jobs/courier_dispatch_job.rb, once the courier leaves
@@ -683,7 +681,7 @@ Kiosk::Server::Events.emit(
 )</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre></blockquote>
 
   <h2>Step 6: Start the server and verify</h2>
-  <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it's the AP2 <code>iss</code> anchor) — the request host only <em>selects</em> among the origins you configure and never adds one, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
+  <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it is the <code>iss</code> of the checkouts you sign) — the request host only <em>selects</em> among the origins you configure and never adds one, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
   <pre><code class="language-bash">export KIOSK_ISSUER="http://localhost:3000"
 export KIOSK_SIGNING_KEY_B64="$(openssl genrsa 2048 | base64)"
 export STRIPE_SECRET_KEY=sk_test_…
@@ -770,7 +768,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
           delivery_address: "42 Camden Street, Dublin 2"}')"</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <blockquote><strong>Got an empty catalog back?</strong> Your controllers are not in <code>app/controllers/kiosk/</code>. That is the state where a booted app serves no verbs: every <code>/kiosk/&lt;name&gt;</code> answers a <code>404</code> problem document whose <code>hint</code> lists what IS registered, and the <code>capabilities</code> you checked above come back without <code>schema</code>, <code>queries</code> or <code>actions</code>. kiosk-server says the same thing on the log at boot when nothing at all is registered.</blockquote>
   <blockquote><strong>Two shapes worth seeing once.</strong> A <strong>long list</strong> paginates by <a href="https://www.rfc-editor.org/rfc/rfc8288">RFC 8288</a>: the body is still a bare array, the total is in <code>X-Total-Count</code>, and a truncated page carries <code>Link: &lt;…&gt;; rel="next"</code>. <em>The absence of that link is the only signal there is no more</em> — there is no <code>next</code> field in the body. And a <strong>GET at an action's name</strong> (or a POST at a query's) matches no route: it is the ordinary <code>404</code> of Rails, with no problem document, as for a name you never registered. <code>GET /kiosk/schema</code> gives each verb's method. Add <code>-i</code> to any call above to see the headers.</blockquote>
-  <blockquote>The full register → order → <strong>pay</strong> flow (including the 3 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow driven end-to-end, run <code>bin/rails test test/stories/shop_test.rb</code> in <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>; it pays a local stripe-mock.</blockquote>
+  <blockquote>The full register → order → <strong>pay</strong> flow (including the 2 signed AP2 mandates) is what a Kiosk-compatible agent does for you — point one at your local server rather than hand-signing mandates with curl. Registration itself is exactly the <code>register.rb</code> script above; to watch the whole flow driven end-to-end, run <code>bin/rails test test/stories/shop_test.rb</code> in <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a>; it pays a local stripe-mock.</blockquote>
   <blockquote><strong>Running a demo needs one thing this integration does not.</strong> Every demo sets <code>c.registration_pow_count = 1</code> and the <code>RecentSpend</code> session toll, so each assistant it registers pays an Equihash toll that the bundled solver solves. The same toll prices a link-code claim and the first binding poll of each device code. Each access token then pays one more toll with the chance (cap − spend) / cap, where spend is what its customer spent there recently: with no recorded spend the toll is certain, and at the cap it is none. That solver is Python, so a demo needs <strong>python3 with numpy</strong> on PATH (<code>python3 -c "import numpy"</code>). A demo's <code>bin/rails db:reset</code> is also destructive: it <strong>drops and recreates</strong> that demo's database every time it runs. Your own integration needs no Python: the engine's tolls default to none, and verifying a proof is pure Ruby. Each demo's README states its own prerequisites, derived from that demo's files.</blockquote>
 
   <h2>Pointers from your human site <span style="font-weight:400;font-size:14px;color:#666">(optional, invisible to humans)</span></h2>
@@ -788,7 +786,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
 
   <blockquote><strong>Do not put a bot challenge in front of the agent paths.</strong> A CDN or firewall bot rule that challenges <code>/kiosk/*</code>, <code>/agents.txt</code>, <code>/agents.json</code>, <code>/auth.md</code> or <code>/.well-known/*</code> stops every assistant: an assistant cannot solve a browser challenge. Exempt these paths from bot challenges. The proof-of-work toll already prices the calls that cost you CPU.</blockquote>
 
-  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.5.21.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together.</blockquote>
+  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.5.22.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together.</blockquote>
 
   <h3>3. Visual "Agents — over here" card (human-readable, subtle)</h3>
   <p>Add a small section somewhere unobtrusive on your homepage &mdash; a thin bar above the header, or a card below the fold. It tells agent users that your store speaks Kiosk without distracting regular customers:</p>
@@ -816,7 +814,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
     <li><strong>Browse:</strong> <code>GET /kiosk/catalog</code> and <code>GET /kiosk/delivery_slots?delivery_address=…</code> → sees your products and when you can deliver</li>
     <li><strong>Order:</strong> <code>POST /kiosk/create_order</code> → order created, delivery window booked with it</li>
     <li><strong>Card setup:</strong> <code>POST /kiosk/payment_setup</code> → human enters card once on Stripe</li>
-    <li><strong>Pay:</strong> agent signs 3 JWS mandates, <code>POST /kiosk/pay</code> → payment settled</li>
+    <li><strong>Pay:</strong> agent signs 2 AP2 mandates for the order's <code>checkout_jwt</code>, <code>POST /kiosk/pay</code> → payment settled</li>
     <li><strong>Move it, if the human changes their mind:</strong> <code>POST /kiosk/reschedule_delivery</code> → the paid order's window moves, with no second charge</li>
   </ol>
   <p>The agent never sees your UI. It never creates an account for the user. It transacts entirely through the REST surface you just added.</p>

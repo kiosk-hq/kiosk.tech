@@ -10,6 +10,16 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.22] — 2026-10-21
+
+- 2026-10-21: **Skill 0.5.22** pays an operator's `checkout_jwt` with two closed AP2 v0.2 mandates, each an SD-JWT. `Kiosk-Min-Client` is 0.5.22: an older cut cannot pay.
+
+- 2026-10-21: Both specifications move payment to AP2 v0.2: the operator signs a PS256 checkout, and `pay` takes a closed checkout mandate and a closed payment mandate.
+- 2026-10-21: One checkout has at most one live pair of mandates; the mandate reference, a SHA-256 of the SD-JWT, is the idempotency key.
+- 2026-10-21: The JWKS key names no `alg`, because one key signs RS256 access tokens and PS256 checkouts.
+- 2026-10-21: `mandates.schema.json` describes the checkout, the two AP2 v0.2 mandates and the pay request; its examples follow.
+- 2026-10-21: The landing page and the onboarding guide describe the signed checkout and the two AP2 v0.2 mandates.
+
 ## [skill 0.5.21] — 2026-10-21
 
 - 2026-10-21: **Skill 0.5.21** puts `version`, `tags` and `trigger` under `metadata`, as agentskills.io asks, and says near its top that the skill, solver and listener come only from kiosk.tech.

@@ -1,0 +1,27 @@
+{
+  "iss": "https://getgrocery.demo.kiosk.tech",
+  "sub": "a7f3c1d2-5b8e-4f6a-9c0d-1e2f3a4b5c6d",
+  "iat": 1751846340,
+  "merchant": {
+    "id": "https://getgrocery.demo.kiosk.tech",
+    "name": "getgrocery",
+    "website": "https://getgrocery.demo.kiosk.tech"
+  },
+  "currency": "eur",
+  "total_amount_cents": 847,
+  "line_items": [
+    {
+      "order_id": "e2b1c0d4-7a3f-4b9e-8c1d-5f6a7b8c9d0e"
+    },
+    {
+      "sku": "milk-1l",
+      "qty": 2,
+      "price_cents": 199
+    },
+    {
+      "sku": "eggs-12",
+      "qty": 1,
+      "price_cents": 449
+    }
+  ]
+}

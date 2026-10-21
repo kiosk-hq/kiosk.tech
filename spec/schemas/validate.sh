@@ -71,9 +71,9 @@ chk validate "${F[@]}" -s pow.schema.json -d examples/pow.shorthand.json
 # the bound the other way and this line goes red.
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.max-index.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.max-header-nonce.json
-chk validate "${F[@]}" -s "$(ref intent  "$B/mandates.schema.json#/\$defs/intent")"     -r mandates.schema.json -d examples/mandate.intent.json
-chk validate "${F[@]}" -s "$(ref cart    "$B/mandates.schema.json#/\$defs/cart")"       -r mandates.schema.json -d examples/mandate.cart.json
-chk validate "${F[@]}" -s "$(ref payment "$B/mandates.schema.json#/\$defs/payment")"    -r mandates.schema.json -d examples/mandate.payment.json
+chk validate "${F[@]}" -s "$(ref checkout "$B/mandates.schema.json#/\$defs/checkout")"        -r mandates.schema.json -d examples/checkout.json
+chk validate "${F[@]}" -s "$(ref cmandate "$B/mandates.schema.json#/\$defs/checkoutMandate")" -r mandates.schema.json -d examples/mandate.checkout.json
+chk validate "${F[@]}" -s "$(ref payment  "$B/mandates.schema.json#/\$defs/paymentMandate")"  -r mandates.schema.json -d examples/mandate.payment.json
 chk validate "${F[@]}" -s "$(ref payreq  "$B/mandates.schema.json#/\$defs/payRequest")" -r mandates.schema.json -d examples/pay-request.json
 chk validate "${F[@]}" -s "$(ref settle  "$B/mandates.schema.json#/\$defs/settlement")" -r mandates.schema.json -d examples/settlement.json
 chk validate "${F[@]}" -s "$(ref att     "$B/kyc.schema.json#/\$defs/attestation")"     -r kyc.schema.json -d examples/kyc.attestation.json
@@ -203,43 +203,33 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 # is therefore written to keep the LEGAL value (see examples/pow.max-index.json
 # above), and this example is moved to the first magnitude a double can still
 # tell apart. An exact-integer reader (the reference verifier) refuses both.
-# `line_items` is REQUIRED on a cart mandate. This example is the
-# accepted examples/mandate.cart.json with that one key deleted and nothing
-# else changed, so the only thing that can turn it green is `line_items`
-# leaving the cart's `required` array. The settlement and reconciliation path
-# reads that array, so a cart the schema admits without it is a conforming
-# assistant paying and leaving a capture nobody can match to a domain object.
-chkfail validate "${F[@]}" -s "$(ref cartnoitems "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.no-line-items.json
-# And an EMPTY array is not a cart either -- the question presence alone left open.
-# `[]` satisfies `required` while carrying exactly as much reconciliation value
-# as omission did, and `total_amount_cents` has `minimum: 1`, so an empty cart
-# is a positive charge with nothing itemised under it. This example is the
-# accepted examples/mandate.cart.json with `line_items` emptied and nothing else
-# changed, so only `minItems` leaving the schema can turn it green.
-chkfail validate "${F[@]}" -s "$(ref cartempty "$B/mandates.schema.json#/\$defs/cart")" -r mandates.schema.json -d examples/rejected/mandate.cart.empty-line-items.json
-# And an EMPTY `currency` is not a currency, for the same reason an empty
-# `line_items` is not a cart: presence is the easiest thing to check on both
-# sides, in the schema and in the reference verifier, and presence is not the
-# constraint. Section 11.2
-# compares the three mandates' currencies to EACH OTHER and never to a domain, so
-# `""` is internally consistent from intent to payment and reaches the PSP. This
-# example is the accepted examples/mandate.intent.json with that one value emptied
-# and nothing else changed, so only `minLength` leaving the schema can turn it green.
-chkfail validate "${F[@]}" -s "$(ref intemptycur "$B/mandates.schema.json#/\$defs/intent")" -r mandates.schema.json -d examples/rejected/mandate.intent.empty-currency.json
+# `line_items` is REQUIRED on a checkout. This example is the accepted
+# examples/checkout.json with that one key deleted and nothing else changed, so
+# the only thing that can turn it green is `line_items` leaving the checkout's
+# `required` array. The settlement and reconciliation path reads that array, so
+# a checkout the schema admits without it is a capture nobody can match to a
+# domain object.
+chkfail validate "${F[@]}" -s "$(ref conoitems "$B/mandates.schema.json#/\$defs/checkout")" -r mandates.schema.json -d examples/rejected/checkout.no-line-items.json
+# And an EMPTY array is not a checkout either. `[]` satisfies `required` and
+# itemises nothing, and `total_amount_cents` has `minimum: 1`, so an empty
+# checkout is a positive charge with nothing under it. Only `minItems` leaving
+# the schema can turn this example green.
+chkfail validate "${F[@]}" -s "$(ref coempty "$B/mandates.schema.json#/\$defs/checkout")" -r mandates.schema.json -d examples/rejected/checkout.empty-line-items.json
+# And an EMPTY `currency` is not a currency: presence is not the constraint.
+# Only `minLength` leaving the schema can turn this example green.
+chkfail validate "${F[@]}" -s "$(ref coemptycur "$B/mandates.schema.json#/\$defs/checkout")" -r mandates.schema.json -d examples/rejected/checkout.empty-currency.json
 # And a currency NAME is not a currency either. The domain is closed on ISO
-# 4217, so `currency` carries
-# `pattern: ^[A-Za-z]{3}$` -- three ASCII letters, either case -- and "Euro", "US"
-# and the numeric-3 spelling "978" that ISO 4217 also publishes are all refusals.
-# A currency NAME that the schema admits is canonicalised, signed into the chain
-# and handed to the PSP, and what the human is then told is that their card
-# failed. Three letters that name no currency still
-# pass, and that is stated in Section 11.1 rather than hidden here: the pattern is
-# the operator's MINIMUM refusal, and no list this repository could ship would do
-# better, because the vendored PSP client documents a server-side supported set and
-# enumerates nothing. This example is the accepted examples/mandate.intent.json
-# with that one value replaced by the name of the same currency and nothing else
-# changed, so only the `pattern` leaving the schema can turn it green.
-chkfail validate "${F[@]}" -s "$(ref intcurname "$B/mandates.schema.json#/\$defs/intent")" -r mandates.schema.json -d examples/rejected/mandate.intent.currency-name.json
+# 4217, so `currency` carries `pattern: ^[A-Za-z]{3}$` -- three ASCII letters,
+# either case -- and "Euro", "US" and the numeric-3 spelling "978" are all
+# refusals. Three letters that name no currency still pass, and Section 11.1
+# states it: the pattern is the operator's MINIMUM refusal. Only the `pattern`
+# leaving the schema can turn this example green.
+chkfail validate "${F[@]}" -s "$(ref cocurname "$B/mandates.schema.json#/\$defs/checkout")" -r mandates.schema.json -d examples/rejected/checkout.currency-name.json
+# An OPEN mandate is not accepted: an operator takes the closed AP2 mandates
+# only (Section 11.1). Only the `vct` const leaving the schema can turn this green.
+chkfail validate "${F[@]}" -s "$(ref cmopen "$B/mandates.schema.json#/\$defs/checkoutMandate")" -r mandates.schema.json -d examples/rejected/mandate.checkout.open.json
+# A zero amount pays nothing and matches no checkout, whose total is positive.
+chkfail validate "${F[@]}" -s "$(ref pmzero "$B/mandates.schema.json#/\$defs/paymentMandate")" -r mandates.schema.json -d examples/rejected/mandate.payment.zero-amount.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-above-u64.json
 chkfail validate "${F[@]}" -s pow.schema.json -d examples/rejected/pow.index-negative.json
 # `header_nonce` is a u32, and an unbounded integer here is a schema that

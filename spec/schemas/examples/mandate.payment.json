@@ -1,12 +1,19 @@
 {
-  "id": "pay-001",
-  "user_id": "a7f3",
-  "agent_id": "b2e9",
-  "iss": "https://getgrocery.demo.kiosk.tech",
+  "vct": "mandate.payment.1",
+  "transaction_id": "3WiKMabE8NRYJgveUbyAZ3pBqRfPrWwGDbOyvbO1eYA",
+  "payee": {
+    "id": "https://getgrocery.demo.kiosk.tech",
+    "name": "getgrocery",
+    "website": "https://getgrocery.demo.kiosk.tech"
+  },
+  "payment_amount": {
+    "amount": 847,
+    "currency": "eur"
+  },
+  "payment_instrument": {
+    "id": "on_file",
+    "type": "card"
+  },
   "iat": 1751846350,
-  "exp": 1751846950,
-  "cart_mandate_id": "cart-001",
-  "amount_cents": 2499,
-  "currency": "eur",
-  "payment_method": "on_file"
+  "exp": 1751846950
 }

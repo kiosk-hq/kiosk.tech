@@ -1,0 +1,7 @@
+{
+  "vct": "mandate.checkout.1",
+  "checkout_jwt": "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dldGdyb2NlcnkuZGVtby5raW9zay50ZWNoIn0.SIG",
+  "checkout_hash": "3WiKMabE8NRYJgveUbyAZ3pBqRfPrWwGDbOyvbO1eYA",
+  "iat": 1751846345,
+  "exp": 1751846945
+}

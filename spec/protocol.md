@@ -24,7 +24,7 @@ existing service API to a **customer's personal AI assistant**: the AI assistant
 the operator, registers a self-generated identity by proof of possession, reads a
 self-describing surface, calls the operator's own read and write verbs -- each
 at its own endpoint, a GET for a read and a POST for a write -- scoped to its
-identity, and settles payment (`pay`) through a signed AP2 mandate chain. The
+identity, and settles payment (`pay`) through two signed AP2 v0.2 mandates. The
 operator MAY meter anonymous load with a memory-hard proof-of-work toll and MAY
 bind an AI assistant to an existing human account.
 
@@ -61,7 +61,8 @@ field tables are JSON types (`string`, `number`, `integer`, `boolean`, `object`,
 Kiosk **embraces** existing agent-web standards where they fit and defines its own
 wire only where they do not:
 
-- Payment mandates follow **AP2** (Agent Payments Protocol) shapes (Section 11).
+- Payment uses the closed Checkout and Payment Mandates of **AP2 v0.2** (Agent
+  Payments Protocol), each an **SD-JWT** ([RFC 9901](https://www.rfc-editor.org/rfc/rfc9901)) (Section 11).
 - Access tokens are **JWT** ([RFC 7519](https://www.rfc-editor.org/rfc/rfc7519))
   signed **JWS** ([RFC 7515](https://www.rfc-editor.org/rfc/rfc7515)); operator
   signing keys are published as **JWKS** ([RFC 7517](https://www.rfc-editor.org/rfc/rfc7517)).
@@ -107,8 +108,10 @@ proof-of-work gate.
   `schema`'s catalog.
 - **Problem document** -- the RFC 9457 `application/problem+json` object a verb
   answers on an error, carrying the vocabulary `code` (Section 9).
-- **Mandate** -- one link of the signed AP2 payment chain: intent, cart, or
-  payment (Section 11).
+- **Checkout** -- the operator-signed JWT that names what to pay and for which
+  account (Section 11.1).
+- **Mandate** -- a closed AP2 v0.2 mandate the AI assistant signs to pay a
+  checkout: the checkout mandate or the payment mandate (Section 11).
 - **Proof-of-work (PoW)** -- a memory-hard, request-bound challenge an operator MAY
   require before serving a request (Section 10).
 - **Reputation** -- an operator-local signal on an identity that sets its PoW proof
@@ -126,6 +129,8 @@ proof-of-work gate.
 3. Signatures -- access tokens, possession proofs, and payment mandates -- use
    **RS256** (RSASSA-PKCS1-v1_5 with SHA-256) over RSA keys of 2048 to 4096 bits,
    encoded as compact JWS. An operator refuses any other key with `400 bad_request`.
+   The one exception is the checkout an operator signs: **PS256** (RSASSA-PSS with
+   SHA-256), because AP2 requires a randomized signature there (Section 11.1).
 4. Endpoint paths derive from the discovery document's `endpoint` value plus the
    fixed verb-to-path binding in Section 8; an AI assistant MUST derive URLs this way and MUST
    NOT hard-code a mount path.
@@ -147,8 +152,8 @@ proof-of-work gate.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.5.21` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
-   | `Kiosk-Min-Client` | `0.5.20` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
+   | `Kiosk-API-Version` | `0.5.22` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-Min-Client` | `0.5.22` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
    spelling. The root-served discovery surfaces (Section 4.5) sit outside the
@@ -322,7 +327,7 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 | Field | Type | Presence | Meaning |
 |---|---|---|---|
 | `kiosk.version` | string | REQUIRED | Discovery-document format version (currently `"1.0"`), independent of protocol version. |
-| `kiosk.issuer` | string | REQUIRED | The AP2 mandate `iss` anchor and token `iss`/`aud`. An absolute https origin. |
+| `kiosk.issuer` | string | REQUIRED | The checkout `iss` and payee, and token `iss`/`aud`. An absolute https origin. |
 | `kiosk.endpoint` | string | REQUIRED | The wire-verb root (base URL + mount path). All verb and auth URLs derive from this. |
 | `kiosk.capabilities` | array | REQUIRED | The MODULES this endpoint serves, from `["schema","queries","actions","pay","events"]`, in that canonical order (Section 4.2). |
 | `kiosk.schema_url` | string | REQUIRED | Where to fetch the catalog (Section 8.3). MUST resolve to the same document as `GET <endpoint>/schema`. MAY carry a cache-busting version parameter -- see below. |
@@ -380,7 +385,7 @@ advertises that origin as its `kiosk.issuer`; a request on a hostname the operat
 does not serve is answered as one of its origins, the default one, whose discovery
 document that hostname serves; a possession proof is accepted only when its `aud` is
 the origin the request is answered as (Section 15.1); and an assistant account, an
-access token or a mandate made on one origin is not accepted on another. So a proof
+access token or a checkout made on one origin is not accepted on another. So a proof
 carrying a hostname the operator does not serve is always rejected -- and the AI
 assistant **MUST NOT** paper over that by signing the advertised issuer instead
 (Section 15.1).
@@ -470,10 +475,12 @@ its own `code`.
 
 ### 4.4 JWKS
 
-An operator **MUST** publish its token-signing public keys as a JWKS document
+An operator **MUST** publish its signing public keys as a JWKS document
 (RFC 7517) at `GET <endpoint>/.well-known/jwks.json`, unauthenticated, so any
-party can verify a Kiosk-issued token (Section 5.4). Each key carries `kty`,
-`use: "sig"`, `alg: "RS256"`, a `kid`, and the public parameters `n`/`e` only.
+party can verify a Kiosk-issued token (Section 5.4) or checkout (Section 11.1).
+Each key carries `kty`, `use: "sig"`, a `kid`, and the public parameters `n`/`e`
+only. A key carries no `alg`: one key signs RS256 access tokens and PS256
+checkouts.
 
 ### 4.5 The "speaks Kiosk" signal and standard surfaces
 
@@ -508,8 +515,9 @@ capability the origin does not serve:
 - `agents.txt` and `agents.json` (agents.txt v1.0) carry `Authorization:
   x-kiosk-pop` -- the standard's prefix for a protocol it has not registered --
   with `/.well-known/kiosk.json` as its discovery document, and the pinned
-  skill under `Skills:`. They declare no payment protocol: the `pay` mandates
-  are AP2 v0.1-shaped and are not the AP2 protocol the standard names. They
+  skill under `Skills:`. They declare no payment protocol: `pay` carries AP2
+  v0.2 mandates over this wire, and AP2 defines no transport an agents.txt
+  reader could call. They
   carry no `Identity: required` and no `Payments: required`, because
   `<endpoint>/schema` is public and free.
 - `/.well-known/oauth-authorization-server` (RFC 8414), where the origin serves
@@ -1916,12 +1924,12 @@ members it does not recognise.
 | `unauthenticated` | 401 | Missing, invalid, expired, wrong-issuer, or revoked Bearer token. |
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
-| `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay`, or the cart is in a currency other than the cap's (Section 11.5); the human must raise the cap or set it in the cart's currency. |
+| `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay`, or the checkout is in a currency other than the cap's (Section 11.5); the human must raise the cap or set it in the checkout's currency. |
 | `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.3); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
 | `verb_not_found` | 404 | **No verb by that NAME is registered at this operator** -- the path's last segment matches nothing in the catalogue (Section 8.1). `hint` carries the names that ARE registered, so a mistyped `listings` for `browse_listings` self-corrects without a catalogue round-trip. The AI assistant re-reads `GET <endpoint>/schema` and picks a name that exists; it **MUST NOT** report to its human that the operator cannot do the thing, because a different verb may well do it. |
 | `not_found` | 404 | **The verb exists and an argument ADDRESSES a resource which does not exist** (Section 9.1 rule 2) -- a `property_id` no property has, a login for a key nobody registered. The call was well formed and the answer is final: no retry finds it, and the AI assistant tells its human the thing is not there. Distinct from `verb_not_found`, which is about the NAME of the call rather than about what the call addressed. |
 | `method_not_allowed` | 405 | The path names a verb that exists, called with the other method -- a `GET` at an action's path or a `POST` at a query's (Section 8.1). The response **MUST** carry `Allow` naming the method the verb accepts; `hint` names the call to make. Distinct from `verb_not_found`: the verb exists. |
-| `conflict` | 409 | State conflict -- e.g. registering an already-registered key, or a `pay` that repeats a chain this operator will not charge: an identical chain whose charge was declined, or a mandate `id` presented before with other content (Section 11.6). A repeat of a settled or an unfinished chain is not an error. |
+| `conflict` | 409 | State conflict -- e.g. registering an already-registered key, or a `pay` this operator will not charge: an identical pair of mandates whose charge was declined, or a new pair for a checkout whose earlier pair is live (Section 11.6). A repeat of a settled or an unfinished pair is not an error. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
 | `payment_failed` | 402 | The charge did not settle: declined, authentication required, insufficient funds, or a processor timeout (Section 11.3). Not a gate -- there is nothing to solve and nothing to set up; no `challenges`, and **no `WWW-Authenticate`** (see below). `hint` says whether the outcome was definitive or unknown. |
@@ -1943,9 +1951,9 @@ reason.)
 
 On `payment_failed` the `hint` distinguishes two outcomes an AI assistant must
 handle differently: a **definitive** failure (no money moved -- the human can fix
-the payment method via `payment_setup`, and the AI assistant signs a new chain)
+the payment method via `payment_setup`, and the AI assistant signs new mandates)
 and an **unknown** outcome (the processor did not confirm -- the AI assistant
-sends the identical chain again, which cannot charge twice, Section 11.6).
+sends the identical mandates again, which cannot charge twice, Section 11.6).
 
 **Three codes answer "it is not here", and they are three different facts.**
 One code for all three is unbranchable: an AI assistant that reads `not_found`
@@ -2051,26 +2059,23 @@ keeps an explicit guard returning the same typed `400`.
 > the large vendors, all reserve `404` for an ADDRESSED resource that is absent
 > and answer an empty filter result with `200` and an empty array.
 
-**THE MANDATE CHAIN IS NOT REACHED BY RULE 1, AND ANSWERS `403 forbidden`.** The
+**THE MANDATES ARE NOT REACHED BY RULE 1, AND ANSWER `403 forbidden`.** The
 three rules above are about ARGUMENTS -- the values a verb's `input_schema`
 describes. A mandate (Section 11) is not an argument to a verb: it is the
 AUTHORISATION the `pay` call rests on, and the question it answers is not "can
 the operator use this value" but "has this AI assistant been authorised to spend
 this money". A mandate that does not carry what a mandate must carry has
 authorised nothing, so the operator answers `403 forbidden` -- **including where
-the defect also fits rule 1**, which a negative `cap_amount_cents` plainly does.
+the defect also fits rule 1**, which a `payment_amount` in a string plainly does.
 The whole class answers alike so that an AI assistant learns one branch rather
 than a table:
 
-- any base claim of Section 11.1 ABSENT -- `id`, `user_id`, `agent_id`, `iss`,
-  `iat`, `exp`;
-- a `user_id`/`agent_id` that is not the authenticated principal, or an `iss`
-  that is not the operator's own;
+- a mandate that is not an SD-JWT of Section 11.1, or whose `typ`, `vct` or
+  member of Section 11.1 is wrong or ABSENT;
 - a mandate whose `exp` has passed, or whose signature does not verify against
   the AI assistant's registered key;
-- an amount field ABSENT, zero or negative (Section 11.1);
-- `currency` ABSENT, or present but not a NON-EMPTY string (Section 11.1);
-- `line_items` ABSENT, not an array, or empty (Section 11.2);
+- a checkout whose signature does not verify, or that names another origin or
+  another account;
 - any binding rule of Section 11.2 broken.
 
 **Two mandate checks are NOT in the class and DO answer `400`,** and they are
@@ -2191,120 +2196,113 @@ the header and the expected proof shape. Schema:
 
 ---
 
-## 11. Payment (AP2 mandate chain)
+## 11. Payment (AP2 mandates)
 
 Schema: [`mandates.schema.json`](./schemas/mandates.schema.json).
 
-### 11.1 The three mandates
+### 11.1 The checkout and the two mandates
 
-Payment follows **AP2**: the AI assistant authorizes a purchase through a chain of three
-signed mandates rather than by handling card data. Each mandate is an **RS256
-JWS** signed with the AI assistant's private key. Every mandate **MUST** carry the base
-claims `id`, `user_id`, `agent_id`, `iss`, `iat`, `exp`; the server **MUST**
-reject a mandate whose `user_id`/`agent_id` do not match the authenticated
-identity, whose `iss` is not its own issuer (verbatim from `kiosk.json`), or whose
-`exp` is missing or passed.
+Payment follows **AP2 v0.2** (the Agent Payments Protocol). The operator signs a
+**checkout**: what to pay, for which account.
+The AI assistant pays it with two **closed AP2 mandates**, a Checkout Mandate
+and a Payment Mandate. The AI assistant never handles card data.
 
-| # | Mandate | Own fields (all REQUIRED unless noted) |
+**The checkout.** An action that creates an item to pay for answers
+`checkout_jwt` (Section 11.7). It is a compact JWT that the operator signs
+**PS256** with the key of its JWKS (Section 4.4), and its header names that
+key's `kid`. AP2 requires a randomized signature for the checkout, so it is
+PS256 and not RS256. Its claims:
+
+| Claim | Value |
+|---|---|
+| `iss` | The operator's issuer, verbatim from `kiosk.json`. |
+| `sub` | The account the checkout is for. Only that account can pay it. |
+| `iat` | When the operator signed it. |
+| `merchant` | The AP2 Merchant object: `id` and `website` are the issuer, `name` is the operator's name. |
+| `currency` | An ISO 4217 alpha-3 code. |
+| `total_amount_cents` | A positive integer. |
+| `line_items` | At least one entry (Section 11.7). |
+
+The checkout has no `exp`: the operator accepts it while the item is unpaid
+and its price holds (Section 11.7).
+
+**The mandates.** Each mandate is an **SD-JWT** (RFC 9901) with no key-binding
+JWT, as AP2 v0.2 specifies for a closed mandate:
+
+- The issuer-signed JWT has the header `{"alg": "RS256", "typ": "dc+sd-jwt"}`
+  and is signed with the AI assistant's registered key (Section 5).
+- Its payload is `{"_sd_alg": "sha-256", "delegate_payload": [{"...": <digest>}]}`.
+- The one disclosure is `[<salt>, <mandate>]`, base64url-encoded. The digest is
+  the base64url SHA-256 of that disclosure string.
+- The compact form is `<issuer-signed JWT>~<disclosure>~`.
+
+The operator **MUST** verify the signature against the AI assistant's registered
+key, and **MUST** refuse a token that has a key-binding JWT, a disclosure that no
+digest names, two disclosures with one digest, or an `_sd_alg` other than
+`sha-256`. A mandate carries `iat` and `exp`, both integer NumericDates.
+
+| Mandate | `vct` | Own members (all REQUIRED) |
 |---|---|---|
-| 1 | Intent | `cap_amount_cents`, `currency`, `scope`? |
-| 2 | Cart | `intent_mandate_id`, `total_amount_cents`, `currency`, `line_items` |
-| 3 | Payment | `cart_mandate_id`, `amount_cents`, `currency`, `payment_method`? |
+| Checkout | `mandate.checkout.1` | `checkout_jwt`: the checkout, unchanged. `checkout_hash`: the base64url SHA-256 of `checkout_jwt`, with no padding. |
+| Payment | `mandate.payment.1` | `transaction_id`: the `checkout_hash`. `payee`: the checkout's `merchant`. `payment_amount`: `{"amount": <total_amount_cents>, "currency": <currency>}`. `payment_instrument`: `{"id", "type"}`; `{"id": "on_file", "type": "card"}` pays with the card the human saved (Section 11.4). |
 
-**Every amount is a POSITIVE integer number of cents.** `cap_amount_cents`,
-`total_amount_cents` and `amount_cents` **MUST** each be an integer greater than
-zero, and an operator **MUST** reject a mandate carrying a zero or negative one
-BEFORE the binding rules of Section 11.2 are applied -- the checks there are
-comparisons, and a negative amount passes them while meaning the opposite of
-what they test. A negative cart total is under any cap (-100000 <= 5000), it
-matches a negative payment mandate, it settles on any PSP that echoes the
-amount, and it drives the spent-to-date sum DOWN, which permanently raises the
-AI assistant's remaining cap (Section 11.5). Zero carries the same defect in a
-quieter form: an absent amount coerces to it in most languages, so a mandate
-that never named a figure satisfies `0 <= cap` and `0 == 0` and persists a
-0-cent settlement. `settled_amount_cents` on a `pay` response is positive for
-the same reason -- it exists only for a completed capture.
+An operator **MUST** refuse a mandate whose `vct` is not the one of its place.
+An AP2 **open** mandate (`mandate.checkout.open.1`, `mandate.payment.open.1`)
+carries constraints for a later closed mandate. AP2 needs a key of the human,
+separate from the AI assistant's key, to sign it. Kiosk has no such key, so an
+operator takes closed mandates only. The spending cap of Section 11.5 is the
+control that the human sets.
 
-**And `currency` is a NON-EMPTY STRING on all three mandates.** The table above
-makes it REQUIRED and `mandates.schema.json` types it `string` and calls it an ISO
-4217 code; an operator **MUST** reject a mandate whose `currency` is absent, is not
-a string, or is empty. This is the amounts' rule in a second place and for the
-identical reason: the checks of Section 11.2 ask only whether the three mandates
-agree with EACH OTHER, never whether either value names anything, so `""` on the
-intent, the cart and the payment passes every one of them, reaches the PSP as the
-currency of a real charge, and becomes the key the spent-to-date tally of
-Section 11.5 is scoped by. Presence was the whole check in the reference until
-2026-08-30, and presence is not the constraint.
-
-**And the DOMAIN is closed, on ISO 4217 alpha-3.** `currency` **MUST** be an ISO
-4217 **alpha-3** code, and an operator **MUST** reject a mandate whose `currency`
-is not three ASCII letters -- `"Euro"`, `"US"`, `"978"` and a currency SYMBOL are
-each a refusal. Three boundaries, because each is somewhere a second
-implementation would otherwise have to guess:
-
-- **Alpha-3 only, not numeric-3.** ISO 4217 publishes a three-DIGIT code beside
-  every three-letter one (`978` for the euro). This wire does not accept it. That
-  is narrower than "an ISO 4217 code" read literally, and it is deliberate: the
-  payment providers this chain terminates at take the letters.
-- **Three letters is the operator's MINIMUM refusal, not the whole domain.**
-  Three letters that name no currency (`"xyz"`) satisfy the form. An operator is
-  **NOT** required to carry a list of the world's currencies to be conformant --
-  a conformant operator **MAY** refuse further, and most will, because a payment
-  provider supports a narrower set than ISO 4217 does and refuses the rest one
-  call later. An AI assistant **MUST** therefore be ready for a currency one
-  operator accepts and another refuses, and **MUST NOT** read such a refusal as a
-  defect in the mandate it signed.
-- **Case is not part of the code.** Which spellings of a code an operator accepts,
-  and whether it compares them case-insensitively under Section 11.2, remains the
-  operator's own rule. What is NOT left open is the consequence of accepting more
-  than one spelling -- Section 11.5 states it, because it is where the money is
-  counted.
-
-**And the status for every one of these is `403 forbidden`, not `400`.** An
-absent, zero or negative amount is a value outside its domain, which Section 9.1
-rule 1 would otherwise make a `400`; the mandate chain is carved out of that rule
-because a mandate is AUTHORISATION rather than an argument, and one that does not
-carry what a mandate must carry has authorised nothing. Section 9.1 lists the
-whole class that answers this way, and the two mandate checks that answer `400`
-instead.
+**The status for every refusal of a mandate or of its checkout is `403
+forbidden`,** with two exceptions that answer `400 bad_request`: an `iat` or
+`exp` that is not an integer, and an `exp` more than 24 hours ahead. A mandate
+is authorisation, not an argument: a mandate that does not carry what it must
+carry authorises nothing (Section 9.1).
 
 ### 11.2 Binding rules
 
-`cart.intent_mandate_id` **MUST** equal the intent's `id`; the cart total **MUST
-NOT** exceed the intent cap; `cart.currency` **MUST** equal the intent currency.
-`cart.line_items` **MUST** carry at least one entry: a cart mandate exists to say
-what is being bought, and the settlement trail is reconciled from those entries,
-so an EMPTY array satisfies the field's presence while withholding everything the
-field is required for -- and a positive `total_amount_cents` with nothing itemised
-under it is an unitemised charge, which is what this mandate exists to prevent.
-`payment.cart_mandate_id` **MUST** equal the cart's `id`; `payment.amount_cents`
-**MUST** equal the cart total in the same `currency`. The server verifies all
-three signatures against the AI assistant's registered key -- providing non-repudiation.
+The operator **MUST** check all of these before it persists anything:
+
+1. The checkout signature verifies against the operator's own key, PS256.
+2. The checkout `iss` is the issuer of the origin being served.
+3. The checkout `sub` is the authenticated account.
+4. `checkout_hash` is the hash of `checkout_jwt`.
+5. The payment mandate's `transaction_id` is that `checkout_hash`.
+6. `payee.id` is the issuer of the origin being served.
+7. `payment_amount.amount` is the checkout's `total_amount_cents`, an integer,
+   and `payment_amount.currency` is the checkout's `currency`, compared as a
+   code.
+8. Neither mandate's `exp` has passed.
+
+Rules 2 and 6 bind the payment to the origin: a checkout or a payee of another
+origin is refused. The checkout is the operator's own signed record of the
+price, so the AI assistant composes no amount and no line item.
+
+**And the DOMAIN of `currency` is closed, on ISO 4217 alpha-3.** `currency`
+**MUST** be an ISO 4217 **alpha-3** code: three ASCII letters. `"Euro"`, `"US"`,
+`"978"` and a currency SYMBOL are each refused. Three letters that name no
+currency (`"xyz"`) satisfy the form. An operator is **NOT** required to carry a
+list of the world's currencies, and **MAY** refuse further, because a payment
+provider supports a narrower set. An AI assistant **MUST** be ready for a
+currency one operator accepts and another refuses. Which spellings of a code an
+operator accepts is the operator's own rule; Section 11.5 states the
+consequence of accepting more than one.
 
 ### 11.3 The pay call
 
-`POST <endpoint>/pay` (Bearer) with
-`{intent_mandate_jws, cart_mandate_jws, payment_mandate_jws}`. On success it
-returns `{settlement_id, psp_reference, settled_amount_cents, currency}`. If the mandates
-verify but the charge itself does not settle -- declined, authentication
-required, insufficient funds, or a processor timeout -- `pay` answers `402` with
-`code: "payment_failed"` (Section 9), carrying a message the operator has
-already made safe to show a human: it **MUST NOT** relay raw PSP internals.
+`POST <endpoint>/pay` (Bearer) with `{checkout_mandate, payment_mandate}`, each
+a compact SD-JWT string. On success it returns `{settlement_id, psp_reference,
+settled_amount_cents, currency}`. If the mandates verify but the charge itself
+does not settle -- declined, authentication required, insufficient funds, or a
+processor timeout -- `pay` answers `402` with `code: "payment_failed"`
+(Section 9), carrying a message the operator has already made safe to show a
+human: it **MUST NOT** relay raw PSP internals.
 
-**`currency` on that response is the OPERATOR's spelling of the cart's currency,
-and it MAY differ byte for byte from the spelling the AI assistant signed.**
-Section 11.1 leaves the currency DOMAIN open, and Section 11.5 obliges an
-operator that accepts two spellings of one code to treat them as ONE currency --
-so an operator that folds spellings settles, records and answers in its own
-canonical form. An assistant that signs `"EUR"` throughout can therefore be
-answered `"eur"`, and that is a CONFORMING answer: both name the same ISO 4217
-code, and the code is what the two sides are agreeing about. An operator that
-folds nothing echoes the cart's bytes unchanged, and that is conforming too.
-An AI assistant therefore **MUST NOT** treat a byte-for-byte difference between
-the `currency` it sent and the `currency` it is answered as a failed or
-mismatched payment; it **MUST** compare the two as currency CODES, by the same
-rule Section 11.5 puts on the tally. What an operator **MUST NOT** do is answer
-a DIFFERENT currency: the spelling may move, the code may not.
+**`currency` on that response is the OPERATOR's spelling of the checkout's
+currency.** An operator that folds spellings settles, records and answers in its
+own canonical form, so a checkout in `"EUR"` can be answered `"eur"`. An AI
+assistant **MUST** compare the two as currency CODES, never as bytes. What an
+operator **MUST NOT** do is answer a DIFFERENT currency.
 
 ### 11.4 Card setup
 
@@ -2337,8 +2335,8 @@ enforce it exactly:
 
 1. It counts each settled charge of the assistant (optionally within a rolling
    window) less what the operator refunded of it, never below zero, and every
-   cart whose charge can still go through: a cart with no settlement, whose
-   mandate has not expired, and whose charge was not declined. A refund
+   checkout mandate whose charge can still go through: one with no settlement,
+   whose `exp` has not passed, and whose charge was not declined. A refund
    gives its amount back to the cap at once.
 2. It **MUST** reject a `pay` that would push that count past the cap with
    `403 spending_cap_exceeded` **before** the irreversible capture -- no charge, no
@@ -2346,11 +2344,11 @@ enforce it exactly:
 3. It **MUST** serialise the concurrent `pay` calls of one assistant, so that two
    of them cannot both fit under the cap when together they do not.
 4. A declined charge -- refused by the operator or its processor, with no money
-   moved -- stops counting at once. A repeat of a chain already counted
+   moved -- stops counting at once. A repeat of mandates already counted
    (Section 11.6) does not count twice.
-5. A cap has one currency. The operator **MUST** reject a `pay` whose cart is in
-   another currency with `403 spending_cap_exceeded` **before** the capture: a cap
-   in one currency allows no payment in another.
+5. A cap has one currency. The operator **MUST** reject a `pay` whose checkout is
+   in another currency with `403 spending_cap_exceeded` **before** the capture: a
+   cap in one currency allows no payment in another.
 
 A cap of `0` disables the assistant's payments entirely. The AI assistant cannot
 pay past the cap; it surfaces the condition to the human, who raises the cap out
@@ -2359,92 +2357,83 @@ edits them is out of scope for the wire.
 
 **The tally is per CURRENCY, and a currency is not a string.** Cents are not
 fungible across currencies, so the settled total a cap is measured against is the
-total IN THE CAP'S OWN CURRENCY; summing across currencies would let a 4999 USD
-history erode a 5000 EUR cap, which is the same reason Section 11.2 refuses a cart
-priced in one currency under an intent capped in another. Section 11.1 deliberately
-leaves the currency DOMAIN open, so an operator may well accept both `"eur"` and
-`"EUR"` -- and where it does, **the tally MUST key on the CURRENCY and not on its
-spelling: an operator that accepts two spellings of one code MUST count them as
-one.** A tally keyed on the raw bytes hands the AI assistant a FRESH CAP for every
-spelling it can find, and `currency` is a value the assistant itself signs into the
-mandate, so alternating the spelling from one chain to the next is a bypass it can
-drive unaided. The cap the operator published is then not the cap it enforces --
-that is the MUST above being false, not a detail of how the sum is written.
-
-The fold that rule licenses is visible on the wire, and Section 11.3 states its
-consequence NORMATIVELY rather than leaving it to this note: the `currency` a
-`pay` response carries is the operator's canonical spelling of the cart's
-currency, not the sender's.
+total IN THE CAP'S OWN CURRENCY. An operator that accepts two spellings of one
+code (`"eur"` and `"EUR"`) **MUST** count them as one: a tally keyed on the raw
+bytes gives a fresh cap for every spelling, and the cap the operator published is
+then not the cap it enforces.
 
 > *Reference note (non-normative).* The Ruby reference enforces this via the
 > `config.spending_cap` pay-hook seam and ships a column-backed default
 > (`agents.spending_cap_cents` and `agents.spending_cap_currency`) editable from
 > the manage-assistants page. It
 > serialises one assistant's `pay` calls under a per-assistant advisory lock,
-> records a declined charge as `cart_mandates.declined_at` and a refund through
+> records a declined charge as `checkout_mandates.declined_at` and a refund through
 > `PaymentClaim#refund` in `refunds`, and counts the
-> settled and the unfinished carts in ONE statement, so a settlement that
-> commits between two reads cannot drop out of both. It takes
-> the Section 11.1 rule that is the operator's to take by CANONICALISING `currency`
-> at the point a signed mandate becomes a verified value -- lower-cased
-> -- so the Section 11.2 comparisons, the persisted mandate and settlement rows, the
-> PSP call and this tally are keyed on one value by construction rather than by
-> everyone remembering to fold. Lower case because that is the spelling its shipped
-> payment adapter's API documents.
+> settled and the unfinished checkout mandates in ONE statement, so a settlement
+> that commits between two reads cannot drop out of both. It lower-cases
+> `currency` at the point a checkout becomes a verified value, so the Section
+> 11.2 comparisons, the persisted rows, the PSP call and this tally use one
+> value. Lower case, because the shipped payment adapter's API documents that
+> spelling.
 
-### 11.6 Idempotency -- the mandate chain IS the key
+### 11.6 Idempotency -- the mandates ARE the key
 
-`pay` carries no separate idempotency header or field, and needs none: the
-mandate `id`s already are one. HTTP is at-least-once, so this section says what
-both sides do when a `pay` response is lost.
+`pay` carries no separate idempotency header or field, and needs none. HTTP is
+at-least-once, so this section says what both sides do when a `pay` response is
+lost.
 
-**Operator.** The mandate `id` of each of the three mandates is unique per
-`user_id`. An operator **MUST NOT** charge one chain twice. It **MUST** key its
-PSP capture by the principal together with the cart mandate `id`. A second
-capture of the same cart then returns the first one's result and charges
-nothing. The key names the principal because a PSP shares one key space across
-the operator's whole account.
+**Operator.** The `reference` of a mandate is the base64url SHA-256 of its
+compact SD-JWT: the same hash AP2 uses to name a mandate in a receipt. A mandate's
+reference is unique per account. An operator **MUST NOT** charge one pair of
+mandates twice. It **MUST** key its PSP capture by the account together with the
+checkout mandate's reference. A second capture of the same pair then returns the
+first one's result and charges nothing. The key names the account because a PSP
+shares one key space across the operator's whole account.
 
-**Operator -- what a repeated chain is answered with.** `pay` is
-**idempotent**: a repeat of the IDENTICAL chain gets the answer that chain has
-earned. Identical means all three mandates are the ones already recorded, byte
-for byte -- same `id`s and same signatures. Three cases, and an operator **MUST**
-tell them apart before it answers:
+**One checkout has at most one live pair.** A pair is live from the moment the
+operator persists it until its charge is declined. An operator **MUST** refuse a
+second pair for a checkout while the first pair is live -- settled, or with an
+outcome not yet known. After a declined charge, a new pair for the same checkout
+is accepted.
 
-- **The cart has SETTLED.** The operator **MUST** answer `200` with **that
-  settlement**: the same body the original call returned, same `settlement_id`
-  and same `psp_reference`. It **MUST NOT** record a second settlement.
-- **The cart has NOT settled, and its charge was NOT declined.** The first call
+**Operator -- what a repeated pair is answered with.** `pay` is **idempotent**:
+a repeat of the IDENTICAL pair gets the answer that pair has earned. Identical
+means both mandates are the ones already recorded, byte for byte. Three cases,
+and an operator **MUST** tell them apart before it answers:
+
+- **The checkout has SETTLED under this pair.** The operator **MUST** answer
+  `200` with **that settlement**: the same body the original call returned, same
+  `settlement_id` and same `psp_reference`. It **MUST NOT** record a second
+  settlement.
+- **The pair has NOT settled, and its charge was NOT declined.** The first call
   stopped before the capture, or the capture outcome was unknown, or the capture
   went through and the settlement was not recorded. The operator **MUST** run the
   capture again under the same key, record the settlement, and answer as for a
   first call: `200` with the settlement, or `402 payment_failed`. The key makes
   the processor return the first charge's result, so the repeat cannot charge
   twice.
-- **The charge was DECLINED, or a mandate `id` comes with DIFFERENT content.**
-  Declined means that the operator or its processor refused the charge and no
-  money moved; the operator records it. The operator **MUST** answer
-  `409 conflict` (Section 9), **before** any capture.
+- **The charge was DECLINED, or the pair is not identical to the live pair of
+  its checkout.** The operator **MUST** answer `409 conflict` (Section 9),
+  **before** any capture.
 
 **Operator -- what "not paid" is allowed to mean.** An operator captures and
 records the capture in two steps, and between them its own records show no
-settlement for a cart that has already been charged. So the paid state an
+settlement for a checkout that has already been charged. So the paid state an
 operator publishes for reconciliation **MUST** be anchored to the capture, not
 to the settlement record: a per-user query an assistant is expected to reconcile
 against (Section 7, form 1) **MUST NOT** report an order as *not paid* while a
-capture for its cart mandate has been started and its outcome is not known. It
-**MUST** answer either *paid* or a third state distinct from both -- *pending* /
-*unknown* -- until the outcome is resolved. **Absence of a settlement record is
-not evidence that no money moved**, and an operator that publishes it as one is
-telling every assistant to charge its human twice.
+capture for it has been started and its outcome is not known. It **MUST** answer
+either *paid* or a third state distinct from both -- *pending* / *unknown* --
+until the outcome is resolved. **Absence of a settlement record is not evidence
+that no money moved**, and an operator that publishes it as one is telling every
+assistant to charge its human twice.
 
 **AI assistant.** When a `pay` response never arrives -- a timeout, a dropped
 connection, any outcome you cannot read -- or a `402 payment_failed` says that
-the outcome is unknown, send the **IDENTICAL** mandate chain again: the same
-three `id`s and the same three signatures, byte for byte. Do **NOT** sign a new
-chain. A new chain carries new `id`s, collides with nothing, and is therefore a
-SECOND payment, not a repeat; the identical chain is the only repeat the operator
-can recognise as one.
+the outcome is unknown, send the **IDENTICAL** two mandates again, byte for byte.
+Do **NOT** sign new mandates. New mandates carry a new salt and a new signature,
+so they are a new pair, and the operator refuses a new pair while the first is
+live.
 
 The repeat has three outcomes:
 
@@ -2452,33 +2441,34 @@ The repeat has three outcomes:
   assistant does not have to tell whether this call or an earlier one made the
   charge, and **MUST NOT** try: the body is the settlement either way.
 - `402 payment_failed` -- read as for a first call (Section 9). A definitive
-  failure closes the chain; an unknown outcome is repeated again, a bounded
+  failure closes the pair; an unknown outcome is repeated again, a bounded
   number of times, and then handed to the human.
-- `409 conflict` -- the operator will not charge this chain. Before it signs a
-  new chain, the assistant reconciles through the operator's own per-user query
+- `409 conflict` -- the operator will not charge this pair. Before it signs new
+  mandates, the assistant reconciles through the operator's own per-user query
   (Section 7, form 1 -- e.g. `my_orders`, reading the order's paid flag).
-  **Only a positive, unambiguous "not paid" makes a new chain the correct next
+  **Only a positive, unambiguous "not paid" makes new mandates the correct next
   request.** Paid means the work is done -- report it and stop. **Anything else
   is NOT a "not paid" answer**: a *pending* or *unknown* state, an order the
   query does not show, an operator that publishes no such query, or a query that
-  errors. In every one of those cases an assistant **MUST NOT** sign a new chain;
-  it stops and hands the situation to its human.
+  errors. In every one of those cases an assistant **MUST NOT** sign new
+  mandates; it stops and hands the situation to its human.
 
-A chain whose `exp` has passed cannot be sent again. Reconcile before signing a
-new one -- an expired chain gives the assistant the same duty as `409 conflict`.
+A mandate whose `exp` has passed cannot be sent again. Reconcile before signing
+new ones -- an expired pair gives the assistant the same duty as `409 conflict`.
 
-> *Reference note (non-normative).* The Ruby reference enforces the mandate
-> uniqueness as `UNIQUE (user_id, mandate_id)` on each of the three mandate
-> tables plus `UNIQUE (cart_mandate_id)` on settlements, and the unique
+> *Reference note (non-normative).* The Ruby reference enforces the uniqueness
+> as `UNIQUE (user_id, reference)` on both mandate tables, a unique index on
+> `checkout_mandates (user_id, checkout_hash) WHERE declined_at IS NULL` for the
+> one live pair, and `UNIQUE (checkout_mandate_id)` on settlements. The unique
 > violation is raised in the phase that persists the trail, which runs before
-> the capture. Its Stripe adapter keys the capture by the principal's Stripe
-> customer and the cart mandate `id`. On that violation it looks the chain up
-> once -- the stored `raw_jws` of all three mandate rows against the three
-> presented now, with the cart's `declined_at` and its settlement, if any. A
-> settled chain answers `200` with the stored settlement. An unfinished chain is
-> captured again through the adapter's `resume`, and `PaymentClaim` lets it
-> reclaim the payable row only when it is the newest unfinished chain for that
-> row. A declined chain, or no match, keeps the `409`, with a `hint` saying what
+> the capture. Its Stripe adapter keys the capture by the account's Stripe
+> customer and the checkout mandate's reference. On that violation it looks the
+> pair up once -- the stored SD-JWTs of both mandate rows against the two
+> presented now, with the checkout mandate's `declined_at` and its settlement, if
+> any. A settled pair answers `200` with the stored settlement. An unfinished
+> pair is captured again through the adapter's `resume`, and `PaymentClaim` lets
+> it reclaim the payable row only when it is the newest unfinished pair for that
+> row. A declined pair, or no match, keeps the `409`, with a `hint` saying what
 > it means. The operator half of the rule is the engine's
 > `Kiosk::Server::PaymentClaim`, which an operator wraps around its PSP adapter
 > and points at its own payable table: it claims the row (`unpaid` -> `paying`)
@@ -2492,12 +2482,13 @@ new one -- an expired chain gives the assistant the same duty as `409 conflict`.
 > `pending` and the gap between capture and settlement never reads as "not
 > paid".
 
-### 11.7 The cart to sign, the payment state, and the `payment` topic
+### 11.7 The checkout to pay, the payment state, and the `payment` topic
 
-An action that creates an item to pay for answers `cart`: an object with three
-members, `currency`, `total_amount_cents` and `line_items`. The AI assistant
-signs the cart mandate with these three values, unchanged. It does not compose
-line items of its own.
+An action that creates an item to pay for answers `checkout_jwt`: the checkout
+of Section 11.1, signed for the calling account. The AI assistant puts it,
+unchanged, into its checkout mandate, and copies its `merchant`, `currency` and
+`total_amount_cents` into the payment mandate. It does not compose line items
+of its own.
 
 - The first line item names the item to pay for with one key and the item's
   id, for example `{"order_id": "e2b1c0d4-..."}`. The operator finds the paid
@@ -2505,8 +2496,8 @@ line items of its own.
 - Each other line item carries `qty` and `price_cents`, and MAY carry more
   members, for example `sku`. The sum of `qty` x `price_cents` over these lines
   is `total_amount_cents`.
-- The operator MUST accept the `cart` it answered while the item is unpaid and
-  its price holds.
+- The operator MUST accept a checkout it signed while the item is unpaid and its
+  price holds. When the price moved, the operator refuses the pay with `403`.
 
 A per-user query that lists items to pay for carries `payment_state` on each
 row. The value is one of four:
@@ -2514,20 +2505,20 @@ row. The value is one of four:
 | `payment_state` | Meaning |
 |---|---|
 | `unpaid` | Nothing is charged. This is the only clear "not paid" of Section 11.6. |
-| `pending` | A capture started, and its outcome is not known. The AI assistant reads again later and does not sign a new chain. |
+| `pending` | A capture started, and its outcome is not known. The AI assistant reads again later and does not sign new mandates. |
 | `paid` | The capture went through. |
 | `refunded` | The charge went back to the card. |
 
 An operator that serves the event stream (Section 8.5) and `pay` publishes the
 topic `payment`, with `reach` `principal`. When a capture goes through, the
 operator pushes one event to the owner of the paid item. `subject` is the
-item's id. `data` has two members: the key and id of the cart's first line
+item's id. `data` has two members: the key and id of the checkout's first line
 item, and `payment_state`, for example
 `{"order_id": "e2b1c0d4-...", "payment_state": "paid"}`. When the operator
 refunds the charge, it pushes the same event with `"payment_state": "refunded"`.
 
 > *Reference note (non-normative).* `Kiosk::Payable` gives the payable model
-> `payment_state`, `cart(lines)` and `settlement`; `Kiosk::Server::PaymentClaim`
+> `payment_state`, `checkout(lines)` and `settlement`; `Kiosk::Server::PaymentClaim`
 > registers the `payment` topic and pushes `paid` when the capture returns, and
 > its `announce` pushes `refunded` after the operator refunds.
 
@@ -2703,7 +2694,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.5.21**: a 0.5.21 operator pins the 0.5.21 skill against the 0.5.21 wire. A new
+   **0.5.22**: a 0.5.22 operator pins the 0.5.22 skill against the 0.5.22 wire. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -2761,11 +2752,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.21**, the twenty-second
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.22**, the twenty-third
    cut on this series. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.4.17 cuts
    describe protocol 0.1-0.4 and cannot transact with a 0.5 origin at all, and
-   0.5.0-0.5.20 describe earlier 0.5 cuts a 0.5.21 operator no longer pins; 0.5.20, its `Kiosk-Min-Client`, still works with it. Published skill
+   0.5.0-0.5.21 describe earlier 0.5 cuts a 0.5.22 operator no longer pins; none of them can pay at it, and 0.5.22 is also its `Kiosk-Min-Client`. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
@@ -2789,7 +2780,7 @@ connected to, filled in by the AI assistant from the connection it dialed and ne
 echoed from server-supplied data. An operator **MUST** reject any proof whose
 `aud` is not its own origin. This prevents a signature captured by a malicious
 endpoint from being relayed to a different operator (the WebAuthn anti-phishing
-model). The AP2 mandate `iss` claim (Section 11) carries the same audience-binding.
+model). The checkout `iss` and the payment mandate's `payee` (Section 11.2) carry the same origin-binding.
 An AI assistant **MUST** derive `aud` from its own request URL and **MUST NOT**
 take it from any response body, error hint, `WWW-Authenticate` realm, or discovery
 document; if the operator's advertised issuer is not the origin the AI assistant
@@ -2802,7 +2793,7 @@ Auth challenges are server-issued, single-use, and expire on a server-held TTL;
 the server-held nonce is the authoritative anti-replay bound. PoW challenges are
 request-bound (their HMAC `sig` covers a fingerprint of the exact request) and
 single-use (a spent-id set). Payment mandates carry their own `iat`/`exp` window
-and are chain-bound (Section 11); a non-expiring mandate **MUST** be rejected.
+and are bound to one checkout (Section 11); a non-expiring mandate **MUST** be rejected.
 
 Single-use is a property of the operator as a whole, not of one process: an
 operator running multiple processes **MUST** share one spent-id store across all
@@ -2989,14 +2980,15 @@ the discovery document, and are absent from `capabilities` for that reason:
    naming no foreign row answered with them filtered out, a call naming a row
    outside the verb's reach refused `403`, and a declared-reach verb answering
    `200` within the reach it declares and no further.
-5. **Module `pay`** (Section 11): AP2 mandate-chain verification -- the required
-   claims (Section 11.1), the chain binding, and the cap/total/amount rules
-   (Section 11.2, Section 11.3) -- `payment_setup` and its return page (Section 11.4), the
+5. **Module `pay`** (Section 11): a PS256 checkout in the answer of each action
+   that creates an item to pay for, verification of the two closed AP2 v0.2
+   mandates -- the SD-JWT form and members (Section 11.1) and the binding rules
+   (Section 11.2) -- `payment_setup` and its return page (Section 11.4), the
    `payment_setup_required` 402 with `WWW-Authenticate: Payment`, an idempotent
-   repeat -- an identical settled chain answers `200` with that settlement, an
-   identical unfinished chain is captured again under the same key and settled,
-   and a declined chain or a reused mandate `id` answers `409 conflict` raised
-   BEFORE any capture -- an exact spending cap where one is configured
+   repeat -- an identical settled pair answers `200` with that settlement, an
+   identical unfinished pair is captured again under the same key and settled,
+   and a declined pair or a second live pair for one checkout answers `409
+   conflict` raised BEFORE any capture -- an exact spending cap where one is configured
    (Section 11.5), and a reconcilable paid state that is anchored to the capture
    rather than to the settlement record: never *not paid* while a capture may be
    outstanding (Section 11.6).
@@ -3081,7 +3073,7 @@ every challenge in a `pow_required` list and retries the identical request --
 same method, same path, same query string, same body -- with the proof(s) in the
 `Kiosk-PoW` request header; runs `payment_setup` and hands `setup_url` to the human rather than
 automating card entry; repeats a lost or unknown `pay` with the identical
-mandate chain, takes a `200` as the settlement it asked for whether or not this
+mandates, takes a `200` as the settlement it asked for whether or not this
 call is the one that made it, and after a `409` re-signs only on a positive *not
 paid* answer, never on a missing or unknown one (Section 11.6); pays the session
 toll once and reuses its access token (Section 10); performs the skill dual-check (Section 14) and NEVER loads skill
@@ -3157,7 +3149,7 @@ counts on purpose -- see the count note below.
 | Error (problem document) | [`problem.schema.json`](./schemas/problem.schema.json) |
 | Schema descriptor | [`schema-descriptor.schema.json`](./schemas/schema-descriptor.schema.json) |
 | PoW challenge + proof | [`pow.schema.json`](./schemas/pow.schema.json) |
-| AP2 mandates | [`mandates.schema.json`](./schemas/mandates.schema.json) |
+| The checkout and the AP2 mandates | [`mandates.schema.json`](./schemas/mandates.schema.json) |
 | KYC attestation | [`kyc.schema.json`](./schemas/kyc.schema.json) |
 | Registration and login, Section 5 | [`auth.schema.json`](./schemas/auth.schema.json) |
 | Account binding, Section 6 | [`binding.schema.json`](./schemas/binding.schema.json) |
@@ -3174,7 +3166,7 @@ wire and not in this section reads the omission as an oversight.
 
 | Object | Governed by |
 |---|---|
-| JWKS document, Section 4.4 (REQUIRED) | [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517) -- the member set is the JWK standard's, and Section 4.4 narrows it (`kty`, `use`, `alg`, `kid`, `n`/`e` only) |
+| JWKS document, Section 4.4 (REQUIRED) | [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517) -- the member set is the JWK standard's, and Section 4.4 narrows it (`kty`, `use`, `kid`, `n`/`e` only) |
 | OpenAPI description, Section 4.6 (OPTIONAL) | [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) -- the document IS a description, and Section 4.6 derives it from the catalog rather than describing its shape |
 | `/.well-known/api-catalog`, Section 4.5 (OPTIONAL) | [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) |
 | `/.well-known/oauth-authorization-server`, Section 4.5 (OPTIONAL) | [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) |
@@ -3231,5 +3223,7 @@ shape for either here would be this document inventing a second one.
 - RFC 9111 -- HTTP caching (Section 3, point 7)
 - RFC 9457 -- Problem Details for HTTP APIs (the error shape, Section 9)
 - RFC 8628 -- OAuth 2.0 Device Authorization Grant
-- AP2 -- Agent Payments Protocol (mandate shapes)
+- AP2 v0.2 -- Agent Payments Protocol (the Checkout and Payment Mandates)
+- RFC 9901 -- Selective Disclosure for JWTs (SD-JWT)
+- RFC 7518 -- JSON Web Algorithms (RS256, PS256)
 - Narrative specification -- <https://kiosk.tech/specification.html>
