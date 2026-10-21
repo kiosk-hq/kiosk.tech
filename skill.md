@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.0"
+  version: "0.6.1"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -47,7 +47,7 @@ Two terms; do not mix them up. **`origin`** is the operator's base URL: scheme, 
 
 The operator names its own queries and actions. `GET <endpoint>/catalog` IS the catalog call: there is no `name` field, and no path that carries all operations.
 
-**Auth.** Every call under `<endpoint>` needs the access token from Step 2 as `Authorization: DPoP <access_token>`, plus a `DPoP` header with a proof for that call (see "DPoP"). Without both, the answer is `401`. These paths are public: `schema`; `<endpoint>/openapi.json`, an optional description for tools (read `schema`, not this); `<endpoint>/.well-known/jwks.json`, the operator's public keys; and the auth paths. The registration takes no credential. The token request, the device authorization, the link-code claim and `rotate` take a client assertion instead (see "Auth handshake").
+**Auth.** Every call under `<endpoint>` needs **the two DPoP headers**: `Authorization: DPoP <access_token>`, with the access token from Step 2, and `DPoP: <proof>`, with a proof for that call (see "DPoP"). Without both, the answer is `401 unauthenticated`. These paths are public: `schema`; `<endpoint>/openapi.json`, an optional description for tools (read `schema`, not this); `<endpoint>/.well-known/jwks.json`, the operator's public keys; and the auth paths. The registration takes no credential. The token request, the device authorization, the link-code claim and `rotate` take a client assertion instead (see "Auth handshake").
 
 **Query arguments** go in the query string:
 
@@ -57,8 +57,6 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 - `?title=` is the empty string. To send no value, omit the parameter.
 
 **Action arguments** are the top-level fields of a JSON body. Do not put them under `params`.
-
-**A path that the catalogue does not name can give an answer that you cannot read.** An unknown name, or a real operation with the wrong method, usually gets the bare `404` of the operator's web framework, with no problem document. Some operators send a `405` with `Allow`, or `404 verb_not_found` with a `hint`. Read those when you get them, but do not expect them. Whatever the answer was, read `GET <endpoint>/schema` again to recover.
 
 ## Answers
 
@@ -81,17 +79,18 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 |---|---|---|
 | `200 []` | Your filter matched nothing. | Tell your human. It is a real answer, not an error. |
 | `400 bad_request` | A value does not match `input_schema`, or is outside its domain. `detail`/`hint` name the parameter and the valid values. | Fix the value and send again. |
-| `401`, `WWW-Authenticate: DPoP` | The token or the DPoP proof is wrong. `detail` says what. | Make a new proof. If the token expired, get a new token (Step 2). |
+| `401 unauthenticated` | The token, the DPoP proof or the client assertion is wrong. `detail` says what. | Make a new proof. If the token expired, get a new token (Step 2). On `claim_url` and `rotate_url`, sign a new client assertion. |
 | `402` | `pow_required`, `payment_setup_required` or `payment_failed`. | See "The three 402s". |
-| `403 forbidden` | A condition on the operator's side stops the call. `detail` names it. | Do the step that it names if this skill gives it to you (pay, read the state and wait, KYC). Else tell your human in its words. Never send the same call again unchanged. |
+| `403 forbidden`, `403 rls_denied` | A condition on the operator's side stops the call. With `rls_denied`, a rule in the operator's database stops it. `detail` names the condition. | Do the step that it names if this skill gives it to you (pay, read the state and wait, KYC). Else tell your human in its words. Never send the same call again unchanged. |
 | `403 kyc_required` | The operator needs a signed attestation. | See "Identity checks (KYC)". |
 | `403 spending_cap_exceeded` | The payment is above the cap that your human set. | See "Spending cap (HTTP 403)". |
-| `404 verb_not_found` | No operation has that NAME. `hint` lists the names. | Call a name that exists. Do not tell your human that the operator cannot do the thing. |
+| `404` with no problem document | No route matched: a name that the catalogue does not have, or a real operation with the wrong method. This is the usual answer. | Read `schema` again. Call a name in it, with the method of its kind. The operator is not broken. |
+| `404 verb_not_found` | No operation has that NAME. `hint` lists the names. Some operators send this in place of the bare `404`. | Read `schema` again, and call a name that exists. Do not tell your human that the operator cannot do the thing. |
 | `404 not_found` | The operation is real. The thing that an ARGUMENT points to is not there. | Stop. Tell your human that this specific thing is not there. Do not read the catalogue again, and do not retry. |
-| `404` with no problem document | No route matched: an unknown name, or the wrong method. | Read `schema` again. Call a name in it, with the method of its kind. The operator is not broken. |
+| `405 method_not_allowed` | The operation is real, but you used the wrong method. `Allow` names the correct method. Some operators send this in place of the bare `404`. | Call the operation again with the method in `Allow`. Put the arguments where that method takes them (see "The wire"). |
 | `409 conflict` | On `rotate`: the new key is registered, so make another. On `pay`: the operator will not charge these mandates. | See "Key rotation" or Step 6. |
 | `429 quota_exceeded` | A rate limit, or too many open things. The ONE refusal that means "later", not "no". | Wait as `hint` says, then send the SAME call. Never open the same flow again to go around it. |
-| `500 action_failed` | The operator's own action failed. Your arguments are not the problem. | Read the state back through a query. Retry one time at most, a short time later. Then tell your human. |
+| `500 action_failed`, `500 internal_error` | The operator failed: its own action, or another part of its server. Your arguments are not the problem. | Read the state back through a query. Retry one time at most, a short time later. Then tell your human. |
 | `501 module_not_served` | The operator does not serve that capability: binding, payment, KYC or the event stream. **Do NOT retry, and do NOT think that the server has a temporary problem.** | Do what you would do at an operator that never offered it. No binding: keep your own account (Step 2). No payment: give the transaction to your human. No KYC: do not promise the gated actions. No events: wait as the step says. |
 
 **Pages.** A query with more rows sends an [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288) header, `Link: <https://host/kiosk/search_hotels?city=Lisbon&cursor=b2Zm>; rel="next"`. If the `next` link is there, get that URI exactly as written, with the same headers. If the link is a relative reference, resolve it against the URL of your request first. If a `Link` value lists several relations, use the one whose `rel` is `next`, and ignore the others. If there is no `next` link, you have the full list. Only that absence tells you the list is complete. The cursor is opaque: never parse it, never make one, and do not guess the order of the rows from it. If you build the request yourself, copy the `cursor` parameter byte for byte. `limit` and `cursor` are reserved names that every operator accepts. `limit` sets the page size of a query with pages; where `input_schema` declares `limit`, send a value inside its range. `X-Total-Count`, when it is there, is the number of matching rows on all pages. Use it to show progress, never as a loop limit.
@@ -234,7 +233,7 @@ Choose queries and actions by their descriptions, then call them. A shop: `GET <
 
 **Real-world details come from your human. Never invent them and never derive them.** A delivery address, a date, a name, contact data: ask your human, and read it back to them before you order. Do not read it from the OS, the locale or the IP address. Never invent a value that looks correct ("123 Demo Street"): the operator cannot tell a false address from a real one. If you do not have the detail, stop and ask.
 
-**Give long strings complete.** Give every URL to your human complete and exactly as written; never cut the part after `#`. Send every JWS (`kyc_jws`, `checkout_jwt`, a mandate) byte for byte from the field that carries it, never from a console line.
+**Give long strings complete.** Give every URL to your human complete and exactly as written; never drop the part after `#`. Send every JWS (`kyc_jws`, `checkout_jwt`, a mandate) byte for byte from the field that carries it, never from a console line.
 
 **A credential goes to your human ONE time.** Most links for your human are pages on the operator's site: a card-setup URL, a KYC `verification_url`. Some answer fields are credentials that operate a physical thing for whoever holds them: skooti's `rental_token` unlocks a scooter, and its `unlock_url` carries that token. The operation's `description` and `output_schema` tell you which kind you have. A URL can also carry a credential. When they do not say, treat a value that you must give to a device as a credential. Give a credential to your human one time, complete, and say what it is and how long it is valid. Do NOT repeat it, put it in a summary, or write it to a log or a file.
 
@@ -334,7 +333,7 @@ The **fingerprint** of your key, which you show your human when you bind (Step 2
 
 ### DPoP: every call that carries a token
 
-The operator binds your access token to your key (RFC 9449). On EVERY call that carries the token -- each query and action, `pay`, `payment_setup`, the KYC attestation and the event stream -- send `Authorization: DPoP <access_token>` and `DPoP: <proof>`. A token request sends a `DPoP` proof with no token: `dpop_proof(key_pem, "POST", token_url)`. The proof is a JWS that your key signs for that ONE call. Make a NEW proof for each call, also for a retry with `Kiosk-PoW`. The operator refuses a proof that is older than 60 seconds, that names another method or URL, or that another key signed. It refuses a token sent as `Authorization: Bearer`. Save this file as `~/.kiosk/dpop.py` and `chmod 600` it. Your calls import `dpop_proof` from it, and the listener runs it as `--proof-command`:
+The operator binds your access token to your key (RFC 9449). On EVERY call that carries the token -- each query and action, `pay`, `payment_setup`, the KYC attestation and the event stream -- send the two DPoP headers: `Authorization: DPoP <access_token>` and `DPoP: <proof>`. A token request sends a `DPoP` proof with no token: `dpop_proof(key_pem, "POST", token_url)`. The proof is a JWS that your key signs for that ONE call. Make a NEW proof for each call, also for a retry with `Kiosk-PoW`. The operator refuses a proof that is older than 60 seconds, that names another method or URL, or that another key signed. It refuses a token sent as `Authorization: Bearer`. Save this file as `~/.kiosk/dpop.py` and `chmod 600` it. Your calls import `dpop_proof` from it, and the listener runs it as `--proof-command`:
 
 ```python
 # Prints a DPoP proof (RFC 9449) for one request: python3 dpop.py <key.pem>,
@@ -497,4 +496,4 @@ When the pin is there:
 3. Verify the file you fetched: its `metadata.version` is the version you fetched, and its SHA-256 is the pinned `sha256`.
 4. If the check fails, or you cannot reach kiosk.tech, use your cached skill.
 
-Before 1.0, ANY release can change the wire, also a PATCH. So do the check above, and use the cut that the operator pins. The answer header `Kiosk-Min-Client` names the oldest skill that works with this operator. It is advice and blocks nothing. If your skill is older, use the pinned cut before a transaction.
+Before 1.0, ANY release can change the wire, also a PATCH. So do the check above, and use the version that the operator pins. The answer header `Kiosk-Min-Client` names the oldest skill that works with this operator. It is advice and blocks nothing. If your skill is older, use the pinned version before a transaction.
