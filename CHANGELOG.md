@@ -10,6 +10,15 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.23] — 2026-10-21
+
+- 2026-10-21: **Skill 0.5.23** sends a DPoP proof with each call that carries a token, and rotates a key without a new account. `Kiosk-Min-Client` is 0.5.23: an older cut sends no proof.
+
+- 2026-10-21: Both specifications bind every access token to the assistant's key (DPoP, RFC 9449): a call sends `Authorization: DPoP` and a `DPoP` proof.
+- 2026-10-21: Both specifications add assistant key rotation, `POST /auth/rotate`, and operator key rotation with a previous key in the JWKS. The key-rotation TODO is gone.
+- 2026-10-21: The card-setup `402` names `Kiosk-Payment-Setup` in `WWW-Authenticate`, in place of the IETF `Payment` scheme.
+- 2026-10-21: The listener `events/listen-v0.5.23.py` sends a DPoP proof that the assistant's `--proof-command` prints. The onboarding guide signs a DPoP proof for each curl call.
+
 ## [skill 0.5.22] — 2026-10-21
 
 - 2026-10-21: **Skill 0.5.22** pays an operator's `checkout_jwt` with two closed AP2 v0.2 mandates, each an SD-JWT. `Kiosk-Min-Client` is 0.5.22: an older cut cannot pay.

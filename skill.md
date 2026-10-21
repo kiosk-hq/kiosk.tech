@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.5.22"
+  version: "0.5.23"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -29,7 +29,7 @@ The names of the queries and actions are the operator's own. You learn them from
 
 **A path that the catalogue does not name can give an answer that you cannot read.** An operator draws ONE route per operation that it serves. A name that it does not serve, or a real operation called with the wrong method for its kind, can match no route. Then the answer is the ordinary `404` of its web framework: no problem document, no `code`, nothing to branch on. That answer is correct, and the reference implementation gives it. Some operators give more help: a `405` with an `Allow` header that names the correct method, or `404 verb_not_found` with a `hint` that lists the names that exist. Read those when you get them, but do not expect them. **`schema` is the contract**: it gives every name that this operator serves and the kind of each. A query is a `GET` at its own path, and an action is a `POST` at its own path. Whatever the answer was, read `GET <endpoint>/schema` again to recover.
 
-**Every operation under `<endpoint>` requires auth, with ONE exception.** Send the access token from Step 2 as `Authorization: Bearer <access_token>` on every call. Without it, the operator answers `401`. The exception is **`schema`**, which is public: you can read the full catalogue before you register, and a token there changes nothing. Three other paths under the mount are public and need no token: `<endpoint>/openapi.json` (an OPTIONAL OpenAPI description for tools -- read `schema`, not this), `<endpoint>/.well-known/jwks.json` (the public keys that sign the operator's tokens), and the auth paths. `POST /auth/revoke` requires the Bearer header, because the header identifies the session to keep. `challenge`/`register`/`login` do not, because you have no token yet.
+**Every operation under `<endpoint>` requires auth, with ONE exception.** Send the access token from Step 2 on every call as `Authorization: DPoP <access_token>`, together with a `DPoP` header: a proof that your key signs for that one call (see "DPoP: every call that carries a token"). Without both, the operator answers `401`. The exception is **`schema`**, which is public: you can read the full catalogue before you register, and a token there changes nothing. Three other paths under the mount are public and need no token: `<endpoint>/openapi.json` (an OPTIONAL OpenAPI description for tools -- read `schema`, not this), `<endpoint>/.well-known/jwks.json` (the public keys that sign the operator's tokens), and the auth paths. `POST /auth/revoke` requires the two DPoP headers, because they identify the session to keep. `challenge`/`register`/`login`/`rotate` do not, because they take a possession proof instead.
 
 **Query arguments are encoded in the query string, and the encoding is exact:**
 
@@ -118,7 +118,7 @@ If a `rel="next"` link is **there**, more rows exist: **get that URI exactly as 
 ### Step 1: Discover
 `GET <origin>/.well-known/kiosk.json` -- the discovery document puts **everything under a top-level `kiosk` key**. Read `doc["kiosk"]["endpoint"]`, `doc["kiosk"]["issuer"]` and `doc["kiosk"]["capabilities"]` (a top-level subscript gives a `KeyError`). `capabilities` lists the **modules** that the endpoint serves: some of `schema`, `queries`, `actions`, `pay`, `events`, in that order. These are module names, not operation names: `queries` means "this operator has at least one query", and the catalogue tells you WHICH queries. An origin with no payment provider omits `pay`. `events` is LAST in that order, so an origin that serves no topics gives the same array as before `events` existed. Read the members you know and ignore the others. **When `events` IS there, also read `doc["kiosk"]["events_url"]`.** It is an absolute `wss://` URL. It is there **iff** `capabilities` has `events`, and it is where you open the stream that replaces each poll below (Step 3b). **The module set is published ONLY in this document.** The catalogue does not repeat it, so read `capabilities` here, not in the answer of `schema`. Also read `doc["kiosk"]["schema_url"]`: it is the URL of the catalogue, and it is the URL to fetch. It can have a `?v=` that the operator changes on every deploy, so you can safely cache it. `<endpoint>/schema` also works and gives the same document, but do not cache that one for long.
 
-Also read the **auth block**, `doc["kiosk"]["auth"]`. `kind` names the scheme (`"kiosk-pop"`). `challenge_url`/`register_url`/`login_url`/`revoke_url` are the absolute auth URLs, and so are `device_authorization_url` and `claim_url` (see Step 2b). **All six are REQUIRED**, so they do not tell you which capabilities the operator has: every conformant operator publishes the two binding URLs, also if you do not use them. The discovery document does not say that binding is on, and `capabilities` has no member for it. So if your human has an account, START the ceremony and branch on the answer; do not look for a flag first. **The answer for "no binding here" has a name: `501 module_not_served`** (see "Three codes say it is not here"). Either of the two URLs can give it, also the `<endpoint>/oauth/*` one, where it is the ONE Kiosk problem document that those two URLs ever give. Then register as usual (Step 2). Do not retry, and do not tell your human that the binding failed: nothing failed, and this operator has no binding to do. Use those six URLs exactly as written. Every other path is under `endpoint`, at a name that the specification fixes: `<endpoint>/<verb name>`, `<endpoint>/pay`, `<endpoint>/payment_setup`, `<endpoint>/agents/kyc`, and the binding poll `<endpoint>/oauth/token` (Step 2b), which is not in the `auth` block.
+Also read the **auth block**, `doc["kiosk"]["auth"]`. `kind` names the scheme (`"kiosk-pop"`). `challenge_url`/`register_url`/`login_url`/`revoke_url`/`rotate_url` are the absolute auth URLs, and so are `device_authorization_url` and `claim_url` (see Step 2b). **All seven are REQUIRED**, so they do not tell you which capabilities the operator has: every conformant operator publishes the two binding URLs, also if you do not use them. The discovery document does not say that binding is on, and `capabilities` has no member for it. So if your human has an account, START the ceremony and branch on the answer; do not look for a flag first. **The answer for "no binding here" has a name: `501 module_not_served`** (see "Three codes say it is not here"). Either of the two URLs can give it, also the `<endpoint>/oauth/*` one, where it is the ONE Kiosk problem document that those two URLs ever give. Then register as usual (Step 2). Do not retry, and do not tell your human that the binding failed: nothing failed, and this operator has no binding to do. Use those seven URLs exactly as written. Every other path is under `endpoint`, at a name that the specification fixes: `<endpoint>/<verb name>`, `<endpoint>/pay`, `<endpoint>/payment_setup`, `<endpoint>/agents/kyc`, and the binding poll `<endpoint>/oauth/token` (Step 2b), which is not in the `auth` block.
 
 Two terms; do not mix them up. **`origin`** is the operator's base URL (e.g. `http://host` or `https://getgrocery.demo.kiosk.tech`). The discovery document is there (`<origin>/.well-known/kiosk.json`), and you sign this value as `aud` in the auth proof. **`endpoint`** is the base of the Kiosk surface, and you read it from the document. By default `endpoint = origin + /kiosk`, and the operation and auth calls are under it: `schema` is `<endpoint>/schema` = `<origin>/kiosk/schema` (get it through `schema_url`). The auth URLs are the ones in the `auth` block. Take `endpoint` from the document; do not assume the `/kiosk` suffix.
 
@@ -127,6 +127,8 @@ Two terms; do not mix them up. **`origin`** is the operator's base URL (e.g. `ht
 
 - **Identity exists** -> `POST {auth.login_url} {public_key, signed}` -> `{access_token}`. The same key gives the same `user_id`, so your saved card stays. Do NOT register a known key again: that gives `409`; use login. If login gives `404` (the operator does not know this key), register. Login gives **only** the token, not `user_id`/`agent_id`; keep using those from your saved `identity.json`. Auth answers are plain objects, so read their fields directly. Nothing on this wire is wrapped. When an auth call FAILS, it gives the same `application/problem+json` document as any other path, so branch on the top-level `code`.
 - **No identity** -> make an RSA-2048 keypair, then `POST {auth.register_url} {public_key, signed}` -> **`201 Created`** `{user_id, agent_id, access_token}` (login gives `200`). Keep the PRIVATE key at `~/.kiosk/<origin-dir>/key.pem` and the identity `{"user_id":"...","agent_id":"..."}` at `~/.kiosk/<origin-dir>/identity.json`. `chmod 600` both files.
+- **The token works only with your key.** The operator binds every access token to the key that it issued the token for. Each call sends the token with a new DPoP proof that this key signs (see "DPoP: every call that carries a token"). A copy of the token without your key buys nothing.
+- **To change your key, rotate it; do not register again.** A new registration is a new account with no reputation. `POST {auth.rotate_url}` puts a new key on the SAME account: same `user_id`, `agent_id`, binding, saved card and reputation (see "Key rotation"). Rotate when your human asks, or when you think that someone else has seen `key.pem`.
 - **A key is ONE account at this origin, so a second account there needs a second slot.** To hold two -- your human's bound account and a self-standing one, or the accounts of two collaborators -- keep each one in its own directory. The first is at `~/.kiosk/<origin-dir>/`, and each other one at `~/.kiosk/<origin-dir>/<name>/` with its own `key.pem`, `identity.json` and `token`; `<name>` is the label that your human gives it. Never overwrite a slot to make space. When it is not clear which account to use, ask. A binding of a key that is already registered MOVES that account to your human (Step 2b). So to keep the self-standing account too, bind a NEW key in a new slot.
 
 ### Step 2b: Bind to the human's account (only when they ask)
@@ -174,7 +176,7 @@ actions = {a["name"]: a for a in schema["actions"]}
 topics  = {t["name"]: t for t in schema["events"]}        # [] when this origin pushes nothing
 ```
 
-Send the same `Authorization: Bearer <access_token>` header on every call below.
+Send every call below with the access token and a new DPoP proof for that call (see "DPoP: every call that carries a token").
 
 ### Step 3b: The event stream -- subscribe to what you would otherwise wait for
 
@@ -187,7 +189,7 @@ Send the same `Authorization: Bearer <access_token>` header on every call below.
 
 #### Opening it
 
-`events_url` from Step 1 is an absolute `wss://` URL (the same origin and mount as `endpoint`, with the WebSocket scheme). Open a WebSocket to it, use the subprotocol **`actioncable-v1-json`**, and **send your access token in the `Authorization` header of the upgrade request** -- `Authorization: Bearer <access_token>`, the same header as on every other call.
+`events_url` from Step 1 is an absolute `wss://` URL (the same origin and mount as `endpoint`, with the WebSocket scheme). Open a WebSocket to it, use the subprotocol **`actioncable-v1-json`**, and **send your access token in the `Authorization` header of the upgrade request** -- `Authorization: DPoP <access_token>`, with a `DPoP` proof header, as on every other call. The proof's method is `GET`, and its URL is `events_url` with `wss` written as `https` (`ws` as `http`). The operator checks the proof once, when the socket opens.
 
 **That header is the ONE place where the upgrade carries a credential, and you MUST send it there.** There is no ticket, no query parameter and no cookie to use instead: a token in a URL goes into every access log on the path. If your WebSocket client cannot set a request header on the upgrade, you cannot open this stream. Tell your human, and use the limited poll where the step of the wait describes one. Do not make up a different way in.
 
@@ -248,14 +250,17 @@ The stream adds **no new error codes**. A refusal here is `reject_subscription` 
 
 #### Use the pinned listener -- do not write your own client
 
-**Fetch `https://kiosk.tech/events/listen-v0.5.19.py`, verify that its SHA-256 equals `af40d82a8fc5eed237cf6df39aea6765a9d7bc291c57c03d434f9f8d6f6d84f2`, and only then run it.** (`https://kiosk.tech/events/listen.py` always serves the current listener, and an operator's message can point you to it. Use the pinned URL above, and never run either copy before you check the hash.) The listener has its own version: a new listener file comes only when the listener changes. `listen-v0.5.19.py` is the current listener for this cut. It needs `websockets>=12` from PyPI. Install it in the same venv that this skill tells you to make.
+**Fetch `https://kiosk.tech/events/listen-v0.5.23.py`, verify that its SHA-256 equals `b642e2e5fbeb442fe27d75544fdc3f607426a1e1e8350385ea06af6251eba0af`, and only then run it.** (`https://kiosk.tech/events/listen.py` always serves the current listener, and an operator's message can point you to it. Use the pinned URL above, and never run either copy before you check the hash.) The listener has its own version: a new listener file comes only when the listener changes. `listen-v0.5.23.py` is the current listener for this cut. It needs `websockets>=12` from PyPI. Install it in the same venv that this skill tells you to make.
 
 **It reads your token from a file, never from its command line.** Write the access token to `~/.kiosk/<origin-dir>/token` from Python, `chmod 600` it as you do the key, write it again each time you get a new token, and give that path as `--token-file`.
 
-It prints its own output: one JSON object per line, each with a `type`. `open` (the socket is up); `subscribed` (`topic`, `subject`, `head`, `truncated`); `event` (the five members of the event plus `type`); `rejected` (`topic`) when the operator answered `reject_subscription`; `unsubscribed` and `disconnect` as above; `reconnecting` (`in`, `since`); and `error` (`message`). It prints no ping. **Its EXIT CODE is an answer that you act on**, so read it, not only the lines. `0`: an event came (`--until-event`), or your `--max-seconds` ended. `5`: a `--until-event` run reached its deadline with no event; start it again. `3`: the operator does not accept this token again; get a new one (Step 2) and start again. `4`: nothing you asked for can come. Every topic that you named was refused, so fix the name or the subject; or the origin answered `501 module_not_served` and serves no stream, so do not start it again.
+**It never reads your key.** The stream needs a DPoP proof, and only your key can sign one. So the listener runs a command of yours, `--proof-command`, before each connection. It writes the URL to prove and the token to the command's stdin, one per line, and sends the proof that the command prints. Use `~/.kiosk/dpop.py` from "DPoP: every call that carries a token", with your `key.pem` as its argument.
+
+It prints its own output: one JSON object per line, each with a `type`. `open` (the socket is up); `subscribed` (`topic`, `subject`, `head`, `truncated`); `event` (the five members of the event plus `type`); `rejected` (`topic`) when the operator answered `reject_subscription`; `unsubscribed` and `disconnect` as above; `reconnecting` (`in`, `since`); and `error` (`message`). It prints no ping. **Its EXIT CODE is an answer that you act on**, so read it, not only the lines. `0`: an event came (`--until-event`), or your `--max-seconds` ended. `2`: the arguments are wrong, or your `--proof-command` printed no proof; fix it. `5`: a `--until-event` run reached its deadline with no event; start it again. `3`: the operator does not accept this token again; get a new one (Step 2) and start again. `4`: nothing you asked for can come. Every topic that you named was refused, so fix the name or the subject; or the origin answered `501 module_not_served` and serves no stream, so do not start it again.
 
 ```
-python3 listen-v0.5.19.py --url "$EVENTS_URL" --token-file ~/.kiosk/<origin-dir>/token \
+python3 listen-v0.5.23.py --url "$EVENTS_URL" --token-file ~/.kiosk/<origin-dir>/token \
+        --proof-command "~/.kiosk/venv/bin/python ~/.kiosk/dpop.py ~/.kiosk/<origin-dir>/key.pem" \
         --topic payment_setup --topic order_delivery --since 1486
 ```
 
@@ -271,7 +276,8 @@ python3 listen-v0.5.19.py --url "$EVENTS_URL" --token-file ~/.kiosk/<origin-dir>
 **For both, run the listener as a background process that your runtime TRACKS and that wakes you when it exits, in the mode that EXITS on the event.** With `--until-event` it prints the first event and exits `0` when the event comes. **Exit `5` is the deadline, not an answer: start it again.** On exit `0`, act on the event and tell your human what happened; do not wait until they ask. Then, as long as you still want that topic, start it again with `--since <the highest id you saw>`.
 
 ```
-python3 listen-v0.5.19.py --url "$EVENTS_URL" --token-file ~/.kiosk/<origin-dir>/token \
+python3 listen-v0.5.23.py --url "$EVENTS_URL" --token-file ~/.kiosk/<origin-dir>/token \
+        --proof-command "~/.kiosk/venv/bin/python ~/.kiosk/dpop.py ~/.kiosk/<origin-dir>/key.pem" \
         --topic kyc_verification --until-event --max-seconds 300
 ```
 
@@ -313,7 +319,7 @@ Operators are different only in what their catalogue lists. Choose queries and a
 Steps 5-6 apply only when the task includes a payment and the operator advertises the `pay` capability.
 
 ### Step 5: Card setup (human-in-the-loop)
-`POST <endpoint>/payment_setup` (Bearer header, empty JSON body `{}`) -> `{status:"setup_required", setup_url}` or `{status:"ready"}`. (An operator that serves `pay` MUST serve `payment_setup` at this path. The catalogue lists it as an action.)
+`POST <endpoint>/payment_setup` (the two DPoP headers, empty JSON body `{}`) -> `{status:"setup_required", setup_url}` or `{status:"ready"}`. (An operator that serves `pay` MUST serve `payment_setup` at this path. The catalogue lists it as an action.)
 
 **If `payment_setup` itself fails** -- a `5xx`, including `action_failed` -- the card page could not open. Tell your human and stop. Call it again only when they ask.
 
@@ -332,7 +338,7 @@ Steps 5-6 apply only when the task includes a payment and the operator advertise
 ### Step 6: Pay
 **Before every `pay`, compare the checkout's `total_amount_cents` with that ask-first amount.** At or below it, in the same currency -> pay. Above it, in a different currency, or with no amount saved -> ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?" -- and pay only if they say yes. A retry of the SAME mandates is not a new payment and needs no second yes. This is YOUR rule, on your side, and the operator never sees it. It is not the operator's spending cap. Your human sets that cap in their operator account, the operator enforces it, and it answers `403 spending_cap_exceeded` (see "Spending cap (HTTP 403)").
 
-Sign the 2 AP2 mandates for the `checkout_jwt` that the action gave you: a checkout mandate and a payment mandate (see "AP2 payment mandates"). Send them with `POST <endpoint>/pay {checkout_mandate, payment_mandate}` and the Bearer header. The success body is the settlement object. In the payment mandate, `payment_instrument: {"id": "on_file", "type": "card"}` pays with the saved card. A `402 payment_setup_required` here means that there is no saved card: do `payment_setup` (Step 5), then try again. A `402 payment_failed` means that the operator accepted the mandates but the charge did not complete. Read `hint` first: it says if no money moved (fix the card, then sign a new chain) or if the outcome is unknown (send the same chain again). Both are `402`, so branch on `code` (see "The three 402s"). A `403 spending_cap_exceeded` means that your human set a spending cap for this assistant, and this purchase would go above it, or it is in a currency other than the cap's. You CANNOT pay above it. Read `hint`. Tell your human to raise this assistant's spending cap, or to set it in the checkout's currency, in their operator account, then try again (see "Spending cap (HTTP 403)").
+Sign the 2 AP2 mandates for the `checkout_jwt` that the action gave you: a checkout mandate and a payment mandate (see "AP2 payment mandates"). Send them with `POST <endpoint>/pay {checkout_mandate, payment_mandate}` and the two DPoP headers. The success body is the settlement object. In the payment mandate, `payment_instrument: {"id": "on_file", "type": "card"}` pays with the saved card. A `402 payment_setup_required` here means that there is no saved card: do `payment_setup` (Step 5), then try again. A `402 payment_failed` means that the operator accepted the mandates but the charge did not complete. Read `hint` first: it says if no money moved (fix the card, then sign a new chain) or if the outcome is unknown (send the same chain again). Both are `402`, so branch on `code` (see "The three 402s"). A `403 spending_cap_exceeded` means that your human set a spending cap for this assistant, and this purchase would go above it, or it is in a currency other than the cap's. You CANNOT pay above it. Read `hint`. Tell your human to raise this assistant's spending cap, or to set it in the checkout's currency, in their operator account, then try again (see "Spending cap (HTTP 403)").
 
 **If you get no answer to `pay`, or an unknown `payment_failed`, send the SAME mandates again.** A timeout, a dropped connection, a response you cannot read, or a `hint` that says the outcome is unknown: you do not know if the charge happened. Send the IDENTICAL two mandates again, byte for byte. Do NOT sign new ones. The operator charges one pair of mandates at most once: it runs the charge again under the same key, and the payment provider does not charge that key twice. New mandates have a new salt and a new signature, so they are a new pair, and the operator refuses a new pair for a checkout while the first pair can still be charged. Wait a few seconds between tries, and send the same mandates at most three times. The repeat has three answers:
 
@@ -345,14 +351,15 @@ If the mandates' `exp` has passed, you cannot send them again. Read the order's 
 **Pay once per order.** Some actions on an order that is ALREADY PAID (e.g. a new delivery time) use the order's EXISTING settlement: call the action directly, and do NOT pay again. When such an action's description says that it "requires a settlement" (or "requires a paid order"), it means "the order must already be paid". It does NOT tell you to pay now. **Do not expect the operator to stop you.** The operator refuses a second pair of mandates for one `checkout_jwt` while the first pair is paid or in progress. But a NEW checkout for the same order is a new payment: many operators refuse it, usually with a `403` whose `detail` says so and names the correct action, and that refusal is the operator's own business rule. **This protocol does not require it, and no operator must give it to you.** An operator without that check charges a new checkout again, and your human pays two times. Only your own rule protects you here: send the IDENTICAL mandates again, never new ones, and read the paid state before you sign new mandates.
 
 ## Technical constraints
-- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Keep access tokens in Python memory, and send them only as the `Authorization: Bearer` header on calls. The listener's `--token-file` is the one file where you write a token. Never give tokens as shell command arguments, where the shell history and the process list show them. Use Python's `urllib` (stdlib) or `requests` for all HTTP calls.
+- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Keep access tokens in Python memory, and send them only as the `Authorization: DPoP` header on calls, each with its DPoP proof. The listener's `--token-file` is the one file where you write a token. Never give tokens as shell command arguments, where the shell history and the process list show them. Use Python's `urllib` (stdlib) or `requests` for all HTTP calls.
 - **Key storage:** `~/.kiosk/<origin-dir>/key.pem` (private) + `~/.kiosk/<origin-dir>/identity.json` (user_id, agent_id), and `spend.json` next to them after your human gives an amount (Step 5). All `chmod 600`. Use a new RSA key per origin (scheme, host and port), so that operators cannot track you across origins.
 - **Dependencies:** `pyjwt` and `cryptography` for signing, plus `numpy`, which is there only because the pinned solver script (see "Proof-of-work (HTTP 402)") imports it. `numpy` is a dependency OF that script. It is not a toolkit to write a solver yourself; you never write one. `websockets` (>= 12) is the same for the pinned listener (Step 3b): you need it only at an operator that serves `events`, and you run that file; you do not write a client. If they are missing, install them: `pip install pyjwt cryptography numpy websockets`. If pip refuses with `externally-managed-environment` (PEP 668, common on system Python), do not force it. Make a venv first: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography numpy websockets`, then run your script with `~/.kiosk/venv/bin/python`. Use that ONE venv for every Kiosk operator and every snippet in this skill. A mix of system and embedded interpreters is the most common failure.
-- **Event stream:** where `capabilities` has `events`, subscribe; that is better than a poll and it is the default. Open ONE socket to `events_url` with the token in the `Authorization` header of the upgrade, subscribe to the topics that the catalogue names, keep `head` as your cursor in the conversation, and ignore an `id` that you already saw. Never put the token in the URL, never write your own client, and never run a poll loop next to a subscription (Step 3b).
+- **Event stream:** where `capabilities` has `events`, subscribe; that is better than a poll and it is the default. Open ONE socket to `events_url` with the token in the `Authorization` header of the upgrade and its DPoP proof, subscribe to the topics that the catalogue names, keep `head` as your cursor in the conversation, and ignore an `id` that you already saw. Never put the token in the URL, never write your own client, and never run a poll loop next to a subscription (Step 3b).
 - **Card setup:** only your human does it. Give your human the `setup_url`, then subscribe to this origin's card-setup topic where it publishes one (Step 3b). Where it does not, poll `payment_setup` on the schedule that its `description` states, or every ~5 s (then every ~15 s after the first minute), until `status:"ready"`. Stop at the end of that schedule (~5 minutes) and tell your human that it is not complete. Never fill in the payment provider's card form, and never poll without a limit.
 - **Mandates:** Always send both; the server can refuse with `args.payment_mandate required`. Each is an SD-JWT signed RS256 with your `key.pem`, and its mandate needs `vct`, `iat` and `exp` (see "AP2 payment mandates").
 - **Proof-of-work:** ANY tolled path under `<endpoint>` -- any query, any action, `pay` -- and also `POST /auth/register`, the link-code claim `POST {auth.claim_url}` and the binding poll `POST <endpoint>/oauth/token` can give HTTP 402 `pow_required` (an operator MAY put a toll on any of them). That list is closed: nothing else can have a toll. These are always free: the discovery documents at `/.well-known/*` and `agents.json`/`agents.txt`, **`schema`** and, where served, `<endpoint>/openapi.json` (the operator charges a toll to an identity, and neither self-description path resolves one), the JWKS document, the KYC attestation path, and every other auth and binding path. Solve every challenge and send the SAME request again -- same method, same path, same query string, same body -- with the proof(s) in the `Kiosk-PoW` request header (raw JSON). `POST /pay` can instead give 402 with `payment_setup_required` (no `challenges`): do `payment_setup`, not the solver. Or it can give 402 with `payment_failed`, which is not a gate: the charge did not complete, and there is nothing to solve or set up. Never decide which one you got from the status, and never from a `WWW-Authenticate` header: `payment_failed` has none. Branch on `code` (see "The three 402s"). And `POST /pay` at an operator that takes no card is `501 module_not_served`, not a 402. There is no gate to clear, so give the transaction to your human; do not run the solver or the card-setup flow.
-- **Login vs register:** a known key -> `/auth/login` (new token, same `user_id`, the card stays); a new key -> `/auth/register`. To register a known key again gives `409`; use login. And `/auth/login` with a key that the operator never saw gives `404` ("register first"); then register. Tokens are short-lived: call `/auth/login` again to get a new one when yours expires, and not before, because each new token pays the proof-of-work toll again. To sign out other sessions, `POST /auth/revoke` **with the Bearer header**. It identifies the caller from that token, then gives a new token.
+- **Login vs register:** a known key -> `/auth/login` (new token, same `user_id`, the card stays); a new key -> `/auth/register`. To register a known key again gives `409`; use login. And `/auth/login` with a key that the operator never saw gives `404` ("register first"); then register. Tokens are short-lived: call `/auth/login` again to get a new one when yours expires, and not before, because each new token pays the proof-of-work toll again. To sign out other sessions, `POST /auth/revoke` **with the two DPoP headers**. It identifies the caller from that token, then gives a new token.
+- **Rotate, never re-register, to change a key:** `POST {auth.rotate_url}` keeps your account and its reputation (see "Key rotation"). Then write the new key to `key.pem`, the new token to `token`, and sign every later mandate with the new key.
 
 ## Versioning & verification
 
@@ -420,6 +427,71 @@ jwk  = json.dumps({"e": b64u(octets(nums.e)), "kty": "RSA", "n": b64u(octets(num
 fingerprint = b64u(hashlib.sha256(jwk.encode()).digest())
 ```
 
+### DPoP: every call that carries a token
+
+The operator binds your access token to your key (RFC 9449). On EVERY call that carries the token -- each query and action, `pay`, `payment_setup`, the KYC attestation, `revoke` and the event stream -- send two headers: `Authorization: DPoP <access_token>`, and `DPoP: <proof>`. The proof is a JWS that your key signs for that ONE call: its method (`htm`), its URL with no query (`htu`), the time (`iat`), a new id (`jti`) and the hash of the token (`ath`). Make a NEW proof for each call, and also for a retry with `Kiosk-PoW`. The operator refuses a proof that is older than 60 seconds, that names another method or URL, or that another key signed. A token sent as `Authorization: Bearer` is refused. Save this file as `~/.kiosk/dpop.py` and `chmod 600` it; your own calls import `dpop_proof` from it, and the listener runs it as `--proof-command`:
+
+```python
+# Prints a DPoP proof (RFC 9449) for one request: python3 dpop.py <key.pem>,
+# with the URL on the first line of stdin and the access token on the second.
+import base64, hashlib, sys, time, uuid
+import jwt
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+
+def b64(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def octets(number):
+    return number.to_bytes((number.bit_length() + 7) // 8, "big")
+
+
+def dpop_proof(key_pem, method, url, token):
+    key = load_pem_private_key(key_pem, password=None)
+    nums = key.public_key().public_numbers()
+    jwk = {"kty": "RSA", "e": b64(octets(nums.e)), "n": b64(octets(nums.n))}
+    claims = {"jti": str(uuid.uuid4()), "htm": method, "htu": url.split("?")[0].split("#")[0],
+              "iat": int(time.time()), "ath": b64(hashlib.sha256(token.encode()).digest())}
+    return jwt.encode(claims, key, algorithm="RS256", headers={"typ": "dpop+jwt", "jwk": jwk})
+
+
+if __name__ == "__main__":
+    url, token = sys.stdin.read().split()
+    with open(sys.argv[1], "rb") as file:
+        print(dpop_proof(file.read(), "GET", url, token))
+```
+
+```python
+import os, sys, urllib.request
+sys.path.insert(0, os.path.expanduser("~/.kiosk"))
+from dpop import dpop_proof
+
+key_pem = open(os.path.expanduser("~/.kiosk/<origin-dir>/key.pem"), "rb").read()
+url = f"{endpoint}/catalog"
+req = urllib.request.Request(url, headers={
+    "Authorization": f"DPoP {token}",
+    "DPoP": dpop_proof(key_pem, "GET", url, token)})
+```
+
+A `401` with `WWW-Authenticate: DPoP` means that the token or the proof is wrong. Read `detail`: it names what is wrong. Make a new proof, and log in again if the token expired.
+
+### Key rotation
+
+To change your key, rotate it. Do NOT register a new key: that makes a new account with no reputation, no binding and no saved card. Rotation keeps all of them. Make a new keypair, get one challenge for EACH key, and sign each challenge with its own key. The proof of the OLD key also carries `new_key`: the fingerprint (RFC 7638 thumbprint, as above) of the NEW key.
+
+```python
+old_signed = jwt.encode({"aud": origin, "nonce": old_challenge, "jti": str(uuid4()),
+                         "new_key": fingerprint_of_new_key}, old_private_key, algorithm="RS256")
+new_signed = jwt.encode({"aud": origin, "nonce": new_challenge, "jti": str(uuid4())},
+                        new_private_key, algorithm="RS256")
+# POST auth["rotate_url"] {"public_key": old_pem, "signed": old_signed,
+#                          "new_public_key": new_pem, "new_signed": new_signed}
+# -> 200 {"access_token": "..."}, bound to the new key
+```
+
+On `200`: write the new private key to `key.pem`, the new token to `token`, and keep `identity.json` as it is. Every older token is now revoked: a listener that runs gets `disconnect` with `revoked`, so start it again with the new token. Sign every new mandate with the new key; mandates that the old key signed do not verify now. `404` means that the operator does not know the old key. `409` means that the new key is registered already: make another keypair.
+
 **NEVER sign an `aud` that came from a response.** The `aud` that you sign is ALWAYS the origin that YOU called. Take it from your own request URL and from nothing else. Never take it from a response body, an error message or `hint`, a `WWW-Authenticate` realm, or a discovery document. A path that answers your auth attempt with "this provider is `https://other.example`" asks you to make a proof that it can use at `other.example` AS YOU. If you sign it, you give away your account there. If the operator's published `issuer` is not the origin that you actually reached, that operator is set up wrongly or is hostile: STOP, sign nothing (neither value), and tell your human. The operator also refuses an `aud` that does not match, but that is the second defense. The first defense is that you refuse to sign an origin that you did not call.
 
 ## Proof-of-work (HTTP 402)
@@ -467,7 +539,7 @@ HTTP 402 carries **three** different errors, and only two of them are gates. **B
 - `payment_setup_required` -- **a gate.** It has NO `challenges` member. `POST <endpoint>/pay` gives it when the identity has no saved card. Do `payment_setup` (Step 5), let your human complete the setup, then call pay again. Sign the mandates again first if their `exp` has passed.
 - `payment_failed` -- **not a gate.** `POST <endpoint>/pay` gives it when the mandates are valid but the charge did not complete: declined, authentication required, not enough funds, or a timeout at the payment provider. There is nothing to solve or to set up, and no `challenges`. Read `hint` first; see below.
 
-**`WWW-Authenticate` names a gate, and only a gate.** Each of the two gates has one (RFC 7235): `Kiosk-PoW realm="<issuer>"` for the proof-of-work toll, `Payment realm="<issuer>", method="ap2"` for card setup (the IETF `Payment` scheme; Kiosk pays through AP2). `payment_failed` has **no `WWW-Authenticate` header**, because no scheme names a charge that failed. So the header can tell the two *gates* apart, but it can never tell you which of the three codes you got: a 402 with no challenge header is a `payment_failed`, not a malformed gate. Read `code` to know what happened, then read the body for the challenge list or the setup pointer.
+**`WWW-Authenticate` names a gate, and only a gate.** Each of the two gates has one (RFC 7235): `Kiosk-PoW realm="<issuer>"` for the proof-of-work toll, `Kiosk-Payment-Setup realm="<issuer>"` for card setup. `payment_failed` has **no `WWW-Authenticate` header**, because no scheme names a charge that failed. So the header can tell the two *gates* apart, but it can never tell you which of the three codes you got: a 402 with no challenge header is a `payment_failed`, not a malformed gate. Read `code` to know what happened, then read the body for the challenge list or the setup pointer.
 
 **On `payment_failed`, `hint` tells you which of two outcomes you have, and they need OPPOSITE steps:**
 
@@ -546,7 +618,8 @@ Send both in one call:
 
 ```
 POST <endpoint>/pay
-Authorization: Bearer <access_token>
+Authorization: DPoP <access_token>
+DPoP: <a new proof for POST <endpoint>/pay>
 {"checkout_mandate": "...", "payment_mandate": "..."}
 ```
 
