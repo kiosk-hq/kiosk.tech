@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-21: Both specifications make a successful `pay` answer the AP2 v0.2 checkout and payment receipts: JWTs that the operator signs PS256, each naming its mandate.
+- 2026-10-21: `mandates.schema.json` describes the two receipts and their claims; its examples follow. The landing page names the receipts.
+
 ## [skill 0.5.23] — 2026-10-21
 
 - 2026-10-21: **Skill 0.5.23** sends a DPoP proof with each call that carries a token, and rotates a key without a new account. `Kiosk-Min-Client` is 0.5.23: an older cut sends no proof.

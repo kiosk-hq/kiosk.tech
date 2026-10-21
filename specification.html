@@ -682,10 +682,22 @@ DPoP: &lt;proof&gt;
   "settlement_id":        "f1b3e259-8c4d-4a7f-9e12-84b5c7d2a963",
   "psp_reference":        "pi_3Rz...",
   "settled_amount_cents": 847,
-  "currency":             "eur"
+  "currency":             "eur",
+  "checkout_receipt":     "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "payment_receipt":      "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9..."
 }</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
 <p><strong>The <code>currency</code> that comes back is the operator's spelling.</strong> An operator that accepts two spellings of one code MUST treat them as one currency, so it settles, records and answers in its own canonical form: a checkout in <code>"EUR"</code> can be answered <code>"eur"</code>. An AI assistant MUST compare the two as ISO 4217 codes, never as bytes. What an operator MUST NOT do is answer a different currency.</p>
+
+  <p id="receipts"><strong>The receipts.</strong> AP2 v0.2 requires the verifier of a mandate to return a signed receipt. The operator verifies both mandates, so a successful <code>pay</code> answers two receipts. Each receipt is a compact JWT that the operator signs <strong>PS256</strong> with the key of its JWKS, with the header <code>{"alg": "PS256", "typ": "JWT", "kid": &lt;kid&gt;}</code>. The claims follow AP2's receipt schemas:</p>
+
+  <table>
+    <tr><th>Receipt</th><th>Claims</th></tr>
+    <tr><td><code>checkout_receipt</code></td><td><code>status</code> (<code>"Success"</code>), <code>iss</code> (the operator's issuer), <code>iat</code>, <code>reference</code> (the reference of the checkout mandate), <code>order_id</code> (the id in the first line item of the checkout, as a string)</td></tr>
+    <tr><td><code>payment_receipt</code></td><td><code>status</code> (<code>"Success"</code>), <code>iss</code>, <code>iat</code>, <code>reference</code> (the reference of the payment mandate), <code>payment_id</code> (the <code>settlement_id</code>), <code>psp_confirmation_id</code> (the <code>psp_reference</code>), <code>network_confirmation_id</code> (the card network's id of the transaction)</td></tr>
+  </table>
+
+  <p>The operator MUST include <code>network_confirmation_id</code> when its payment provider reports one, and MUST leave it out when the provider reports none. A card network does not always return this id, and AP2 requires it in a successful payment receipt, so a receipt without it does not satisfy AP2's schema. An AI assistant verifies a receipt as it verifies a checkout: the signature against the operator's JWKS, and <code>reference</code> against the reference of the mandate it sent. It keeps both receipts with its two mandates: together they are the record of the purchase that AP2 names as evidence in a dispute. A refused <code>pay</code> answers a problem document and no receipt.</p>
 
   <p>If the mandates verify but the charge does not settle — declined, authentication required, insufficient funds, a processor timeout — <code>pay</code> answers <code>402</code> with <code>code: "payment_failed"</code>. The message is one the operator has already made safe to show a human: raw payment-processor internals never reach the wire. Read <code>hint</code> before doing anything else — it distinguishes a <strong>definitive</strong> failure (no money moved; the human fixes the payment method, then the AI assistant signs new mandates) from an <strong>unknown</strong> outcome (the processor did not confirm; the AI assistant sends the identical mandates again, which cannot charge twice).</p>
 
@@ -705,7 +717,7 @@ DPoP: &lt;proof&gt;
   <p><code>pay</code> carries no separate idempotency header or field, and needs none. The <strong>reference</strong> of a mandate is the base64url SHA-256 of its compact SD-JWT, the hash AP2 uses to name a mandate in a receipt, and it is unique per account. <strong>An operator MUST NOT charge one pair of mandates twice.</strong> It MUST key its processor capture by the account together with the checkout mandate's reference. A second capture of the same pair then returns the first one's result and charges nothing. <strong>One checkout has at most one live pair:</strong> while a pair is settled or its outcome is not known, the operator refuses a second pair for the same checkout. After a declined charge, a new pair for the same checkout is accepted.</p>
   <p><strong><code>pay</code> is idempotent: a repeat of the identical pair gets the answer that pair has earned.</strong> Identical means that both mandates are the ones already recorded, byte for byte. The operator answers a repeat in one of three ways:</p>
   <ul>
-    <li><strong>The pair has settled.</strong> The operator MUST answer <code>200</code> with that settlement: the same body, the same <code>settlement_id</code>, the same <code>psp_reference</code>. It MUST NOT record a second settlement.</li>
+    <li><strong>The pair has settled.</strong> The operator MUST answer <code>200</code> with that settlement: the same settlement members, the same <code>settlement_id</code>, the same <code>psp_reference</code>, and the two receipts for the same mandates, signed again. It MUST NOT record a second settlement.</li>
     <li><strong>The pair has not settled, and its charge was not declined.</strong> The first call stopped before the capture, or the capture outcome was unknown, or the capture went through and the settlement was not recorded. The operator MUST run the capture again under the same key, record the settlement, and answer as for a first call: <code>200</code> with the settlement, or <code>402 payment_failed</code>.</li>
     <li><strong>The charge was declined, or the pair is not the live pair of its checkout.</strong> The operator MUST answer <code>409 conflict</code>, before any capture.</li>
   </ul>

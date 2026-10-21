@@ -2384,7 +2384,7 @@ consequence of accepting more than one.
 
 `POST <endpoint>/pay` (DPoP) with `{checkout_mandate, payment_mandate}`, each
 a compact SD-JWT string. On success it returns `{settlement_id, psp_reference,
-settled_amount_cents, currency}`. If the mandates verify but the charge itself
+settled_amount_cents, currency, checkout_receipt, payment_receipt}`. If the mandates verify but the charge itself
 does not settle -- declined, authentication required, insufficient funds, or a
 processor timeout -- `pay` answers `402` with `code: "payment_failed"`
 (Section 9), carrying a message the operator has already made safe to show a
@@ -2395,6 +2395,29 @@ currency.** An operator that folds spellings settles, records and answers in its
 own canonical form, so a checkout in `"EUR"` can be answered `"eur"`. An AI
 assistant **MUST** compare the two as currency CODES, never as bytes. What an
 operator **MUST NOT** do is answer a DIFFERENT currency.
+
+**The receipts.** AP2 v0.2 requires the verifier of a mandate to return a
+signed receipt. The operator verifies both mandates, so a successful `pay`
+answers two receipts. Each receipt is a compact JWT that the operator signs
+**PS256** with the key of its JWKS (Section 4.4). Its header is `{"alg":
+"PS256", "typ": "JWT", "kid": <kid>}`. The claims follow AP2's receipt schemas:
+
+| Receipt | Claims |
+|---|---|
+| `checkout_receipt` | `status`: `"Success"`. `iss`: the operator's issuer. `iat`: when the operator signed it. `reference`: the reference of the checkout mandate (Section 11.6). `order_id`: the id in the first line item of the checkout (Section 11.7), as a string. |
+| `payment_receipt` | `status`: `"Success"`. `iss` and `iat`, as above. `reference`: the reference of the payment mandate. `payment_id`: the `settlement_id`. `psp_confirmation_id`: the `psp_reference`. `network_confirmation_id`: the card network's id of the transaction. |
+
+The operator **MUST** include `network_confirmation_id` when its payment
+provider reports one, and **MUST** leave it out when the provider reports none.
+A card network does not always return this id, and AP2 requires it in a
+successful payment receipt, so a receipt without it does not satisfy AP2's
+schema.
+
+An AI assistant verifies a receipt as it verifies a checkout: the signature
+against the operator's JWKS, and `reference` against the reference of the
+mandate it sent. It keeps both receipts with its two mandates. Together they
+are the record of the purchase that AP2 names as evidence in a dispute. A
+refused `pay` answers the problem document of Section 9 and no receipt.
 
 ### 11.4 Card setup
 
@@ -2494,8 +2517,9 @@ means both mandates are the ones already recorded, byte for byte. Three cases,
 and an operator **MUST** tell them apart before it answers:
 
 - **The checkout has SETTLED under this pair.** The operator **MUST** answer
-  `200` with **that settlement**: the same body the original call returned, same
-  `settlement_id` and same `psp_reference`. It **MUST NOT** record a second
+  `200` with **that settlement**: the same settlement members the original call
+  returned, same `settlement_id` and same `psp_reference`, and the two receipts
+  for the same mandates, signed again. It **MUST NOT** record a second
   settlement.
 - **The pair has NOT settled, and its charge was NOT declined.** The first call
   stopped before the capture, or the capture outcome was unknown, or the capture
