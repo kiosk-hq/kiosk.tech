@@ -1,13 +1,13 @@
 {
   "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-  "client_assertion": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJuZXdfa2V5IjoiTnpiTHMifQ.c2ln",
-  "new_client_assertion": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJzdWIiOiJiMmU5In0.c2lnMg",
+  "client_assertion": "eyJhbGciOiJFZERTQSIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJuZXdfa2V5IjoiTnpiTHMifQ.c2ln",
+  "new_client_assertion": "eyJhbGciOiJFZERTQSIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJzdWIiOiJiMmU5In0.c2lnMg",
   "jwks": {
     "keys": [
       {
-        "kty": "RSA",
-        "n": "sXchDaQebHnPiGvyDOAT4saGEUetSyo9MKLOoWFsueri23bOdgWp4Dy1WlUzewbgBHod5pcM9H95GQRV3JDXboIRROSBigeC5yjU1hGzHHyXss8UDprecbAYxknTcQkhslANGRUZmdTOQ5qTRsLAt6BTYuyvVRdhS8exSZEy_c4gs_7svlJJQ4H9_NxsiIoLwAEk7-Q3UXERGYw_75IDrGA84-lA_-Ct4eTlXHBIY2EaV7t7LjJaynVJCpkv4LKjTTAumiGUIuQhrNhZLuF_RJLqHpM2kgWFLU7-VTdL1VbC2tejvcI2BlMkEpk1BzBZI0KQB0GaDWFLN-aEAw3vRw",
-        "e": "AQAB"
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "oBJ_BCGa_jT0ayw4aaV5bWjs8oZhZ9B1oaWVLxmOjjU"
       }
     ]
   }

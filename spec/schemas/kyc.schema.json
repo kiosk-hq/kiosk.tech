@@ -27,7 +27,7 @@
       "type": "object",
       "required": ["kyc_jws"],
       "properties": {
-        "kyc_jws": { "type": "string", "description": "The attestation as a compact RS256 JWS." }
+        "kyc_jws": { "type": "string", "description": "The attestation as a compact EdDSA JWS." }
       }
     },
     "verification": {
@@ -49,7 +49,7 @@
       "properties": {
         "request_id": { "type": "string", "description": "The request_id request_kyc returned." },
         "status": { "const": "approved" },
-        "kyc_jws": { "type": "string", "description": "The attestation as a compact RS256 JWS." }
+        "kyc_jws": { "type": "string", "description": "The attestation as a compact EdDSA JWS." }
       }
     }
   }

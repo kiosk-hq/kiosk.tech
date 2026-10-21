@@ -1,6 +1,6 @@
 # Kiosk Protocol -- Formal Specification
 
-**Version 0.5** (Draft; pre-1.0, the wire may still change between releases) - Status: for implementers and porters
+**Version 0.6** (Draft; pre-1.0, the wire may still change between releases) - Status: for implementers and porters
 
 This is the **formal** companion to the narrative specification at
 <https://kiosk.tech/specification.html>. The narrative page is the readable
@@ -13,7 +13,7 @@ corrected (audit dimension D8).
 
 The protocol, the reference implementation, and the AI assistant skill share one
 version (**version parity**, Section 14): before 1.0 the whole MAJOR.MINOR.PATCH,
-from 1.0 the MAJOR.MINOR. This document specifies protocol version **0.5**.
+from 1.0 the MAJOR.MINOR. This document specifies protocol version **0.6**.
 
 ## 1. Introduction
 
@@ -105,13 +105,13 @@ proof-of-work gate, assistant key rotation and the link-code claim.
 - **Discovery document** -- the JSON served at `/.well-known/kiosk.json` (Section 4).
 - **Client registration** -- the RFC 7591 request that registers an AI assistant's
   public key as an OAuth client and answers its `client_id` (Section 5.1).
-- **Client assertion** -- a short RS256 JWT that the registered key signs to
+- **Client assertion** -- a short JWT that the registered key signs to
   authenticate the client (RFC 7523, Section 5.2). Its `jti` is used one time.
 - **Token request** -- `POST <endpoint>/oauth/token` with a client assertion and a
   DPoP proof, which answers an access token (Section 5.3).
-- **Access token** -- a short-lived RS256 JWT the operator issues to an identity,
+- **Access token** -- a short-lived EdDSA JWT the operator issues to an identity,
   bound to the identity's key and presented as `Authorization: DPoP` (Section 5.6).
-- **DPoP proof** -- a compact RS256 JWS that the AI assistant signs with its
+- **DPoP proof** -- a compact JWS that the AI assistant signs with its
   registered key for one request, sent in the `DPoP` header (RFC 9449, Section 5.6).
 - **Verb** -- one named operation the operator serves at its own endpoint: a
   QUERY (a read, GET) or an ACTION (a write, POST), plus the two the protocol
@@ -141,11 +141,12 @@ proof-of-work gate, assistant key rotation and the link-code claim.
 2. All wire verb requests are authenticated with `Authorization: DPoP <jwt>` and
    a `DPoP` proof header (Section 5.6), except where a section marks an endpoint
    unauthenticated.
-3. Signatures -- access tokens, client assertions, DPoP proofs, and payment mandates -- use
-   **RS256** (RSASSA-PKCS1-v1_5 with SHA-256) over RSA keys of 2048 to 4096 bits,
-   encoded as compact JWS. An operator refuses any other key (Section 5.1).
-   The one exception is the checkout an operator signs: **PS256** (RSASSA-PSS with
-   SHA-256), because AP2 requires a randomized signature there (Section 11.1).
+3. Signatures are compact JWS. Every signature of the operator -- an access
+   token, a checkout, a receipt -- is **EdDSA** (RFC 8037) with an Ed25519 key.
+   Every signature of the AI assistant -- a client assertion, a DPoP proof, a
+   mandate -- is EdDSA with an Ed25519 key, or **ES256** (RFC 7518) with a P-256
+   key where the operator accepts ES256 (Section 5). An operator refuses a key of
+   any other type, an RSA key included.
 4. Endpoint paths derive from the discovery document's `endpoint` value plus the
    fixed verb-to-path binding in Section 8; an AI assistant MUST derive URLs this way and MUST
    NOT hard-code a mount path.
@@ -167,8 +168,8 @@ proof-of-work gate, assistant key rotation and the link-code claim.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.5.27` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
-   | `Kiosk-Min-Client` | `0.5.27` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
+   | `Kiosk-API-Version` | `0.6.0` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-Min-Client` | `0.6.0` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
    spelling. The root-served discovery surfaces (Section 4.5) sit outside the
@@ -499,10 +500,10 @@ its own `code` or `error`.
 An operator **MUST** publish its signing public keys as a JWKS document
 (RFC 7517) at `GET <endpoint>/.well-known/jwks.json`, unauthenticated, so any
 party can verify a Kiosk-issued token (Section 5.4) or checkout (Section 11.1).
-Each key carries `kty`, `use: "sig"`, a `kid`, and the public parameters `n`/`e`
-only. A key carries no `alg`: one key signs RS256 access tokens and PS256
-checkouts. The `kid` is the RFC 7638 thumbprint of the key, and the header of
-every token and checkout names it.
+Each key is an Ed25519 key (RFC 8037) and carries `kty: "OKP"`, `crv:
+"Ed25519"`, the public key `x`, `use: "sig"`, `alg: "EdDSA"` and a `kid`, and
+no private member. The `kid` is the RFC 7638 thumbprint of the key, and the
+header of every token, checkout and receipt names it.
 
 **Operator key rotation.** The document holds the key that signs now, and
 **MAY** hold one previous key. An operator signs only with the current key and
@@ -561,16 +562,16 @@ capability the origin does not serve:
   no authorization endpoint, `grant_types_supported` with `client_credentials`
   and, where the origin serves account binding, the device-code grant,
   `token_endpoint_auth_methods_supported: ["private_key_jwt"]`,
-  `token_endpoint_auth_signing_alg_values_supported: ["RS256"]`,
+  `token_endpoint_auth_signing_alg_values_supported` (Section 5),
   `service_documentation` pointing at `/auth.md`, and
-  `dpop_signing_alg_values_supported: ["RS256"]` because every token it issues
-  is DPoP-bound (Section 5.6). An operator that serves the standard surfaces
+  `dpop_signing_alg_values_supported` with the same list, because every token it
+  issues is DPoP-bound (Section 5.6). An operator that serves the standard surfaces
   serves this document on every origin.
 - `/.well-known/oauth-protected-resource` (RFC 9728): `resource` is the origin,
   because RFC 9728 Section 3.3 binds a document at this path to the origin;
   `authorization_servers` holds the RFC 8414 `issuer` above;
   `bearer_methods_supported: ["header"]`,
-  `dpop_signing_alg_values_supported: ["RS256"]`,
+  `dpop_signing_alg_values_supported` with the list of Section 5,
   `dpop_bound_access_tokens_required: true` (Section 5.6), and
   `resource_documentation` pointing at `/auth.md`.
 - `/.well-known/agent-skills/index.json` (Agent Skills Discovery v0.2.0), where
@@ -669,10 +670,16 @@ from it:
 A public key is not a credential. The registration mints no token, and the first
 token request proves that the AI assistant holds the private key.
 
-**One algorithm.** Every signature of the AI assistant -- a client assertion, a
-DPoP proof, a mandate -- is `RS256` with an RSA key of 2048 to 4096 bits. The
-operator publishes this list as `token_endpoint_auth_signing_alg_values_supported`
-and `dpop_signing_alg_values_supported` (Section 4.5).
+**Keys and algorithms.** The key of an AI assistant is an **Ed25519** key, and
+it signs every client assertion, DPoP proof and mandate `EdDSA` (RFC 8037). An
+operator **MAY** also accept a **P-256** key, which signs `ES256` (RFC 7518).
+An operator **MUST** accept an Ed25519 key and **MUST** refuse a key of every
+other type, an RSA key included. The type of a key gives the one algorithm it
+signs with: the operator verifies the signature of an Ed25519 key as `EdDSA`
+and of a P-256 key as `ES256`, and refuses another `alg`. The operator
+publishes the algorithms it accepts, `["EdDSA"]` or `["EdDSA", "ES256"]`, as
+`token_endpoint_auth_signing_alg_values_supported` and
+`dpop_signing_alg_values_supported` (Section 4.5).
 
 ### 5.1 Client registration
 
@@ -681,14 +688,14 @@ RFC 7591 open registration: it takes no initial access token, and no human
 approves it.
 
 ```
-{ "jwks": { "keys": [ { "kty": "RSA", "n": "...", "e": "AQAB" } ] },
+{ "jwks": { "keys": [ { "kty": "OKP", "crv": "Ed25519", "x": "..." } ] },
   "token_endpoint_auth_method": "private_key_jwt",
   "grant_types": ["client_credentials"] }
 ```
 
 | Member | Presence | Rule |
 |---|---|---|
-| `jwks` | REQUIRED | An RFC 7517 JWK Set with exactly one key: the AI assistant's RSA public key, 2048 to 4096 bits. A key with a private member (`d`, `p`, `q`, `dp`, `dq`, `qi`) is refused. The operator ignores the other members of the key (`kid`, `use`, `alg`). |
+| `jwks` | REQUIRED | An RFC 7517 JWK Set with exactly one key, the AI assistant's public key: an Ed25519 key (RFC 8037: `kty` `OKP`, `crv` `Ed25519`, `x`), or a P-256 key (RFC 7518: `kty` `EC`, `crv` `P-256`, `x`, `y`) where the operator accepts ES256. A key with the private member `d` is refused. The operator ignores the other members of the key (`kid`, `use`, `alg`). |
 | `token_endpoint_auth_method` | OPTIONAL | `private_key_jwt`, the one method. |
 | `grant_types` | OPTIONAL | Grant types that this origin serves: `client_credentials`, and `urn:ietf:params:oauth:grant-type:device_code` where the origin serves account binding (Section 6). |
 
@@ -702,7 +709,7 @@ information response of RFC 7591 Section 3.2.1:
 ```
 { "client_id": "b2e9...",
   "client_id_issued_at": 1751846400,
-  "jwks": { "keys": [ { "kty": "RSA", "n": "...", "e": "AQAB" } ] },
+  "jwks": { "keys": [ { "kty": "OKP", "crv": "Ed25519", "x": "..." } ] },
   "token_endpoint_auth_method": "private_key_jwt",
   "grant_types": ["client_credentials", "urn:ietf:params:oauth:grant-type:device_code"],
   "dpop_bound_access_tokens": true }
@@ -720,7 +727,7 @@ registration: it gets a new client and a new assistant account. An AI assistant
 **SHOULD** use a new key for each origin (Section 15.3).
 
 Every problem in the body -- not JSON, not an object, no `jwks` or a `jwks` that
-breaks the rules above, another authentication method, a grant type that the
+breaks the rules above, a key of a type the operator does not accept, another authentication method, a grant type that the
 origin does not serve -- gets `400` with `{"error": "invalid_client_metadata",
 "error_description": "..."}` (RFC 7591 Section 3.2.2). It is the one error code
 of this endpoint. The registration toll (Section 5.5) answers with problem
@@ -744,12 +751,15 @@ equal to `sub`.
 | `jti` | REQUIRED | A unique id. The operator accepts each `jti` of a client one time, until `exp`. |
 | `iat`, `nbf` | OPTIONAL | The operator checks them when they are present. |
 
-The JOSE header has `alg: "RS256"`. Its `typ` **SHOULD** be
+The JOSE header has the `alg` of the registered key: `EdDSA` for an Ed25519
+key, `ES256` for a P-256 key. Its `typ` **SHOULD** be
 `client-authentication+jwt` (draft-ietf-oauth-rfc7523bis); the operator does not
 require it.
 
 The operator accepts the assertion only when its signature verifies with the
-registered key of a live client at this origin and every rule above holds. A
+registered key of a live client at this origin, under the algorithm of that
+key, and every rule above holds. A registered key whose type the operator no
+longer accepts gets `invalid_client`: the AI assistant registers a new key. A
 client that a human unlinked is not live. The operator records the `jti` only
 after every other check passes. Every failure is one refusal: `401
 invalid_client` on the `/oauth/*` endpoints, and `401 unauthenticated`
@@ -790,7 +800,7 @@ it that a human unlinked it.
 
 ### 5.4 Access-token format
 
-The `access_token` is a 3-part **RS256 JWT** signed by the operator (verifiable
+The `access_token` is a 3-part **EdDSA JWT** signed by the operator (verifiable
 statelessly against the JWKS of Section 4.4). It is bound to the identity's
 registered key and presented as `Authorization: DPoP` with a DPoP proof
 (Section 5.6). Its claims:
@@ -838,8 +848,8 @@ The proof's JOSE header:
 | Member | Rule |
 |---|---|
 | `typ` | `"dpop+jwt"`. |
-| `alg` | `"RS256"`. |
-| `jwk` | The public JWK of the registered key: `kty`, `n`, `e`, and no private member. |
+| `alg` | The algorithm of the registered key: `"EdDSA"` for an Ed25519 key, `"ES256"` for a P-256 key. |
+| `jwk` | The public JWK of the registered key (Section 5.1), with no private member. |
 
 The proof's payload:
 
@@ -853,14 +863,16 @@ The proof's payload:
 
 **On a request that carries an access token**, an operator **MUST** refuse the
 request with `401 unauthenticated` unless all of these are true: the request has
-one `DPoP` header; the proof has this header and these claims; the signature
-verifies with `jwk`; the RFC 7638 thumbprint of `jwk` equals the token's
+one `DPoP` header; the proof has this header and these claims; `jwk` is a key of
+a type that the operator accepts; the signature verifies with `jwk` under the
+algorithm of its type; the RFC 7638 thumbprint of `jwk` equals the token's
 `cnf.jkt`; `htm` equals the request method; `htu` names the origin that the
 request reached (scheme and host compared without case, a default port omitted)
 and the request path; `iat` is no more than 60 seconds from the operator's
 clock; and `ath` is the hash of the presented token. A token sent as
 `Authorization: Bearer` is refused the same way. The `401` carries
-`WWW-Authenticate: DPoP algs="RS256"`.
+`WWW-Authenticate: DPoP algs="EdDSA"`, or `algs="EdDSA ES256"` at an operator
+that accepts ES256.
 
 **On a token request**, the same rules hold with two changes: the proof has no
 `ath`, and the thumbprint of `jwk` **MUST** equal the thumbprint of the client's
@@ -2449,28 +2461,33 @@ and a Payment Mandate. The AI assistant never handles card data.
 
 **The checkout.** An action that creates an item to pay for answers
 `checkout_jwt` (Section 11.7). It is a compact JWT that the operator signs
-**PS256** with the key of its JWKS (Section 4.4), and its header names that
-key's `kid`. AP2 requires a randomized signature for the checkout, so it is
-PS256 and not RS256. Its claims:
+**EdDSA** with the key of its JWKS (Section 4.4), and its header names that
+key's `kid`. Its claims:
 
 | Claim | Value |
 |---|---|
 | `iss` | The operator's issuer, verbatim from `kiosk.json`. |
 | `sub` | The account the checkout is for. Only that account can pay it. |
 | `iat` | When the operator signed it. |
+| `jti` | At least 128 random bits, base64url. |
 | `merchant` | The AP2 Merchant object: `id` and `website` are the issuer, `name` is the operator's name. |
 | `currency` | An ISO 4217 alpha-3 code. |
 | `total_amount_cents` | A positive integer. |
 | `line_items` | At least one entry (Section 11.7). |
 
 The checkout has no `exp`: the operator accepts it while the item is unpaid
-and its price holds (Section 11.7).
+and its price holds (Section 11.7). The payment mandate names the checkout by
+its hash, and AP2 v0.2 requires that nobody can guess that hash from the claims.
+An EdDSA signature is the same for the same claims, so the random `jti` gives
+the checkout the entropy that the security considerations of AP2 v0.2 require
+for a deterministic signature.
 
 **The mandates.** Each mandate is an **SD-JWT** (RFC 9901) with no key-binding
 JWT, as AP2 v0.2 specifies for a closed mandate:
 
-- The issuer-signed JWT has the header `{"alg": "RS256", "typ": "dc+sd-jwt"}`
-  and is signed with the AI assistant's registered key (Section 5).
+- The issuer-signed JWT has the header `{"alg": "EdDSA", "typ": "dc+sd-jwt"}`
+  and is signed with the AI assistant's registered key (Section 5). A P-256 key
+  signs `ES256`.
 - Its payload is `{"_sd_alg": "sha-256", "delegate_payload": [{"...": <digest>}]}`.
 - The one disclosure is `[<salt>, <mandate>]`, base64url-encoded. The digest is
   the base64url SHA-256 of that disclosure string.
@@ -2503,7 +2520,7 @@ carry authorises nothing (Section 9.1).
 
 The operator **MUST** check all of these before it persists anything:
 
-1. The checkout signature verifies against the operator's own key, PS256.
+1. The checkout signature verifies against the operator's own key, EdDSA.
 2. The checkout `iss` is the issuer of the origin being served.
 3. The checkout `sub` is the authenticated account.
 4. `checkout_hash` is the hash of `checkout_jwt`.
@@ -2547,8 +2564,8 @@ operator **MUST NOT** do is answer a DIFFERENT currency.
 **The receipts.** AP2 v0.2 requires the verifier of a mandate to return a
 signed receipt. The operator verifies both mandates, so a successful `pay`
 answers two receipts. Each receipt is a compact JWT that the operator signs
-**PS256** with the key of its JWKS (Section 4.4). Its header is `{"alg":
-"PS256", "typ": "JWT", "kid": <kid>}`. The claims follow AP2's receipt schemas:
+**EdDSA** with the key of its JWKS (Section 4.4). Its header is `{"alg":
+"EdDSA", "typ": "JWT", "kid": <kid>}`. The claims follow AP2's receipt schemas:
 
 | Receipt | Claims |
 |---|---|
@@ -2794,7 +2811,7 @@ Schema: [`kyc.schema.json`](./schemas/kyc.schema.json).
 
 An operator MAY require a KYC attestation. The AI assistant carries a signed
 **attestation** from a KYC provider -- never raw documents. The attestation is an
-**RS256 JWS** with claims `{sub, level, iss, aud, iat, exp}` and an OPTIONAL
+**EdDSA JWS** that the KYC provider signs with its Ed25519 key, with claims `{sub, level, iss, aud, iat, exp}` and an OPTIONAL
 `attributes` object: `sub` **MUST** equal the authenticated `user_id`, `iss`
 **MUST** equal the operator-configured KYC issuer, `aud` **MUST** equal this
 operator's configured audience (see 12.1), `exp` **MUST** be present and
@@ -2958,7 +2975,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.5.27**: a 0.5.27 operator pins the 0.5.27 skill against the 0.5.27 wire. A new
+   **0.6.0**: a 0.6.0 operator pins the 0.6.0 skill against the 0.6.0 wire. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -2966,10 +2983,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    direction is a new MINOR. The discovery-document format version is a separate
    line entirely (point 3).
 2. **Additivity within a MINOR series -- a promise that binds from 1.0.** A new
-   MINOR (0.4 -> 0.5) is a feature milestone that MAY break compatibility with
+   MINOR (0.5 -> 0.6) is a feature milestone that MAY break compatibility with
    the previous one, outright and with no tombstones -- which is why an AI
-   assistant holding a 0.4 skill cannot transact with a 0.5 origin at all: the
-   catalog's root is closed and it now carries a third REQUIRED array, `events`.
+   assistant holding a 0.5 skill cannot transact with a 0.6 origin at all: it
+   registers an RSA key, and a 0.6 operator refuses every key but Ed25519 and,
+   where it accepts ES256, P-256.
    **From 1.0 onward**, within a MINOR series the wire stays
    compatible in both directions (point 1) and additive: patches add endpoints and fields only;
    existing request/response fields and their meaning **MUST NOT** change or be
@@ -2979,7 +2997,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    are exactly this kind of additive extension: absent on responses that
    predate them, they never alter an existing shape.
 
-   **Before 1.0 -- which is every series published so far, 0.5.x included --
+   **Before 1.0 -- which is every series published so far, 0.6.x included --
    any release MAY change the wire, a PATCH included, and that includes
    removing a response field.** 0.4.1 did exactly that: it removed a paginating
    query's `next` body field and moved the cursor into an RFC 8288 `Link`
@@ -3016,11 +3034,10 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.27**, the twenty-eighth
-   cut on this series. Every cut before it stays published, immutable and
-   unedited, because live pins reference its bytes: the 0.1.1-0.4.17 cuts
-   describe protocol 0.1-0.4 and cannot transact with a 0.5 origin at all, and
-   0.5.0-0.5.26 describe earlier 0.5 cuts a 0.5.27 operator no longer pins, and none of them can register there: 0.5.27 registers the key as an OAuth client and gets each token with a client assertion. Published skill
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.0**, the first
+   cut of protocol 0.6. Every cut before it stays published, immutable and
+   unedited, because live pins reference its bytes: the 0.1.1-0.5.27 cuts
+   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.0 registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
@@ -3229,7 +3246,8 @@ the discovery document, and are absent from `capabilities` for that reason:
 2. **Core -- registration and tokens (OAuth)** (Section 5): RFC 7591 client
    registration, idempotent per key; client assertions (RFC 7523) with
    origin-bound `aud` rejection and single-use `jti`; the `client_credentials`
-   token request with a DPoP proof; RS256 JWT access tokens bound to the
+   token request with a DPoP proof; Ed25519 assistant keys, and P-256 keys where
+   the operator accepts ES256; EdDSA JWT access tokens bound to the
    registered key; the DPoP proof check on every request that carries a token
    (Section 5.6); assistant key rotation; the RFC 8414 metadata of Section 4.5;
    and the revoked-before watermark.
@@ -3260,7 +3278,7 @@ the discovery document, and are absent from `capabilities` for that reason:
    naming no foreign row answered with them filtered out, a call naming a row
    outside the verb's reach refused `403`, and a declared-reach verb answering
    `200` within the reach it declares and no further.
-5. **Module `pay`** (Section 11): a PS256 checkout in the answer of each action
+5. **Module `pay`** (Section 11): an EdDSA checkout with a random `jti` in the answer of each action
    that creates an item to pay for, verification of the two closed AP2 v0.2
    mandates -- the SD-JWT form and members (Section 11.1) and the binding rules
    (Section 11.2) -- `payment_setup` and its return page (Section 11.4), the
@@ -3452,7 +3470,7 @@ wire and not in this section reads the omission as an oversight.
 
 | Object | Governed by |
 |---|---|
-| JWKS document, Section 4.4 (REQUIRED) | [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517) -- the member set is the JWK standard's, and Section 4.4 narrows it (`kty`, `use`, `kid`, `n`/`e` only) |
+| JWKS document, Section 4.4 (REQUIRED) | [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517) -- the member set is the JWK standard's, and Section 4.4 narrows it (an Ed25519 key: `kty`, `crv`, `x`, `use`, `alg`, `kid` only) |
 | OpenAPI description, Section 4.6 (OPTIONAL) | [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) -- the document IS a description, and Section 4.6 derives it from the catalog rather than describing its shape |
 | `/.well-known/api-catalog`, Section 4.5 (OPTIONAL) | [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) |
 | `/.well-known/oauth-authorization-server`, Section 4.5 | [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) |
@@ -3528,7 +3546,10 @@ Kiosk follows these standards. Each line says what Kiosk uses it for.
   proofs, checkouts, mandates and receipts.
 - RFC 7517 (JWK) -- the operator's JWKS (Section 4.4), and the AI assistant's
   public key in registration and in DPoP proofs.
-- RFC 7518 (JWA) -- RS256 and PS256.
+- RFC 7518 (JWA) -- ES256 and the P-256 JWK, where an operator accepts them
+  (Section 5).
+- RFC 8037 -- CFRG curves in JOSE: EdDSA over Ed25519 and the `OKP` JWK, for
+  every signature of the operator and, by default, of the AI assistant.
 - RFC 7638 -- JWK thumbprint: `kid`, `cnf.jkt`, `new_key`, and the key's
   fingerprint on the verify page.
 

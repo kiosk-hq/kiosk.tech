@@ -1,4 +1,4 @@
 {
   "error": "invalid_client_metadata",
-  "error_description": "jwks must hold exactly one RSA public key of 2048 to 4096 bits"
+  "error_description": "jwks: the key is not an Ed25519 key; send one public key: an Ed25519 key as an RFC 8037 JWK {\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"...\"}, with no private member"
 }

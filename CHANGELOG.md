@@ -10,6 +10,15 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.0] — 2026-10-21
+
+- 2026-10-21: **Skill 0.6.0** opens protocol 0.6: it makes an Ed25519 key and signs every JWT EdDSA. `Kiosk-Min-Client` is 0.6.0: a 0.5 cut registers an RSA key, which is refused.
+
+- 2026-10-21: Both specifications move every signature from RSA to Ed25519 (EdDSA, RFC 8037). An operator may also accept ES256 from a P-256 assistant key.
+- 2026-10-21: A checkout carries a random 128-bit `jti`, because an EdDSA signature is the same for the same claims (AP2 v0.2).
+- 2026-10-21: The auth, mandate and KYC schemas and their examples describe Ed25519 and P-256 keys and EdDSA signatures; an RSA JWK is a rejected example.
+- 2026-10-21: The landing page and the onboarding guide make an Ed25519 key; the onboarding scripts sign with Ruby's OpenSSL alone.
+
 ## [skill 0.5.27] — 2026-10-21
 
 - 2026-10-21: **Skill 0.5.27** registers its key as an OAuth client and gets each token with a client assertion and a DPoP proof. `Kiosk-Min-Client` is 0.5.27: an older cut cannot register.

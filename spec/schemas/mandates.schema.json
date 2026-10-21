@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kiosk.tech/spec/schemas/mandates.schema.json",
   "title": "Kiosk payment: the checkout and the AP2 v0.2 mandates",
-  "description": "The checkout an operator signs, the two closed AP2 v0.2 mandates an AI assistant signs to pay it, the POST <endpoint>/pay request body, the settlement it answers and the two receipts in it. On the wire the checkout is a compact PS256 JWT, and each mandate is a compact SD-JWT whose one disclosure is the mandate; these schemas describe the decoded objects.",
+  "description": "The checkout an operator signs, the two closed AP2 v0.2 mandates an AI assistant signs to pay it, the POST <endpoint>/pay request body, the settlement it answers and the two receipts in it. On the wire the checkout is a compact EdDSA JWT, and each mandate is a compact SD-JWT whose one disclosure is the mandate; these schemas describe the decoded objects.",
   "$defs": {
     "currency": {
       "type": "string",
@@ -22,12 +22,13 @@
     },
     "checkout": {
       "type": "object",
-      "description": "The claims of the `checkout_jwt` an operator answers for an item to pay for: a JWT it signs PS256 with the key of its JWKS (Section 11.7).",
-      "required": ["iss", "sub", "iat", "merchant", "currency", "total_amount_cents", "line_items"],
+      "description": "The claims of the `checkout_jwt` an operator answers for an item to pay for: a JWT it signs EdDSA with the key of its JWKS (Section 11.7).",
+      "required": ["iss", "sub", "iat", "jti", "merchant", "currency", "total_amount_cents", "line_items"],
       "properties": {
         "iss": { "type": "string", "description": "The operator's issuer, verbatim from kiosk.json." },
         "sub": { "type": "string", "description": "The account the checkout is for. Only that account can pay it." },
         "iat": { "type": "integer" },
+        "jti": { "type": "string", "minLength": 22, "description": "At least 128 random bits, base64url. An EdDSA signature is the same for the same claims, so this value makes the hash of each checkout impossible to guess." },
         "merchant": { "$ref": "#/$defs/merchant" },
         "currency": { "$ref": "#/$defs/currency" },
         "total_amount_cents": { "type": "integer", "minimum": 1, "description": "MUST be positive." },
@@ -36,7 +37,7 @@
     },
     "sdJwtPayload": {
       "type": "object",
-      "description": "The payload of the issuer-signed JWT of a mandate. Its header is {\"alg\": \"RS256\", \"typ\": \"dc+sd-jwt\"}, signed with the AI assistant's registered key. `delegate_payload` holds one digest, and the one disclosure it names is the mandate.",
+      "description": "The payload of the issuer-signed JWT of a mandate. Its header is {\"alg\": \"EdDSA\", \"typ\": \"dc+sd-jwt\"}, signed with the AI assistant's registered key; a P-256 key signs ES256. `delegate_payload` holds one digest, and the one disclosure it names is the mandate.",
       "required": ["delegate_payload"],
       "properties": {
         "_sd_alg": { "const": "sha-256" },
@@ -118,8 +119,8 @@
         "psp_reference": { "type": "string" },
         "settled_amount_cents": { "type": "integer", "minimum": 1, "description": "The captured amount; equals the checkout total. MUST be positive: a settlement exists only for a completed capture." },
         "currency": { "$ref": "#/$defs/currency", "description": "The currency of the capture, in the OPERATOR's canonical spelling, which MAY differ byte for byte from the spelling in the checkout (protocol.md 11.3, 11.5). Compare it as an ISO 4217 code, never as bytes." },
-        "checkout_receipt": { "$ref": "#/$defs/compactJwt", "description": "The AP2 checkout receipt: a compact JWT the operator signs PS256 with the key of its JWKS. Its claims are `checkoutReceipt` (protocol.md 11.3)." },
-        "payment_receipt": { "$ref": "#/$defs/compactJwt", "description": "The AP2 payment receipt: a compact JWT the operator signs PS256 with the key of its JWKS. Its claims are `paymentReceipt` (protocol.md 11.3)." }
+        "checkout_receipt": { "$ref": "#/$defs/compactJwt", "description": "The AP2 checkout receipt: a compact JWT the operator signs EdDSA with the key of its JWKS. Its claims are `checkoutReceipt` (protocol.md 11.3)." },
+        "payment_receipt": { "$ref": "#/$defs/compactJwt", "description": "The AP2 payment receipt: a compact JWT the operator signs EdDSA with the key of its JWKS. Its claims are `paymentReceipt` (protocol.md 11.3)." }
       }
     },
     "compactJwt": {

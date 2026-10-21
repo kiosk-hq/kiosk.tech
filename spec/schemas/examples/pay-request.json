@@ -1,4 +1,4 @@
 {
-  "checkout_mandate": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImRjK3NkLWp3dCJ9.eyJfc2RfYWxnIjoic2hhLTI1NiJ9.SIG~WyJzYWx0IiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIn1d~",
-  "payment_mandate": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImRjK3NkLWp3dCJ9.eyJfc2RfYWxnIjoic2hhLTI1NiJ9.SIG~WyJzYWx0IiwgeyJ2Y3QiOiAibWFuZGF0ZS5wYXltZW50LjEifV0~"
+  "checkout_mandate": "eyJhbGciOiJFZERTQSIsInR5cCI6ImRjK3NkLWp3dCJ9.eyJfc2RfYWxnIjoic2hhLTI1NiJ9.SIG~WyJzYWx0IiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIn1d~",
+  "payment_mandate": "eyJhbGciOiJFZERTQSIsInR5cCI6ImRjK3NkLWp3dCJ9.eyJfc2RfYWxnIjoic2hhLTI1NiJ9.SIG~WyJzYWx0IiwgeyJ2Y3QiOiAibWFuZGF0ZS5wYXltZW50LjEifV0~"
 }

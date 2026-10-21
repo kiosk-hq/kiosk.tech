@@ -1,5 +1,5 @@
 {
   "code": "lc_4Kd8Rq2Vt6Yb1Xc9Pf3Lg7Wj5Hz0Am2Nn4Ss6Tt8Uu",
   "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-  "client_assertion": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJzdWIiOiJiMmU5In0.SIG"
+  "client_assertion": "eyJhbGciOiJFZERTQSIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJzdWIiOiJiMmU5In0.SIG"
 }

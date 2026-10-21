@@ -88,6 +88,7 @@ chk validate "${F[@]}" -s "$(ref kycevt  "$B/kyc.schema.json#/\$defs/verificatio
 # while one of its objects is a typo'd `$def` nobody validates against is the
 # same fiction as no file at all.
 chk validate "${F[@]}" -s "$(ref apjwk   "$B/auth.schema.json#/\$defs/publicJwk")"           -r auth.schema.json -d examples/auth.public-jwk.json
+chk validate "${F[@]}" -s "$(ref apjwkec "$B/auth.schema.json#/\$defs/publicJwk")"           -r auth.schema.json -d examples/auth.public-jwk.p256.json
 chk validate "${F[@]}" -s "$(ref ajwks   "$B/auth.schema.json#/\$defs/jwks")"                -r auth.schema.json -d examples/auth.jwks.json
 chk validate "${F[@]}" -s "$(ref aregreq "$B/auth.schema.json#/\$defs/registrationRequest")" -r auth.schema.json -d examples/auth.registration-request.json
 chk validate "${F[@]}" -s "$(ref acinfo  "$B/auth.schema.json#/\$defs/clientInformation")"   -r auth.schema.json -d examples/auth.client-information.json
@@ -284,6 +285,7 @@ chkfail validate "${F[@]}" -s "$(ref noaud "$B/auth.schema.json#/\$defs/clientAs
 # in one registration.
 chkfail validate "${F[@]}" -s "$(ref jwkpriv "$B/auth.schema.json#/\$defs/jwks")" -r auth.schema.json -d examples/rejected/auth.jwks.private-member.json
 chkfail validate "${F[@]}" -s "$(ref jwktwo "$B/auth.schema.json#/\$defs/jwks")" -r auth.schema.json -d examples/rejected/auth.jwks.two-keys.json
+chkfail validate "${F[@]}" -s "$(ref jwkrsa "$B/auth.schema.json#/\$defs/jwks")" -r auth.schema.json -d examples/rejected/auth.jwks.rsa.json
 # `interval` is the member where the Kiosk contract is NARROWER than RFC 8628,
 # which makes it optional -- Section 6.1 enumerates all six as returned. That is
 # exactly the constraint a later editor is most likely to loosen back toward the

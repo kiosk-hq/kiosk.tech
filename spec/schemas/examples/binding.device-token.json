@@ -1,5 +1,5 @@
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhN2YzIn0.SIG",
+  "access_token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhN2YzIn0.SIG",
   "token_type": "DPoP",
   "expires_in": 3600,
   "scope": "customer"
