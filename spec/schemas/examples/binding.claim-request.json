@@ -1,5 +1,5 @@
 {
   "code": "lc_4Kd8Rq2Vt6Yb1Xc9Pf3Lg7Wj5Hz0Am2Nn4Ss6Tt8Uu",
-  "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxK1\n-----END PUBLIC KEY-----\n",
-  "signed": "eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJodHRwczovL2dldGdyb2NlcnkuZGVtby5raW9zay50ZWNoIn0.SIG"
+  "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+  "client_assertion": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJzdWIiOiJiMmU5In0.SIG"
 }

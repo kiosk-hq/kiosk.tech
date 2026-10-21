@@ -1,0 +1,8 @@
+{
+  "iss": "b2e9c4d1-5f3a-4e8b-9c7d-1a2b3c4d5e6f",
+  "sub": "b2e9c4d1-5f3a-4e8b-9c7d-1a2b3c4d5e6f",
+  "aud": ["https://getgrocery.demo.kiosk.tech"],
+  "exp": 1751846460,
+  "jti": "5d4c3b2a-1f0e-4d9c-8b7a-6f5e4d3c2b1a",
+  "new_key": "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
+}

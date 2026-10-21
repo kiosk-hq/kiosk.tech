@@ -1,0 +1,4 @@
+{
+  "error": "invalid_dpop_proof",
+  "error_description": "the DPoP proof is not signed by the registered key"
+}

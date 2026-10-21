@@ -2,7 +2,7 @@
   "type": "https://kiosk.tech/problems/conflict",
   "title": "State conflict",
   "status": 410,
-  "detail": "this public key is already registered",
+  "detail": "the new key is registered already",
   "code": "conflict",
-  "hint": "use /auth/login"
+  "hint": "make another key and rotate again"
 }

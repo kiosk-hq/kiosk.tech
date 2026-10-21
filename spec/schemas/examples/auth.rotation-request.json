@@ -1,6 +1,14 @@
 {
-  "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----\n",
-  "signed": "eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJodHRwczovL2dldGdyb2NlcnkuZGVtby5raW9zay50ZWNoIn0.c2ln",
-  "new_public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEB...\n-----END PUBLIC KEY-----\n",
-  "new_signed": "eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJodHRwczovL2dldGdyb2NlcnkuZGVtby5raW9zay50ZWNoIn0.c2lnMg"
+  "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+  "client_assertion": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJuZXdfa2V5IjoiTnpiTHMifQ.c2ln",
+  "new_client_assertion": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImNsaWVudC1hdXRoZW50aWNhdGlvbitqd3QifQ.eyJzdWIiOiJiMmU5In0.c2lnMg",
+  "jwks": {
+    "keys": [
+      {
+        "kty": "RSA",
+        "n": "sXchDaQebHnPiGvyDOAT4saGEUetSyo9MKLOoWFsueri23bOdgWp4Dy1WlUzewbgBHod5pcM9H95GQRV3JDXboIRROSBigeC5yjU1hGzHHyXss8UDprecbAYxknTcQkhslANGRUZmdTOQ5qTRsLAt6BTYuyvVRdhS8exSZEy_c4gs_7svlJJQ4H9_NxsiIoLwAEk7-Q3UXERGYw_75IDrGA84-lA_-Ct4eTlXHBIY2EaV7t7LjJaynVJCpkv4LKjTTAumiGUIuQhrNhZLuF_RJLqHpM2kgWFLU7-VTdL1VbC2tejvcI2BlMkEpk1BzBZI0KQB0GaDWFLN-aEAw3vRw",
+        "e": "AQAB"
+      }
+    ]
+  }
 }

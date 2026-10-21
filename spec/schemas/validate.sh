@@ -42,10 +42,11 @@ chk compile "${F[@]}" -s event.schema.json
 chk compile "${F[@]}" -s mandates.schema.json
 chk compile "${F[@]}" -s kyc.schema.json
 chk compile "${F[@]}" -s auth.schema.json
-# binding's `claimResponse` is a cross-file `$ref` into auth.schema.json, so the
-# compile needs `-r` exactly as problem.schema.json's does into pow. That `$ref`
-# is deliberate -- Section 6.2's claim answer IS Section 5.3's register answer,
-# and restating it is how two copies of one shape drift apart.
+# binding's `deviceTokenResponse` and `oauthError` are cross-file `$ref`s into
+# auth.schema.json, so the compile needs `-r` exactly as problem.schema.json's
+# does into pow. The `$ref`s are deliberate -- the device-code poll answers what
+# Section 5.3's token request answers, and restating it is how two copies of one
+# shape drift apart.
 chk compile "${F[@]}" -s binding.schema.json -r auth.schema.json
 
 echo "== validate examples =="
@@ -84,29 +85,30 @@ chk validate "${F[@]}" -s "$(ref kycver  "$B/kyc.schema.json#/\$defs/verificatio
 chk validate "${F[@]}" -s "$(ref kycevt  "$B/kyc.schema.json#/\$defs/verificationEvent")" -r kyc.schema.json -d examples/kyc.verification-event.json
 # Sections 5 and 6. One example per `$def`, because the claim these
 # schemas exist to make honest is per-OBJECT, not per-file: a file that compiles
-# while one of its six objects is a typo'd `$def` nobody validates against is the
+# while one of its objects is a typo'd `$def` nobody validates against is the
 # same fiction as no file at all.
-chk validate "${F[@]}" -s "$(ref achal   "$B/auth.schema.json#/\$defs/challenge")"         -r auth.schema.json -d examples/auth.challenge.json
-chk validate "${F[@]}" -s "$(ref aproof  "$B/auth.schema.json#/\$defs/possessionProof")"   -r auth.schema.json -d examples/auth.possession-proof.json
-chk validate "${F[@]}" -s "$(ref acred   "$B/auth.schema.json#/\$defs/credentialRequest")" -r auth.schema.json -d examples/auth.credential-request.json
-chk validate "${F[@]}" -s "$(ref areg    "$B/auth.schema.json#/\$defs/registration")"      -r auth.schema.json -d examples/auth.registration.json
-chk validate "${F[@]}" -s "$(ref atok    "$B/auth.schema.json#/\$defs/token")"             -r auth.schema.json -d examples/auth.token.json
-chk validate "${F[@]}" -s "$(ref aclaims "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/auth.access-token-claims.json
-chk validate "${F[@]}" -s "$(ref adpop   "$B/auth.schema.json#/\$defs/dpopProof")"         -r auth.schema.json -d examples/auth.dpop-proof.json
-chk validate "${F[@]}" -s "$(ref arotp   "$B/auth.schema.json#/\$defs/rotationProof")"     -r auth.schema.json -d examples/auth.rotation-proof.json
-chk validate "${F[@]}" -s "$(ref arotr   "$B/auth.schema.json#/\$defs/rotationRequest")"   -r auth.schema.json -d examples/auth.rotation-request.json
+chk validate "${F[@]}" -s "$(ref apjwk   "$B/auth.schema.json#/\$defs/publicJwk")"           -r auth.schema.json -d examples/auth.public-jwk.json
+chk validate "${F[@]}" -s "$(ref ajwks   "$B/auth.schema.json#/\$defs/jwks")"                -r auth.schema.json -d examples/auth.jwks.json
+chk validate "${F[@]}" -s "$(ref aregreq "$B/auth.schema.json#/\$defs/registrationRequest")" -r auth.schema.json -d examples/auth.registration-request.json
+chk validate "${F[@]}" -s "$(ref acinfo  "$B/auth.schema.json#/\$defs/clientInformation")"   -r auth.schema.json -d examples/auth.client-information.json
+chk validate "${F[@]}" -s "$(ref aregerr "$B/auth.schema.json#/\$defs/registrationError")"   -r auth.schema.json -d examples/auth.registration-error.json
+chk validate "${F[@]}" -s "$(ref acass   "$B/auth.schema.json#/\$defs/clientAssertion")"     -r auth.schema.json -d examples/auth.client-assertion.json
+chk validate "${F[@]}" -s "$(ref atokr   "$B/auth.schema.json#/\$defs/tokenResponse")"       -r auth.schema.json -d examples/auth.token-response.json
+chk validate "${F[@]}" -s "$(ref aoaerr  "$B/auth.schema.json#/\$defs/oauthError")"          -r auth.schema.json -d examples/auth.oauth-error.json
+chk validate "${F[@]}" -s "$(ref aclaims "$B/auth.schema.json#/\$defs/accessTokenClaims")"   -r auth.schema.json -d examples/auth.access-token-claims.json
+chk validate "${F[@]}" -s "$(ref adpop   "$B/auth.schema.json#/\$defs/dpopProof")"           -r auth.schema.json -d examples/auth.dpop-proof.json
+# The proof of a token request: the same `$def`, with no `ath` (Section 5.6).
+chk validate "${F[@]}" -s "$(ref adpopt  "$B/auth.schema.json#/\$defs/dpopProof")"           -r auth.schema.json -d examples/auth.dpop-proof.token-request.json
+chk validate "${F[@]}" -s "$(ref arota   "$B/auth.schema.json#/\$defs/rotationAssertion")"   -r auth.schema.json -d examples/auth.rotation-assertion.json
+chk validate "${F[@]}" -s "$(ref arotr   "$B/auth.schema.json#/\$defs/rotationRequest")"     -r auth.schema.json -d examples/auth.rotation-request.json
 chk validate "${F[@]}" -s "$(ref bda     "$B/binding.schema.json#/\$defs/deviceAuthorization")" -r binding.schema.json -r auth.schema.json -d examples/binding.device-authorization.json
 chk validate "${F[@]}" -s "$(ref bdtok   "$B/binding.schema.json#/\$defs/deviceTokenResponse")" -r binding.schema.json -r auth.schema.json -d examples/binding.device-token.json
 chk validate "${F[@]}" -s "$(ref blink   "$B/binding.schema.json#/\$defs/linkCode")"            -r binding.schema.json -r auth.schema.json -d examples/binding.link-code.json
 chk validate "${F[@]}" -s "$(ref bclreq  "$B/binding.schema.json#/\$defs/claimRequest")"        -r binding.schema.json -r auth.schema.json -d examples/binding.claim-request.json
-# The one that exercises the cross-file `$ref`: this document is checked against
-# `binding`'s claimResponse, which is nothing but a pointer into `auth`. If the
-# pointer stopped resolving, ajv would fail here rather than shrug.
-chk validate "${F[@]}" -s "$(ref bclres  "$B/binding.schema.json#/\$defs/claimResponse")"       -r binding.schema.json -r auth.schema.json -d examples/binding.claim-response.json
 chk validate "${F[@]}" -s "$(ref bunlink "$B/binding.schema.json#/\$defs/unlinkRequest")"       -r binding.schema.json -r auth.schema.json -d examples/binding.unlink-request.json
-# The /oauth/* error body. Section 6.1's closing list and its own step 1 both
-# enumerate the codes this object may carry, and they have to agree: this is
-# where that object gets a schema rather than two prose lists.
+# The /oauth/* error body, checked through `binding`'s pointer into `auth`: the
+# one place that exercises the cross-file `$ref`. If the pointer stopped
+# resolving, ajv would fail here rather than shrug.
 chk validate "${F[@]}" -s "$(ref boaerr  "$B/binding.schema.json#/\$defs/oauthError")"          -r binding.schema.json -r auth.schema.json -d examples/binding.oauth-error.json
 
 echo "== reject what the schemas must refuse =="
@@ -270,19 +272,24 @@ chkfail validate "${F[@]}" -s "$(ref scopenull "$B/binding.schema.json#/\$defs/d
 chkfail validate "${F[@]}" -s "$(ref actoruser "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/rejected/auth.access-token-claims.actor-user.json
 # A token with no `cnf` is a bearer token, and Section 5.6 has none.
 chkfail validate "${F[@]}" -s "$(ref nocnf "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/rejected/auth.access-token-claims.no-cnf.json
-# A rotation proof that names no new key lets the old key approve any key.
-chkfail validate "${F[@]}" -s "$(ref nonewkey "$B/auth.schema.json#/\$defs/rotationProof")" -r auth.schema.json -d examples/rejected/auth.rotation-proof.no-new-key.json
+# A rotation assertion that names no new key lets the old key approve any key.
+chkfail validate "${F[@]}" -s "$(ref nonewkey "$B/auth.schema.json#/\$defs/rotationAssertion")" -r auth.schema.json -d examples/rejected/auth.rotation-assertion.no-new-key.json
 chkfail validate "${F[@]}" -s "$(ref ttmac "$B/binding.schema.json#/\$defs/deviceTokenResponse")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.device-token.token-type-mac.json
 # `aud` is the origin binding of Section 15.1 -- the single claim that makes a
-# relayed possession proof worthless. A proof without it is the phishing case,
-# not a lenient one.
-chkfail validate "${F[@]}" -s "$(ref noaud "$B/auth.schema.json#/\$defs/possessionProof")" -r auth.schema.json -d examples/rejected/auth.possession-proof.no-aud.json
+# relayed client assertion worthless. An assertion without it is the phishing
+# case, not a lenient one.
+chkfail validate "${F[@]}" -s "$(ref noaud "$B/auth.schema.json#/\$defs/clientAssertion")" -r auth.schema.json -d examples/rejected/auth.client-assertion.no-aud.json
+# A registration takes a PUBLIC key, and exactly one. A JWK with a private
+# member hands the operator the key itself; a second key is a second identity
+# in one registration.
+chkfail validate "${F[@]}" -s "$(ref jwkpriv "$B/auth.schema.json#/\$defs/jwks")" -r auth.schema.json -d examples/rejected/auth.jwks.private-member.json
+chkfail validate "${F[@]}" -s "$(ref jwktwo "$B/auth.schema.json#/\$defs/jwks")" -r auth.schema.json -d examples/rejected/auth.jwks.two-keys.json
 # `interval` is the member where the Kiosk contract is NARROWER than RFC 8628,
 # which makes it optional -- Section 6.1 enumerates all six as returned. That is
 # exactly the constraint a later editor is most likely to loosen back toward the
 # RFC without noticing it is this document's own promise, so it gets the fixture.
 chkfail validate "${F[@]}" -s "$(ref nointerval "$B/binding.schema.json#/\$defs/deviceAuthorization")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.device-authorization.no-interval.json
-# The /oauth/* code vocabulary is CLOSED at eight, and the closure is the
+# The /oauth/* code vocabulary is CLOSED at nine, and the closure is the
 # whole point of publishing it -- an assistant polling this ceremony branches on
 # `error`, so a code outside the list is a branch it cannot take. This example is
 # the accepted sibling with that one member set to `invalid_scope`: a REAL RFC 6749

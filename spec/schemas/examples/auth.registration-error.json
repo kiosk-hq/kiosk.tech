@@ -1,0 +1,4 @@
+{
+  "error": "invalid_client_metadata",
+  "error_description": "jwks must hold exactly one RSA public key of 2048 to 4096 bits"
+}

@@ -1,0 +1,19 @@
+{
+  "client_id": "b2e9c4d1-5f3a-4e8b-9c7d-1a2b3c4d5e6f",
+  "client_id_issued_at": 1751846400,
+  "jwks": {
+    "keys": [
+      {
+        "kty": "RSA",
+        "n": "sXchDaQebHnPiGvyDOAT4saGEUetSyo9MKLOoWFsueri23bOdgWp4Dy1WlUzewbgBHod5pcM9H95GQRV3JDXboIRROSBigeC5yjU1hGzHHyXss8UDprecbAYxknTcQkhslANGRUZmdTOQ5qTRsLAt6BTYuyvVRdhS8exSZEy_c4gs_7svlJJQ4H9_NxsiIoLwAEk7-Q3UXERGYw_75IDrGA84-lA_-Ct4eTlXHBIY2EaV7t7LjJaynVJCpkv4LKjTTAumiGUIuQhrNhZLuF_RJLqHpM2kgWFLU7-VTdL1VbC2tejvcI2BlMkEpk1BzBZI0KQB0GaDWFLN-aEAw3vRw",
+        "e": "AQAB"
+      }
+    ]
+  },
+  "token_endpoint_auth_method": "private_key_jwt",
+  "grant_types": [
+    "client_credentials",
+    "urn:ietf:params:oauth:grant-type:device_code"
+  ],
+  "dpop_bound_access_tokens": true
+}
