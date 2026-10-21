@@ -3041,7 +3041,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.1**, the second
    cut of protocol 0.6. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.5.27 cuts
-   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0, the `Kiosk-Min-Client` of a 0.6.1 operator, speaks the same wire and names fewer of the error codes of Section 9. Published skill
+   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0 describes the earlier 0.6 cut, the `Kiosk-Min-Client` of a 0.6.1 operator: the same wire, with fewer of the error codes of Section 9. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
