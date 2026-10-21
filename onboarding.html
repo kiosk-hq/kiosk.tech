@@ -57,7 +57,7 @@
   <p>Two scopes, assuming a working Rails 8.1 + Postgres app you already know:</p>
   <ul>
     <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, draw the routes, declare a couple of read-only queries in a controller by adapting the examples below, name them in the <code>kiosk</code> routes block, and verify discovery + one query. That's the minimal agent-ready surface.</li>
-    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an RSA signing key, a Stripe test account and keys, the <code>stripe_customers</code> migration and payment-adapter wiring, an action that gates on payment, PK-type matching across the kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
+    <li><strong>Full transacting integration with payments — a bit longer.</strong> Everything below — an Ed25519 signing key, a Stripe test account and keys, the <code>stripe_customers</code> migration and payment-adapter wiring, an action that gates on payment, PK-type matching across the kiosk migrations, and testing the mandate→pay→settlement flow end to end. Expect more if your <code>users.id</code> isn't a UUID or Stripe is new to you.</li>
   </ul>
   <p>The steps below walk the full payments integration <em>assuming you already have the accounts and keys in hand</em>; they don't cover Stripe signup, or debugging your own catalog's queries.</p>
 
@@ -73,9 +73,9 @@ rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</butto
 
   <h2>Step 2: Configure Kiosk</h2>
 
-  <p>First, generate a signing key. Kiosk signs the JWTs it issues with an RSA key; without it the server raises on the first registration. Generate one and put it in your environment (do <strong>not</strong> regenerate per boot — a fresh key invalidates every issued token, forcing agents to re-register and losing their saved-card associations):</p>
+  <p>First, generate a signing key. Kiosk signs the JWTs it issues with an Ed25519 key (EdDSA); without it the server raises on the first registration. Generate one and put it in your environment (do <strong>not</strong> regenerate per boot — a fresh key invalidates every issued token, forcing agents to re-register and losing their saved-card associations):</p>
   <pre><code class="language-bash"># base64 so it fits on one line in .env / mise.toml / your secrets manager
-openssl genrsa 2048 | base64
+openssl genpkey -algorithm ed25519 | base64
 # → export KIOSK_SIGNING_KEY_B64="LS0tLS1CRUdJTi…"; the initializer below reads it</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p><code>config/initializers/kiosk.rb</code>:</p>
@@ -539,7 +539,7 @@ class Kiosk::OrdersController &lt; ActionController::API
     slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
     slot_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
     timezone: DeliverySlots::DEFAULT_ZONE_NAME,
-    checkout_jwt: "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJjdXJyZW5jeSI6ImV1ciIsInRvdGFsX2Ftb3VudF9jZW50cyI6MTI4N30.c2lnbmF0dXJl",
+    checkout_jwt: "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJjdXJyZW5jeSI6ImV1ciIsInRvdGFsX2Ftb3VudF9jZW50cyI6MTI4N30.c2lnbmF0dXJl",
   })
   def create_order
     @order = CreateOrderOperation.call(
@@ -683,7 +683,7 @@ Kiosk::Server::Events.emit(
   <h2>Step 6: Start the server and verify</h2>
   <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it is the <code>iss</code> of the checkouts you sign) — the request host only <em>selects</em> among the origins you configure and never adds one, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
   <pre><code class="language-bash">export KIOSK_ISSUER="http://localhost:3000"
-export KIOSK_SIGNING_KEY_B64="$(openssl genrsa 2048 | base64)"
+export KIOSK_SIGNING_KEY_B64="$(openssl genpkey -algorithm ed25519 | base64)"
 export STRIPE_SECRET_KEY=sk_test_…
 rails s</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
@@ -710,16 +710,20 @@ done
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:3000/kiosk/oauth/device_authorization
 # => 401   (invalid_client: the request carries no client assertion)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The catalog is public — <code>GET /kiosk/schema</code> takes no token and pays no toll, so you can read it before you have one. <em>Every other</em> endpoint under the mount is authenticated, so to call a verb first register and get a token, on OAuth standards: register your public key (RFC 7591), then ask the token endpoint with the <code>client_credentials</code> grant, a client assertion that your key signs (RFC 7523, <code>aud</code> = the origin you dialed) and a DPoP proof (RFC 9449). A Kiosk-compatible agent does this for you, but here it is as a self-contained script (Ruby stdlib + the <code>jwt</code> gem — the same gem kiosk-server uses) so registration is followable without any external CLI:</p>
-  <pre><code class="language-ruby"># register.rb — OAuth client registration and a token, against a local Kiosk provider. `gem install jwt`
+  <p>The catalog is public — <code>GET /kiosk/schema</code> takes no token and pays no toll, so you can read it before you have one. <em>Every other</em> endpoint under the mount is authenticated, so to call a verb first register and get a token, on OAuth standards: register your public key (RFC 7591), then ask the token endpoint with the <code>client_credentials</code> grant, a client assertion that your key signs (RFC 7523, <code>aud</code> = the origin you dialed) and a DPoP proof (RFC 9449). A Kiosk-compatible agent does this for you, but here it is as a self-contained script (Ruby stdlib only: OpenSSL signs Ed25519, so the script builds each JWS itself) so registration is followable without any external CLI:</p>
+  <pre><code class="language-ruby"># register.rb — OAuth client registration and a token, against a local Kiosk provider. Ruby stdlib only.
 require "openssl"; require "json"; require "net/http"; require "uri"
-require "securerandom"; require "base64"; require "jwt"
+require "securerandom"; require "base64"
 
 origin = ENV.fetch("KIOSK_ISSUER", "http://localhost:3000")   # the origin you dial == aud
-key    = OpenSSL::PKey::RSA.new(2048)                          # your identity keypair
-File.write("key.pem", key.to_pem)                             # dpop.rb below signs with it
+key    = OpenSSL::PKey.generate_key("ED25519")                 # your identity keypair
+File.write("key.pem", key.private_to_pem)                     # dpop.rb below signs with it
 b64    = ->(bytes) { Base64.urlsafe_encode64(bytes, padding: false) }
-jwk    = { kty: "RSA", n: b64.(key.n.to_s(2)), e: b64.(key.e.to_s(2)) }
+jwk    = { kty: "OKP", crv: "Ed25519", x: b64.(key.raw_public_key) }
+jws    = lambda do |header, claims|                           # a compact JWS, signed EdDSA (RFC 8037)
+  input = [header, claims].map { |part| b64.(JSON.generate(part)) }.join(".")
+  "#{input}.#{b64.(key.sign(nil, input))}"
+end
 
 # 1. Register the public key (RFC 7591) → 201 Created { client_id, … }.
 res = Net::HTTP.post(URI("#{origin}/kiosk/oauth/register"),
@@ -729,10 +733,10 @@ client_id = JSON.parse(res.body).fetch("client_id")          # = your agent_id; 
 # 2. Ask for a token: a client assertion (RFC 7523) and a DPoP proof with no `ath`.
 token_url = "#{origin}/kiosk/oauth/token"
 now = Time.now.to_i
-assertion = JWT.encode({ iss: client_id, sub: client_id, aud: origin, exp: now + 60,
-                         jti: SecureRandom.uuid }, key, "RS256", { typ: "client-authentication+jwt" })
-proof = JWT.encode({ jti: SecureRandom.uuid, htm: "POST", htu: token_url, iat: now },
-                   key, "RS256", { typ: "dpop+jwt", jwk: jwk })
+assertion = jws.({ alg: "EdDSA", typ: "client-authentication+jwt" },
+                 { iss: client_id, sub: client_id, aud: origin, exp: now + 60, jti: SecureRandom.uuid })
+proof = jws.({ alg: "EdDSA", typ: "dpop+jwt", jwk: jwk },
+             { jti: SecureRandom.uuid, htm: "POST", htu: token_url, iat: now })
 req = Net::HTTP::Post.new(URI(token_url), "DPoP" => proof)
 req.set_form_data(grant_type: "client_credentials",
                   client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
@@ -741,15 +745,16 @@ res = Net::HTTP.start(req.uri.host, req.uri.port, use_ssl: req.uri.scheme == "ht
 puts "export TOKEN=#{JSON.parse(res.body).fetch("access_token")}"   # token_type "DPoP", expires_in 3600
 # When it expires, repeat step 2 with the same key.pem and client_id.</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>The token works only with the key that registered it (DPoP, RFC 9449): each call sends it as <code>Authorization: DPoP $TOKEN</code> with a <code>DPoP</code> header, a proof that the key signs for that method and URL. This script prints one:</p>
-  <pre><code class="language-ruby"># dpop.rb METHOD URL — the DPoP proof for one call, signed by key.pem. Reads $TOKEN.
-require "openssl"; require "json"; require "jwt"; require "securerandom"; require "digest"; require "base64"
+  <pre><code class="language-ruby"># dpop.rb METHOD URL — the DPoP proof for one call, signed EdDSA by key.pem. Reads $TOKEN.
+require "openssl"; require "json"; require "securerandom"; require "digest"; require "base64"
 
-key = OpenSSL::PKey::RSA.new(File.read("key.pem"))
+key = OpenSSL::PKey.read(File.read("key.pem"))
 b64 = ->(bytes) { Base64.urlsafe_encode64(bytes, padding: false) }
-jwk = { kty: "RSA", n: b64.(key.n.to_s(2)), e: b64.(key.e.to_s(2)) }
-puts JWT.encode({ jti: SecureRandom.uuid, htm: ARGV[0], htu: ARGV[1].split("?").first,
-                  iat: Time.now.to_i, ath: b64.(Digest::SHA256.digest(ENV.fetch("TOKEN"))) },
-                key, "RS256", { typ: "dpop+jwt", jwk: jwk })</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+header = { alg: "EdDSA", typ: "dpop+jwt", jwk: { kty: "OKP", crv: "Ed25519", x: b64.(key.raw_public_key) } }
+claims = { jti: SecureRandom.uuid, htm: ARGV[0], htu: ARGV[1].split("?").first,
+           iat: Time.now.to_i, ath: b64.(Digest::SHA256.digest(ENV.fetch("TOKEN"))) }
+input = [header, claims].map { |part| b64.(JSON.generate(part)) }.join(".")
+puts "#{input}.#{b64.(key.sign(nil, input))}"</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and read data back — nothing but <code>curl</code> + <code>jq</code>. There is nothing to seed: point a query at a table your app already has and expect your own rows. The names below are this walkthrough's getgrocery example — substitute the queries you declared in Step 4:</p>
   <pre><code class="language-bash"># Inspect the machine-readable surface (your registered queries + actions).
 # No token: the catalog is public.
@@ -802,7 +807,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order -H "Authorization: DPoP
 
   <blockquote><strong>Do not put a bot challenge in front of the agent paths.</strong> A CDN or firewall bot rule that challenges <code>/kiosk/*</code>, <code>/agents.txt</code>, <code>/agents.json</code>, <code>/auth.md</code> or <code>/.well-known/*</code> stops every assistant: an assistant cannot solve a browser challenge. Exempt these paths from bot challenges. The proof-of-work toll already prices the calls that cost you CPU.</blockquote>
 
-  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.5.27.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together.</blockquote>
+  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.6.0.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together.</blockquote>
 
   <h3>3. Visual "Agents — over here" card (human-readable, subtle)</h3>
   <p>Add a small section somewhere unobtrusive on your homepage &mdash; a thin bar above the header, or a card below the fold. It tells agent users that your store speaks Kiosk without distracting regular customers:</p>

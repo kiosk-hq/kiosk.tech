@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.5.27"
+  version: "0.6.0"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -31,7 +31,7 @@ Two terms; do not mix them up. **`origin`** is the operator's base URL: scheme, 
 
 - **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Use `urllib` or `requests` for HTTP. Keep access tokens in Python memory, and never put one on a command line. The listener's `--token-file` is the one file where you write a token.
 - **Dependencies:** `pyjwt` and `cryptography` for signing, plus `numpy`, which is there only because the pinned solver script imports it, and `websockets` (>= 12) for the pinned listener. Use ONE venv for every operator and every snippet in this skill: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography numpy websockets`, then run `~/.kiosk/venv/bin/python`.
-- **Files:** each origin has its own directory `~/.kiosk/<origin-dir>/`. EVERY file that you write for an operator goes in it: `key.pem`, `identity.json`, `token`, `spend.json`, `receipts/`, and your own notes, state and scripts. Only `~/.kiosk/venv`, `~/.kiosk/dpop.py` and the pinned solver and listener are shared. `chmod 600` every file. Use a new RSA key per origin (scheme, host and port), so that operators cannot track you across origins.
+- **Files:** each origin has its own directory `~/.kiosk/<origin-dir>/`. EVERY file that you write for an operator goes in it: `key.pem`, `identity.json`, `token`, `spend.json`, `receipts/`, and your own notes, state and scripts. Only `~/.kiosk/venv`, `~/.kiosk/dpop.py` and the pinned solver and listener are shared. `chmod 600` every file. Use a new Ed25519 key per origin (scheme, host and port), so that operators cannot track you across origins.
 
 ## The wire
 
@@ -121,10 +121,11 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 
 **First look for `~/.kiosk/<origin-dir>/identity.json`.** `<origin-dir>` names ONE origin with its scheme, host AND port, e.g. `https_getgrocery.demo.kiosk.tech_443` or `http_127.0.0.1_3002`. Never use a bare hostname: two ports on one host are two operators. Registration and tokens are OAuth (see "Auth handshake").
 
-- **No identity** -> make an RSA-2048 keypair, then `POST {registration_url} {"jwks": {"keys": [<your public JWK>]}}` (RFC 7591) -> `201` with your `client_id`. Keep the PRIVATE key at `~/.kiosk/<origin-dir>/key.pem` and the identity `{"client_id": "..."}` at `~/.kiosk/<origin-dir>/identity.json`.
+- **No identity** -> make an Ed25519 keypair (see "Auth handshake"), then `POST {registration_url} {"jwks": {"keys": [<your public JWK>]}}` (RFC 7591) -> `201` with your `client_id`. Keep the PRIVATE key at `~/.kiosk/<origin-dir>/key.pem` and the identity `{"client_id": "..."}` at `~/.kiosk/<origin-dir>/identity.json`.
 - **Get a token** -> `POST {token_url}` as a form with `grant_type=client_credentials`, a client assertion (RFC 7523) and a `DPoP` header (RFC 9449) -> `200 {access_token, token_type: "DPoP", expires_in}`, plus `scope` when your account has a role. The token's `sub` is your `user_id`, and its `agent_id` claim is your `client_id`.
 - Tokens are short-lived. Send a new token request when yours expires, and not before. Each new token can pay the toll again.
 - **`invalid_client`** -> sign a new client assertion and send the token request again, one time. If it fails again, register the same key again. When the same `client_id` comes back, continue with it. A NEW `client_id` means that your human unlinked you: ask them before you go on.
+- **An RSA `key.pem`** -> the operator refuses it. Make an Ed25519 keypair and register it. This is a new account.
 - **To change your key, rotate it** (see "Key rotation"). A new registration is a new account, with no reputation, no binding and no saved card. Rotate when your human asks, or when someone else can have seen `key.pem`.
 - **A second account at one origin** goes in its own directory, `~/.kiosk/<origin-dir>/<name>/`, with its own files. `<name>` is the label that your human gives it. Never overwrite a directory. When it is not clear which account to use, ask.
 
@@ -281,6 +282,15 @@ If the mandates' `exp` has passed, you cannot send them again. Read the order's 
 
 ## Auth handshake (registration and tokens)
 
+Your key is an Ed25519 key: it signs every JWT with the algorithm `EdDSA` (RFC 8037). Make it one time per origin:
+
+```python
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+pem = ed25519.Ed25519PrivateKey.generate().private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+# write `pem` to ~/.kiosk/<origin-dir>/key.pem, then chmod 600 it
+```
+
 A client assertion proves that you hold your private key. Its `aud` is the origin, so nobody can use it at another operator:
 
 ```python
@@ -309,7 +319,7 @@ def client_assertion(signing_key, **claims):    # RFC 7523: a new one for each r
     now = int(time.time())
     return jwt.encode({"iss": client_id, "sub": client_id, "aud": origin,
                        "jti": str(uuid.uuid4()), "iat": now, "exp": now + 60, **claims},
-                      signing_key, algorithm="RS256", headers={"typ": "client-authentication+jwt"})
+                      signing_key, algorithm="EdDSA", headers={"typ": "client-authentication+jwt"})
 
 # Token request: the client_credentials grant, with a DPoP proof that names no token.
 form = urllib.parse.urlencode({"grant_type": "client_credentials", "client_assertion_type": ASSERTION_TYPE,
@@ -332,15 +342,14 @@ The operator binds your access token to your key (RFC 9449). On EVERY call that 
 # dpop_proof() with no token makes the proof for a token request.
 import base64, hashlib, sys, time, uuid
 import jwt
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat, load_pem_private_key
 
 def b64(data):
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
-def public_jwk(key):
-    nums = key.public_key().public_numbers()
-    octets = lambda i: i.to_bytes((i.bit_length() + 7) // 8, "big")
-    return {"e": b64(octets(nums.e)), "kty": "RSA", "n": b64(octets(nums.n))}
+def public_jwk(key):                            # RFC 8037: the members in RFC 7638 order
+    x = key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return {"crv": "Ed25519", "kty": "OKP", "x": b64(x)}
 
 def dpop_proof(key_pem, method, url, token=None):
     key = load_pem_private_key(key_pem, password=None)
@@ -348,7 +357,7 @@ def dpop_proof(key_pem, method, url, token=None):
               "iat": int(time.time())}
     if token:
         claims["ath"] = b64(hashlib.sha256(token.encode()).digest())
-    return jwt.encode(claims, key, algorithm="RS256", headers={"typ": "dpop+jwt", "jwk": public_jwk(key)})
+    return jwt.encode(claims, key, algorithm="EdDSA", headers={"typ": "dpop+jwt", "jwk": public_jwk(key)})
 
 if __name__ == "__main__":
     url, token = sys.stdin.read().split()
@@ -364,7 +373,7 @@ req = urllib.request.Request(url, headers={"Authorization": f"DPoP {token}",
 
 ### Key rotation
 
-Make a new keypair. Sign one client assertion with EACH key, both for your `client_id`. The assertion of the OLD key also carries `new_key`: the fingerprint of the NEW key.
+Make a new Ed25519 keypair. Sign one client assertion with EACH key, both for your `client_id`. The assertion of the OLD key also carries `new_key`: the fingerprint of the NEW key.
 
 ```python
 new_jwk = public_jwk(new_key)
@@ -409,7 +418,7 @@ An action that creates an order (or a booking) gives `checkout_jwt`, a JWT that 
 
 ### The two mandates
 
-Each mandate is an **SD-JWT** (RFC 9901) that you sign with your `key.pem`: a JWT with the header `{"alg": "RS256", "typ": "dc+sd-jwt"}` and the payload `{"_sd_alg": "sha-256", "delegate_payload": [{"...": <digest>}]}`; one disclosure, the base64url form of `[<random salt>, <mandate>]`, whose base64url SHA-256 is the digest; and the compact form `<JWT>~<disclosure>~`. Base64url has no `=` padding.
+Each mandate is an **SD-JWT** (RFC 9901) that you sign with your `key.pem`: a JWT with the header `{"alg": "EdDSA", "typ": "dc+sd-jwt"}` and the payload `{"_sd_alg": "sha-256", "delegate_payload": [{"...": <digest>}]}`; one disclosure, the base64url form of `[<random salt>, <mandate>]`, whose base64url SHA-256 is the digest; and the compact form `<JWT>~<disclosure>~`. Base64url has no `=` padding.
 
 | Mandate | `vct` | Members (all REQUIRED, with `iat` and `exp`) |
 |---|---|---|
@@ -431,7 +440,7 @@ def mandate(content):
     disclosure = b64(json.dumps([b64(secrets.token_bytes(16)), content]).encode())
     digest = b64(hashlib.sha256(disclosure.encode()).digest())
     signed = jwt.encode({"_sd_alg": "sha-256", "delegate_payload": [{"...": digest}]},
-                        private_key, algorithm="RS256", headers={"typ": "dc+sd-jwt"})
+                        private_key, algorithm="EdDSA", headers={"typ": "dc+sd-jwt"})
     return f"{signed}~{disclosure}~"
 
 checkout_jwt = order["checkout_jwt"]  # `order`: the answer of the action -- copy it VERBATIM
@@ -453,7 +462,7 @@ Send both in one call, `POST <endpoint>/pay {"checkout_mandate": "...", "payment
 
 ### The receipts
 
-A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs PS256 with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Save each payment in its own file, `~/.kiosk/<origin-dir>/receipts/<UTC time as YYYYMMDDTHHMMSSZ>-<payment_id>.json`, so that the files sort by time: the `pay` answer and the two mandates. They are the history of payments at this operator, and your human can show them in a dispute.
+A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs EdDSA with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Save each payment in its own file, `~/.kiosk/<origin-dir>/receipts/<UTC time as YYYYMMDDTHHMMSSZ>-<payment_id>.json`, so that the files sort by time: the `pay` answer and the two mandates. They are the history of payments at this operator, and your human can show them in a dispute.
 
 ### The three 402s
 
