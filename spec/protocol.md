@@ -559,7 +559,8 @@ capability the origin does not serve:
   `registration_endpoint` (Section 5.1), `token_endpoint` (Section 5.3),
   `device_authorization_endpoint` (Section 6.1) only where the origin serves
   account binding, `jwks_uri`, `response_types_supported` empty because there is
-  no authorization endpoint, `grant_types_supported` with `client_credentials`
+  no authorization endpoint, `scopes_supported` empty because an AI assistant
+  requests no scope (Section 5.3), `grant_types_supported` with `client_credentials`
   and, where the origin serves account binding, the device-code grant,
   `token_endpoint_auth_methods_supported: ["private_key_jwt"]`,
   `token_endpoint_auth_signing_alg_values_supported` (Section 5),
@@ -570,6 +571,7 @@ capability the origin does not serve:
 - `/.well-known/oauth-protected-resource` (RFC 9728): `resource` is the origin,
   because RFC 9728 Section 3.3 binds a document at this path to the origin;
   `authorization_servers` holds the RFC 8414 `issuer` above;
+  `scopes_supported` is empty because an AI assistant requests no scope;
   `bearer_methods_supported: ["header"]`,
   `dpop_signing_alg_values_supported` with the list of Section 5,
   `dpop_bound_access_tokens_required: true` (Section 5.6), and
@@ -586,7 +588,9 @@ capability the origin does not serve:
 - `/auth.md`, a Markdown description of the methods in the auth.md section
   order, whose first heading names auth.md: registration (RFC 7591), the token
   request, the claim ceremony (RFC 8628) with a client assertion, the link
-  flow, and revocation by key rotation and unlink.
+  flow, and revocation by key rotation and unlink. Its Discover section writes
+  each URL bare, with no Markdown mark around it, so that a scanner reads the
+  URL alone.
 
 These surfaces are unauthenticated. All but the api-catalog are POINTERS, so
 the rule of Section 4.2 binds them: an operator **MUST NOT** enumerate its

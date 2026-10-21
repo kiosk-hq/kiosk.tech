@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-22: Both specifications publish `scopes_supported: []` in the OAuth metadata, because an AI assistant requests no scope. auth.md writes each Discover URL bare.
 - 2026-10-21: The landing page is retold in the founder's voice: personal assistants, any service, the toll on the door, one card entry per operator, and the event stream.
 
 ## [skill 0.6.0] — 2026-10-21
