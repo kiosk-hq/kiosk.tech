@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.5.26] — 2026-10-21
+
+- 2026-10-21: **Skill 0.5.26** keeps every file for an operator in that operator's directory, and saves the receipts of each payment in a file of their own. `Kiosk-Min-Client` stays 0.5.23.
+
 - 2026-10-21: Both specifications and the onboarding guide add RFC 9728 protected resource metadata, and the ARD manifest also at `/.well-known/ai-catalog.json`.
 - 2026-10-21: The landing page is short: the open way in for any assistant, how it works in five steps, operators and assistants, the demos, and what ships.
 

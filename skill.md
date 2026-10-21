@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.5.25"
+  version: "0.5.26"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -31,7 +31,7 @@ Two terms; do not mix them up. **`origin`** is the operator's base URL: scheme, 
 
 - **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Use `urllib` or `requests` for HTTP. Keep access tokens in Python memory, and never put one on a command line. The listener's `--token-file` is the one file where you write a token.
 - **Dependencies:** `pyjwt` and `cryptography` for signing, plus `numpy`, which is there only because the pinned solver script imports it, and `websockets` (>= 12) for the pinned listener. Use ONE venv for every operator and every snippet in this skill: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography numpy websockets`, then run `~/.kiosk/venv/bin/python`.
-- **Files:** each origin has its own directory `~/.kiosk/<origin-dir>/` with `key.pem`, `identity.json`, `token` and `spend.json`. `chmod 600` every file. Use a new RSA key per origin (scheme, host and port), so that operators cannot track you across origins.
+- **Files:** each origin has its own directory `~/.kiosk/<origin-dir>/`. EVERY file that you write for an operator goes in it: `key.pem`, `identity.json`, `token`, `spend.json`, `receipts/`, and your own notes, state and scripts. Only `~/.kiosk/venv`, `~/.kiosk/dpop.py` and the pinned solver and listener are shared. `chmod 600` every file. Use a new RSA key per origin (scheme, host and port), so that operators cannot track you across origins.
 
 ## The wire
 
@@ -264,7 +264,7 @@ Steps 5-6 apply only when the task includes a payment and `capabilities` has `pa
 
 1. **Compare the checkout's `total_amount_cents` with the ask-first amount.** At or below it, in the same currency: pay. Else ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?"
 2. Sign the 2 AP2 mandates for the `checkout_jwt` that the action gave you (see "AP2 payment mandates").
-3. `POST <endpoint>/pay {checkout_mandate, payment_mandate}` with the two DPoP headers. The answer is the settlement with two receipts: keep them with the mandates.
+3. `POST <endpoint>/pay {checkout_mandate, payment_mandate}` with the two DPoP headers. The answer is the settlement with two receipts: save them (see "The receipts").
 
 **If you get no answer to `pay`, or a `payment_failed` whose outcome is unknown:** Send the IDENTICAL two mandates again, byte for byte. Do NOT sign new ones. The operator charges one pair of mandates at most once. Wait a few seconds between tries, and try at most three times. A repeat needs no second yes from your human. The answers:
 
@@ -454,7 +454,7 @@ Send both in one call, `POST <endpoint>/pay {"checkout_mandate": "...", "payment
 
 ### The receipts
 
-A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs PS256 with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Keep both receipts with the mandates: your human can show them in a dispute.
+A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs PS256 with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Save each payment in its own file, `~/.kiosk/<origin-dir>/receipts/<UTC time as YYYYMMDDTHHMMSSZ>-<payment_id>.json`, so that the files sort by time: the `pay` answer and the two mandates. They are the history of payments at this operator, and your human can show them in a dispute.
 
 ### The three 402s
 
