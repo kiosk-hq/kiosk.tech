@@ -35,12 +35,12 @@
     <p><span class="status">HTTP 500</span> &nbsp; <code>title</code>: Action failed</p>
 
     <h2>What it means</h2>
-    <p>An operator-registered action raised while running. The wire caught it and rendered a problem document — the failure is inside the operator’s own code, on the operator’s side of the seam.</p>
+    <p>An operator-registered action raised while running. Kiosk caught it and rendered a problem document — the failure is inside the operator’s own code, on the operator’s side of the seam.</p>
 
     <h2>What to do next</h2>
     <p>Not a client error: the request was accepted and understood. <code>detail</code> carries what the operator chose to say. Retrying an action that raised may or may not succeed — if the action is one that spends money or creates records, verify the resulting state through the operator’s own queries before retrying.</p>
 
-    <h2>On the wire</h2>
+    <h2>The response</h2>
     <pre><code>{
   "type":   "https://kiosk.tech/problems/action_failed",
   "title":  "Action failed",

@@ -46,7 +46,7 @@
     },
     {
       "name": "search_hotels",
-      "description": "Find hotels matching what the human actually asked for; narrow with the filters this verb declares rather than pulling the whole catalogue. A row is a SUMMARY of one property, priced at its cheapest nightly rate and not at a total for the stay. The result is one PAGE of the matching set: when more hotels match, the response carries a `Link` header with rel=\"next\" -- follow it, because stopping at the first page answers from a partial list. `limit` and `cursor` are reserved parameter names this verb deliberately does not declare (Section 8.1 item 6); the wire accepts them anyway.",
+      "description": "Find hotels matching what the human actually asked for; narrow with the filters this verb declares rather than pulling the whole catalogue. A row is a SUMMARY of one property, priced at its cheapest nightly rate and not at a total for the stay. The result is one PAGE of the matching set: when more hotels match, the response carries a `Link` header with rel=\"next\" -- follow it, because stopping at the first page answers from a partial list. `limit` and `cursor` are reserved parameter names this verb deliberately does not declare (Section 8.1 item 6); the protocol accepts them anyway.",
       "reach": "principal",
       "input_schema": {
         "type": "object",

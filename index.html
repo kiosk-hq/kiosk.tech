@@ -81,7 +81,7 @@
     <h2>The problem, as I ran into it</h2>
     <p class="big">A Hermes assistant running on a laptop is in nobody's directory. A bot filter such as Cloudflare's waves a vendor's fleet through when the vendor is in its directory, and stops the one on the laptop. A big shop lets an assistant in after a partner deal, and the laptop has no partner deal either. So the assistant meets a CAPTCHA, gets blocked at the edge, or gets banned. The damage lands on a customer who asked for a table for two and got a wall.</p>
     <p>Kiosk is the door I would build if I ran the restaurant. An assistant that arrives for the first time makes a fresh key for that one service and registers it: no email, no password, nobody to vouch for it. A CAPTCHA exists to tell a bot from a human, and the customer sent a robot on purpose, so “are you human” is the wrong question. “Did you pay for this request” is one every assistant can answer, so Kiosk puts a toll on the door: a proof of work that the assistant pays in compute. Let's Encrypt gave every website a certificate without asking who runs it. Kiosk gives every assistant a way in on the same terms, and puts a price on abuse.</p>
-    <p>Nothing in that door knows what your service does. The same wire carries a grocery order, a hotel booking, a classified ad and a to-do list shared between two housemates' assistants. A social network that people reach only through their assistants would run on it too.</p>
+    <p>Nothing in that door knows what your service does. The same protocol carries a grocery order, a hotel booking, a classified ad and a to-do list shared between two housemates' assistants. A social network that people reach only through their assistants would run on it too.</p>
   </section>
 
   <section id="how">
@@ -92,7 +92,7 @@
       <li><strong>Pay the toll.</strong> Registration and each new session cost a memory-hard proof of work: about 10&nbsp;seconds on one laptop core. Your server checks it in about 20&nbsp;ms. The more a customer spent with you in the past week, the fewer sessions pay, down to none at 100&nbsp;euros.</li>
       <li><strong>Call.</strong> Each query and action that you declare has its own REST path, listed in a public catalog. <a href="/skill.md">One skill file</a> teaches an assistant to use every Kiosk operator.</li>
       <li><strong>Pay.</strong> You sign a checkout with the exact items and price. The assistant pays it with two signed AP2&nbsp;v0.2 mandates, and you answer with two signed receipts. The human saves a card once, on your own Stripe page, and the skill forbids the assistant to touch that form. <strong>After that, every payment at your service needs no form and no click.</strong></li>
-      <li><strong>Hear back.</strong> Some answers arrive on somebody else's clock: the hotel confirms, the courier sets off, a housemate ticks an item off the shared list. The assistant holds one WebSocket to you, subscribes to the topics you declare in the catalog, and resumes from the last event id after a disconnect. The wire runs both ways: the assistant calls, you push.</li>
+      <li><strong>Hear back.</strong> Some answers arrive on somebody else's clock: the hotel confirms, the courier sets off, a housemate ticks an item off the shared list. The assistant holds one WebSocket to you, subscribes to the topics you declare in the catalog, and resumes from the last event id after a disconnect. The protocol runs both ways: the assistant calls, you push.</li>
     </ol>
   </section>
 
@@ -216,14 +216,14 @@
         <ul class="standards">
           <li>agents.txt</li><li>auth.md</li><li>Agent Skills</li><li>OAuth registration (RFC 7591)</li><li>Client assertions (RFC 7523)</li><li>DPoP (RFC 9449)</li><li>Device grant (RFC 8628)</li><li>RFC 8414</li><li>RFC 9727</li><li>RFC 9457 problems</li><li>AP2 v0.2</li>
         </ul>
-        <p style="margin-top:12px">The reference is Rails. On the wire it is HTTPS, JSON and JWS, so you can port it to any stack.</p>
+        <p style="margin-top:12px">The reference is Rails. The protocol is HTTPS, JSON and JWS, so you can port it to any stack.</p>
       </div>
     </div>
   </section>
 
   <section>
     <div class="status">
-      <strong style="color:var(--accent)">Status: v0.6</strong> — pre-1.0: the wire may still change between releases, and an assistant relies on the skill file that the operator pins. A known TODO is in <a href="/specification.html">the specification</a>: refunds or cancellations that an assistant asks for. kiosk.tech is static files: no request, order or payment goes through it.
+      <strong style="color:var(--accent)">Status: v0.6</strong> — pre-1.0: the protocol may still change between releases, and an assistant relies on the skill file that the operator pins. A known TODO is in <a href="/specification.html">the specification</a>: refunds or cancellations that an assistant asks for. kiosk.tech is static files: no request, order or payment goes through it.
     </div>
   </section>
   </div>

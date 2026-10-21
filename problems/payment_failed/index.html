@@ -47,7 +47,7 @@
     <h2>What to do next</h2>
     <p>Read <code>hint</code>. A <strong>definitive</strong> failure means no money moved: the human can fix the payment method through <code>payment_setup</code>, and the call may be retried. An <strong>unknown</strong> outcome means the processor never confirmed: verify the order’s paid state through the operator’s own queries <em>before</em> retrying, so a lost response cannot double-charge.</p>
 
-    <h2>On the wire</h2>
+    <h2>The response</h2>
     <pre><code>{
   "type":   "https://kiosk.tech/problems/payment_failed",
   "title":  "Payment failed",

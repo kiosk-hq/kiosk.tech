@@ -29,7 +29,7 @@
         },
         "endpoint": {
           "type": "string",
-          "description": "The wire-verb root (base URL + mount path), e.g. https://example.com/kiosk."
+          "description": "The verb root (base URL + mount path), e.g. https://example.com/kiosk."
         },
         "capabilities": {
           "type": "array",

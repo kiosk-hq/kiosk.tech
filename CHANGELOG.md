@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.2] — 2026-10-22
+
+- 2026-10-22: **Skill 0.6.2** and every page say "protocol" or "HTTP API" for the requests and answers the specification defines. The protocol does not change; `Kiosk-Min-Client` stays 0.6.0.
+
 ## [skill 0.6.1] — 2026-10-22
 
 - 2026-10-22: **Skill 0.6.1** names every error code of the specification and the two DPoP headers, and says each answer one time. The wire does not change; `Kiosk-Min-Client` stays 0.6.0.

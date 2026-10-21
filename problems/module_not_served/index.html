@@ -49,7 +49,7 @@
     <p><strong>Do not retry, and do not treat this as a transient server fault.</strong> It is a 5xx by HTTP semantics: nothing you can change about the request makes it succeed, and backing off and trying again is wasted time.</p>
     <p>Fall back to whatever the module was for. Binding declined &rarr; register a fresh assistant account instead. Payment declined &rarr; hand the transaction to your human. KYC declined &rarr; the attribute-gated actions behind it are simply not on offer here. The event stream declined &rarr; there is nothing to subscribe to, so take the bounded poll instead.</p>
 
-    <h2>On the wire</h2>
+    <h2>The response</h2>
     <pre><code>{
   "type":   "https://kiosk.tech/problems/module_not_served",
   "title":  "Module not served",

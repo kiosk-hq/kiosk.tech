@@ -20,7 +20,7 @@ that they are non-normative.
 `spec/protocol.md` is its **formal** companion — the same protocol written
 RFC-style and section-numbered, for anyone porting Kiosk to another stack. The
 two are kept consistent; where their wording still differs, the formal
-specification is the authority on wire precision.
+specification is the authority on protocol precision.
 
 `spec/schemas/` carries the machine-readable JSON Schemas. Beside them,
 `spec/schemas/examples/` holds documents every schema must ACCEPT and
@@ -41,7 +41,7 @@ version than an operator's protocol cannot be relied on to transact with it. An 
 together with its SHA-256, which is why the files may not move.
 
 `skills.md` is the index of them: every published cut, the protocol it
-describes, and what changed on the wire.
+describes, and what changed in the protocol.
 
 ## The other published pages
 

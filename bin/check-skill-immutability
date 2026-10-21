@@ -437,7 +437,7 @@ end
 #
 # A stale version line on the normative page is a CLAIM, not a typo: it tells
 # an adopter to pin a superseded cut, and the dual-check will happily verify
-# that superseded cut's bytes and then drive a wire the operator no longer
+# that superseded cut's bytes and then drive a protocol the operator no longer
 # serves. So the prose gets a gate for the same reason the bytes do.
 #
 # EVERYTHING HERE IS DERIVED FROM THE FILES ON DISK. There is no version number
@@ -449,7 +449,7 @@ end
 #   R1  a sentence that states WHICH cut is current names the newest cut
 #       («The current skill is X», «currently skill-vX», «current skill-vX.md»,
 #        «a X operator no longer serves»)
-#   R2  «A-B describe earlier <series> wires» spans the newest series from its
+#   R2  «A-B describe earlier <series> cuts» spans the newest series from its
 #       first cut to the one immediately before the newest
 #   R3  «A-B (cuts) describe protocol S-T» spans the oldest cut to the last cut
 #       before the newest series
@@ -458,23 +458,23 @@ end
 #   R5  every `skill-vX.Y.Z.md` named anywhere names a cut that EXISTS
 #   R6  the cut table in skills.md carries a row for every cut on the newest
 #       series, newest first
-#   R7  the cut table's «same wire» chain («0.4.3 = 0.4.4 = … = 0.4.10») is a
+#   R7  the cut table's «same protocol» chain («0.4.3 = 0.4.4 = … = 0.4.10») is a
 #       contiguous run of published cuts and reaches the newest one
-#   R8  the PER-CUT HISTORY CLAUSE LIST («0.4.0–0.4.2 on wires that have since
-#       changed, 0.4.3 on this same wire but …, … and 0.4.9 on this same wire
+#   R8  the PER-CUT HISTORY CLAUSE LIST («0.4.0–0.4.2 on protocols that have since
+#       changed, 0.4.3 on this same protocol but …, … and 0.4.9 on this same protocol
 #       but …») names every cut on the newest series BELOW the newest, exactly
 #       once, in order — ranges expanded through the cuts on disk (K-1232)
 #   R9  each cut table ROW BODY: its protocol column states the series its own
-#       cut is on, and a «the same wire as X» in it names that cut's immediate
+#       cut is on, and a «the same protocol as X» in it names that cut's immediate
 #       PREDECESSOR (K-1232)
-#   R10 the same-wire group written as a SPAN rather than as a chain («the
-#       "same wire" chain below runs 0.4.3 → 0.4.10 only») reaches the newest
+#   R10 the same-protocol group written as a SPAN rather than as a chain («the
+#       "same protocol" chain below runs 0.4.3 → 0.4.10 only») reaches the newest
 #       cut, exactly as R7 requires of the «=» spelling (K-1232)
 #       — AND may not reach PAST one. R10 measured only the short direction for
 #       as long as it existed, so a span swallowing a cut the same file declares
-#       opens a new wire group passed unconditionally (K-1602): «0.4.3 → 0.4.14»
+#       opens a new protocol group passed unconditionally (K-1602): «0.4.3 → 0.4.14»
 #       with 0.4.12 and 0.4.13 both declared was EXIT 0, measured by
-#       plant-and-restore on the live page. A boundary inside a span is the wire
+#       plant-and-restore on the live page. A boundary inside a span is the protocol
 #       changing partway along it, which is the one thing the span denies.
 #   R11 the per-cut history clause list R8 reads is PRESENT on the normative
 #       page (specification.html) whenever the newest series has more than one
@@ -529,7 +529,7 @@ end
 #     R8 does catch are both things a real wave did. And the only available fix
 #     binds each clause to a phrase derived from its own cut (its CHANGELOG
 #     line, say), which is a LEXICAL rule over prose — exactly the construction
-#     EARLIER_WIRES was, and it matched nothing anywhere for its whole existence
+#     EARLIER_CUTS was, and it matched nothing anywhere for its whole existence
 #     while reading as coverage. A rule that fires on every rewording of a
 #     sentence a human is meant to edit is worse than a stated limit. If a wave
 #     ever IS found to have transposed two clauses, that is the evidence this
@@ -546,7 +546,7 @@ end
 # THE FOURTH ITERATION OF ONE FAILURE (K-1213 → K-1223 → K-1227). Three times
 # running, a claim about what holds a relink was written without planting a
 # break to test it, and three times it was wrong. Pass 4's own patterns were the
-# fourth: `SERVES_CLAIM` matched only the negative wording, `EARLIER_WIRES`
+# fourth: `SERVES_CLAIM` matched only the negative wording, `EARLIER_CUTS`
 # required a noun neither live sentence uses (so it matched nothing at all,
 # anywhere, for as long as it existed), and skills.md was exempt from R4 by
 # file. A faithful stale-relink planted in any of the four resulting classes
@@ -577,7 +577,7 @@ HISTORY_LINES = {
 # above ON PURPOSE (K-1228, widened to R2/R3/R8/R10 by K-1229).
 #
 # WHY IT EXISTS: R4 and R7 are not the only rules an append-only file cannot
-# satisfy. A CHANGELOG entry saying «a 0.4.10 operator serves the new wire»
+# satisfy. A CHANGELOG entry saying «a 0.4.10 operator serves the new protocol»
 # passes on the day it is written and fails on the next cut, and by then the
 # entry is published history that must not be rewritten — so the tree can only
 # come to rest red, or be repaired by an edit the constitution forbids. The
@@ -655,8 +655,8 @@ PROTOCOL_CLAIM = /
 PROTOCOL_BADGE = %r{>v(\d+\.\d+)</p>}
 
 # "0.4.0-0.4.9 describe earlier 0.4 cuts". THE TRAILING NOUN IS NOT PART OF THE
-# PATTERN, on purpose: this rule used to require the literal word "wires", both
-# live sentences say "cuts", and so it matched NOTHING ANYWHERE IN THE REPO
+# PATTERN, on purpose: this rule used to require a trailing noun that neither of the
+# live sentences uses, and so it matched NOTHING ANYWHERE IN THE REPO
 # while reading as though it covered them (K-1227). What identifies the claim is
 # "<range> describe earlier <series>"; the noun after it is prose, and a rule
 # keyed on prose is a rule one wording change switches off in silence. The
@@ -666,24 +666,24 @@ PROTOCOL_BADGE = %r{>v(\d+\.\d+)</p>}
 # earlier cut and a range whose ends are equal is not a sentence anybody
 # would publish. `0.5.0 describes the earlier 0.5 cut` is read as the span
 # 0.5.0-0.5.0; the dash spelling is unchanged for every wider series.
-EARLIER_WIRES     = /(\d+(?:\.\d+)+)(?:\s*[-–—]\s*(\d+(?:\.\d+)+))?\s+describes?\s+(?:the\s+)?earlier\s+(\d+\.\d+)(?![\d.])/i
+EARLIER_CUTS      = /(\d+(?:\.\d+)+)(?:\s*[-–—]\s*(\d+(?:\.\d+)+))?\s+describes?\s+(?:the\s+)?earlier\s+(\d+\.\d+)(?![\d.])/i
 EARLIER_PROTOCOLS = /(\d+(?:\.\d+)+)\s*[-–—]\s*(\d+(?:\.\d+)+)\s+(?:cuts\s+)?describe\s+protocol\s+(\d+\.\d+)\s*[-–—]\s*(\d+\.\d+)/i
 
-# R7's subject: the cut table's same-wire chain, "0.4.3 = 0.4.4 = ... = 0.4.10".
+# R7's subject: the cut table's same-protocol chain, "0.4.3 = 0.4.4 = ... = 0.4.10".
 # Three or more components per element so an ordinary "1.0 = 1.0" in prose is
 # not read as one, and no capture group, so `scan` yields whole chains.
-SAME_WIRE_CHAIN = /\d+(?:\.\d+){2,}(?:\s*=\s*\d+(?:\.\d+){2,})+/
+SAME_PROTOCOL_CHAIN = /\d+(?:\.\d+){2,}(?:\s*=\s*\d+(?:\.\d+){2,})+/
 
 # R8's subject: ONE CLAUSE of the per-cut history list that specification.html
-# writes under the earlier-cuts range — «0.4.0–0.4.2 on wires that have since
-# changed, 0.4.3 on this same wire but …, … and 0.4.9 on this same wire but …».
+# writes under the earlier-cuts range — «0.4.0–0.4.2 on protocols that have since
+# changed, 0.4.3 on this same protocol but …, … and 0.4.9 on this same protocol but …».
 # EVERY cut moves that list (`git show --stat 00fd3ea`, `d29ebb6`), and until
 # K-1232 NOTHING held it: deleting the newest clause, or writing it against the
 # wrong cut, left all six candidate mechanisms in this workspace at exit 0.
 #
 # THE ANCHOR IS STRUCTURAL, NOT LEXICAL: a version (or a version range) followed
-# by "on". Requiring the trailing noun is the mistake EARLIER_WIRES made — it
-# demanded the word "wires" where both live sentences say "cuts" and so matched
+# by "on". Requiring the trailing noun is the mistake EARLIER_CUTS made — it
+# demanded a noun that neither live sentence uses, and so matched
 # nothing anywhere for its whole existence. And note WHICH WAY this one fails: a
 # reworded clause stops matching, which makes the enumerated list INCOMPLETE and
 # the rule RED. A wording change cannot switch R8 off in silence; it can only
@@ -715,8 +715,8 @@ HISTORY_CLAUSE = /(\d+(?:\.\d+)+)(?:\s*[-–—]\s*(\d+(?:\.\d+)+))?\s+on\s/
 # superseded. Everything ABOUT the list stays derived from the cuts on disk.
 HISTORY_PAGE = "specification.html"
 
-# R10's subject: the same-wire group written as a SPAN instead of as a chain —
-# skills.md's «the "same wire" chain below runs 0.4.3 → 0.4.9 only». R7 reads the
+# R10's subject: the same-protocol group written as a SPAN instead of as a chain —
+# skills.md's «the "same protocol" chain below runs 0.4.3 → 0.4.9 only». R7 reads the
 # "=" spelling; this is the same claim in the arrow spelling and must reach the
 # newest cut for the same reason. Three-or-more components on both sides so
 # "(0.3 → 0.4)" in prose is not read as one. MEASURED: the v0.4.8 and v0.4.9
@@ -738,12 +738,12 @@ HISTORY_PAGE = "specification.html"
 CHAIN_SPAN = /(\d+(?:\.\d+){2,})\s*(?:→|-+>)\s*(\d+(?:\.\d+){2,})/
 
 # R7's ESCAPE, and the only one it has (T-158, K-1280). R7 requires the newest
-# cut to appear at the end of a same-wire chain. That is unsatisfiable BY A TRUE
-# SENTENCE the moment the newest cut OPENS a new wire group, because a chain
+# cut to appear at the end of a same-protocol chain. That is unsatisfiable BY A TRUE
+# SENTENCE the moment the newest cut OPENS a new protocol group, because a chain
 # needs two elements and the two candidates are both wrong: `0.4.12 = 0.4.12` is
 # not a contiguous run of two published cuts and fails R7's own contiguity test
 # (MEASURED), while `0.4.11 = 0.4.12` passes every test R7 has and SAYS THE
-# FALSE THING -- that the cut which changed the wire describes the same wire as
+# FALSE THING -- that the cut which changed the protocol describes the same protocol as
 # the one before it. R7's own failure message tells the author to "REWRITE the
 # note if it opens a new group", and before this pattern existed there was no
 # rewrite that both told the truth and left the gate green.
@@ -761,8 +761,8 @@ CHAIN_SPAN = /(\d+(?:\.\d+){2,})\s*(?:→|-+>)\s*(\d+(?:\.\d+){2,})/
 # -- a gating pattern with no subject is a gate switched off. This one is an
 # ESCAPE: with no subject anywhere, R7 is simply in full force, which is the
 # safe direction. Requiring it to match would demand this sentence in a
-# repository that has never opened a second wire group.
-NEW_GROUP = /\b(\d+(?:\.\d+){2,})\s+opens\s+a\s+new\s+wire\s+group\b/i
+# repository that has never opened a second protocol group.
+NEW_GROUP = /\b(\d+(?:\.\d+){2,})\s+opens\s+a\s+new\s+protocol\s+group\b/i
 
 # R9's subject: one cut-table row naming exactly ONE cut, split into its version,
 # its protocol cell and its body. The collapsed range rows («`skill-v0.3.0.md` …
@@ -770,12 +770,12 @@ NEW_GROUP = /\b(\d+(?:\.\d+){2,})\s+opens\s+a\s+new\s+wire\s+group\b/i
 # and have no single predecessor.
 CUT_TABLE_ROW = /^\|\s*`?skill-v(\d+(?:\.\d+)+)\.md`?\s*\|([^|]*)\|(.*)\|\s*$/
 
-# R9's second half: «The same wire as 0.4.9.» at the head of a row body. The
+# R9's second half: «The same protocol as 0.4.9.» at the head of a row body. The
 # claim is RELATIVE — it names the row's own predecessor — so unlike R1 it is
 # satisfied forever once written, and unlike R4 it is not history the table is
 # licensed to keep: a NEW row written against the wrong cut is a stale relink
 # that no other rule can see.
-SAME_WIRE_AS = /wire\s+as\s+(\d+(?:\.\d+)+)/i
+SAME_PROTOCOL_AS = /same\s+protocol\s+as\s+(\d+(?:\.\d+)+)/i
 
 def cut_version(cut) = cut[/skill-v(.+)\.md\z/, 1]
 def series_of(version) = version.split(".")[0, 2].join(".")
@@ -817,19 +817,19 @@ def history_free(path, raw, exemptions = HISTORY_LINES)
   raw.lines.reject { |line| exempt.call(line) }.join
 end
 
-# R7. The same-wire chain. Derived entirely from the cuts on disk: every element
+# R7. The same-protocol chain. Derived entirely from the cuts on disk: every element
 # must be a published cut, the chain must be a CONTIGUOUS run of them, and the
 # furthest a chain reaches must be the newest cut. Returns [failures, chains].
 def chain_failures(path, text, ctx)
   fails  = []
-  chains = text.scan(SAME_WIRE_CHAIN)
+  chains = text.scan(SAME_PROTOCOL_CHAIN)
   return [fails, 0] if chains.empty?
 
   chains.each do |chain|
     named   = chain.scan(/\d+(?:\.\d+)+/)
     unknown = named.reject { ctx.all_versions.include?(_1) }
     unless unknown.empty?
-      fails << "#{path}: the \"same wire\" chain \"#{chain}\" names #{unknown.join(", ")}, which " \
+      fails << "#{path}: the \"same protocol\" chain \"#{chain}\" names #{unknown.join(", ")}, which " \
                "no published cut carries. Every element of that chain is a cut an assistant may " \
                "be holding, so a number nobody publishes cannot appear in it."
       next
@@ -839,25 +839,25 @@ def chain_failures(path, text, ctx)
     next if idx.each_cons(2).all? { |a, b| b == a + 1 }
 
     gap = (idx.min..idx.max).map { ctx.all_versions[_1] } - named
-    fails << "#{path}: the \"same wire\" chain \"#{chain}\" skips #{gap.join(", ")}. A chain reads " \
-             "as \"every cut from here to here describes one wire\", so a hole in it either states " \
+    fails << "#{path}: the \"same protocol\" chain \"#{chain}\" skips #{gap.join(", ")}. A chain reads " \
+             "as \"every cut from here to here describes one protocol\", so a hole in it either states " \
              "something false or hides a cut an adopter cannot place."
   end
 
   reach = chains.map { _1.scan(/\d+(?:\.\d+)+/).max_by { |v| version_order(v) } }
                 .max_by { |v| version_order(v) }
-  # The escape: a cut that OPENS a new wire group cannot end a chain truthfully,
+  # The escape: a cut that OPENS a new protocol group cannot end a chain truthfully,
   # so an explicit sentence naming it satisfies the reach requirement instead.
   # See NEW_GROUP for why this is not a loosening.
   opens_new_group = text.scan(NEW_GROUP).flatten.include?(ctx.newest_version)
   unless reach == ctx.newest_version || opens_new_group
-    fails << "#{path}: the furthest a \"same wire\" chain reaches is #{reach}, but the newest cut " \
+    fails << "#{path}: the furthest a \"same protocol\" chain reaches is #{reach}, but the newest cut " \
              "is #{ctx.newest_version} (#{ctx.newest_cut}). This note is the published answer to " \
              "\"can this cut talk to this operator\", so the newest cut must appear in it: extend " \
-             "the chain if #{ctx.newest_version} describes the same wire, and if it does NOT, say " \
-             "so in as many words — \"#{ctx.newest_version} opens a new wire group\" — which is the " \
+             "the chain if #{ctx.newest_version} describes the same protocol, and if it does NOT, say " \
+             "so in as many words — \"#{ctx.newest_version} opens a new protocol group\" — which is the " \
              "one sentence this rule accepts in place of a chain, because a new group's first cut " \
-             "cannot end one without claiming it is the same wire as its predecessor. Relinking is " \
+             "cannot end one without claiming it is the same protocol as its predecessor. Relinking is " \
              "PART of a skill change (K-847 rule 2)."
   end
 
@@ -982,9 +982,9 @@ def prose_failures(path, raw, ctx)
     end
   end
 
-  claim_text.scan(EARLIER_WIRES) do |(from, to, series)|
+  claim_text.scan(EARLIER_CUTS) do |(from, to, series)|
     claims += 1
-    hits |= [:earlier_wires]
+    hits |= [:earlier_cuts]
     if ctx.series_cuts.size < 2
       fails << "#{path}: describes cuts earlier than #{ctx.newest_version} within the " \
                "#{ctx.newest_series} series, but #{ctx.newest_cut} is the only cut on it. Reword " \
@@ -1027,7 +1027,7 @@ def prose_failures(path, raw, ctx)
   end
 
   # R10 gets R7's escape, on the same reasoning and TIGHTER (T-158, K-1280).
-  # When the newest cut opens a new wire group, the span describing the group
+  # When the newest cut opens a new protocol group, the span describing the group
   # that just CLOSED truthfully ends one cut short, and demanding it reach the
   # newest would demand a false sentence. But the escape does not admit any
   # stale span: the span must end where the closing group actually ends, so a
@@ -1036,13 +1036,13 @@ def prose_failures(path, raw, ctx)
   #
   # AND «EVERY CUT AT THE TOP OPENS ITS OWN GROUP» WAS ALSO A SPECIAL CASE
   # (K-1601, 2026-09-14). K-1472 generalised the escape from the newest cut's
-  # PREDECESSOR to the unbroken run of «X opens a new wire group» CUTS at the top
+  # PREDECESSOR to the unbroken run of «X opens a new protocol group» CUTS at the top
   # of the list — which is right only while every cut in that run opens a group
   # of its own. It stopped being right the moment a cut JOINED the newest group:
-  # cutting 0.4.14 onto 0.4.13's wire broke the run at its first element, the
+  # cutting 0.4.14 onto 0.4.13's protocol broke the run at its first element, the
   # escape evaporated, and the guard demanded the span reach 0.4.14 — i.e. the
   # FALSE sentence «0.4.3 → 0.4.14», that the eleven cuts of the 0.4.3 group
-  # describe the same wire as two later groups. Same failure as K-1472 and the
+  # describe the same protocol as two later groups. Same failure as K-1472 and the
   # same direction: the guard demanding the thing NEW_GROUP exists to refuse.
   # The fix walks GROUPS instead of CUTS — from the newest cut, jump to the
   # greatest declared boundary at or below the cursor, step one cut below it,
@@ -1052,7 +1052,7 @@ def prose_failures(path, raw, ctx)
   # writing of this walk turned K-1472's «only the INTERMEDIATE cut is declared»
   # fixture green, because crossing a multi-cut group and forgetting the cuts
   # above a boundary are the SAME BYTES until something says which. So a cut
-  # above a declared boundary counts as part of that group only when a same-wire
+  # above a declared boundary counts as part of that group only when a same-protocol
   # chain in this same file names it together with the boundary. Membership is
   # therefore always WRITTEN DOWN on the page an adopter reads, the walk stops at
   # the first cut nothing accounts for, and a span that stops inside the closing
@@ -1064,12 +1064,12 @@ def prose_failures(path, raw, ctx)
   # own. It stopped being right the moment two did in a row: with 0.4.12 its own
   # group and 0.4.13 opening the next, the group that closed at 0.4.11 was told
   # to reach 0.4.12 — an edit that would have published the FALSE sentence «0.4.3
-  # → 0.4.12», i.e. that the cut which changed the wire describes the same wire
+  # → 0.4.12», i.e. that the cut which changed the protocol describes the same protocol
   # as the eight before it. That is precisely the shape NEW_GROUP exists to
   # refuse, so the guard was demanding the thing it was written to prevent. The
   # generalisation is the same claim without the off-by-one: a span may stop at
   # the last cut of the closing group, where the closing group ends wherever the
-  # unbroken run of «X opens a new wire group» cuts at the TOP of the list
+  # unbroken run of «X opens a new protocol group» cuts at the TOP of the list
   # begins. Nothing is loosened — every cut in that run must be declared, IN THIS
   # SAME FILE, so a span two cuts short with only one declaration is still red.
   new_groups = claim_text.scan(NEW_GROUP).flatten
@@ -1077,7 +1077,7 @@ def prose_failures(path, raw, ctx)
   # that boundary is found by walking GROUPS down from the newest cut, never
   # CUTS. See the K-1601 note above for why the cut-wise walk this replaces
   # evaporated the moment a cut JOINED the newest group instead of opening one.
-  chain_sets = claim_text.scan(SAME_WIRE_CHAIN).map { _1.scan(/\d+(?:\.\d+)+/) }
+  chain_sets = claim_text.scan(SAME_PROTOCOL_CHAIN).map { _1.scan(/\d+(?:\.\d+)+/) }
   boundaries = new_groups.uniq.filter_map { ctx.all_versions.index(_1) }.sort
   cursor     = ctx.all_versions.size - 1
   loop do
@@ -1085,8 +1085,8 @@ def prose_failures(path, raw, ctx)
     break if start.nil?
 
     # A cut ABOVE a declared boundary belongs to that boundary's group only if a
-    # same-wire chain IN THIS SAME FILE says so. Without that link the guard
-    # cannot tell "0.4.10 was cut onto 0.4.9's wire" from "the wave forgot
+    # same-protocol chain IN THIS SAME FILE says so. Without that link the guard
+    # cannot tell "0.4.10 was cut onto 0.4.9's protocol" from "the wave forgot
     # 0.4.10", and K-1472's INTERMEDIATE fixture is exactly the second reading.
     joined = ((start + 1)..cursor).all? do |i|
       chain_sets.any? { _1.include?(ctx.all_versions[start]) && _1.include?(ctx.all_versions[i]) }
@@ -1101,26 +1101,26 @@ def prose_failures(path, raw, ctx)
     hits |= [:chain_span]
     unknown = [from, to].reject { ctx.all_versions.include?(_1) }
     if !unknown.empty?
-      fails << "#{path}: the same-wire span \"#{from} → #{to}\" names #{unknown.join(", ")}, " \
+      fails << "#{path}: the same-protocol span \"#{from} → #{to}\" names #{unknown.join(", ")}, " \
                "which no published cut carries."
     elsif to != ctx.newest_version && to != legal_end
-      fails << "#{path}: the same-wire span \"#{from} → #{to}\" stops at #{to}, but the newest " \
+      fails << "#{path}: the same-protocol span \"#{from} → #{to}\" stops at #{to}, but the newest " \
                "cut is #{ctx.newest_version} (#{ctx.newest_cut}). A span written this way is the " \
                "same published claim as the \"=\" chain R7 reads — \"these cuts describe one " \
-               "wire\" — so it must reach the newest cut: extend it if #{ctx.newest_version} " \
-               "describes that same wire, and if it does NOT, say \"#{ctx.newest_version} opens " \
-               "a new wire group\" in the same file — plus the same sentence for every cut " \
+               "protocol\" — so it must reach the newest cut: extend it if #{ctx.newest_version} " \
+               "describes that same protocol, and if it does NOT, say \"#{ctx.newest_version} opens " \
+               "a new protocol group\" in the same file — plus the same sentence for every cut " \
                "between — and end this span at #{legal_end}, the cut the closing group actually " \
                "reaches."
     elsif !(crossed = new_groups.uniq.select { |v|
               i = ctx.all_versions.index(v)
               i && i > ctx.all_versions.index(from) && i <= ctx.all_versions.index(to)
             }.sort_by { version_order(_1) }).empty?
-      fails << "#{path}: the same-wire span \"#{from} → #{to}\" reaches past " \
-               "#{crossed.join(", ")}, which this same file says opens a new wire group. The " \
+      fails << "#{path}: the same-protocol span \"#{from} → #{to}\" reaches past " \
+               "#{crossed.join(", ")}, which this same file says opens a new protocol group. The " \
                "span is the published answer to \"can the cut I hold talk to this operator\", " \
                "and written this way it says yes about a cut that cannot: a group boundary " \
-               "inside a span is the wire CHANGING partway along it. End the span at the cut " \
+               "inside a span is the protocol CHANGING partway along it. End the span at the cut " \
                "below #{crossed.min_by { |v| version_order(v) }}, or stop calling " \
                "#{crossed.join(", ")} a new group."
     end
@@ -1151,7 +1151,7 @@ def prose_failures(path, raw, ctx)
 
   chain_fails, chain_count = chain_failures(path, plain(free), ctx)
   claims += chain_count
-  hits |= [:same_wire_chain] if chain_count.positive?
+  hits |= [:same_protocol_chain] if chain_count.positive?
   fails.concat(chain_fails)
 
   [fails, claims, hits]
@@ -1163,10 +1163,10 @@ end
 #
 # R6 holds the table's SHAPE — a row per cut, newest first — and until K-1232
 # that was all anything held: the ROW BODY, which every cut writes fresh, was
-# invisible. Changing «The same wire as 0.4.9» to «as 0.4.8», or a row's protocol
+# invisible. Changing «The same protocol as 0.4.9» to «as 0.4.8», or a row's protocol
 # column to a series its cut is not on, left every mechanism in this workspace at
 # exit 0. R9 reads the body, and both of its claims are DERIVED: a row's protocol
-# is `series_of` its own cut, and a «same wire as» in it names that cut's
+# is `series_of` its own cut, and a «same protocol as» in it names that cut's
 # immediate predecessor among the published cuts. Both are RELATIVE claims, so
 # unlike R1/R4 they are true forever once written — the table stays append-only
 # and R9 still catches the row a wave writes against the wrong cut.
@@ -1208,16 +1208,16 @@ def cut_table_failures(table, ctx)
 
     index    = ctx.all_versions.index(version)
     previous = index.positive? ? ctx.all_versions[index - 1] : nil
-    body.scan(SAME_WIRE_AS) do |(named)|
-      hits |= [:row_same_wire]
+    body.scan(SAME_PROTOCOL_AS) do |(named)|
+      hits |= [:row_same_protocol]
       next if named == previous
 
-      fails << "#{CUT_TABLE}: the row for skill-v#{version}.md says it describes the same wire as " \
+      fails << "#{CUT_TABLE}: the row for skill-v#{version}.md says it describes the same protocol as " \
                "#{named}, but the cut published immediately before it is " \
                "#{previous || "(none — it is the oldest cut)"}. Each row states its cut's " \
                "relation to the one before it, and that is what makes the column readable as a " \
                "CHAIN (R7) rather than as a transitive licence; a row written against the wrong " \
-               "cut silently joins two groups that are not the same wire."
+               "cut silently joins two groups that are not the same protocol."
     end
   end
 
@@ -1272,8 +1272,8 @@ end
 #
 # Pass 4 is a wall of regular expressions over prose, and the way one fails is
 # not by throwing: it is by MATCHING NOTHING and exiting 0, which reads exactly
-# like a clean tree. That is not hypothetical. `EARLIER_WIRES` required the
-# literal word "wires", both sentences it exists for say "cuts", and it matched
+# like a clean tree. That is not hypothetical. `EARLIER_CUTS` required a
+# trailing noun that neither sentence it exists for uses, and it matched
 # nothing anywhere in this repository for as long as it has existed;
 # `SERVES_CLAIM` required "no longer serves" and skills.md writes the positive
 # form; and skills.md's whole prose half was exempted along with its table. Each
@@ -1304,9 +1304,9 @@ FIXTURE_CUTS_TWO = %w[0.1.1 0.5.0 0.5.1].map { "skill-v#{_1}.md" }.freeze
 # WHOLE VALID TABLE with exactly one thing wrong in it — otherwise R6 would fire
 # and the case would go red for the wrong reason.
 def fixture_table(versions, overrides = {})
-  "| Cut | Protocol | Wire it describes |\n|---|---|---|\n" +
+  "| Cut | Protocol | What it describes |\n|---|---|---|\n" +
     versions.map { |v|
-      protocol, body = overrides.fetch(v, ["**0.4**", "some wire"])
+      protocol, body = overrides.fetch(v, ["**0.4**", "some protocol"])
       "| `skill-v#{v}.md` | #{protocol} | #{body} |\n"
     }.join
 end
@@ -1323,65 +1323,65 @@ def self_test_prose_cases
     # that turns R7 off rather than a claim that goes stale like every other.
     ["R7 chain short of the newest cut, no new-group sentence",
      "skills.md", "0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9.", :red],
-    ["R7 chain short of the newest cut, but 0.4.10 opens a new wire group",
-     "skills.md", "0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9, and 0.4.10 opens a new wire group.", :green],
+    ["R7 chain short of the newest cut, but 0.4.10 opens a new protocol group",
+     "skills.md", "0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9, and 0.4.10 opens a new protocol group.", :green],
     ["R7 new-group sentence naming a cut that is NOT the newest",
-     "skills.md", "0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9, and 0.4.9 opens a new wire group.", :red],
+     "skills.md", "0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9, and 0.4.9 opens a new protocol group.", :red],
     ["R10 span one cut short with no new-group sentence",
      "skills.md", "the chain runs 0.4.3 → 0.4.9 only.", :red],
-    ["R10 span ending at the predecessor, with 0.4.10 opening a new wire group",
-     "skills.md", "the chain runs 0.4.3 → 0.4.9 only, because 0.4.10 opens a new wire group.", :green],
-    ["R10 span TWO cuts short even though 0.4.10 opens a new wire group",
-     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.10 opens a new wire group.", :red],
+    ["R10 span ending at the predecessor, with 0.4.10 opening a new protocol group",
+     "skills.md", "the chain runs 0.4.3 → 0.4.9 only, because 0.4.10 opens a new protocol group.", :green],
+    ["R10 span TWO cuts short even though 0.4.10 opens a new protocol group",
+     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.10 opens a new protocol group.", :red],
     # K-1472: TWO consecutive cuts each opening a group of their own. The escape
     # used to be keyed on the newest cut's PREDECESSOR, so the span below was red
     # and the only green edit available published the false «0.4.3 → 0.4.9».
-    ["R10 span short by two where BOTH later cuts open a new wire group (K-1472)",
+    ["R10 span short by two where BOTH later cuts open a new protocol group (K-1472)",
      "skills.md",
-     "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new wire group and 0.4.10 " \
-     "opens a new wire group.", :green],
+     "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new protocol group and 0.4.10 " \
+     "opens a new protocol group.", :green],
     ["R10 span short by two where only the INTERMEDIATE cut is declared (K-1472)",
-     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new wire group.", :red],
+     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new protocol group.", :red],
     ["R10 span short by two where only the NEWEST of the two is declared (K-1472)",
-     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.10 opens a new wire group.", :red],
+     "skills.md", "the chain runs 0.4.3 → 0.4.8 only, because 0.4.10 opens a new protocol group.", :red],
     # K-1601: the newest cut JOINS the group below it instead of opening one, so
     # the run of own-group CUTS at the top is empty and the cut-wise escape
     # evaporates. These are the v0.4.14 wave's own bytes: 0.4.9 opens a group,
-    # 0.4.10 is cut onto that same wire, and the span describing the group that
+    # 0.4.10 is cut onto that same protocol, and the span describing the group that
     # closed at 0.4.8 is TRUE. Before the group-wise walk the first case was red
     # and the only green edit available published «0.4.3 → 0.4.10».
     ["R10 span ending at the closing group where the newest cut JOINED the group below (K-1601)",
      "skills.md",
-     "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new wire group, in which " \
+     "the chain runs 0.4.3 → 0.4.8 only, because 0.4.9 opens a new protocol group, in which " \
      "0.4.9 = 0.4.10.", :green],
     ["R10 span stopping one cut INSIDE the closing group, newest cut joined (K-1601)",
      "skills.md",
-     "the chain runs 0.4.3 → 0.4.7 only, because 0.4.9 opens a new wire group, in which " \
+     "the chain runs 0.4.3 → 0.4.7 only, because 0.4.9 opens a new protocol group, in which " \
      "0.4.9 = 0.4.10.", :red],
     ["R10 span stopping inside the newest group itself, newest cut joined (K-1601)",
      "skills.md",
-     "the chain runs 0.4.3 → 0.4.9 only, because 0.4.9 opens a new wire group, in which " \
+     "the chain runs 0.4.3 → 0.4.9 only, because 0.4.9 opens a new protocol group, in which " \
      "0.4.9 = 0.4.10.", :red],
     # K-1602: R10 was one-sided. It measured only whether a span stopped SHORT,
     # so anything reaching the newest cut passed unconditionally — including a
-    # span that swallows a cut this very file declares opens a new wire group.
+    # span that swallows a cut this very file declares opens a new protocol group.
     # The first case is the shape the K-1602 plant found on the live page
     # («0.4.3 → 0.4.14» with 0.4.12 and 0.4.13 both declared): the span reaches
-    # the newest cut, and says that two later wire groups are the same wire as
+    # the newest cut, and says that two later protocol groups are the same protocol as
     # the group below them.
     ["R10 span reaching the newest cut ACROSS two declared new-group boundaries (K-1602)",
      "skills.md",
-     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.9 opens a new wire group and 0.4.10 " \
-     "opens a new wire group.", :red],
+     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.9 opens a new protocol group and 0.4.10 " \
+     "opens a new protocol group.", :red],
     ["R10 span reaching the newest cut across ONE declared boundary (K-1602)",
      "skills.md",
-     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.9 opens a new wire group, in which " \
+     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.9 opens a new protocol group, in which " \
      "0.4.9 = 0.4.10.", :red],
     # The span may still START at a cut that opens its own group — that is the
     # normal spelling — so the predicate looks strictly ABOVE the start.
-    ["R10 span whose own START opens a wire group is not an over-reach (K-1602)",
+    ["R10 span whose own START opens a protocol group is not an over-reach (K-1602)",
      "skills.md",
-     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.3 opens a new wire group.", :green],
+     "the chain runs 0.4.3 → 0.4.10 only, because 0.4.3 opens a new protocol group.", :green],
     ["R12 the landing's status box left on the previous protocol MINOR",
      "index.html", "<strong>Status: v0.3</strong> — pre-1.0.", :red],
     ["R12 the landing's status box on this protocol MINOR",
@@ -1409,17 +1409,17 @@ def self_test_prose_cases
     # being tested is the file the sentence lives in and not its wording — an
     # exemption with no red side is how a guard quietly stops guarding.
     ["R1 serves-claim in CHANGELOG.md is history (K-1228)",
-     "CHANGELOG.md", "- 2026-08-27: after that wave a 0.4.9 operator serves the same wire.\n", :green],
+     "CHANGELOG.md", "- 2026-08-27: after that wave a 0.4.9 operator serves the same protocol.\n", :green],
     ["R1 those same serves bytes OUTSIDE CHANGELOG.md still fail (K-1228)",
-     "spec/protocol.md", "- 2026-08-27: after that wave a 0.4.9 operator serves the same wire.\n", :red],
+     "spec/protocol.md", "- 2026-08-27: after that wave a 0.4.9 operator serves the same protocol.\n", :red],
     ["R1 current-skill sentence in CHANGELOG.md is history (K-1228)",
      "CHANGELOG.md", "- 2026-08-27: cut it, so the current skill is 0.4.9 from here.\n", :green],
     ["R1 those same current-skill bytes OUTSIDE CHANGELOG.md still fail (K-1228)",
      "specification.html", "- 2026-08-27: cut it, so the current skill is 0.4.9 from here.\n", :red],
     ["R1 a serves-claim in a skills.md TABLE ROW is NOT exempt (K-1228)",
      "skills.md", "| `skill-v0.4.3.md` | **0.4** | what a 0.4.9 operator serves |\n", :red],
-    ["R2 earlier-cuts range, noun \"wires\", stale",
-     "specification.html", "0.4.0–0.4.8 describe earlier 0.4 wires.", :red],
+    ["R2 earlier-cuts range, noun \"protocols\", stale",
+     "specification.html", "0.4.0–0.4.8 describe earlier 0.4 protocols.", :red],
     ["R2 earlier-cuts range, noun \"cuts\", stale (K-1227)",
      "spec/protocol.md", "and 0.4.0-0.4.8 describe\nearlier 0.4 cuts that a 0.4.10 operator no longer serves.", :red],
     ["R2 earlier-cuts range, at head",
@@ -1444,16 +1444,16 @@ def self_test_prose_cases
      "specification.html", "pin skill-v9.9.9.md", :red],
     ["R5 a bare historical cut name is left alone",
      "specification.html", "skill-v0.4.1.md moved the cursor into a Link header", :green],
-    ["R7 same-wire chain stops one cut short (K-1227)",
+    ["R7 same-protocol chain stops one cut short (K-1227)",
      "skills.md", "0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9,\nbut the two groups", :red],
-    ["R7 same-wire chain with a hole in it",
+    ["R7 same-protocol chain with a hole in it",
      "skills.md", "0.4.3 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10", :red],
-    ["R7 same-wire chain naming an unpublished cut",
+    ["R7 same-protocol chain naming an unpublished cut",
      "skills.md", "0.4.9 = 0.4.99", :red],
-    ["R7 same-wire chain at head",
+    ["R7 same-protocol chain at head",
      "skills.md", "0.4.1 = 0.4.2, and 0.4.3 = 0.4.4 = 0.4.5 = 0.4.6 = 0.4.7 = 0.4.8 = 0.4.9 = 0.4.10,\nbut the two groups", :green],
     ["R7 a CHANGELOG record of a past chain is history",
-     "CHANGELOG.md", "- 2026-08-27: the table then chained 0.4.3 = 0.4.4 = 0.4.5 as one wire.\n", :green],
+     "CHANGELOG.md", "- 2026-08-27: the table then chained 0.4.3 = 0.4.4 = 0.4.5 as one protocol.\n", :green],
     # K-1229: R2 and R3 carry R1's unrepairable shape, so the CHANGELOG exemption
     # widened to them. Same discipline as K-1228's fixtures — the red arms carry
     # the SAME BYTES as the green ones, so what is under test is the file the
@@ -1481,46 +1481,46 @@ def self_test_prose_cases
     # to all six candidate mechanisms in this workspace.
     ["R8 per-cut history list, newest clause missing (K-1232)",
      "specification.html",
-     "0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but A, 0.4.4 on " \
-     "this same wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, " \
-     "0.4.7 on this same wire but E, and 0.4.8 on this same wire but F.", :red],
+     "0.4.0–0.4.2 on protocols that have since changed, 0.4.3 on this same protocol but A, 0.4.4 on " \
+     "this same protocol but B, 0.4.5 on this same protocol but C, 0.4.6 on this same protocol but D, " \
+     "0.4.7 on this same protocol but E, and 0.4.8 on this same protocol but F.", :red],
     ["R8 per-cut history list, a clause naming the wrong cut (K-1232)",
      "specification.html",
-     "0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but A, 0.4.4 on " \
-     "this same wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, " \
-     "0.4.7 on this same wire but E, 0.4.8 on this same wire but F, and 0.4.8 on this same " \
-     "wire but G.", :red],
+     "0.4.0–0.4.2 on protocols that have since changed, 0.4.3 on this same protocol but A, 0.4.4 on " \
+     "this same protocol but B, 0.4.5 on this same protocol but C, 0.4.6 on this same protocol but D, " \
+     "0.4.7 on this same protocol but E, 0.4.8 on this same protocol but F, and 0.4.8 on this same " \
+     "protocol but G.", :red],
     ["R8 per-cut history list out of order",
      "specification.html",
-     "0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but A, 0.4.4 on " \
-     "this same wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, " \
-     "0.4.7 on this same wire but E, 0.4.9 on this same wire but G, and 0.4.8 on this same " \
-     "wire but F.", :red],
+     "0.4.0–0.4.2 on protocols that have since changed, 0.4.3 on this same protocol but A, 0.4.4 on " \
+     "this same protocol but B, 0.4.5 on this same protocol but C, 0.4.6 on this same protocol but D, " \
+     "0.4.7 on this same protocol but E, 0.4.9 on this same protocol but G, and 0.4.8 on this same " \
+     "protocol but F.", :red],
     ["R8 per-cut history list, complete and in order",
      "specification.html",
-     "0.4.0–0.4.2 on wires that have since changed, 0.4.3 on this same wire but A, 0.4.4 on " \
-     "this same wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, " \
-     "0.4.7 on this same wire but E, 0.4.8 on this same wire but F, and 0.4.9 on this same " \
-     "wire but G.", :green],
+     "0.4.0–0.4.2 on protocols that have since changed, 0.4.3 on this same protocol but A, 0.4.4 on " \
+     "this same protocol but B, 0.4.5 on this same protocol but C, 0.4.6 on this same protocol but D, " \
+     "0.4.7 on this same protocol but E, 0.4.8 on this same protocol but F, and 0.4.9 on this same " \
+     "protocol but G.", :green],
     ["R8 the SAME collapsed range spelled cut by cut is equally green",
      "specification.html",
-     "0.4.0 on a wire that has since changed, 0.4.1 on a wire that has since changed, 0.4.2 " \
-     "on a wire that has since changed, 0.4.3 on this same wire but A, 0.4.4 on this same " \
-     "wire but B, 0.4.5 on this same wire but C, 0.4.6 on this same wire but D, 0.4.7 on " \
-     "this same wire but E, 0.4.8 on this same wire but F, and 0.4.9 on this same wire but " \
+     "0.4.0 on a protocol that has since changed, 0.4.1 on a protocol that has since changed, 0.4.2 " \
+     "on a protocol that has since changed, 0.4.3 on this same protocol but A, 0.4.4 on this same " \
+     "protocol but B, 0.4.5 on this same protocol but C, 0.4.6 on this same protocol but D, 0.4.7 on " \
+     "this same protocol but E, 0.4.8 on this same protocol but F, and 0.4.9 on this same protocol but " \
      "G.", :green],
     ["R8 a CHANGELOG record of a past history list is history (K-1229)",
      "CHANGELOG.md",
-     "- 2026-08-27: the page then read 0.4.0–0.4.2 on wires that have since changed and " \
-     "0.4.3 on this same wire but A.\n", :green],
-    # R10: the arrow spelling of the same-wire group. The stale bytes are the
+     "- 2026-08-27: the page then read 0.4.0–0.4.2 on protocols that have since changed and " \
+     "0.4.3 on this same protocol but A.\n", :green],
+    # R10: the arrow spelling of the same-protocol group. The stale bytes are the
     # ones this repo actually shipped at v0.4.10 (K-1232).
-    ["R10 same-wire span stops one cut short, in a skills.md row (K-1232)",
-     "skills.md", "| `skill-v0.4.3.md` | **0.4** | the \"same wire\" chain below runs 0.4.3 → 0.4.9 only. |\n", :red],
-    ["R10 same-wire span reaching the newest cut",
-     "skills.md", "| `skill-v0.4.3.md` | **0.4** | the \"same wire\" chain below runs 0.4.3 → 0.4.10 only. |\n", :green],
+    ["R10 same-protocol span stops one cut short, in a skills.md row (K-1232)",
+     "skills.md", "| `skill-v0.4.3.md` | **0.4** | the \"same protocol\" chain below runs 0.4.3 → 0.4.9 only. |\n", :red],
+    ["R10 same-protocol span reaching the newest cut",
+     "skills.md", "| `skill-v0.4.3.md` | **0.4** | the \"same protocol\" chain below runs 0.4.3 → 0.4.10 only. |\n", :green],
     ["R10 those same stale span bytes in specification.html still fail",
-     "specification.html", "the \"same wire\" chain below runs 0.4.3 → 0.4.9 only.", :red],
+     "specification.html", "the \"same protocol\" chain below runs 0.4.3 → 0.4.9 only.", :red],
     ["R10 a CHANGELOG record of a past span is history (K-1229)",
      "CHANGELOG.md", "- 2026-08-27: the chain then ran 0.4.3 → 0.4.9 only.\n", :green],
     ["R10 an ordinary two-component arrow is not a span",
@@ -1536,15 +1536,15 @@ def self_test_table_cases(descending)
     # K-1232's row-body arm. One row differs from the green table above, so what
     # is under test is the body and not the table's shape.
     ["R9 a row body naming the wrong predecessor (K-1232)",
-     fixture_table(descending, "0.4.10" => ["**0.4**", "The same wire as 0.4.8."]), :red],
+     fixture_table(descending, "0.4.10" => ["**0.4**", "The same protocol as 0.4.8."]), :red],
     ["R9 a row body naming its predecessor",
-     fixture_table(descending, "0.4.10" => ["**0.4**", "The same wire as 0.4.9."]), :green],
+     fixture_table(descending, "0.4.10" => ["**0.4**", "The same protocol as 0.4.9."]), :green],
     ["R9 a MIDDLE row body naming the wrong predecessor",
-     fixture_table(descending, "0.4.5" => ["**0.4**", "The same wire as 0.4.3."]), :red],
+     fixture_table(descending, "0.4.5" => ["**0.4**", "The same protocol as 0.4.3."]), :red],
     ["R9 a row body naming its predecessor, mid-table",
-     fixture_table(descending, "0.4.5" => ["**0.4**", "The same wire as 0.4.4."]), :green],
+     fixture_table(descending, "0.4.5" => ["**0.4**", "The same protocol as 0.4.4."]), :green],
     ["R9 a row's protocol column naming a series its cut is not on (K-1232)",
-     fixture_table(descending, "0.4.10" => ["**0.3**", "some wire"]), :red]
+     fixture_table(descending, "0.4.10" => ["**0.3**", "some protocol"]), :red]
   ].freeze
 end
 
@@ -1558,10 +1558,10 @@ def self_test_history_page_cases
      "<p>Every earlier cut stays published and unedited, because live pins verify its bytes.</p>",
      :red],
     ["R11 the normative page carrying the list",
-     "<p>0.4.0–0.4.2 on wires that have since changed, and 0.4.3 on this same wire but A.</p>",
+     "<p>0.4.0–0.4.2 on protocols that have since changed, and 0.4.3 on this same protocol but A.</p>",
      :green],
     ["R11 a list R8 will reject is still a list — R11 does not double-report it",
-     "<p>0.4.3 on this same wire but A.</p>", :green]
+     "<p>0.4.3 on this same protocol but A.</p>", :green]
   ].freeze
 end
 
@@ -1571,20 +1571,20 @@ end
 # per-cut list, both asking for the sentence to be removed. Demanding the
 # subject then is the trap history_page_failures is already written around — a
 # rule demanding the edit the rule beside it forbids.
-NEEDS_TWO_CUTS_ON_SERIES = %i[earlier_wires history_clause].freeze
+NEEDS_TWO_CUTS_ON_SERIES = %i[earlier_cuts history_clause].freeze
 
 VACUITY_RULES = {
   current_claim: "R1 a sentence naming the current cut",
   serves_claim: "R1 a sentence saying what a cut's operator serves",
-  earlier_wires: "R2 the earlier-cuts range on the newest series",
+  earlier_cuts: "R2 the earlier-cuts range on the newest series",
   earlier_protocols: "R3 the earlier-protocols range",
   named_cut: "R5 a cut named in prose",
   pin_url: "R4 an example pin URL",
-  same_wire_chain: "R7 the cut table's same-wire chain",
+  same_protocol_chain: "R7 the cut table's same-protocol chain",
   history_clause: "R8 the per-cut history clause list",
-  chain_span: "R10 the same-wire group written as an arrow span",
+  chain_span: "R10 the same-protocol group written as an arrow span",
   row_protocol: "R9 a cut table row's protocol column",
-  row_same_wire: "R9 a cut table row body's \"same wire as\" predecessor",
+  row_same_protocol: "R9 a cut table row body's \"same protocol as\" predecessor",
 protocol_version: "R12 the protocol version a published page prints"
 }.freeze
 

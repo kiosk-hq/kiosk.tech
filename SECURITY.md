@@ -34,7 +34,7 @@ through a page that implies a confidential inbox we do not have. If a flaw
 looks severe enough that you are not willing to publish it, open an issue that
 describes its shape without the exploit and we will work out where to take it.
 
-**This is the arrangement until 1.0.** Kiosk is pre-1.0 and the wire may still
+**This is the arrangement until 1.0.** Kiosk is pre-1.0 and the protocol may still
 change between releases, so there is no fleet of frozen deployments for a
 disclosure race to endanger. That changes at 1.0, and this page changes with
 it — do not read the current channel as permanent.
@@ -75,7 +75,7 @@ every JSON Schema under `spec/schemas/`, the assistant skill (the alias
 - **The proof-of-work gate is metered pricing, not a hardware wall.** Equihash
   is neither ASIC- nor GPU-proof and the specification says so. "A GPU solves
   this faster than a laptop" is the design.
-- **Pre-1.0 wire changes.** The wire may change between releases; that is
+- **Pre-1.0 protocol changes.** The protocol may change between releases; that is
   stated on the landing page and in the specification, and a change that breaks
   an unpinned client is not a security flaw.
 

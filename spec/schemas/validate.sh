@@ -186,7 +186,7 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected/schema-descriptor.unknown-member.json
 # An EVENT's root is closed on the same terms, and the near-miss a porter
 # actually emits is a delivery timestamp beside the occurrence one -- plausible,
-# useful-sounding, and not on the wire. The five members are the five members.
+# useful-sounding, and not in the protocol. The five members are the five members.
 chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.unknown-member.json
 chkfail validate "${F[@]}" -s "$(ref kycevt3 "$B/kyc.schema.json#/\$defs/verificationEvent")" -r kyc.schema.json -d examples/rejected/kyc.verification-event.no-jws.json
 chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.id-above-json-range.json
@@ -295,7 +295,7 @@ chkfail validate "${F[@]}" -s "$(ref nointerval "$B/binding.schema.json#/\$defs/
 # whole point of publishing it -- an assistant polling this ceremony branches on
 # `error`, so a code outside the list is a branch it cannot take. This example is
 # the accepted sibling with that one member set to `invalid_scope`: a REAL RFC 6749
-# code that is deliberately not on this wire, so nothing but the enum can fail it,
+# code that is deliberately not in this protocol, so nothing but the enum can fail it,
 # and it is exactly the value a later editor widening toward "all of RFC 6749"
 # would let back in.
 chkfail validate "${F[@]}" -s "$(ref oaerrbad "$B/binding.schema.json#/\$defs/oauthError")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.oauth-error.unknown-code.json
@@ -311,7 +311,7 @@ echo "== mutation arms: a rule that a NEIGHBOURING rule would still refuse for =
 # `additionalProperties: false`, and the closure refuses an UNDECLARED key -- so
 # delete the `params` declaration and the key simply becomes undeclared, the
 # closure catches it, and the fixture stays red for the wrong reason. Nothing on
-# the wire is at risk (a descriptor publishing `params` is refused twice over),
+# the protocol is at risk (a descriptor publishing `params` is refused twice over),
 # but the withdrawal itself would then be held by nothing, and the whole suite
 # would stay at FAIL=0 while it left the schema.
 #
@@ -349,10 +349,10 @@ else
   fail=$((fail+1)); echo "FAIL (mutation arm could not be built): schema-descriptor.schema.json"
 fi
 
-echo "== cross-document arm: an example's min_client is the wire's, not a vintage =="
+echo "== cross-document arm: an example's min_client is the protocol's, not a vintage =="
 # ajv cannot see this class at all: `min_client` is a bare `type: string` in the
 # schema, so ANY version validates, and a discovery example on a NORMATIVE
-# surface can sit minors behind the wire it is supposed to illustrate with every
+# surface can sit minors behind the protocol it is supposed to illustrate with every
 # validator here green. Section 4.1 makes the rule a MUST: when `kiosk.min_client` is
 # present it MUST equal the `Kiosk-Min-Client` response header. So the header
 # table in protocol.md is the derivation and every example is a copy of it,

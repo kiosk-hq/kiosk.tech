@@ -32,9 +32,9 @@
   <a href="/specification.html" class="back">← Kiosk specification</a>
   <article>
     <h1 style="font-family:inherit">Kiosk problem types</h1>
-  <p>Every error Kiosk puts on the wire is an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document, and its <code>type</code> member is one of the URIs below — <code>https://kiosk.tech/problems/&lt;code&gt;</code>, one per vocabulary entry. These pages are what those URIs dereference to.</p>
+  <p>Every error Kiosk answers is an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document, and its <code>type</code> member is one of the URIs below — <code>https://kiosk.tech/problems/&lt;code&gt;</code>, one per vocabulary entry. These pages are what those URIs dereference to.</p>
   <p><strong>The URI is a name.</strong> An AI assistant <strong>MUST</strong> branch on the problem document’s <code>code</code> member and <strong>MUST NOT</strong> parse <code>type</code> to recover it. The normative definition of every code is the <a href="/specification.html#errors">error vocabulary in the specification</a> and <a href="/spec/protocol.md">§9 of the formal spec</a>; these pages restate it for a human who pasted the URI into a browser.</p>
-  <p>The vocabulary is <strong>closed</strong>: these seventeen codes are the whole of it, and a schema-validating client rejects anything else. Adding one is a wire change, and the spec goes first.</p>
+  <p>The vocabulary is <strong>closed</strong>: these seventeen codes are the whole of it, and a schema-validating client rejects anything else. Adding one is a protocol change, and the spec goes first.</p>
 
     <table>
       <tr><th>type</th><th>HTTP</th><th>title</th></tr>

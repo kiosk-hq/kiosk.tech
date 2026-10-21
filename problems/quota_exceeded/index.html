@@ -38,9 +38,9 @@
     <p>A rate or volume quota the operator enforces has been exhausted — for example, a cap on how many KYC verifications one principal may have open at the same time. The Kiosk engine never raises this code itself; an operator emits it from its own handler when it meters something. It is the one refusal in the vocabulary that means <strong>come back later</strong>: finish or abandon whatever is already outstanding, then retry.</p>
 
     <h2>What to do next</h2>
-    <p>Back off and retry later. The core wire prices abuse with proof-of-work (<code>pow_required</code>) rather than with quotas, so a <code>429</code> means the operator has added a quota layer of its own.</p>
+    <p>Back off and retry later. The core protocol prices abuse with proof-of-work (<code>pow_required</code>) rather than with quotas, so a <code>429</code> means the operator has added a quota layer of its own.</p>
 
-    <h2>On the wire</h2>
+    <h2>The response</h2>
     <pre><code>{
   "type":   "https://kiosk.tech/problems/quota_exceeded",
   "title":  "Quota exceeded",

@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.1"
+  version: "0.6.2"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -33,7 +33,7 @@ Two terms; do not mix them up. **`origin`** is the operator's base URL: scheme, 
 - **Dependencies:** `pyjwt` and `cryptography` for signing, plus `numpy`, which is there only because the pinned solver script imports it, and `websockets` (>= 12) for the pinned listener. Use ONE venv for every operator and every snippet in this skill: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography numpy websockets`, then run `~/.kiosk/venv/bin/python`.
 - **Files:** each origin has its own directory `~/.kiosk/<origin-dir>/`. EVERY file that you write for an operator goes in it: `key.pem`, `identity.json`, `token`, `spend.json`, `receipts/`, and your own notes, state and scripts. Only `~/.kiosk/venv`, `~/.kiosk/dpop.py` and the pinned solver and listener are shared. `chmod 600` every file. Use a new Ed25519 key per origin (scheme, host and port), so that operators cannot track you across origins.
 
-## The wire
+## The HTTP API
 
 **Each operation has its own path, and the HTTP method tells what it does** (GET = read, POST = write):
 
@@ -87,7 +87,7 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 | `404` with no problem document | No route matched: a name that the catalogue does not have, or a real operation with the wrong method. This is the usual answer. | Read `schema` again. Call a name in it, with the method of its kind. The operator is not broken. |
 | `404 verb_not_found` | No operation has that NAME. `hint` lists the names. Some operators send this in place of the bare `404`. | Read `schema` again, and call a name that exists. Do not tell your human that the operator cannot do the thing. |
 | `404 not_found` | The operation is real. The thing that an ARGUMENT points to is not there. | Stop. Tell your human that this specific thing is not there. Do not read the catalogue again, and do not retry. |
-| `405 method_not_allowed` | The operation is real, but you used the wrong method. `Allow` names the correct method. Some operators send this in place of the bare `404`. | Call the operation again with the method in `Allow`. Put the arguments where that method takes them (see "The wire"). |
+| `405 method_not_allowed` | The operation is real, but you used the wrong method. `Allow` names the correct method. Some operators send this in place of the bare `404`. | Call the operation again with the method in `Allow`. Put the arguments where that method takes them (see "The HTTP API"). |
 | `409 conflict` | On `rotate`: the new key is registered, so make another. On `pay`: the operator will not charge these mandates. | See "Key rotation" or Step 6. |
 | `429 quota_exceeded` | A rate limit, or too many open things. The ONE refusal that means "later", not "no". | Wait as `hint` says, then send the SAME call. Never open the same flow again to go around it. |
 | `500 action_failed`, `500 internal_error` | The operator failed: its own action, or another part of its server. Your arguments are not the problem. | Read the state back through a query. Retry one time at most, a short time later. Then tell your human. |
@@ -496,4 +496,4 @@ When the pin is there:
 3. Verify the file you fetched: its `metadata.version` is the version you fetched, and its SHA-256 is the pinned `sha256`.
 4. If the check fails, or you cannot reach kiosk.tech, use your cached skill.
 
-Before 1.0, ANY release can change the wire, also a PATCH. So do the check above, and use the version that the operator pins. The answer header `Kiosk-Min-Client` names the oldest skill that works with this operator. It is advice and blocks nothing. If your skill is older, use the pinned version before a transaction.
+Before 1.0, ANY release can change the protocol, also a PATCH. So do the check above, and use the version that the operator pins. The answer header `Kiosk-Min-Client` names the oldest skill that works with this operator. It is advice and blocks nothing. If your skill is older, use the pinned version before a transaction.

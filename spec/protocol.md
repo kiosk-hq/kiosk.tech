@@ -1,14 +1,14 @@
 # Kiosk Protocol -- Formal Specification
 
-**Version 0.6** (Draft; pre-1.0, the wire may still change between releases) - Status: for implementers and porters
+**Version 0.6** (Draft; pre-1.0, the protocol may still change between releases) - Status: for implementers and porters
 
 This is the **formal** companion to the narrative specification at
 <https://kiosk.tech/specification.html>. The narrative page is the readable
 introduction; this document is the precise, citable contract, with
-machine-readable [JSON Schemas](./schemas/) for the wire objects Section 17
-lists -- which is every JSON object on this wire except the four Section 17
+machine-readable [JSON Schemas](./schemas/) for the protocol objects Section 17
+lists -- which is every JSON object in this protocol except the four Section 17
 names and accounts for. Where the two
-disagree on the wire, **this document governs** and the narrative page is
+disagree about the protocol, **this document governs** and the narrative page is
 corrected (audit dimension D8).
 
 The protocol, the reference implementation, and the AI assistant skill share one
@@ -59,7 +59,7 @@ field tables are JSON types (`string`, `number`, `integer`, `boolean`, `object`,
 ### 1.4 Relationship to other specifications
 
 Kiosk **embraces** existing agent-web standards where they fit and defines its own
-wire only where they do not:
+protocol only where they do not:
 
 - Payment uses the closed Checkout and Payment Mandates of **AP2 v0.2** (Agent
   Payments Protocol), each an **SD-JWT** ([RFC 9901](https://www.rfc-editor.org/rfc/rfc9901)) (Section 11).
@@ -84,7 +84,7 @@ wire only where they do not:
   `api-catalog`) as envelopes around
   the canonical `kiosk.json` (Section 4.5).
 
-Kiosk-specific is the **wire contract**: the per-verb endpoints, the response
+Kiosk-specific is the **protocol contract**: the per-verb endpoints, the response
 shape, the error vocabulary, the identity-binding (session) semantics, the
 proof-of-work gate, assistant key rotation and the link-code claim.
 
@@ -137,8 +137,8 @@ proof-of-work gate, assistant key rotation and the link-code claim.
 
 1. All endpoints are served over **HTTPS**. All request and response bodies are
    **JSON** unless a section states otherwise (the `/kiosk/oauth/*` endpoints
-   use the OAuth wire, Sections 5 and 6).
-2. All wire verb requests are authenticated with `Authorization: DPoP <jwt>` and
+   use the OAuth protocol, Sections 5 and 6).
+2. All verb requests are authenticated with `Authorization: DPoP <jwt>` and
    a `DPoP` proof header (Section 5.6), except where a section marks an endpoint
    unauthenticated.
 3. Signatures are compact JWS. Every signature of the operator -- an access
@@ -150,10 +150,10 @@ proof-of-work gate, assistant key rotation and the link-code claim.
 4. Endpoint paths derive from the discovery document's `endpoint` value plus the
    fixed verb-to-path binding in Section 8; an AI assistant MUST derive URLs this way and MUST
    NOT hard-code a mount path.
-5. **Version parity and additivity, from 1.0 onward.** From 1.0 the wire is
+5. **Version parity and additivity, from 1.0 onward.** From 1.0 the protocol is
    additive and backward-compatible within a MINOR series: new endpoints and
    fields only, existing flows never break. **Before 1.0 -- which includes the
-   0.5 series this document specifies -- any release MAY change the wire, a
+   0.5 series this document specifies -- any release MAY change the protocol, a
    PATCH included** (Section 14).
 6. **Version-handshake response headers.** Every response served under the
    operator's mount path -- the discovery document's `endpoint`, and everything
@@ -168,7 +168,7 @@ proof-of-work gate, assistant key rotation and the link-code claim.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.6.1` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-API-Version` | `0.6.2` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
    | `Kiosk-Min-Client` | `0.6.0` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
@@ -232,7 +232,7 @@ proof-of-work gate, assistant key rotation and the link-code claim.
    5. Conditional requests (`ETag` / `If-None-Match`) are permitted and useful,
       but an operator **MUST** run the toll gate BEFORE the freshness check. A
       `304` is a served response; revalidating a tolled resource costs a proof.
-8. **Times, and whose clock they are in.** A time on this wire is either a
+8. **Times, and whose clock they are in.** A time in this protocol is either a
    CALENDAR DAY or an INSTANT, and the two obey different rules. Which one a
    field is, is declared by its `format` (Section 8.1 rule 9).
 
@@ -344,7 +344,7 @@ the origin alone. The document is a single object under a `kiosk` wrapper key.
 |---|---|---|---|
 | `kiosk.version` | string | REQUIRED | Discovery-document format version (currently `"1.0"`), independent of protocol version. |
 | `kiosk.issuer` | string | REQUIRED | The checkout `iss` and payee, and token `iss`/`aud`. An absolute https origin. |
-| `kiosk.endpoint` | string | REQUIRED | The wire-verb root (base URL + mount path). All verb and auth URLs derive from this. |
+| `kiosk.endpoint` | string | REQUIRED | The verb root (base URL + mount path). All verb and auth URLs derive from this. |
 | `kiosk.capabilities` | array | REQUIRED | The MODULES this endpoint serves, from `["schema","queries","actions","pay","events"]`, in that canonical order (Section 4.2). |
 | `kiosk.schema_url` | string | REQUIRED | Where to fetch the catalog (Section 8.3). MUST resolve to the same document as `GET <endpoint>/schema`. MAY carry a cache-busting version parameter -- see below. |
 | `kiosk.min_client` | string | OPTIONAL | Advisory minimum client version. When present it **MUST** equal the `Kiosk-Min-Client` response header (Section 3, point 6) -- same number, two surfaces. |
@@ -396,7 +396,7 @@ path: the bare path is the one url that may not be cached, so handing it to a
 reader gives away the whole benefit.
 
 **Every origin is its own operator.** One deployment **MAY** serve several origins.
-Each is a separate operator on this wire: the discovery document served on an origin
+Each is a separate operator in this protocol: the discovery document served on an origin
 advertises that origin as its `kiosk.issuer`; a request on a hostname the operator
 does not serve is answered as one of its origins, the default one, whose discovery
 document that hostname serves; a client assertion is accepted only when its `aud` is
@@ -448,8 +448,8 @@ the one surface of Section 4.5 that names verbs, and it does so by
 HYPERLINKING the endpoints rather than by describing them, which is what an
 API catalog is for.
 
-The module set has exactly one home, and this is it: no other surface on this
-wire publishes it, and the catalog `GET <endpoint>/schema` returns carries no
+The module set has exactly one home, and this is it: no other surface in this
+protocol publishes it, and the catalog `GET <endpoint>/schema` returns carries no
 copy of it (Section 8.3).
 
 An AI assistant reads `capabilities` to know which branches of its own
@@ -537,7 +537,7 @@ anything a hash can be taken over -- the one artefact an operator and kiosk.tech
 share would be the one carrying no version and no digest. Naming the cut also
 changes the failure of a stale advertisement from silent to loud: an origin
 pointing at a cut kiosk.tech has not published yet answers `404` on a fetch,
-instead of quietly handing an assistant instructions for a wire this operator
+instead of quietly handing an assistant instructions for a protocol this operator
 does not serve.
 
 An operator MAY additionally emit the standard agent-web discovery
@@ -551,7 +551,7 @@ capability the origin does not serve:
   `agents.json` an `authorization` object with `protocols: ["oauth2"]` and
   `discovery: "/.well-known/oauth-authorization-server"`. Both carry the pinned
   skill under `Skills:` (`skills[]` in `agents.json`). They declare no payment protocol: `pay` carries AP2
-  v0.2 mandates over this wire, and AP2 defines no transport an agents.txt
+  v0.2 mandates in this protocol, and AP2 defines no transport an agents.txt
   reader could call. They
   carry no `Identity: required` and no `Payments: required`, because
   `<endpoint>/schema` is public and free.
@@ -987,7 +987,7 @@ identity.
    (`user_id`, `agent_id`) rides in the JWT claims, not the body.
 
 **The `/oauth/*` error vocabulary.**
-The `/oauth/*` endpoints answer on the OAuth wire,
+The `/oauth/*` endpoints follow the OAuth protocol,
 `{error, error_description}`, and `error` comes from a CLOSED vocabulary of
 **nine** codes. Its `$def` is
 [`auth.schema.json#/$defs/oauthError`](./schemas/auth.schema.json). Four describe
@@ -1174,14 +1174,14 @@ Section 7.1 is what an implementation of this protocol owes: the MEANS to
 separate one principal's data from another's. Section 7.2 is what the operator
 owes with those means, and it is deliberately narrower than a filtering
 recipe -- how an origin's authorisation model works is the operator's business
-logic, not the wire's.
+logic, not the protocol's.
 
 ### 7.1 What the protocol supplies
 
 1. The operator **MUST** resolve the token to its identity on every authenticated
    request, BEFORE the verb runs. A verb that runs first and authenticates
    afterwards has already read the rows.
-2. **The principal is never a wire input.** `user_id`, `agent_id`, `actor` and
+2. **The principal is never a protocol input.** `user_id`, `agent_id`, `actor` and
    `role` are read from the verified token and from nowhere else. An operator
    **MUST NOT** derive any of them from a request argument, a header or a path
    segment, and a verb **MUST NOT** declare one as an input: the conforming
@@ -1284,7 +1284,7 @@ read defeats the verb -- which is why rule 4 names the chosen name first.
 
 How the operator enforces any of this -- application-layer filtering, database
 row-level security, a policy object, or all three -- is out of scope for the
-wire. What is in scope is the observable outcome, and it takes one of three
+protocol. What is in scope is the observable outcome, and it takes one of three
 forms depending on the verb's reach and on what the call names:
 
 1. **A `principal`-reach call that names no foreign row** -- a query listing the
@@ -1294,7 +1294,7 @@ forms depending on the verb's reach and on what the call names:
    deny. An operator **MUST NOT** refuse such a call merely because other
    principals' rows exist, and a caller **MUST NOT** read an unanswered query
    (`403`, `404`, `402`, `5xx`) as evidence of isolation -- an empty result and a
-   failed request are indistinguishable at the wire.
+   failed request are indistinguishable in the response.
 2. **A call that names a row the verb's reach does not cover** -- a read or a
    write addressing by identifier a row owned by another `user_id`, on a
    `principal`-reach verb; a `consented` verb's row the caller holds no consent
@@ -1314,7 +1314,7 @@ as instructions to itself (Section 15.9) -- a public board is the likeliest plac
 on any origin to meet text written by somebody hostile.
 
 > *Reference note (non-normative).* The Ruby reference resolves the identity in
-> the wire controller before it dispatches, and propagates it into PostgreSQL as
+> the controller that serves the verbs, before it dispatches, and propagates it into PostgreSQL as
 > transaction-scoped settings (`kiosk.current_user_id()` and friends) -- four of
 > them, of which `role` and `agent_id` are set only when the identity carries
 > one, so a role-less identity leaves the role setting NULL rather than empty.
@@ -1332,7 +1332,7 @@ on any origin to meet text written by somebody hostile.
 
 ---
 
-## 8. Wire verbs and the response shape
+## 8. Verbs and the response shape
 
 Schemas: [`problem.schema.json`](./schemas/problem.schema.json),
 [`schema-descriptor.schema.json`](./schemas/schema-descriptor.schema.json).
@@ -1394,8 +1394,8 @@ The query-string encoding is:
 1. **Scalars** are `name=value`. Strings are UTF-8, percent-encoded; booleans
    are the literals `true` / `false`; numbers are JSON number literals; dates
    are `YYYY-MM-DD` and nothing else (rule 9).
-2. **Arrays of scalars** are repeated `name[]=value`, percent-encoded on the
-   wire as `name%5B%5D=value`. A bare repeated `name=` is **NOT** an array for
+2. **Arrays of scalars** are repeated `name[]=value`, percent-encoded in the
+   request as `name%5B%5D=value`. A bare repeated `name=` is **NOT** an array for
    a parameter `input_schema` does not declare as an array, and a server
    **MUST NOT** invent one from it. Where the schema DOES declare that
    parameter an array, the repeats ARE that array: an operator **MUST** read
@@ -1436,7 +1436,7 @@ The query-string encoding is:
    every other one with `400 bad_request` naming the parameter (rule 5) --
    `?party_size=2.0` included, exactly as `?party_size=four` is refused. One
    declared type admits one spelling, which is the same reason a declared
-   boolean is `true`/`false` on the wire and never `1`, `on` or `yes`. In an
+   boolean is `true`/`false` in the protocol and never `1`, `on` or `yes`. In an
    action's JSON **body** the value arrives already typed, and JSON Schema
    decides `integer` by the VALUE rather than by how it was written, so
    `{"party_size": 2.0}` carries the integer 2 and an operator **MUST NOT**
@@ -1470,7 +1470,7 @@ The query-string encoding is:
    two readings are eight months apart, and an operator that accepts it cannot
    tell the caller which reading it took -- so a delivery, a stay or a booking
    silently lands on the wrong day and nobody is told. An AI ASSISTANT is on the
-   other end of this wire, not a person filling in a form: it is answering about
+   other end of this protocol, not a person filling in a form: it is answering about
    a day the operator itself put in a row it already sent, so a second spelling
    buys it nothing, and every extra one an operator accepts buys a silent wrong
    answer for a convenience nobody needed.
@@ -1490,12 +1490,12 @@ The query-string encoding is:
 it runs BEFORE any generic OpenAPI request validator, never behind one: such a
 validator checks the parameter names the document declares, and those are the
 `input_schema` property names -- `amenity`, never `amenity[]` (Section 4.6) --
-so a request still carrying the wire's bracketed spelling when it reaches the
+so a request still carrying its bracketed spelling when it reaches the
 validator is refused under a name the operator never published. Decode first,
 validate the decoded arguments after. A port hosted on a servlet container has
 one more thing to know: stock Apache Tomcat answers `400` to a raw `[` in a
 request target before any application code runs, on RFC 3986 grounds. That
-costs a conformant operator nothing, because the wire spelling is
+costs a conformant operator nothing, because the spelling in the request is
 percent-encoded; a port that wants to accept the literal spelling as well has
 to relax its connector (`relaxedQueryChars="[]"`), and that is the only reason
 to.
@@ -1600,7 +1600,7 @@ belongs to `input_schema`, and a result field to `output_schema`, which is
 where each can be checked against the handler that produces it.
 
 A verb **name** is one path segment matching `^[a-z][a-z0-9_]*$` (Section 8.1),
-it **MUST NOT** be one of the reserved first segments the operator's own wire
+it **MUST NOT** be one of the reserved first segments the operator's mount
 occupies (`schema`, `pay`, `payment_setup`, `request_kyc`, `kyc`, and whatever else the origin serves
 directly under `endpoint`), and one name is one KIND: a name published in `queries` **MUST
 NOT** also appear in `actions`, since `GET` and `POST` at that path would
@@ -1608,7 +1608,7 @@ otherwise reach two different verbs and the `405` of Section 8.1 could never be
 right for it.
 
 `params` -- a free-form operator-defined hint object mapping a parameter name
-to a type-hint string -- is **not part of this wire**. A descriptor
+to a type-hint string -- is **not part of this protocol**. A descriptor
 **MUST NOT** publish it, `null` included; the descriptor schema declares the
 key `false` and refuses it by name rather than as a stray member. An AI
 assistant reads a verb's inputs from `input_schema` alone -- **REQUIRED** on
@@ -1803,7 +1803,7 @@ may toll every ask.
 **What it is NOT.** There are no webhooks to the assistant: an assistant has no
 public callback URL, and the protocol does not ask it to acquire one. There is
 no server-sent-events transport. There is no fan-out across origins: one origin,
-one socket, one identity, exactly like every other part of this wire.
+one socket, one identity, exactly like every other part of this protocol.
 
 #### 8.5.1 Topics
 
@@ -1813,7 +1813,7 @@ descriptor carrying:
 
 | Member | Presence | Meaning |
 |---|---|---|
-| `name` | REQUIRED | The topic name. A wire name: `^[a-z][a-z0-9_]*$`, the same vocabulary a verb name is drawn from (Section 8.1). |
+| `name` | REQUIRED | The topic name. It matches `^[a-z][a-z0-9_]*$`, the same vocabulary a verb name is drawn from (Section 8.1). |
 | `description` | REQUIRED | Prose semantics, a string or `null`, on the same terms as a verb's. |
 | `reach` | REQUIRED | Whose events a subscriber may read: `principal`, `published`, `consented` or `role` -- the same four values, with the same meanings, as a verb's `reach` (Section 7.2). |
 | `payload_schema` | REQUIRED | JSON Schema for the event's `data`. |
@@ -1906,7 +1906,7 @@ An operator **MUST** authenticate the upgrade, and **MUST** accept the access
 token in the `Authorization` header of the upgrade request, as
 `Authorization: DPoP <access_token>` with a DPoP proof in the `DPoP` header
 (Section 5.6). An assistant **MUST** present it there: the header is the one
-place this wire carries a credential on the upgrade, and a token in a URL is a
+place this protocol carries a credential on the upgrade, and a token in a URL is a
 token in every access log on the path. The proof's `htm` is `GET`, and its `htu`
 is `events_url` with the scheme `wss` written as `https` (`ws` as `http`): the
 upgrade is an HTTP request to that URL. The operator checks the proof once, at
@@ -1998,7 +1998,7 @@ subscriber would wait on it forever.
 
 **A frame the operator cannot act on is answered too, and for the same reason.**
 A frame on this socket carries a `command` -- `subscribe` or `unsubscribe`, and
-this wire has no others, because a subscriber never publishes (Section 8.5.5) --
+this protocol has no others, because a subscriber never publishes (Section 8.5.5) --
 and an `identifier` STRING. Section 8.5.7 leaves two forms to refuse with, and
 which one applies turns on whether the frame names a subscription at all.
 
@@ -2048,7 +2048,7 @@ subscription's and tear down something that works -- and **MUST NOT** send a
 second `subscribed` or replay the tail again: one subscription has one cursor,
 and a second replay delivers events to a subscriber that asked for them once.
 An `unsubscribe` naming a live subscription drops it and delivery stops; this
-wire has no confirmation for that, and an operator **MUST NOT** invent one.
+protocol has no confirmation for that, and an operator **MUST NOT** invent one.
 
 **An operator MUST NOT answer ANY frame with silence.** A socket that stays
 open and says nothing is the failure the paragraph above names, reached by
@@ -2251,7 +2251,7 @@ and **MUST NOT** read it as a transient fault; as everywhere else in this
 section, the branch is `code`, not the status class.
 
 The Kiosk auth endpoints (`/auth/rotate`, `/auth/claim`, `/auth/link`,
-`/auth/unlink`) answer the same problem documents. The exception on the wire is
+`/auth/unlink`) answer the same problem documents. The exception is
 the `/oauth/*` endpoints, which use the OAuth error objects: RFC 7591's on
 registration (Section 5.1), and RFC 6749's on the token and device-authorization
 endpoints (Section 6.1) -- with three carve-outs, the registration toll,
@@ -2637,7 +2637,7 @@ enforce it exactly:
 A cap of `0` disables the assistant's payments entirely. The AI assistant cannot
 pay past the cap; it surfaces the condition to the human, who raises the cap out
 of band. Caps are operator policy and off by default; how an operator stores and
-edits them is out of scope for the wire.
+edits them is out of scope for the protocol.
 
 **The tally is per CURRENCY, and a currency is not a string.** Cents are not
 fungible across currencies, so the settled total a cap is measured against is the
@@ -2834,7 +2834,7 @@ The attestation is minted **for a specific operator**. Its `aud` claim **MUST**
 equal the operator's configured audience -- its origin, or a stable handle the
 operator declares to the KYC provider. On `POST <endpoint>/agents/kyc` the
 operator **MUST** reject any attestation whose `aud` does not equal its audience.
-This is enforced at the **wire** (the attestation endpoint on every operator), so
+This is enforced at the **attestation endpoint** of every operator, so
 a claim the KYC provider minted for operator A **cannot** be replayed to operator
 B even if a downstream broker-callback check is absent. The KYC provider learns
 each operator's audience when the operator requests the attestation and stamps it
@@ -2877,7 +2877,7 @@ An operator **MAY** open verifications at a KYC provider on the AI assistant's
 behalf. One that does **MUST** serve the `request_kyc` action and **MUST**
 publish the `kyc_verification` topic (Section 8.5.1) -- so it serves the event
 stream and advertises `events`. The attestation reaches the AI assistant on that
-event, and the wire has no operation that reads it back.
+event, and the protocol has no operation that reads it back.
 
 1. `request_kyc` takes no arguments and answers `{request_id, verification_url,
    status: "pending"}` ([`kyc.schema.json#/$defs/verification`](./schemas/kyc.schema.json)).
@@ -2979,7 +2979,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.6.1**: a 0.6.1 operator pins the 0.6.1 skill against the 0.6.1 wire. A new
+   **0.6.2**: a 0.6.2 operator pins the 0.6.2 skill against the 0.6.2 protocol. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -2992,7 +2992,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    assistant holding a 0.5 skill cannot transact with a 0.6 origin at all: it
    registers an RSA key, and a 0.6 operator refuses every key but Ed25519 and,
    where it accepts ES256, P-256.
-   **From 1.0 onward**, within a MINOR series the wire stays
+   **From 1.0 onward**, within a MINOR series the protocol stays
    compatible in both directions (point 1) and additive: patches add endpoints and fields only;
    existing request/response fields and their meaning **MUST NOT** change or be
    removed. An AI assistant **MUST** ignore unknown response fields (including
@@ -3002,7 +3002,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    predate them, they never alter an existing shape.
 
    **Before 1.0 -- which is every series published so far, 0.6.x included --
-   any release MAY change the wire, a PATCH included, and that includes
+   any release MAY change the protocol, a PATCH included, and that includes
    removing a response field.** 0.4.1 did exactly that: it removed a paginating
    query's `next` body field and moved the cursor into an RFC 8288 `Link`
    response header (Section 8.4). This is a deliberate pre-1.0 stance, not an
@@ -3011,7 +3011,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    - **The pin, not the version number, is what an AI assistant relies on.** An
      operator advertises an exact immutable `skill-vX.Y.Z.md` plus its SHA-256
      (Section 4.1), and an AI assistant adopts that cut before it transacts
-     (point 4 below). "The MINOR did not change, so the wire did not change" was
+     (point 4 below). "The MINOR did not change, so the protocol did not change" was
      never the mechanism protecting anyone here; it is a promise borrowed from
      semver that this protocol's own discovery already makes unnecessary.
    - **`Kiosk-Min-Client` and `kiosk.min_client` say when a client is behind.**
@@ -3025,7 +3025,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
      understand.
 
    What this is NOT is a claim that compatibility does not matter. The promise
-   above is deferred, not withdrawn: at 1.0 it binds, and a wire change after
+   above is deferred, not withdrawn: at 1.0 it binds, and a protocol change after
    that is a MINOR bump. Until then an operator and an AI assistant that both
    honour the pin are interoperable release by release, and one that ignores it
    is not -- which is the true statement the previous wording replaced with a
@@ -3038,10 +3038,10 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.1**, the second
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.2**, the third
    cut of protocol 0.6. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.5.27 cuts
-   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0 describes the earlier 0.6 cut, the `Kiosk-Min-Client` of a 0.6.1 operator: the same wire, with fewer of the error codes of Section 9. Published skill
+   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.1 describe the earlier 0.6 cuts, on the same protocol: 0.6.0, the `Kiosk-Min-Client` of a 0.6.2 operator, names fewer of the error codes of Section 9, and 0.6.1 states the same rules in other words. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
@@ -3225,7 +3225,7 @@ The protocol defines no filter, no sanitizer and no signature over
 operator-authored text; an operator can put any bytes in these fields and no
 other party can prevent it. What the requirements above establish is where the
 conformance failure lies when such text is followed -- with the AI assistant,
-which had a rule, and not with a wire that failed to protect it. An operator
+which had a rule, and not with a protocol that failed to protect it. An operator
 implementing only Section 15.6 has closed the boundary an attacker was least
 likely to use.
 
@@ -3255,7 +3255,7 @@ the discovery document, and are absent from `capabilities` for that reason:
    registered key; the DPoP proof check on every request that carries a token
    (Section 5.6); assistant key rotation; the RFC 8414 metadata of Section 4.5;
    and the revoked-before watermark.
-3. **Core -- wire** (Section 8, Section 9): `schema` (GET, UNAUTHENTICATED and
+3. **Core -- verbs** (Section 8, Section 9): `schema` (GET, UNAUTHENTICATED and
    untolled -- Section 8.3), one endpoint per
    registered verb (GET for a query, POST for an action), the response shape,
    the problem-document error vocabulary
@@ -3273,7 +3273,7 @@ the discovery document, and are absent from `capabilities` for that reason:
    An operator that paginates additionally emits the `Link` `rel="next"`
    header of Section 8.4 and no `next` body field.
 4. **Core -- identity binding** (Section 7): the identity resolved from the token
-   before the verb runs and never taken from the wire (Section 7.1); every verb
+   before the verb runs and never taken from the protocol (Section 7.1); every verb
    scoped to the authenticated principal BY DEFAULT, with any wider reach
    declared in the verb's descriptor and published on the catalog, and no row
    about another account carrying an identifier by which that account
@@ -3409,7 +3409,7 @@ re-reads current state through the ordinary verb exactly once on
 
 Two oracles pin behavior beyond this text:
 
-1. **JSON Schemas** (`./schemas/`) -- every wire object Section 17 lists
+1. **JSON Schemas** (`./schemas/`) -- every protocol object Section 17 lists
    validates against its schema, and Section 17's list is complete for this
    document but for the four objects it names as uncovered. Operators and AI
    assistants SHOULD validate against them.
@@ -3440,13 +3440,13 @@ conformance suite does not exist yet (Tier 3, deferred).
 
 Machine-readable schemas live in [`./schemas/`](./schemas/) (JSON Schema draft
 2020-12). **The table below is the list.** Where the sections above say "every
-wire object", they mean the objects enumerated in it -- the anchor points at an
+protocol object", they mean the objects enumerated in it -- the anchor points at an
 inventory a reader can check rather than at a promise they cannot, because an
 unqualified "every" is a promise this document cannot keep for an object it has
 not listed.
 
 The rest of this section accounts for **everything else that travels on this
-wire**, in three further lists: documents another standard governs, documents
+protocol**, in three further lists: documents another standard governs, documents
 with no oracle here at all, and the verb-shaped objects an OPERATOR declares.
 Between them the four lists are exhaustive, and they are lists rather than
 counts on purpose -- see the count note below.
@@ -3468,9 +3468,9 @@ names, and the example payloads under `./schemas/examples/` -- including a
 `rejected/` set the schemas MUST refuse -- are validated in CI on every change
 under `spec/`.
 
-**Documents on this wire that a standard OTHER THAN this one governs.** They are
+**Documents in this protocol that a standard OTHER THAN this one governs.** They are
 listed here rather than left off, because a reader who finds a document on the
-wire and not in this section reads the omission as an oversight.
+protocol and not in this section reads the omission as an oversight.
 
 | Object | Governed by |
 |---|---|
@@ -3497,7 +3497,7 @@ grows.
    for the same reason and with the same consequence; they are in the table
    above for what governs their content.
 
-The rule this list is for: a schema records a wire the prose already states, so
+The rule this list is for: a schema records an object the prose already states, so
 an object with no schema is first a question about the PROSE. Where this
 document has not named an object's members, there is nothing for a schema to
 record and the repair is the missing sentence, not an invented shape -- which is

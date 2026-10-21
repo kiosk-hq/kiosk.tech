@@ -40,7 +40,7 @@
     <h2>What to do next</h2>
     <p>Read <code>detail</code>: it says what to fix. For a token, ask <code>POST &lt;endpoint&gt;/oauth/token</code> with the <code>client_credentials</code> grant, a new client assertion that your registered key signs (<code>aud</code> is the origin you dialed) and a DPoP proof (see <a href="/specification.html#registration">Registration and tokens</a>). Then send the call again with <code>Authorization: DPoP &lt;access_token&gt;</code> and a new <code>DPoP</code> proof.</p>
 
-    <h2>On the wire</h2>
+    <h2>The response</h2>
     <pre><code>{
   "type":   "https://kiosk.tech/problems/unauthenticated",
   "title":  "Not authenticated",

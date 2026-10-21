@@ -49,7 +49,7 @@
         "name": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*$",
-          "description": "The verb's wire name, which is also its path segment under `endpoint`. One name is one KIND: a name listed under `queries` must not also appear under `actions`."
+          "description": "The verb's name, which is also its path segment under `endpoint`. One name is one KIND: a name listed under `queries` must not also appear under `actions`."
         },
         "description": {
           "type": [
@@ -108,7 +108,7 @@
         "name": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*$",
-          "description": "The topic name -- a wire name, drawn from the same vocabulary as a verb name."
+          "description": "The topic name, drawn from the same vocabulary as a verb name."
         },
         "description": {
           "type": [

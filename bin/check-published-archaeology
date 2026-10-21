@@ -137,7 +137,7 @@
 #       sibling now carries it: as a number rather than as a sentence nobody
 #       greps for.
 #   C3  `no longer` — PRINTED, NEVER RED. A withdrawal already made and a live
-#       fact about a live wire are spelled with the same two words, and the
+#       fact about a live protocol are spelled with the same two words, and the
 #       live reading is the common one here. See below.
 #   C4  a version number DATING A CLAIM — `since 0.4`, `until 0.4`, `from 1.0`.
 #       PRINTED, NEVER RED. A version that SCOPES a rule a reader is bound by
@@ -152,14 +152,14 @@
 #
 # ── NOT PORTED, AND THE MEASUREMENT THAT SETTLED IT ──────────────────────────
 #
-# The sibling guard carries two further rules — a ban on naming a RETIRED WIRE
+# The sibling guard carries two further rules — a ban on naming a RETIRED PROTOCOL
 # VERSION, and a ban on a sentence NARRATING A PAST STATE. The first is not
 # carried here and never can be; the second is carried, minus one marker, as R5.
 #
-# A RETIRED WIRE VERSION IS THIS REPOSITORY'S SUBJECT MATTER. It publishes every
-# frozen cut of the skill, back through the 0.2 and 0.3 wires, and a cut names
-# the wire it speaks. MEASURED over the tracked tree with the exemptions above
-# applied: a retired-wire pattern matches in 23 files, FOURTEEN of them
+# A RETIRED PROTOCOL VERSION IS THIS REPOSITORY'S SUBJECT MATTER. It publishes every
+# frozen cut of the skill, back through protocols 0.2 and 0.3, and a cut names
+# the protocol it speaks. MEASURED over the tracked tree with the exemptions above
+# applied: a retired-protocol pattern matches in 23 files, FOURTEEN of them
 # published cuts. A published cut is frozen — its bytes are pinned by digest
 # from the sibling repository and can never be edited — so such a rule would
 # produce a permanently red tree with no legal repair in it. That is the general
@@ -173,7 +173,7 @@
 #
 # ── R5 AND C1-C4: A PUBLIC ARTEFACT DESCRIBES WHAT IS ────────────────────────
 #
-# The afterlife of a removed wire element, verb, endpoint or configuration key
+# The afterlife of a removed protocol element, verb, endpoint or configuration key
 # is ONE SHORT CHANGELOG LINE and nothing else — not a paragraph on a normative
 # page, not a comment explaining what a declaration used to be. A reader
 # arriving today has no memory to correct, and being told about a version of
@@ -201,13 +201,13 @@
 #   tree with the exemptions above applied, `has since` / `have since` is FIVE
 #   lines, and FOUR of them are correct prose. Two are the PER-CUT HISTORY
 #   CLAUSE — the narrative specification's version-lines paragraph and
-#   `skills.md`'s cut table, each saying that earlier cuts describe wires that
+#   `skills.md`'s cut table, each saying that earlier cuts describe protocols that
 #   have since changed. A frozen cut is a thing a reader can still FETCH, so a
 #   past tense about one is the present tense of a permanent artefact. One is a
 #   LIVE OPERATOR CAVEAT — the `verb_not_found` page telling a client that the
 #   name it dialed may be a verb an OPERATOR has withdrawn, which is what that
 #   page is FOR. One is a live caveat on the landing page, qualifying a recorded
-#   live-assistant run as having been driven against a wire the demos have since
+#   live-assistant run as having been driven against a protocol the demos have since
 #   replaced, which is the honest reading of a claim a reader can still check.
 #   The fifth is genuine narration.
 #
@@ -223,11 +223,11 @@
 #   R5 IS INERT ON THE FROZEN CUTS, WHICH IS THE FIRST THING IT WAS CHECKED
 #   AGAINST. MEASURED over `skill-v*.md` with `git grep -nIP`: the marker set
 #   matches ZERO lines, and so does `has since been`, and so does a bare
-#   `used to`. A cut describes a wire in the present tense of its own day — it
+#   `used to`. A cut describes a protocol in the present tense of its own day — it
 #   does not narrate the day before. A self-test arm re-asks this on every run
 #   rather than trusting the sentence, and a hit on a cut is printed as the RULE
 #   being wrong, because the bytes cannot move. C3 and C4 are the exception and
-#   it is not a contradiction: a cut says what its own wire no longer carries
+#   it is not a contradiction: a cut says what its own protocol no longer carries
 #   and scopes its own rules by version, in the present tense of its day. That
 #   is why they are censuses and why those same bytes can hold their patterns.
 #
@@ -262,12 +262,12 @@
 #   C4 — A VERSION NUMBER DATING A CLAIM, and it is the shape nothing here
 #   reached before: not a past tense, not a withdrawal, just a live sentence
 #   with a version stamped on the front of it. «Since 0.4 the input schema is
-#   enforced» is TRUE today, and it dates that truth against a wire the reader
+#   enforced» is TRUE today, and it dates that truth against a protocol the reader
 #   never used — the fact is live and only the stamp is archaeology, which is
 #   exactly why R5's markers cannot see it. It cannot be a ban either, and for
 #   the ordinary reason: the SAME construction scopes the rules a reader is
 #   bound by. «Before 1.0 the additivity promise does not bind» and «from 1.0
-#   onward the wire stays backward-compatible» are the version doing its job,
+#   onward the protocol stays backward-compatible» are the version doing its job,
 #   and they outnumber the datings on these pages. So: counted, adjudicated by
 #   whether the version SCOPES a rule or STAMPS a fact.
 #
@@ -411,7 +411,7 @@ PAST_NARRATION_RE =
 HAS_SINCE_RE     = /\b(?:ha[sv]e?|had)\s+since\b/i
 BARE_USED_TO_RE  = /\b(?<!-)used\s+to\b(?!\s+be\b)/i
 
-# `no longer` states a live fact about a live wire far more often than it
+# `no longer` states a live fact about a live protocol far more often than it
 # narrates, and every frozen cut carries it, so it can never be a ban. The
 # hyphen guard is the pattern and not a detail: «no longer-lived credential» is
 # a comparative, not a withdrawal.
@@ -503,10 +503,10 @@ RULES = [
     # boundary conditions the pattern writes down. Widening R5 to swallow any of
     # these reddens THIS file rather than a published page.
     foil: [
-      "0.4.10 on this same wire but describing a descriptor slot that has since been withdrawn.",
-      "0.4.0-0.4.2 describe wires that have since changed, and the same-wire chain runs on.",
+      "0.4.10 on this same protocol but describing a descriptor slot that has since been withdrawn.",
+      "0.4.0-0.4.2 describe protocols that have since changed, and the same-protocol chain runs on.",
       "A typo, a name from a different operator, or a verb that has since been withdrawn.",
-      "Against the 0.3 wire these demos have since replaced; no 0.4 run is recorded yet.",
+      "Against the 0.3 protocol these demos have since replaced; no 0.4 run is recorded yet.",
       "Release a previously-claimed id, because that claim was made earlier in this same run.",
       "The RSA key cross-used to be minted twice is refused, and so is the key used to sign it.",
     ],
@@ -533,7 +533,7 @@ COUNTED = [
             "still be dialed. Anything else is narration and states its rule in the present",
     probe: [
       "The spec has since caught up and passed this guide.",
-      "0.4.0-0.4.2 describe wires that have since changed.",
+      "0.4.0-0.4.2 describe protocols that have since changed.",
     ],
     foil: [
       "Since the catalog is public, a verb name is not a secret.",
@@ -563,7 +563,7 @@ COUNTED = [
     re: NO_LONGER_RE,
     counted: true,
     in_cuts: :some,
-    what: "`no longer` — a withdrawal already made, and a live fact about a live wire, spelled " \
+    what: "`no longer` — a withdrawal already made, and a live fact about a live protocol, spelled " \
           "alike",
     none: "no `no longer`",
     remedy: "adjudicate: a cache serving verbs an operator no longer offers, a name a later " \
@@ -577,7 +577,7 @@ COUNTED = [
       "Both schemas are required, and the input one is no longer merely published.",
     ],
     foil: [
-      "There is no longer-lived credential on this wire than the mandate itself.",
+      "There is no longer-lived credential in this protocol than the mandate itself.",
       "No, longer windows are refused; the cap is the operator's.",
     ],
   },
@@ -589,7 +589,7 @@ COUNTED = [
     what: "a version number dating a claim — a rule it SCOPES, or a fact it merely STAMPS",
     none: "no version number dating a claim",
     remedy: "adjudicate: a version that SCOPES a rule a reader is bound by — «before 1.0 the " \
-            "additivity promise does not bind», «from 1.0 onward the wire stays " \
+            "additivity promise does not bind», «from 1.0 onward the protocol stays " \
             "backward-compatible» — is the sentence doing its job. A version that DATES a fact " \
             "which is simply true — «since 0.4 the input schema is enforced», «until 0.4 they " \
             "were one code» — is archaeology: the fact is live, only the stamp is not, and the " \
@@ -640,7 +640,7 @@ EXEMPTIONS = [
   {
     id: "X3",
     what: "CHANGELOG.md",
-    why: "the sanctioned afterlife. A removed endpoint, key or wire element gets one changelog " \
+    why: "the sanctioned afterlife. A removed endpoint, key or protocol element gets one changelog " \
          "line and nothing else; this is that one line's home",
     match: ->(rel) { rel == "CHANGELOG.md" },
   },
@@ -846,7 +846,7 @@ def counted_cut_faults(scope, set = COUNTED)
       next if n.zero?
 
       "#{c[:id]} (#{c[:what]}) is declared ABSENT from the frozen cuts and now matches " \
-        "#{n} line(s) in one. A cut describes a wire in the present tense of its own day, so " \
+        "#{n} line(s) in one. A cut describes a protocol in the present tense of its own day, so " \
         "either this pattern has widened into something it should not reach, or the " \
         "measurement the declaration rests on was wrong"
     when :some
@@ -1059,7 +1059,7 @@ def self_test
   # ── one planted RED arm per rule, in each surface a citation can hide ──────
   [
     ["R1 in a narrative page",
-     "specification.html", "  <p>The wire error contract (T-054) is closed.</p>\n", "R1", :page],
+     "specification.html", "  <p>The protocol error contract (T-054) is closed.</p>\n", "R1", :page],
     ["R1 in the formal specification",
      "spec/protocol.md", "This clause was widened by K-1035.\n", "R1", :doc],
     ["R1 in a JSON Schema description",
@@ -1198,11 +1198,11 @@ def self_test
              "frozen and published, so a past tense about one is the present tense of a " \
              "permanent artefact",
              !r5.call("specification.html",
-                      "  <p>0.4.10 on this same wire but describing a descriptor slot that has " \
+                      "  <p>0.4.10 on this same protocol but describing a descriptor slot that has " \
                       "since been withdrawn.</p>\n"))
   check.call("R5 does NOT flag the same clause in the cut table",
              !r5.call("skills.md",
-                      "| `skill-v0.4.3.md` | 0.4 | 0.4.0-0.4.2 describe wires that have since " \
+                      "| `skill-v0.4.3.md` | 0.4 | 0.4.0-0.4.2 describe protocols that have since " \
                       "changed. |\n"))
   check.call("R5 does NOT flag a LIVE OPERATOR CAVEAT — a verb an OPERATOR has withdrawn is what " \
              "the vocabulary page is FOR",
@@ -1210,7 +1210,7 @@ def self_test
                       "    <p>a typo, or a verb that has since been withdrawn.</p>\n"))
   check.call("R5 does NOT flag a live caveat qualifying a recorded run",
              !r5.call("index.html",
-                      "      <p>against the 0.3 wire these demos have since replaced.</p>\n"))
+                      "      <p>against the 0.3 protocol these demos have since replaced.</p>\n"))
   check.call("R5 does NOT flag `previously-claimed` — a claim made earlier in THIS run, not our " \
              "past",
              !r5.call("spec/protocol.md",
@@ -1253,7 +1253,7 @@ def self_test
              !counted.call("C2", "spec/protocol.md",
                            "being cross-used to mint anything else\n"))
 
-  check.call("C3 COUNTS a `no longer` that dates a live rule against a retired wire",
+  check.call("C3 COUNTS a `no longer` that dates a live rule against a retired protocol",
              counted.call("C3", "spec/descriptor-house-style.md",
                           "  This is no longer hygiene: validation is unconditional.\n"))
   check.call("…and counts the LIVE readings too — a cache serving verbs an operator withdrew, " \
@@ -1278,7 +1278,7 @@ def self_test
   check.call("…and counts a version that SCOPES a rule a reader IS bound by, because nothing " \
              "lexical forks the two and the adjudication is the human's",
              counted.call("C4", "specification.html",
-                          "  <p>From 1.0 onward the wire stays backward-compatible.</p>\n"))
+                          "  <p>From 1.0 onward the protocol stays backward-compatible.</p>\n"))
   check.call("C4 does NOT fire on a version that is simply NAMED — the construction is the " \
              "temporal preposition, not the number",
              !counted.call("C4", "specification.html",
@@ -1337,12 +1337,12 @@ def self_test
   check.call("…and they carry no violation of any rule here, R5 INCLUDED. A frozen cut cannot be " \
              "edited, so a rule that reddens on one is the wrong rule and must be dropped, never " \
              "the cut — this is the arm every new rule is checked against FIRST, and it is why " \
-             "the sibling's retired-wire ban is not here at all",
+             "the sibling's retired-protocol ban is not here at all",
              scope.files.select { |rel, _| frozen_cut?(rel) }
                   .flat_map { |rel, text| scan_text(rel, text) }.empty?)
   # …and every CENSUS is measured against those same frozen bytes, in whichever
   # direction it declares. C1 and C2 are declared ABSENT there — a cut describes
-  # a wire in the present tense of its own day and does not narrate the day
+  # a protocol in the present tense of its own day and does not narrate the day
   # before — and C3 and C4 are declared PRESENT, which is what makes them
   # checkable at all: a census has no exit code of its own, so the only thing
   # that can tell a drained backlog from a broken pattern is a corpus nobody is
