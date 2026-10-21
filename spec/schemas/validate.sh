@@ -90,6 +90,9 @@ chk validate "${F[@]}" -s "$(ref acred   "$B/auth.schema.json#/\$defs/credential
 chk validate "${F[@]}" -s "$(ref areg    "$B/auth.schema.json#/\$defs/registration")"      -r auth.schema.json -d examples/auth.registration.json
 chk validate "${F[@]}" -s "$(ref atok    "$B/auth.schema.json#/\$defs/token")"             -r auth.schema.json -d examples/auth.token.json
 chk validate "${F[@]}" -s "$(ref aclaims "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/auth.access-token-claims.json
+chk validate "${F[@]}" -s "$(ref adpop   "$B/auth.schema.json#/\$defs/dpopProof")"         -r auth.schema.json -d examples/auth.dpop-proof.json
+chk validate "${F[@]}" -s "$(ref arotp   "$B/auth.schema.json#/\$defs/rotationProof")"     -r auth.schema.json -d examples/auth.rotation-proof.json
+chk validate "${F[@]}" -s "$(ref arotr   "$B/auth.schema.json#/\$defs/rotationRequest")"   -r auth.schema.json -d examples/auth.rotation-request.json
 chk validate "${F[@]}" -s "$(ref bda     "$B/binding.schema.json#/\$defs/deviceAuthorization")" -r binding.schema.json -r auth.schema.json -d examples/binding.device-authorization.json
 chk validate "${F[@]}" -s "$(ref bdtok   "$B/binding.schema.json#/\$defs/deviceTokenResponse")" -r binding.schema.json -r auth.schema.json -d examples/binding.device-token.json
 chk validate "${F[@]}" -s "$(ref blink   "$B/binding.schema.json#/\$defs/linkCode")"            -r binding.schema.json -r auth.schema.json -d examples/binding.link-code.json
@@ -259,6 +262,10 @@ chkfail validate "${F[@]}" -s "$(ref scopenull "$B/binding.schema.json#/\$defs/d
 # is what an OAuth client dispatches its Authorization header on; a soft enum in
 # either place is a schema that has stopped saying the one thing it was for.
 chkfail validate "${F[@]}" -s "$(ref actoruser "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/rejected/auth.access-token-claims.actor-user.json
+# A token with no `cnf` is a bearer token, and Section 5.6 has none.
+chkfail validate "${F[@]}" -s "$(ref nocnf "$B/auth.schema.json#/\$defs/accessTokenClaims")" -r auth.schema.json -d examples/rejected/auth.access-token-claims.no-cnf.json
+# A rotation proof that names no new key lets the old key approve any key.
+chkfail validate "${F[@]}" -s "$(ref nonewkey "$B/auth.schema.json#/\$defs/rotationProof")" -r auth.schema.json -d examples/rejected/auth.rotation-proof.no-new-key.json
 chkfail validate "${F[@]}" -s "$(ref ttmac "$B/binding.schema.json#/\$defs/deviceTokenResponse")" -r binding.schema.json -r auth.schema.json -d examples/rejected/binding.device-token.token-type-mac.json
 # `aud` is the origin binding of Section 15.1 -- the single claim that makes a
 # relayed possession proof worthless. A proof without it is the phishing case,

@@ -715,7 +715,8 @@ require "openssl"; require "json"; require "net/http"; require "uri"
 require "securerandom"; require "jwt"
 
 origin = ENV.fetch("KIOSK_ISSUER", "http://localhost:3000")   # the origin you dial == aud
-key    = OpenSSL::PKey::RSA.new(2048)                          # your identity keypair (save key.to_pem!)
+key    = OpenSSL::PKey::RSA.new(2048)                          # your identity keypair
+File.write("key.pem", key.to_pem)                             # dpop.rb below signs with it
 pub    = key.public_key.to_pem
 
 # 1. GET a single-use challenge nonce for this public key.
@@ -734,6 +735,16 @@ puts res.code                                   # => 201
 puts JSON.parse(res.body)["access_token"]       # export this as $TOKEN
 # (Returning key? Challenges are single-use — fetch a FRESH one, sign {aud, nonce, jti},
 #  POST to /kiosk/auth/login → 200 { access_token }. No new user_id: login just refreshes the token.)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <p>The token works only with the key that registered it (DPoP, RFC 9449): each call sends it as <code>Authorization: DPoP $TOKEN</code> with a <code>DPoP</code> header, a proof that the key signs for that method and URL. This script prints one:</p>
+  <pre><code class="language-ruby"># dpop.rb METHOD URL — the DPoP proof for one call, signed by key.pem. Reads $TOKEN.
+require "openssl"; require "json"; require "jwt"; require "securerandom"; require "digest"; require "base64"
+
+key = OpenSSL::PKey::RSA.new(File.read("key.pem"))
+b64 = ->(bytes) { Base64.urlsafe_encode64(bytes, padding: false) }
+jwk = { kty: "RSA", n: b64.(key.n.to_s(2)), e: b64.(key.e.to_s(2)) }
+puts JWT.encode({ jti: SecureRandom.uuid, htm: ARGV[0], htu: ARGV[1].split("?").first,
+                  iat: Time.now.to_i, ath: b64.(Digest::SHA256.digest(ENV.fetch("TOKEN"))) },
+                key, "RS256", { typ: "dpop+jwt", jwk: jwk })</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <p>With that <code>access_token</code> exported as <code>$TOKEN</code>, confirm your surface and read data back — nothing but <code>curl</code> + <code>jq</code>. There is nothing to seed: point a query at a table your app already has and expect your own rows. The names below are this walkthrough's getgrocery example — substitute the queries you declared in Step 4:</p>
   <pre><code class="language-bash"># Inspect the machine-readable surface (your registered queries + actions).
 # No token: the catalog is public.
@@ -742,8 +753,8 @@ curl -s http://localhost:3000/kiosk/schema | jq '.queries | map(.name)'
 
 # Browse the catalog. One endpoint per verb: a query is a GET at its own name,
 # and a query ALWAYS answers a bare JSON array — no envelope to unwrap.
-curl -s http://localhost:3000/kiosk/catalog \
-  -H "Authorization: Bearer $TOKEN" | jq '.[0]'
+curl -s http://localhost:3000/kiosk/catalog -H "Authorization: DPoP $TOKEN" \
+  -H "DPoP: $(ruby dpop.rb GET http://localhost:3000/kiosk/catalog)" | jq '.[0]'
 # => { "sku": "sourdough-bread", "name": "Sourdough Bread",
 #      "price_cents": 449, "price_eur": "€4.49", "currency": "eur" }
 
@@ -752,16 +763,16 @@ curl -s http://localhost:3000/kiosk/catalog \
 # answers for the soonest day IT can deliver — the answer you want, and the one
 # a caller cannot work out for itself. Keep the row you get back.
 SLOT=$(curl -s -G http://localhost:3000/kiosk/delivery_slots \
-  --data-urlencode "delivery_address=42 Camden Street, Dublin 2" \
-  -H "Authorization: Bearer $TOKEN" | jq '.[0]')
+  --data-urlencode "delivery_address=42 Camden Street, Dublin 2" -H "Authorization: DPoP $TOKEN" \
+  -H "DPoP: $(ruby dpop.rb GET http://localhost:3000/kiosk/delivery_slots)" | jq '.[0]')
 echo "$SLOT"
 # => { "slot_at": "…", "label": "08:00–10:00 (Europe/Dublin)",
 #      "timezone": "Europe/Dublin", "district": "D02" }
 
 # An action is a POST at its own name, with a JSON body. `slot_at` comes
 # straight from the row above.
-curl -s -X POST http://localhost:3000/kiosk/create_order \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+curl -s -X POST http://localhost:3000/kiosk/create_order -H "Authorization: DPoP $TOKEN" \
+  -H "DPoP: $(ruby dpop.rb POST http://localhost:3000/kiosk/create_order)" -H "Content-Type: application/json" \
   -d "$(jq -n --argjson slot "$SLOT" \
         '{items: [{sku: "sourdough-bread", qty: 2}],
           slot_at:          $slot.slot_at,
@@ -786,7 +797,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order \
 
   <blockquote><strong>Do not put a bot challenge in front of the agent paths.</strong> A CDN or firewall bot rule that challenges <code>/kiosk/*</code>, <code>/agents.txt</code>, <code>/agents.json</code>, <code>/auth.md</code> or <code>/.well-known/*</code> stops every assistant: an assistant cannot solve a browser challenge. Exempt these paths from bot challenges. The proof-of-work toll already prices the calls that cost you CPU.</blockquote>
 
-  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.5.22.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together.</blockquote>
+  <blockquote><strong>Both point at the versioned cut, not at <code>skill.md</code>.</strong> The spec requires it: the <code>href</code> must name <code>https://kiosk.tech/skill-vMAJOR.MINOR.PATCH.md</code> — currently <code>https://kiosk.tech/skill-v0.5.23.md</code> — and must not name the mutable alias, because the alias tracks whatever kiosk.tech publishes next and nothing can be hash-pinned against it. That is why both snippets read <code>Kiosk.configuration.skill_url</code> instead of a literal: it is the same URL your <code>/.well-known/kiosk.json</code> already advertises under <code>skill</code>, so the two signals cannot disagree and adopting a newer cut is one edit in <code>config/initializers/kiosk.rb</code> — <code>skill_url</code> and <code>skill_sha256</code> together.</blockquote>
 
   <h3>3. Visual "Agents — over here" card (human-readable, subtle)</h3>
   <p>Add a small section somewhere unobtrusive on your homepage &mdash; a thin bar above the header, or a card below the fold. It tells agent users that your store speaks Kiosk without distracting regular customers:</p>

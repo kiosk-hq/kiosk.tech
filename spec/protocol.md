@@ -96,7 +96,9 @@ proof-of-work gate.
 - **Discovery document** -- the JSON served at `/.well-known/kiosk.json` (Section 4).
 - **kiosk-pop** -- Kiosk's proof-of-possession challenge-response auth scheme (Section 5).
 - **Access token** -- a short-lived RS256 JWT the operator issues to an identity,
-  presented as `Authorization: Bearer`.
+  bound to the identity's key and presented as `Authorization: DPoP` (Section 5.6).
+- **DPoP proof** -- a compact RS256 JWS that the AI assistant signs with its
+  registered key for one request, sent in the `DPoP` header (RFC 9449, Section 5.6).
 - **Possession proof** (`signed`) -- a compact RS256 JWS over a server-issued
   single-use challenge, proving control of a public key.
 - **Verb** -- one named operation the operator serves at its own endpoint: a
@@ -124,9 +126,10 @@ proof-of-work gate.
 1. All endpoints are served over **HTTPS**. All request and response bodies are
    **JSON** unless a section states otherwise (the account-binding
    `/kiosk/oauth/*` endpoints use the OAuth wire, Section 6).
-2. All wire verb requests are authenticated with `Authorization: Bearer <jwt>`
-   except where a section marks an endpoint unauthenticated.
-3. Signatures -- access tokens, possession proofs, and payment mandates -- use
+2. All wire verb requests are authenticated with `Authorization: DPoP <jwt>` and
+   a `DPoP` proof header (Section 5.6), except where a section marks an endpoint
+   unauthenticated.
+3. Signatures -- access tokens, possession proofs, DPoP proofs, and payment mandates -- use
    **RS256** (RSASSA-PKCS1-v1_5 with SHA-256) over RSA keys of 2048 to 4096 bits,
    encoded as compact JWS. An operator refuses any other key with `400 bad_request`.
    The one exception is the checkout an operator signs: **PS256** (RSASSA-PSS with
@@ -152,8 +155,8 @@ proof-of-work gate.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.5.22` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
-   | `Kiosk-Min-Client` | `0.5.22` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
+   | `Kiosk-API-Version` | `0.5.23` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-Min-Client` | `0.5.23` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
    spelling. The root-served discovery surfaces (Section 4.5) sit outside the
@@ -445,12 +448,12 @@ of the verb (Section 8.1), which the catalog states per verb.
 
 ### 4.3 The `auth` block
 
-`kiosk.auth` **MUST** carry `kind: "kiosk-pop"` and the six URLs an AI assistant needs
+`kiosk.auth` **MUST** carry `kind: "kiosk-pop"` and the seven URLs an AI assistant needs
 to authenticate and bind: `challenge_url`, `register_url`, `login_url`,
-`revoke_url` (Section 5), and `device_authorization_url`, `claim_url` (Section 6). Each is an
+`revoke_url`, `rotate_url` (Section 5), and `device_authorization_url`, `claim_url` (Section 6). Each is an
 absolute URL derived from `endpoint`.
 
-**All six are REQUIRED, including of an operator that does not serve the binding
+**All seven are REQUIRED, including of an operator that does not serve the binding
 module of Section 6.** Publishing the auth block is CORE DISCOVERY (Section 16.1
 item 1); implementing the ceremony reached through the last two URLs is the
 OPTIONAL module (Section 16.1 item 7). The two are deliberately separate, and
@@ -480,7 +483,19 @@ An operator **MUST** publish its signing public keys as a JWKS document
 party can verify a Kiosk-issued token (Section 5.4) or checkout (Section 11.1).
 Each key carries `kty`, `use: "sig"`, a `kid`, and the public parameters `n`/`e`
 only. A key carries no `alg`: one key signs RS256 access tokens and PS256
-checkouts.
+checkouts. The `kid` is the RFC 7638 thumbprint of the key, and the header of
+every token and checkout names it.
+
+**Operator key rotation.** The document holds the key that signs now, and
+**MAY** hold one previous key. An operator signs only with the current key and
+**MUST** accept a token or a checkout that either key signed. A verifier
+selects the key by the `kid` in the header, and fetches the document again when
+it does not know that `kid`. To change its key, an operator makes a new key the
+current key and keeps the old key as the previous key. It **MUST** keep the
+previous key in the document for at least one access-token lifetime, and for as
+long as it accepts payment of a checkout that the previous key signed. Then it
+removes the previous key. An AI assistant notices none of this: its token and
+its checkouts stay valid.
 
 ### 4.5 The "speaks Kiosk" signal and standard surfaces
 
@@ -526,8 +541,9 @@ capability the origin does not serve:
   `jwks_uri`, `grant_types_supported` with the device-code grant,
   `response_types_supported` empty because there is no authorization endpoint,
   `token_endpoint_auth_methods_supported: ["none"]`, and `service_documentation`
-  pointing at `/auth.md`. It names no `revocation_endpoint`: `POST
-  <endpoint>/auth/revoke` is not an RFC 7009 endpoint.
+  pointing at `/auth.md`, and `dpop_signing_alg_values_supported: ["RS256"]`
+  because every token it issues is DPoP-bound (Section 5.6). It names no
+  `revocation_endpoint`: `POST <endpoint>/auth/revoke` is not an RFC 7009 endpoint.
 - `/.well-known/agent-skills/index.json` (Agent Skills Discovery v0.2.0), where
   the operator pins a skill: one `skill-md` entry with the pinned `url` and
   `digest: "sha256:<the pinned sha256>"`.
@@ -656,8 +672,9 @@ across sessions. An AI assistant **SHOULD** generate a fresh keypair per operato
 ### 5.4 Access-token format
 
 The `access_token` is a 3-part **RS256 JWT** signed by the operator (verifiable
-statelessly against the JWKS of Section 4.4) and presented as `Authorization: Bearer`.
-Its claims:
+statelessly against the JWKS of Section 4.4). It is bound to the identity's
+registered key and presented as `Authorization: DPoP` with a DPoP proof
+(Section 5.6). Its claims:
 
 | Claim | Type | Presence | Meaning |
 |---|---|---|---|
@@ -668,12 +685,13 @@ Its claims:
 | `iss` / `aud` | string | REQUIRED | The operator issuer. |
 | `iat` / `nbf` / `exp` | integer | REQUIRED | Validity window (default 1 hour). |
 | `jti` | string | REQUIRED | Unique token id. |
+| `cnf` | object | REQUIRED | `{"jkt": <RFC 7638 thumbprint of the identity's registered key>}` (RFC 9449 Section 6.1). Only a DPoP proof that this key signs makes the token usable. |
 
 ### 5.5 Token lifetime, revocation, and the registration toll
 
 Access tokens are short-lived; the durable credential is the private key. Multiple
 concurrent tokens for one identity remain valid. `POST <endpoint>/auth/revoke`
-(Bearer) stamps a per-identity "revoked-before" watermark -- every token issued
+(DPoP) stamps a per-identity "revoked-before" watermark -- every token issued
 before that instant stops verifying -- and answers **`200`** `{access_token}`, so
 the caller is not signed out by its own call (Section 15.4). That is Section 5.3's
 login answer exactly, member for member and status for status, which is why
@@ -685,6 +703,74 @@ answer `402 pow_required` (Section 10) bound to the registering public key; the 
 solves and resubmits the same `signed`, sending the proof(s) in the `Kiosk-PoW`
 request header (Section 10.1). Default is no toll. The same toll **MAY** price
 the two binding requests that present a code (Section 6.4).
+
+### 5.6 The DPoP proof
+
+Every request that carries an access token carries it as
+`Authorization: DPoP <access_token>`, together with exactly one `DPoP` header
+(RFC 9449). The `DPoP` header holds a DPoP proof: a compact JWS that the AI
+assistant signs with its registered private key, new for each request.
+
+The proof's JOSE header:
+
+| Member | Rule |
+|---|---|
+| `typ` | `"dpop+jwt"`. |
+| `alg` | `"RS256"`. |
+| `jwk` | The public JWK of the registered key: `kty`, `n`, `e`, and no private member. |
+
+The proof's payload:
+
+| Claim | Type | Rule |
+|---|---|---|
+| `jti` | string | A unique id for this proof. |
+| `htm` | string | The HTTP method of the request. |
+| `htu` | string | The URL of the request, with no query and no fragment. |
+| `iat` | integer | The time the AI assistant signed the proof. |
+| `ath` | string | The base64url SHA-256 of the ASCII access token, with no padding. |
+
+An operator **MUST** refuse the request with `401 unauthenticated` unless all of
+these are true: the request has one `DPoP` header; the proof has this header and
+these claims; the signature verifies with `jwk`; the RFC 7638 thumbprint of `jwk`
+equals the token's `cnf.jkt`; `htm` equals the request method; `htu` names the
+origin that the request reached (scheme and host compared without case, a
+default port omitted) and the request path; `iat` is no more than 60 seconds from
+the operator's clock; and `ath` is the hash of the presented token. A token sent
+as `Authorization: Bearer` is refused the same way. The `401` carries
+`WWW-Authenticate: DPoP algs="RS256"`.
+
+The 60-second window is the replay bound: the operator issues no DPoP nonce and
+keeps no record of `jti`. A captured proof is good only for the same method and
+URL, with the same token, within that window.
+
+The calls that issue a token -- register, login, rotate, claim and the
+device-grant token poll -- take no DPoP proof. Their possession proof
+(Section 5.2) already shows that the caller holds the key that the token binds.
+
+### 5.7 Assistant key rotation
+
+An AI assistant replaces its key with `POST <endpoint>/auth/rotate`. The identity
+stays: the same `agent_id`, `user_id`, role, binding and reputation. The body is
+`{public_key, signed, new_public_key, new_signed}`:
+
+- `public_key` -- the registered key.
+- `signed` -- a possession proof (Section 5.2) that the registered key signs over
+  a challenge issued for the registered key. Its payload also carries the
+  REQUIRED claim `new_key`: the RFC 7638 thumbprint of `new_public_key`. So the
+  old key names the key that replaces it.
+- `new_public_key` -- the new key, in the key bounds of Section 5.1.
+- `new_signed` -- a possession proof that the new key signs over a challenge
+  issued for the new key.
+
+The operator **MUST** verify both proofs and their challenges before any lookup.
+It answers `404 not_found` when `public_key` is not registered, and
+`409 conflict` when `new_public_key` is registered already. On success it puts
+the new key on the identity in place of the old key, stamps the revoked-before
+watermark of Section 5.5, and answers **`200`** `{access_token}` with a token
+bound to the new key. After that, the old key logs in to nothing (`404`), every
+token issued before the rotation stops verifying, and a mandate that the old key
+signed no longer verifies: the AI assistant signs the two mandates again with
+the new key. Rotation is not tolled: it mints no identity.
 
 ---
 
@@ -733,7 +819,7 @@ proof; a failed proof binds nothing (Section 15.8). After binding, the AI assist
    challenge on every poll is conforming and is what the skill instructs.
    The first poll for a `device_code` can be answered `402 pow_required`
    (Section 6.4). On success it returns OAuth-shaped
-   `{access_token, token_type: "Bearer", expires_in}`, plus `scope` when -- and
+   `{access_token, token_type: "DPoP", expires_in}`, plus `scope` when -- and
    only when -- the binding carries a role: `scope` is RFC 6749 Section 5.1's
    scope actually GRANTED, which here is the approving human's role and never an
    echo of a requested one, since no role may be requested (item 1). An operator
@@ -922,7 +1008,7 @@ the toll never tells a caller whether a code exists.
 
 ## 7. Identity binding (the session contract)
 
-Every authenticated verb call executes **as** the identity carried by its Bearer
+Every authenticated verb call executes **as** the identity carried by its access
 token -- the `{user_id, agent_id}` pair.
 
 Section 7.1 is what an implementation of this protocol owes: the MEANS to
@@ -1100,9 +1186,9 @@ the read/write semantics:**
 | Verb | Method | Path | Auth |
 |---|---|---|---|
 | `schema` | GET | `<endpoint>/schema` | **none** |
-| a query | GET | `<endpoint>/<query-name>` | Bearer |
-| an action | POST | `<endpoint>/<action-name>` | Bearer |
-| `pay` | POST | `<endpoint>/pay` | Bearer |
+| a query | GET | `<endpoint>/<query-name>` | DPoP |
+| an action | POST | `<endpoint>/<action-name>` | DPoP |
+| `pay` | POST | `<endpoint>/pay` | DPoP |
 
 `schema` is the one VERB under `endpoint` that takes no credential
 (Section 8.3); the other uncredentialed path under the mount is the OPTIONAL
@@ -1658,10 +1744,14 @@ already paid for registration. An operator **MAY** cap concurrent streams per
 identity.
 
 An operator **MUST** authenticate the upgrade, and **MUST** accept the access
-token in the `Authorization` header of the upgrade request. An assistant
-**MUST** present it there: the header is the one place this wire carries a
-credential on the upgrade, and a token in a URL is a token in every access log
-on the path.
+token in the `Authorization` header of the upgrade request, as
+`Authorization: DPoP <access_token>` with a DPoP proof in the `DPoP` header
+(Section 5.6). An assistant **MUST** present it there: the header is the one
+place this wire carries a credential on the upgrade, and a token in a URL is a
+token in every access log on the path. The proof's `htm` is `GET`, and its `htu`
+is `events_url` with the scheme `wss` written as `https` (`ws` as `http`): the
+upgrade is an HTTP request to that URL. The operator checks the proof once, at
+the upgrade.
 
 An operator **MUST NOT** accept the access token anywhere else on the upgrade
 -- not in the query string, not in a cookie, not in a header of its own. The
@@ -1669,7 +1759,7 @@ access log is written by the operator, so an origin that also reads the token
 from a URL leaks it however carefully the assistant behaved; the obligation
 binds both ends or it binds neither.
 
-**The `Authorization` header is the whole of what authorises the upgrade.** An
+**The `Authorization` and `DPoP` headers are the whole of what authorises the upgrade.** An
 operator **MUST** accept an upgrade that carries no `Origin` request header, and
 **MUST NOT** refuse one because of the value that header carries; an assistant is
 under no obligation to send it. `Origin` is a browser's forgery control, and a
@@ -1828,7 +1918,9 @@ after a reconnect, or when it was closed and its human writes to it again. The
 
 A subscription is authorised by the topic's `reach` and by the operator's own
 subject rule, at subscribe time **and again while the subscription stands**. An
-operator **MUST** re-authorise at least every 60 seconds.
+operator **MUST** re-authorise at least every 60 seconds. A re-authorisation
+checks the access token (its expiry and its revocation) and not the DPoP proof
+of the upgrade, which is older than its 60-second window by then.
 
 When a subscriber's reach to a subject is withdrawn, the operator **MUST** stop
 delivering and **SHOULD** say why:
@@ -1921,7 +2013,7 @@ members it does not recognise.
 | `code` | HTTP | Meaning |
 |---|---|---|
 | `bad_request` | 400 | Malformed request: unparseable body, missing fields, or an argument value outside its domain (Section 9.1). |
-| `unauthenticated` | 401 | Missing, invalid, expired, wrong-issuer, or revoked Bearer token. |
+| `unauthenticated` | 401 | Missing, invalid, expired, wrong-issuer, or revoked access token, or a missing or wrong DPoP proof (Section 5.6). |
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
 | `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay`, or the checkout is in a currency other than the cap's (Section 11.5); the human must raise the cap or set it in the checkout's currency. |
@@ -1931,7 +2023,7 @@ members it does not recognise.
 | `method_not_allowed` | 405 | The path names a verb that exists, called with the other method -- a `GET` at an action's path or a `POST` at a query's (Section 8.1). The response **MUST** carry `Allow` naming the method the verb accepts; `hint` names the call to make. Distinct from `verb_not_found`: the verb exists. |
 | `conflict` | 409 | State conflict -- e.g. registering an already-registered key, or a `pay` this operator will not charge: an identical pair of mandates whose charge was declined, or a new pair for a checkout whose earlier pair is live (Section 11.6). A repeat of a settled or an unfinished pair is not an error. |
 | `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
-| `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Payment` (Section 11.4). |
+| `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Kiosk-Payment-Setup` (Section 11.4). |
 | `payment_failed` | 402 | The charge did not settle: declined, authentication required, insufficient funds, or a processor timeout (Section 11.3). Not a gate -- there is nothing to solve and nothing to set up; no `challenges`, and **no `WWW-Authenticate`** (see below). `hint` says whether the outcome was definitive or unknown. |
 | `quota_exceeded` | 429 | A rate or volume quota the OPERATOR enforces is exhausted -- e.g. a cap on how many KYC verifications one principal may have open at once (Section 12.4.1). It is the one refusal in this table that means "come back later" rather than "no". |
 | `action_failed` | 500 | An operator-registered action raised. |
@@ -2290,7 +2382,7 @@ consequence of accepting more than one.
 
 ### 11.3 The pay call
 
-`POST <endpoint>/pay` (Bearer) with `{checkout_mandate, payment_mandate}`, each
+`POST <endpoint>/pay` (DPoP) with `{checkout_mandate, payment_mandate}`, each
 a compact SD-JWT string. On success it returns `{settlement_id, psp_reference,
 settled_amount_cents, currency}`. If the mandates verify but the charge itself
 does not settle -- declined, authentication required, insufficient funds, or a
@@ -2313,7 +2405,7 @@ the principal can pay now, independent of the PSP: `{"status":"ready"}`, or
 a page at the PSP, such as saving a card. Without the `pay` module it answers
 `501 module_not_served`. An AI assistant **SHOULD** call it before paying. If
 nothing is set up, `pay` answers `402` with `payment_setup_required` (no
-`challenges`) and `WWW-Authenticate: Payment realm="<issuer>", method="ap2"`. The
+`challenges`) and `WWW-Authenticate: Kiosk-Payment-Setup realm="<issuer>"`. The
 AI assistant **MUST NOT** automate the PSP's form: it hands the returned
 `setup_url` to the human, then retries pay (Section 15.7).
 
@@ -2537,7 +2629,7 @@ operator's configured audience (see 12.1), `exp` **MUST** be present and
 unexpired, and `level` **MUST** be exactly `"verified"` (anything else is
 rejected). An operator **MUST** also run any further check its KYC provider
 requires, and answer `403 forbidden` when it fails. The KYC provider sets `exp` one year after `iat`. The AI assistant
-submits it to `POST <endpoint>/agents/kyc` (Bearer) as
+submits it to `POST <endpoint>/agents/kyc` (DPoP) as
 `{kyc_jws}`; on a clean verify the operator replaces the attributes recorded
 against the **principal** -- the human the AI assistant acts for, never the
 assistant's own account -- with the ones granted, and returns
@@ -2629,7 +2721,7 @@ the operator with the `request_id`, the `verification_url` and a one-time
 `nonce`; the operator keeps the `request_id` and the `nonce` against the
 principal. When the human approves, the provider posts
 `{"request_id": "...", "nonce": "...", "kyc_jws": "..."}` to the callback. The
-callback is server to server and carries no Bearer: it is authenticated by the
+callback is server to server and carries no access token: it is authenticated by the
 open verification, its `nonce` and the signed attestation. The operator:
 
 1. answers `400 bad_request` when `request_id` or `kyc_jws` is missing;
@@ -2694,7 +2786,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.5.22**: a 0.5.22 operator pins the 0.5.22 skill against the 0.5.22 wire. A new
+   **0.5.23**: a 0.5.23 operator pins the 0.5.23 skill against the 0.5.23 wire. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -2752,11 +2844,11 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.22**, the twenty-third
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.5.23**, the twenty-fourth
    cut on this series. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.4.17 cuts
    describe protocol 0.1-0.4 and cannot transact with a 0.5 origin at all, and
-   0.5.0-0.5.21 describe earlier 0.5 cuts a 0.5.22 operator no longer pins; none of them can pay at it, and 0.5.22 is also its `Kiosk-Min-Client`. Published skill
+   0.5.0-0.5.22 describe earlier 0.5 cuts a 0.5.23 operator no longer pins; none of them sends the DPoP proof that every call with a token needs there, and 0.5.23 is also its `Kiosk-Min-Client`. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
@@ -2803,12 +2895,20 @@ observe the difference. The server-held auth nonces of Section 5.1 carry the
 same sharing requirement, though a per-process store there fails closed -- the
 challenge is simply not found -- rather than admitting a replay.
 
+A DPoP proof (Section 5.6) is bound to one method, one URL and one token, and is
+accepted for 60 seconds from its `iat`. The operator keeps no record of its `jti`,
+so within that window the same request can be sent again; outside it, and for
+any other request, the proof is worthless.
+
 ### 15.3 Key hygiene and per-origin identity
 
 An AI assistant **SHOULD** generate a fresh keypair per operator origin: the keypair is
 the identity, and a per-origin key means no cross-operator identifier exists. The
 private key is the durable credential; access tokens are short-lived and
-disposable.
+disposable. An access token is DPoP-bound to the key (Section 5.6), so a copy of
+the token without the private key buys no request. An AI assistant that fears
+for its key replaces it with `POST <endpoint>/auth/rotate` (Section 5.7) and
+keeps its identity.
 
 ### 15.4 Token revocation
 
@@ -2949,10 +3049,13 @@ the discovery document, and are absent from `capabilities` for that reason:
 
 1. **Core -- discovery** (Section 4): `/.well-known/kiosk.json` -- `issuer`,
    `endpoint`, `capabilities`, `schema_url`, the auth block, and the OPTIONAL
-   `skill` pin -- and the JWKS document at `<endpoint>/.well-known/jwks.json`.
-2. **Core -- auth (kiosk-pop)** (Section 5): challenge / register / login / revoke with
-   proof-of-possession verification, origin-bound `aud` rejection, single-use
-   server-held nonces, RS256 JWT access tokens, and the revoked-before watermark.
+   `skill` pin -- and the JWKS document at `<endpoint>/.well-known/jwks.json`,
+   which holds the current key and at most one previous key (Section 4.4).
+2. **Core -- auth (kiosk-pop)** (Section 5): challenge / register / login / revoke /
+   rotate with proof-of-possession verification, origin-bound `aud` rejection,
+   single-use server-held nonces, RS256 JWT access tokens bound to the identity's
+   key, the DPoP proof check on every request that carries a token (Section 5.6),
+   and the revoked-before watermark.
 3. **Core -- wire** (Section 8, Section 9): `schema` (GET, UNAUTHENTICATED and
    untolled -- Section 8.3), one endpoint per
    registered verb (GET for a query, POST for an action), the response shape,
@@ -2984,7 +3087,7 @@ the discovery document, and are absent from `capabilities` for that reason:
    that creates an item to pay for, verification of the two closed AP2 v0.2
    mandates -- the SD-JWT form and members (Section 11.1) and the binding rules
    (Section 11.2) -- `payment_setup` and its return page (Section 11.4), the
-   `payment_setup_required` 402 with `WWW-Authenticate: Payment`, an idempotent
+   `payment_setup_required` 402 with `WWW-Authenticate: Kiosk-Payment-Setup`, an idempotent
    repeat -- an identical settled pair answers `200` with that settlement, an
    identical unfinished pair is captured again under the same key and settled,
    and a declined pair or a second live pair for one checkout answers `409
@@ -3063,7 +3166,9 @@ it is absent, rather than by reading a body field or trusting `X-Total-Count`
 (Section 8.4); reads a verb's `reach` before it reads its rows, treating a
 descriptor that carries none as `principal` and never treating a `published`,
 `consented` or `role` verb's rows as its own human's data; fills the proof
-`aud` from the origin it dialed; declares its human's clock in `Kiosk-Timezone`
+`aud` from the origin it dialed; sends every access token as
+`Authorization: DPoP` with a new DPoP proof that its registered key signs for
+that method and URL (Section 5.6); declares its human's clock in `Kiosk-Timezone`
 and takes that zone FROM THE HUMAN rather than from the machine it runs on,
 resolves a service time on the clock of the place where the service happens,
 reads a row's own `timezone` before relaying any time to a human, and never
