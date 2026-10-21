@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-21: The landing page is retold in the founder's voice: personal assistants, any service, the toll on the door, one card entry per operator, and the event stream.
+
 ## [skill 0.6.0] — 2026-10-21
 
 - 2026-10-21: **Skill 0.6.0** opens protocol 0.6: it makes an Ed25519 key and signs every JWT EdDSA. `Kiosk-Min-Client` is 0.6.0: a 0.5 cut registers an RSA key, which is refused.
