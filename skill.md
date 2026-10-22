@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.6"
+  version: "0.6.7"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -29,9 +29,9 @@ Two terms; do not mix them up. **`origin`** is the operator's base URL: scheme, 
 
 ## Setup
 
-- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Use `urllib` or `requests` for HTTP. Keep access tokens in Python memory, and never put one on a command line. The listener's `--token-file` is the one file where you write a token.
+- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Use `urllib` or `requests` for HTTP. Never put an access token on a command line. Write each new token to `~/.kiosk/<origin-dir>/token` from Python, and `chmod 600` it. Read the token from that file in each new process, also when your runtime starts a new process for each tool call. It is the one file where you write a token, and the listener reads it (`--token-file`).
 - **Dependencies:** `pyjwt` and `cryptography` for signing, plus `numpy`, which is there only because the pinned solver script imports it, and `websockets` (>= 12) for the pinned listener. Use ONE venv for every operator and every snippet in this skill: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography numpy websockets`, then run `~/.kiosk/venv/bin/python`.
-- **Files:** each origin has its own directory `~/.kiosk/<origin-dir>/`. EVERY file that you write for an operator goes in it: `key.pem`, `identity.json`, `token`, `spend.json`, `receipts/`, and your own notes, state and scripts. Only `~/.kiosk/venv`, `~/.kiosk/dpop.py` and the pinned solver and listener are shared. `chmod 600` every file. Use a new Ed25519 key per origin (scheme, host and port), so that operators cannot track you across origins.
+- **Files:** each origin has its own directory `~/.kiosk/<origin-dir>/`. EVERY file that you write for an operator goes in it: `key.pem`, `identity.json`, `token`, `spend.json`, `receipts/`, and your own notes, state and scripts for that operator. Only `~/.kiosk/venv`, `~/.kiosk/dpop.py`, the pinned solver and listener, and `~/.kiosk/bin/` are shared. `~/.kiosk/bin/` holds your own scripts that serve every operator. Such a script holds no key, no token and no state: it reads and writes the files of each operator in that operator's directory. `chmod 600` every file. Use a new Ed25519 key per origin (scheme, host and port), so that operators cannot track you across origins.
 
 ## The HTTP API
 
@@ -122,7 +122,7 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 
 - **No identity** -> make an Ed25519 keypair (see "Auth handshake"), then `POST {registration_url} {"jwks": {"keys": [<your public JWK>]}}` (RFC 7591) -> `201` with your `client_id`. Keep the PRIVATE key at `~/.kiosk/<origin-dir>/key.pem` and the identity `{"client_id": "..."}` at `~/.kiosk/<origin-dir>/identity.json`.
 - **Get a token** -> `POST {token_url}` as a form with `grant_type=client_credentials`, a client assertion (RFC 7523) and a `DPoP` header (RFC 9449) -> `200 {access_token, token_type: "DPoP", expires_in}`, plus `scope` when your account has a role. The token's `sub` is your `user_id`, and its `agent_id` claim is your `client_id`.
-- Tokens are short-lived. Send a new token request when yours expires, and not before.
+- Tokens are short-lived. Use one token until it expires, and then send a new token request. A new process reads the current token from `token` (see "Setup").
 - **`invalid_client`** -> sign a new client assertion and send the token request again, one time. If it fails again, register the same key again. When the same `client_id` comes back, continue with it. A NEW `client_id` means that your human unlinked you: ask them before you go on.
 - **An RSA `key.pem`** -> the operator refuses it. Make an Ed25519 keypair and register it. This is a new account.
 - **To change your key, rotate it** (see "Key rotation"). A new registration is a new account, with no reputation, no binding and no saved card. Rotate when your human asks, or when someone else can have seen `key.pem`.
@@ -181,10 +181,10 @@ The stream is the one place where the OPERATOR speaks first. It is optional. You
 
 **Subscribing.** A subscription names a topic, an optional `subject` (one row, such as an order or a list) and an optional cursor `since`. The listener puts them in the URL of the upgrade: `?topic=<name>[:<subject>]&since=<id>`. With no `subject`, you get every event of yours on that topic. The operator confirms with `{"type":"subscribed","topic":"todo","subject":"list_4f1e...","head":1486,"truncated":false}`, or refuses with `reject_subscription`. A refusal is your mistake, not a temporary problem: take the correct name from the catalogue, or the subject from the operator's own row.
 
-- **`head` is your cursor**: the current event id of the origin.
+- **`head` is your cursor**: the newest event id at the origin.
 - **`truncated: true`** means that you possibly missed events. Read the current state through the usual operation that owns it, ONE time, then continue with the stream. For an identity check, call `request_kyc` again.
 
-**The event** has five members: `{"id": 1487, "topic": "kyc_verification", "subject": "9f2c...", "occurred_at": "2026-09-04T09:14:22Z", "data": {...}}`. `data` matches the topic's `payload_schema`. `id` is one increasing integer per origin. An `id` names one event for one identity, so never compare ids between identities. The operator sends each event at least once, in order. So **ignore an `id` that you already saw.** The operator keeps at least 24 hours of events.
+**The event** has five members: `{"id": 1487, "topic": "kyc_verification", "subject": "9f2c...", "occurred_at": "2026-09-04T09:14:22Z", "data": {...}}`. `data` matches the topic's `payload_schema`. `id` is one increasing integer per origin. The events of all identities at the origin share it: the ids that you get have gaps, so never compare ids between identities. The operator sends each event at least once, in order. So **ignore an `id` that you already saw.** The operator keeps at least 24 hours of events.
 
 **While the stream is up:**
 
@@ -385,7 +385,7 @@ body = {"client_assertion_type": ASSERTION_TYPE,
 
 On `200`: write the new key to `key.pem`, and keep `identity.json`. Every older token is revoked: send a token request with the new key, write the new token to `token`, and start a running listener again. Sign every new mandate with the new key. `401`: an assertion failed; sign both again. `409`: the new key is registered already; make another keypair.
 
-## Proof-of-work (HTTP 402)
+## The proof-of-work toll (HTTP 402)
 
 A query, an action, `pay`, the registration, the link-code claim and the binding poll can give `402` with `code: "pow_required"`: the operator charges a proof-of-work toll. Nothing else has a toll: the discovery documents, `schema`, `openapi.json`, the JWKS, the KYC attestation path, the `client_credentials` token request and the other auth paths are free. The answer has `WWW-Authenticate: Kiosk-PoW realm="<issuer>"` and a top-level `challenges` array:
 
@@ -397,8 +397,8 @@ A query, an action, `pay`, the registration, the link-code claim and the binding
 
 - **FIRST, before anything else, download the pinned solver and run it. Do NOT write your own Equihash solver.** Fetch `https://kiosk.tech/pow/solve-d60b454ce018.py`, verify that its SHA-256 equals `d60b454ce0181326de8b74e5e820ae1e50dc3c4832e331fbab44e12899f7fe59`, and only then run it. `https://kiosk.tech/pow/solve.py` is the current solver, but use the pinned URL, and never run either copy before you check the hash. Run it as a script: `python solve.py '<challenge-json>'`, with one challenge object exactly as you got it. It prints `{"indices": [...], "header_nonce": N}`. A solver of your own gets "invalid proof of work" and never a token.
 - **If you cannot fetch the solver, or its hash does not match, tell your human and STOP.** Never `pip install` an equihash package: none uses this construction, and it is code that nobody checked.
-- **Estimate the cost first.** The default (n=168, k=7) takes ~10 s on one laptop core and ~1.3 GiB with the pinned solver. A larger `n` costs more. If a challenge is above your budget, tell your human.
-- The operator counts the calls of your account, and it can ask the toll on any of them. All assistants of one account share the count, so the toll can come on your first call. A new token keeps the count. Do not register a new key to avoid the toll: a new key pays to register, and it has no reputation.
+- **Estimate the cost first.** With the pinned solver, the default (n=168, k=7) takes 9 to 20 s and 1.0 to 1.4 GiB on one Apple M3 laptop core. The time changes from challenge to challenge, and a slower machine takes longer. A larger `n` costs more. If a challenge is above your budget, tell your human.
+- The operator counts the calls of your account, and it can ask the toll on any of them. All assistants of one account share the count, so the toll can come on your first call. A new token keeps the count. A `401`, or a `400` on the arguments or on the `Kiosk-PoW` header, does not count. Every other answer counts, also a `402`, a `404` or a `409`. Do not register a new key to avoid the toll: a new key pays to register, and it has no reputation.
 - **Solve EVERY challenge in the list.** The number can change.
 - **Send the SAME request again** -- the same method, path, query string and body -- with the proofs in the `Kiosk-PoW` request header as raw JSON. Each proof sends its challenge back exactly as you got it: `Kiosk-PoW: {"challenge": {...}, "nonce": {"indices": [...], "header_nonce": 0}}`. For several challenges, send a JSON array of proofs, or one `Kiosk-PoW` header line per proof. A query stays a `GET`: the proof goes in the header, never in a body. On the registration, the claim and the binding poll, send the same body again, with a new DPoP proof where the request carries one.
 - Challenges expire (`exp`), and you can use a proof one time only. A malformed header gives `400 bad_request` whose `hint` names the shape.
@@ -467,7 +467,7 @@ A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the o
 
 **Branch on `code`**, never on the status or on a header:
 
-- `pow_required` -- **a gate.** It has `challenges`. Solve them (see "Proof-of-work (HTTP 402)").
+- `pow_required` -- **the toll, a gate.** It has `challenges`. Solve them (see "The proof-of-work toll (HTTP 402)").
 - `payment_setup_required` -- **a gate.** It has no `challenges`. Do Step 5, then send the same mandates again. If their `exp` has passed, do as Step 6 says.
 - `payment_failed` -- **not a gate.** The charge did not complete. `hint` says which of two cases you have:
     - **Definitive:** no money moved, and these mandates are closed. Tell your human. Your human fixes the card through Step 5. Then sign new mandates for the same `checkout_jwt` and pay again.

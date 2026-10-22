@@ -86,7 +86,7 @@ protocol only where they do not:
 
 Kiosk-specific is the **protocol contract**: the per-verb endpoints, the response
 shape, the error vocabulary, the identity-binding (session) semantics, the
-proof-of-work gate, assistant key rotation and the link-code claim.
+proof-of-work toll, assistant key rotation and the link-code claim.
 
 ---
 
@@ -168,7 +168,7 @@ proof-of-work gate, assistant key rotation and the link-code claim.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.6.6` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-API-Version` | `0.6.7` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
    | `Kiosk-Min-Client` | `0.6.0` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
@@ -1863,7 +1863,8 @@ subscriber. One integer therefore resumes every subscription a socket holds, and
 a subscriber compares ids rather than tracking a cursor per topic.
 An `id` names one event in ONE identity's stream, not the change behind it: a
 change told to two identities is two events with two ids, so ids are never
-compared across identities.
+compared across identities. The ids one identity sees therefore have gaps, and
+`head` is the newest id at the origin, whichever identity its event is for.
 
 #### 8.5.3 Opening the stream
 
@@ -2195,7 +2196,7 @@ members it does not recognise.
 | `not_found` | 404 | **The verb exists and an argument ADDRESSES a resource which does not exist** (Section 9.1 rule 2) -- a `property_id` no property has. The call was well formed and the answer is final: no retry finds it, and the AI assistant tells its human the thing is not there. Distinct from `verb_not_found`, which is about the NAME of the call rather than about what the call addressed. |
 | `method_not_allowed` | 405 | The path names a verb that exists, called with the other method -- a `GET` at an action's path or a `POST` at a query's (Section 8.1). The response **MUST** carry `Allow` naming the method the verb accepts; `hint` names the call to make. Distinct from `verb_not_found`: the verb exists. |
 | `conflict` | 409 | State conflict -- e.g. a key rotation to a key that is registered already (Section 5.7), a link code that is used already (Section 6.2), or a `pay` this operator will not charge: an identical pair of mandates whose charge was declined, or a new pair for a checkout whose earlier pair is live (Section 11.6). A repeat of a settled or an unfinished pair is not an error. |
-| `pow_required` | 402 | Proof-of-work gate; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
+| `pow_required` | 402 | The proof-of-work toll; carries `challenges` and `WWW-Authenticate: Kiosk-PoW` (Section 10). |
 | `payment_setup_required` | 402 | Payment gate: no card on file; no `challenges`; carries `WWW-Authenticate: Kiosk-Payment-Setup` (Section 11.4). |
 | `payment_failed` | 402 | The charge did not settle: declined, authentication required, insufficient funds, or a processor timeout (Section 11.3). Not a gate -- there is nothing to solve and nothing to set up; no `challenges`, and **no `WWW-Authenticate`** (see below). `hint` says whether the outcome was definitive or unknown. |
 | `quota_exceeded` | 429 | A rate or volume quota the OPERATOR enforces is exhausted -- e.g. a cap on how many KYC verifications one principal may have open at once (Section 12.4.1). It is the one refusal in this table that means "come back later" rather than "no". |
@@ -2406,7 +2407,10 @@ has no body-proof channel, can carry its proof too (Section 10.1).
 calls of each account since the last proof paid on that account: the AI
 assistants bound to one account share the count. A new access token, a key
 rotation or a binding **MUST NOT** set the count back. A proof pays for the call that
-carries it. The operator **MAY** ask for proofs less often by reputation, to no
+carries it. A call counts when it reaches the toll, after the operator checks
+the access token and the arguments: a `401`, or a `400` on the arguments or on
+the `Kiosk-PoW` header, does not count. Every later answer counts: a `402`, a
+`403` for a wrong proof and a refusal by the operation itself. The operator **MAY** ask for proofs less often by reputation, to no
 proof at all for a trusted customer (Section 13). The registration toll
 (Section 5.5) and the binding toll (Section 6.4) are separate and unchanged. A
 new key pays the registration toll and has no reputation, so registering a new
@@ -2433,8 +2437,8 @@ valid work -- and the `indices` array
 **MUST** be in **Zcash canonical (subtree/tree) order** -- a globally-sorted array
 is rejected. `header_nonce` is an OPTIONAL u32 (default 0) folded into the PoW seed after the
 salt bytes as a little-endian u32 -- an extensibility point (currently always 0); a proof solved
-for a non-zero `header_nonce` MUST carry it so the verifier reconstructs the same seed. An operator requests **N independent proofs** as a rate-limiting knob
-(reputation sets N, Section 13); PoW is a metered toll, not a hardware wall (Section 15.5).
+for a non-zero `header_nonce` MUST carry it so the verifier reconstructs the same seed. An operator requests **N independent proofs** to raise the toll
+(reputation sets N, Section 13); the toll is metered pricing, not a hardware wall (Section 15.5).
 
 ### 10.1 The `Kiosk-PoW` header (proof transport)
 
@@ -2996,7 +3000,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.6.6**: a 0.6.6 operator pins the 0.6.6 skill against the 0.6.6 protocol. A new
+   **0.6.7**: a 0.6.7 operator pins the 0.6.7 skill against the 0.6.7 protocol. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -3055,10 +3059,10 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.6**, the seventh
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.7**, the eighth
    cut of protocol 0.6. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.5.27 cuts
-   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.5 describe the earlier 0.6 cuts: 0.6.0, the `Kiosk-Min-Client` of a 0.6.6 operator, names fewer of the error codes of Section 9, 0.6.1 states the same rules in other words, 0.6.2 says the toll is paid once per access token, 0.6.3 has the text of 0.6.4 against a protocol that refused a `scope` on the device-authorization request, 0.6.4 has the text of 0.6.5 against a protocol whose Kiosk auth endpoints sent no challenge on a `401`, and 0.6.5 says the operator counts the calls of each assistant. Published skill
+   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.6 describe the earlier 0.6 cuts: 0.6.0, the `Kiosk-Min-Client` of a 0.6.7 operator, names fewer of the error codes of Section 9, 0.6.1 states the same rules in other words, 0.6.2 says the toll is paid once per access token, 0.6.3 has the text of 0.6.4 against a protocol that refused a `scope` on the device-authorization request, 0.6.4 has the text of 0.6.5 against a protocol whose Kiosk auth endpoints sent no challenge on a `401`, 0.6.5 says the operator counts the calls of each assistant, and 0.6.6 does not say which answers count toward the toll and keeps an access token in memory only. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version

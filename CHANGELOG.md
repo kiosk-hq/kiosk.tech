@@ -10,6 +10,11 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.7] — 2026-10-22
+
+- 2026-10-22: **Skill 0.6.7**: a 401, or a 400 on the arguments, does not count toward the toll; a token is kept in the origin's `token` file; shared scripts go in `~/.kiosk/bin/`.
+- 2026-10-22: The site says "toll" for the proof of work an operator asks, and gives the proof time measured on the pinned solver: 9 to 20 s and 1.0 to 1.4 GiB.
+
 ## [skill 0.6.6] — 2026-10-22
 
 - 2026-10-22: **Skill 0.6.6**: the operator counts the tolled calls of each account, so the assistants of one account share the count and the spend. `Kiosk-Min-Client` stays 0.6.0.

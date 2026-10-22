@@ -72,7 +72,7 @@ every JSON Schema under `spec/schemas/`, the assistant skill (the alias
   imports from it; the worst a swapped copy buys is a rejected proof. A report
   that the served bytes do not match the digest a skill cut publishes beside the
   URL is, again, a real finding.
-- **The proof-of-work gate is metered pricing, not a hardware wall.** Equihash
+- **The proof-of-work toll is metered pricing, not a hardware wall.** Equihash
   is neither ASIC- nor GPU-proof and the specification says so. "A GPU solves
   this faster than a laptop" is the design.
 - **Pre-1.0 protocol changes.** The protocol may change between releases; that is
