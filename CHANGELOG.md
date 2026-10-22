@@ -10,6 +10,11 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.4] — 2026-10-22
+
+- 2026-10-22: **Skill 0.6.4**, the text of 0.6.3: the OAuth metadata lists the scope `default`, and an operator ignores a requested `scope`. `Kiosk-Min-Client` stays 0.6.0.
+- 2026-10-22: A 401 for an access token names the protected-resource metadata (RFC 9728), and every discovery document answers `Access-Control-Allow-Origin: *`.
+
 ## [skill 0.6.3] — 2026-10-22
 
 - 2026-10-22: **Skill 0.6.3**: the operator counts each assistant's tolled calls and can ask a proof on any call; a new access token keeps the count. `Kiosk-Min-Client` stays 0.6.0.

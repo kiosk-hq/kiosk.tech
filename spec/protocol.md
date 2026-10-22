@@ -168,7 +168,7 @@ proof-of-work gate, assistant key rotation and the link-code claim.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.6.3` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-API-Version` | `0.6.4` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
    | `Kiosk-Min-Client` | `0.6.0` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
@@ -559,8 +559,8 @@ capability the origin does not serve:
   `registration_endpoint` (Section 5.1), `token_endpoint` (Section 5.3),
   `device_authorization_endpoint` (Section 6.1) only where the origin serves
   account binding, `jwks_uri`, `response_types_supported` empty because there is
-  no authorization endpoint, `scopes_supported` empty because an AI assistant
-  requests no scope (Section 5.3), `grant_types_supported` with `client_credentials`
+  no authorization endpoint, `scopes_supported: ["default"]`, the one scope
+  value (Section 5.3), `grant_types_supported` with `client_credentials`
   and, where the origin serves account binding, the device-code grant,
   `token_endpoint_auth_methods_supported: ["private_key_jwt"]`,
   `token_endpoint_auth_signing_alg_values_supported` (Section 5),
@@ -571,7 +571,7 @@ capability the origin does not serve:
 - `/.well-known/oauth-protected-resource` (RFC 9728): `resource` is the origin,
   because RFC 9728 Section 3.3 binds a document at this path to the origin;
   `authorization_servers` holds the RFC 8414 `issuer` above;
-  `scopes_supported` is empty because an AI assistant requests no scope;
+  `scopes_supported: ["default"]`, the list of the RFC 8414 metadata;
   `bearer_methods_supported: ["header"]`,
   `dpop_signing_alg_values_supported` with the list of Section 5,
   `dpop_bound_access_tokens_required: true` (Section 5.6), and
@@ -592,7 +592,9 @@ capability the origin does not serve:
   each URL bare, with no Markdown mark around it, so that a scanner reads the
   URL alone.
 
-These surfaces are unauthenticated. All but the api-catalog are POINTERS, so
+These surfaces are unauthenticated. Each of them, and `/.well-known/kiosk.json`,
+answers with `Access-Control-Allow-Origin: *`, so that a page on any origin can
+read it. All but the api-catalog are POINTERS, so
 the rule of Section 4.2 binds them: an operator **MUST NOT** enumerate its
 registered verb names on any of them. They may LINK the descriptions that do
 enumerate them -- `<endpoint>/schema` and, where served,
@@ -787,7 +789,10 @@ Section 5.1):
 
 `scope` is the role of the assistant account (Section 5.4). It is present only
 when the account has a role, and an AI assistant **MUST NOT** read its absence as
-an error. The account itself (`user_id`, `agent_id`) is in the claims of the
+an error. A token request **MAY** carry `scope`. The operator ignores it and
+grants the role of the account (RFC 6749 Section 3.3). An AI assistant gets
+another role only when a human who holds that role binds it to their account
+(Section 6), or through the operator's identity provider. The account itself (`user_id`, `agent_id`) is in the claims of the
 token. The same endpoint serves the device-code grant of account binding
 (Section 6.1). This grant is not tolled.
 
@@ -875,8 +880,9 @@ request reached (scheme and host compared without case, a default port omitted)
 and the request path; `iat` is no more than 60 seconds from the operator's
 clock; and `ath` is the hash of the presented token. A token sent as
 `Authorization: Bearer` is refused the same way. The `401` carries
-`WWW-Authenticate: DPoP algs="EdDSA"`, or `algs="EdDSA ES256"` at an operator
-that accepts ES256.
+`WWW-Authenticate: DPoP algs="EdDSA", resource_metadata="<origin>/.well-known/oauth-protected-resource"`,
+with `algs="EdDSA ES256"` at an operator that accepts ES256. `resource_metadata`
+names the protected-resource metadata (RFC 9728 Section 5.1).
 
 **On a token request**, the same rules hold with two changes: the proof has no
 `ath`, and the thumbprint of `jwk` **MUST** equal the thumbprint of the client's
@@ -949,9 +955,10 @@ identity.
 1. `POST <endpoint>/oauth/device_authorization` (form-encoded) with a client
    assertion (Section 5.2) -- and NOTHING ELSE that speaks to authorisation. The
    assertion authenticates the client, so the request needs no `client_id`
-   (RFC 8628 Section 3.1). An operator **MUST NOT** accept a `scope` or `role`
+   (RFC 8628 Section 3.1). An operator **MUST NOT** accept a `role`
    parameter on it; the conforming answer to one is `400 invalid_request`
-   naming the parameter, not a silently ignored argument. Returns
+   naming the parameter. The operator ignores a `scope` parameter (RFC 6749
+   Section 3.3): the role comes from the human who approves. Returns
    `{device_code, user_code, verification_uri, verification_uri_complete,
    expires_in, interval}`. The operator records the device code for this
    client and its registered key; the verify page shows the key's fingerprint.
@@ -1002,8 +1009,8 @@ Five are request-level codes:
 
 - `invalid_request` -- a REQUIRED parameter is absent or malformed, or the request
   carries one it **MUST NOT**: `grant_type` absent from the token request, and --
-  the case **step 1 above states normatively** -- a `scope` or `role` parameter
-  on the device-authorization request (RFC 6749 Section 5.2).
+  the case **step 1 above states normatively** -- a `role` parameter on the
+  device-authorization request (RFC 6749 Section 5.2).
 - `invalid_client` -- the client assertion failed (Section 5.2). On the poll it
   binds nothing and does **NOT** consume the authorization, so the AI assistant
   MAY sign a new assertion and poll again with the SAME `device_code`
@@ -2980,7 +2987,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.6.3**: a 0.6.3 operator pins the 0.6.3 skill against the 0.6.3 protocol. A new
+   **0.6.4**: a 0.6.4 operator pins the 0.6.4 skill against the 0.6.4 protocol. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -3039,10 +3046,10 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.3**, the fourth
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.4**, the fifth
    cut of protocol 0.6. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.5.27 cuts
-   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.2 describe the earlier 0.6 cuts: 0.6.0, the `Kiosk-Min-Client` of a 0.6.3 operator, names fewer of the error codes of Section 9, 0.6.1 states the same rules in other words, and 0.6.2 says the toll is paid once per access token. Published skill
+   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.3 describe the earlier 0.6 cuts: 0.6.0, the `Kiosk-Min-Client` of a 0.6.4 operator, names fewer of the error codes of Section 9, 0.6.1 states the same rules in other words, 0.6.2 says the toll is paid once per access token, and 0.6.3 has the text of 0.6.4 against a protocol that refused a `scope` on the device-authorization request. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
