@@ -10,6 +10,11 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.8] — 2026-10-22
+
+- 2026-10-22: **Skill 0.6.8** has the text of 0.6.7. `Kiosk-Min-Client` stays 0.6.0.
+- 2026-10-22: The specification: the first binding merges the assistant's own account into the customer's account, so its payments and visits count as the customer's spend, also after an unlink.
+
 ## [skill 0.6.7] — 2026-10-22
 
 - 2026-10-22: **Skill 0.6.7**: a 401, or a 400 on the arguments, does not count toward the toll; a token is kept in the origin's `token` file; shared scripts go in `~/.kiosk/bin/`.
