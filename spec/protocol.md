@@ -168,7 +168,7 @@ proof-of-work gate, assistant key rotation and the link-code claim.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.6.4` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-API-Version` | `0.6.5` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
    | `Kiosk-Min-Client` | `0.6.0` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
@@ -770,7 +770,10 @@ client that a human unlinked is not live. The operator records the `jti` only
 after every other check passes. Every failure is one refusal: `401
 invalid_client` on the `/oauth/*` endpoints, and `401 unauthenticated`
 (Section 9) on the two Kiosk endpoints that take an assertion, `/auth/claim` and
-`/auth/rotate`. Its `error_description` or `hint` says what to correct.
+`/auth/rotate`. Its `error_description` or `hint` says what to correct. The
+`401 unauthenticated` carries `WWW-Authenticate: Kiosk-Client-Assertion
+realm="<issuer>"`: RFC 9110 requires a challenge on every `401`, and no
+registered scheme names a client assertion in the request body.
 
 ### 5.3 The token request
 
@@ -1136,6 +1139,9 @@ with the operator's session, which a browser sends from any page of the same
 site, so an operator **MUST** refuse either one with `400 bad_request` unless
 its `Content-Type` is `application/json`: a page on another origin cannot send
 that type without a CORS preflight.
+Without that session, the operator answers either one with `401
+unauthenticated` and `WWW-Authenticate: Kiosk-Session realm="<issuer>"`: no
+registered scheme names a sign-in session.
 
 `POST <endpoint>/auth/unlink` (operator session, `{agent_id}`) is
 registration-layer revocation: the client is no longer live, its tokens stop
@@ -2987,7 +2993,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.6.4**: a 0.6.4 operator pins the 0.6.4 skill against the 0.6.4 protocol. A new
+   **0.6.5**: a 0.6.5 operator pins the 0.6.5 skill against the 0.6.5 protocol. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -3046,10 +3052,10 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.4**, the fifth
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.5**, the sixth
    cut of protocol 0.6. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.5.27 cuts
-   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.3 describe the earlier 0.6 cuts: 0.6.0, the `Kiosk-Min-Client` of a 0.6.4 operator, names fewer of the error codes of Section 9, 0.6.1 states the same rules in other words, 0.6.2 says the toll is paid once per access token, and 0.6.3 has the text of 0.6.4 against a protocol that refused a `scope` on the device-authorization request. Published skill
+   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.4 describe the earlier 0.6 cuts: 0.6.0, the `Kiosk-Min-Client` of a 0.6.5 operator, names fewer of the error codes of Section 9, 0.6.1 states the same rules in other words, 0.6.2 says the toll is paid once per access token, 0.6.3 has the text of 0.6.4 against a protocol that refused a `scope` on the device-authorization request, and 0.6.4 has the text of 0.6.5 against a protocol whose Kiosk auth endpoints sent no challenge on a `401`. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version
@@ -3573,7 +3579,8 @@ Kiosk follows these standards. Each line says what Kiosk uses it for.
   the status rule of Section 9.1; `501`, Section 15.6.2, for
   `module_not_served`).
 - RFC 7235 -- HTTP authentication framework: the `WWW-Authenticate` challenge
-  of the `402` gates, and of `DPoP` on a `401`.
+  of the `402` gates, of `DPoP` on a `401`, and of `Kiosk-Client-Assertion`
+  and `Kiosk-Session` on the `401`s of the Kiosk auth endpoints.
 - RFC 9111 -- HTTP caching (Section 3, point 7).
 - RFC 9457 -- Problem Details for HTTP APIs: the error shape (Section 9).
 - RFC 8288 -- Web Linking: the `Link` header and `rel="next"` (Section 8.4).

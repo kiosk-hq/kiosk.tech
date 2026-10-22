@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.5] — 2026-10-22
+
+- 2026-10-22: **Skill 0.6.5**, the text of 0.6.4: a 401 from a Kiosk auth endpoint names its challenge, `Kiosk-Client-Assertion` or `Kiosk-Session`. `Kiosk-Min-Client` stays 0.6.0.
+
 ## [skill 0.6.4] — 2026-10-22
 
 - 2026-10-22: **Skill 0.6.4**, the text of 0.6.3: the OAuth metadata lists the scope `default`, and an operator ignores a requested `scope`. `Kiosk-Min-Client` stays 0.6.0.
