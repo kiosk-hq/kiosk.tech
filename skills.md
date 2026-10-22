@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | What it describes |
 |---|---|---|
+| `skill-v0.6.3.md` | **0.6** | **A PROTOCOL CHANGE in the toll.** The operator counts the tolled calls of each assistant and can ask a proof on any call; a new access token keeps the count. A 0.6.2 assistant still transacts. |
 | `skill-v0.6.2.md` | **0.6** | The same protocol as 0.6.1. The section on paths and methods is "The HTTP API", and the skill says "protocol" for the requests and answers that the specification defines. |
 | `skill-v0.6.1.md` | **0.6** | The same protocol as 0.6.0. The answer table names every error code of the specification, and the skill names the two DPoP headers where it first uses them. |
 | `skill-v0.6.0.md` | **0.6** | **A NEW PROTOCOL: Kiosk moves from RSA to Ed25519.** The assistant makes an Ed25519 key and signs every JWT EdDSA; an operator refuses an RSA key and may also accept ES256. No 0.5 cut can transact with a 0.6 origin. |
@@ -101,9 +102,10 @@ and 0.5.22 opens a new protocol group of which it stayed the only member,
 and 0.5.23 opens a new protocol group of which it stayed the only member,
 and 0.5.24 opens a new protocol group in which 0.5.24 = 0.5.25 = 0.5.26,
 and 0.5.27 opens a new protocol group of which it stayed the only member,
-and 0.6.0 opens a new protocol group, protocol 0.6, the one served now, in which 0.6.0 = 0.6.1 = 0.6.2,
-but the fourteen groups are NOT the same protocol, and only the last describes
-what a 0.6.2 operator serves. The formal spec
+and 0.6.0 opens a new protocol group in which 0.6.0 = 0.6.1 = 0.6.2,
+and 0.6.3 opens a new protocol group, the one served now, of which it is the only member,
+but the fifteen groups are NOT the same protocol, and only the last describes
+what a 0.6.3 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

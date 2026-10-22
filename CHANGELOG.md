@@ -10,6 +10,11 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.3] — 2026-10-22
+
+- 2026-10-22: **Skill 0.6.3**: the operator counts each assistant's tolled calls and can ask a proof on any call; a new access token keeps the count. `Kiosk-Min-Client` stays 0.6.0.
+- 2026-10-22: The reference policy asks a proof on every Nth call, N = ceil(10 / share), share = (cap − spend) / cap; it replaces one proof per access token by chance.
+
 ## [skill 0.6.2] — 2026-10-22
 
 - 2026-10-22: **Skill 0.6.2** and every page say "protocol" or "HTTP API" for the requests and answers the specification defines. The protocol does not change; `Kiosk-Min-Client` stays 0.6.0.
