@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-22: The onboarding guide installs the Kiosk gems from RubyGems.
+
 ## [skill 0.6.5] — 2026-10-22
 
 - 2026-10-22: **Skill 0.6.5**, the text of 0.6.4: a 401 from a Kiosk auth endpoint names its challenge, `Kiosk-Client-Assertion` or `Kiosk-Session`. `Kiosk-Min-Client` stays 0.6.0.

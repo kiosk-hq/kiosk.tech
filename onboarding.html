@@ -62,11 +62,10 @@
   <p>The steps below walk the full payments integration <em>assuming you already have the accounts and keys in hand</em>; they don't cover Stripe signup, or debugging your own catalog's queries.</p>
 
   <h2>Step 1: Add the gems</h2>
-  <p><strong>These lines install from git.</strong> No Kiosk gem is on RubyGems yet, so <code>bundle add kiosk-all</code> and a bare <code>gem "kiosk-all"</code> do not resolve. Publication status and the canonical install are stated once, in the reference monorepo's <a href="https://github.com/kiosk-hq/kiosk#install">Install</a> section; when the gems ship, that is where the <code>github:</code> qualifier comes off.</p>
   <pre><code class="language-ruby"># Gemfile
-gem "kiosk-all",        github: "kiosk-hq/kiosk"   # meta-gem: kiosk-core + kiosk-server
-gem "kiosk-pay-stripe", github: "kiosk-hq/kiosk"   # Stripe card-on-file payment adapter (this walkthrough uses it)
-gem "jbuilder"                                     # the views that shape each answer; `rails new` adds it</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+gem "kiosk-all"          # meta-gem: kiosk-core + kiosk-server
+gem "kiosk-pay-stripe"   # Stripe card-on-file payment adapter (this walkthrough uses it)
+gem "jbuilder"           # the views that shape each answer; `rails new` adds it</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-bash">bundle install
 rails generate kiosk:install                # the kiosk migrations, initializer and the kiosk routes block
 rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
