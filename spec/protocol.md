@@ -168,7 +168,7 @@ proof-of-work gate, assistant key rotation and the link-code claim.
    | Header | Example | Meaning |
    |---|---|---|
    | `Kiosk-Server-Version` | *(implementation-defined)* | The version of the *implementation* that answered. Implementation-defined and opaque: an AI assistant **MUST NOT** branch on it. Diagnostics only -- it tells an operator which build served a request. |
-   | `Kiosk-API-Version` | `0.6.5` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
+   | `Kiosk-API-Version` | `0.6.6` | The protocol version the operator speaks, at MAJOR.MINOR.PATCH. Before 1.0 it is the full version the operator's implementation and its pinned skill also carry (Section 14, point 1). |
    | `Kiosk-Min-Client` | `0.6.0` | Advisory: the oldest skill version that works with this operator. It is in the same MAJOR.MINOR as `Kiosk-API-Version` and no newer: a 0.9.4 operator MAY state 0.9.0. **Advisory only** -- no endpoint rejects a request on this basis, so an older client is asked to upgrade, never refused. It **MUST** carry the same value as `kiosk.min_client` in the discovery document (Section 4.1): they are two publications of ONE number, and an origin that answers differently in the two places leaves a client no way to tell which is authoritative. |
 
    Header names are case-insensitive per HTTP; the names above are the canonical
@@ -2403,8 +2403,9 @@ has no body-proof channel, can carry its proof too (Section 10.1).
 
 **The toll is counted by calls.** An operator that tolls queries, actions or
 `pay` **MAY** ask for proof-of-work on any of these calls. It counts the tolled
-calls of each AI assistant since the last proof that assistant paid. A new
-access token **MUST NOT** set the count back. A proof pays for the call that
+calls of each account since the last proof paid on that account: the AI
+assistants bound to one account share the count. A new access token, a key
+rotation or a binding **MUST NOT** set the count back. A proof pays for the call that
 carries it. The operator **MAY** ask for proofs less often by reputation, to no
 proof at all for a trusted customer (Section 13). The registration toll
 (Section 5.5) and the binding toll (Section 6.4) are separate and unchanged. A
@@ -2961,8 +2962,10 @@ issuer, public key and audience; that serves both paths and the topic.
 
 ## 13. Reputation
 
-Reputation is an **operator-local** signal on an identity, for example what the
-customer recently spent here. It is operator-local because a keypair is
+Reputation is an **operator-local** signal on an account, for example what the
+customer recently spent here. The account is the customer's, or the AI
+assistant's own account while it is not bound to one, and the AI assistants
+bound to one account share its reputation. It is operator-local because a keypair is
 unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. An operator **MAY** vary how often the call toll (Section 10) asks a proof,
@@ -2993,7 +2996,7 @@ unique per origin (Section 5), so no cross-operator identifier exists.
 
 1. **Version parity.** **Before 1.0** the protocol, the reference implementation
    and the AI assistant skill carry the same **MAJOR.MINOR.PATCH** -- currently
-   **0.6.5**: a 0.6.5 operator pins the 0.6.5 skill against the 0.6.5 protocol. A new
+   **0.6.6**: a 0.6.6 operator pins the 0.6.6 skill against the 0.6.6 protocol. A new
    cut of any one of them is a release of all three, even when the other two did
    not change. **From 1.0** they share MAJOR.MINOR, and any two PATCHes of one
    MINOR work together in both directions: a 1.2.3 operator with a 1.2.0 skill,
@@ -3052,10 +3055,10 @@ unique per origin (Section 5), so no cross-operator identifier exists.
    its version is the protocol's (point 1): before 1.0 all three numbers, so a
    skill cut that only rewords guidance is still a protocol release, and a
    protocol release with no skill change is still a skill cut; from 1.0 the
-   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.5**, the sixth
+   MAJOR.MINOR, with PATCH the skill's own revision. The current skill is **0.6.6**, the seventh
    cut of protocol 0.6. Every cut before it stays published, immutable and
    unedited, because live pins reference its bytes: the 0.1.1-0.5.27 cuts
-   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.4 describe the earlier 0.6 cuts: 0.6.0, the `Kiosk-Min-Client` of a 0.6.5 operator, names fewer of the error codes of Section 9, 0.6.1 states the same rules in other words, 0.6.2 says the toll is paid once per access token, 0.6.3 has the text of 0.6.4 against a protocol that refused a `scope` on the device-authorization request, and 0.6.4 has the text of 0.6.5 against a protocol whose Kiosk auth endpoints sent no challenge on a `401`. Published skill
+   describe protocol 0.1-0.5, and none of them can transact with a 0.6 origin: 0.6.x registers an Ed25519 key and signs EdDSA, and every 0.5 cut registers an RSA key. 0.6.0-0.6.5 describe the earlier 0.6 cuts: 0.6.0, the `Kiosk-Min-Client` of a 0.6.6 operator, names fewer of the error codes of Section 9, 0.6.1 states the same rules in other words, 0.6.2 says the toll is paid once per access token, 0.6.3 has the text of 0.6.4 against a protocol that refused a `scope` on the device-authorization request, 0.6.4 has the text of 0.6.5 against a protocol whose Kiosk auth endpoints sent no challenge on a `401`, and 0.6.5 says the operator counts the calls of each assistant. Published skill
    files are immutable and versioned; a change ships a new file. An operator's optional `skill` pin is a
    versioned URL plus its SHA-256 and cannot drift by construction (Section 4.1).
    An AI assistant performs the dual-check before transacting: read the pinned version

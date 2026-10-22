@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | What it describes |
 |---|---|---|
+| `skill-v0.6.6.md` | **0.6** | **A PROTOCOL CHANGE in the toll.** The operator counts the tolled calls of each account: all assistants of one account share the count and the spend. A 0.6.5 assistant still transacts. |
 | `skill-v0.6.5.md` | **0.6** | **A PROTOCOL CHANGE in binding.** The text is the text of 0.6.4. A 401 from `/auth/claim`, `/auth/rotate`, `/auth/link` or `/auth/unlink` names its challenge: `Kiosk-Client-Assertion` or `Kiosk-Session`. A 0.6.4 assistant still transacts. |
 | `skill-v0.6.4.md` | **0.6** | **A PROTOCOL CHANGE in discovery and binding.** The text is the text of 0.6.3. The OAuth metadata lists one scope, `default`; an operator ignores a requested `scope`; a 401 names the protected-resource metadata; every discovery document answers CORS. A 0.6.3 assistant still transacts. |
 | `skill-v0.6.3.md` | **0.6** | **A PROTOCOL CHANGE in the toll.** The operator counts the tolled calls of each assistant and can ask a proof on any call; a new access token keeps the count. A 0.6.2 assistant still transacts. |
@@ -107,9 +108,10 @@ and 0.5.27 opens a new protocol group of which it stayed the only member,
 and 0.6.0 opens a new protocol group in which 0.6.0 = 0.6.1 = 0.6.2,
 and 0.6.3 opens a new protocol group of which it stayed the only member,
 and 0.6.4 opens a new protocol group of which it stayed the only member,
-and 0.6.5 opens a new protocol group, the one served now, of which it is the only member,
-but the seventeen groups are NOT the same protocol, and only the last describes
-what a 0.6.5 operator serves. The formal spec
+and 0.6.5 opens a new protocol group of which it stayed the only member,
+and 0.6.6 opens a new protocol group, the one served now, of which it is the only member,
+but the eighteen groups are NOT the same protocol, and only the last describes
+what a 0.6.6 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

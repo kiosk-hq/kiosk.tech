@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.5"
+  version: "0.6.6"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -398,7 +398,7 @@ A query, an action, `pay`, the registration, the link-code claim and the binding
 - **FIRST, before anything else, download the pinned solver and run it. Do NOT write your own Equihash solver.** Fetch `https://kiosk.tech/pow/solve-d60b454ce018.py`, verify that its SHA-256 equals `d60b454ce0181326de8b74e5e820ae1e50dc3c4832e331fbab44e12899f7fe59`, and only then run it. `https://kiosk.tech/pow/solve.py` is the current solver, but use the pinned URL, and never run either copy before you check the hash. Run it as a script: `python solve.py '<challenge-json>'`, with one challenge object exactly as you got it. It prints `{"indices": [...], "header_nonce": N}`. A solver of your own gets "invalid proof of work" and never a token.
 - **If you cannot fetch the solver, or its hash does not match, tell your human and STOP.** Never `pip install` an equihash package: none uses this construction, and it is code that nobody checked.
 - **Estimate the cost first.** The default (n=168, k=7) takes ~10 s on one laptop core and ~1.3 GiB with the pinned solver. A larger `n` costs more. If a challenge is above your budget, tell your human.
-- The operator counts your calls, and it can ask the toll on any of them. A new token keeps the count. Do not register a new key to avoid the toll: a new key pays to register, and it has no reputation.
+- The operator counts the calls of your account, and it can ask the toll on any of them. All assistants of one account share the count, so the toll can come on your first call. A new token keeps the count. Do not register a new key to avoid the toll: a new key pays to register, and it has no reputation.
 - **Solve EVERY challenge in the list.** The number can change.
 - **Send the SAME request again** -- the same method, path, query string and body -- with the proofs in the `Kiosk-PoW` request header as raw JSON. Each proof sends its challenge back exactly as you got it: `Kiosk-PoW: {"challenge": {...}, "nonce": {"indices": [...], "header_nonce": 0}}`. For several challenges, send a JSON array of proofs, or one `Kiosk-PoW` header line per proof. A query stays a `GET`: the proof goes in the header, never in a body. On the registration, the claim and the binding poll, send the same body again, with a new DPoP proof where the request carries one.
 - Challenges expire (`exp`), and you can use a proof one time only. A malformed header gives `400 bad_request` whose `hint` names the shape.

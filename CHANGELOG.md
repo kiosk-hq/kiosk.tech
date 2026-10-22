@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.6] — 2026-10-22
+
+- 2026-10-22: **Skill 0.6.6**: the operator counts the tolled calls of each account, so the assistants of one account share the count and the spend. `Kiosk-Min-Client` stays 0.6.0.
 - 2026-10-22: The onboarding guide installs the Kiosk gems from RubyGems.
 
 ## [skill 0.6.5] — 2026-10-22
