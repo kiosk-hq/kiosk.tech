@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | What it describes |
 |---|---|---|
+| `skill-v0.6.9.md` | **0.6** | The protocol and the text of 0.6.8. The reference implementation records an assistant account only at registration. A 0.6.8 assistant still transacts. |
 | `skill-v0.6.8.md` | **0.6** | The protocol and the text of 0.6.7. The reference policy counts the spend of the account that an assistant registered in its customer's spend from the first binding on, also after an unlink. A 0.6.7 assistant still transacts. |
 | `skill-v0.6.7.md` | **0.6** | The protocol of 0.6.6, and one rule stated: a `401`, or a `400` on the arguments, does not count toward the toll. The skill says where a token and a shared script may live, gives the proof time as a range, and names the scope of an event id once. A 0.6.6 assistant still transacts. |
 | `skill-v0.6.6.md` | **0.6** | **A PROTOCOL CHANGE in the toll.** The operator counts the tolled calls of each account: all assistants of one account share the count and the spend. A 0.6.5 assistant still transacts. |
@@ -111,9 +112,9 @@ and 0.6.0 opens a new protocol group in which 0.6.0 = 0.6.1 = 0.6.2,
 and 0.6.3 opens a new protocol group of which it stayed the only member,
 and 0.6.4 opens a new protocol group of which it stayed the only member,
 and 0.6.5 opens a new protocol group of which it stayed the only member,
-and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8,
+and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9,
 but the eighteen groups are NOT the same protocol, and only the last describes
-what a 0.6.8 operator serves. The formal spec
+what a 0.6.9 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.9] — 2026-10-23
+
+- 2026-10-23: **Skill 0.6.9** has the text of 0.6.8. `Kiosk-Min-Client` stays 0.6.0.
+
 ## [skill 0.6.8] — 2026-10-22
 
 - 2026-10-22: **Skill 0.6.8** has the text of 0.6.7. `Kiosk-Min-Client` stays 0.6.0.
