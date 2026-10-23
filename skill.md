@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.9"
+  version: "0.6.10"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -86,9 +86,9 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 | `403 spending_cap_exceeded` | The payment is above the cap that your human set. | See "Spending cap (HTTP 403)". |
 | `404` with no problem document | No route matched: a name that the catalogue does not have, or a real operation with the wrong method. This is the usual answer. | Read `schema` again. Call a name in it, with the method of its kind. The operator is not broken. |
 | `404 verb_not_found` | No operation has that NAME. `hint` lists the names. Some operators send this in place of the bare `404`. | Read `schema` again, and call a name that exists. Do not tell your human that the operator cannot do the thing. |
-| `404 not_found` | The operation is real. The thing that an ARGUMENT points to is not there. | Stop. Tell your human that this specific thing is not there. Do not read the catalogue again, and do not retry. |
+| `404 not_found` | The operation is real. The thing that an ARGUMENT points to is not there. | Stop. Tell your human that this specific thing is not there. Do not read the catalogue again, and do not retry. On `claim_url`, see Step 2b. |
 | `405 method_not_allowed` | The operation is real, but you used the wrong method. `Allow` names the correct method. Some operators send this in place of the bare `404`. | Call the operation again with the method in `Allow`. Put the arguments where that method takes them (see "The HTTP API"). |
-| `409 conflict` | On `rotate`: the new key is registered, so make another. On `pay`: the operator will not charge these mandates. | See "Key rotation" or Step 6. |
+| `409 conflict` | On `rotate`: the new key is registered, so make another. On `pay`: the operator will not charge these mandates. On `claim_url`: the link code is used. | See "Key rotation", Step 6 or Step 2b. |
 | `429 quota_exceeded` | A rate limit, or too many open things. The ONE refusal that means "later", not "no". | Wait as `hint` says, then send the SAME call. Never open the same flow again to go around it. |
 | `500 action_failed`, `500 internal_error` | The operator failed: its own action, or another part of its server. Your arguments are not the problem. | Read the state back through a query. Retry one time at most, a short time later. Then tell your human. |
 | `501 module_not_served` | The operator does not serve that capability: binding, payment, KYC or the event stream. **Do NOT retry, and do NOT think that the server has a temporary problem.** | Do what you would do at an operator that never offered it. No binding: keep your own account (Step 2). No payment: give the transaction to your human. No KYC: do not promise the gated actions. No events: wait as the step says. |
@@ -133,7 +133,7 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 Registration makes a self-standing assistant account. When your human says that the account is theirs, **bind** it to their account. Register first (Step 2). You do this one time, and then you get tokens as usual. A binding MOVES your account to your human: to keep it, register a NEW key in a new directory and bind that one.
 
 - **No code from the human** (RFC 8628) -> `POST {device_authorization_url}` as a form with your client assertion -> `{device_code, user_code, verification_uri, expires_in, interval}`. In one message, give your human `verification_uri`, `user_code` and the fingerprint of your key (see "Auth handshake"). Your human opens the page in their own browser, checks the fingerprint and confirms. Never open the page yourself. While you wait, poll `POST {token_url}` as a form with `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, a new client assertion and a new DPoP proof. The first poll can give `402 pow_required`: solve it and send the same poll again.
-- **The human hands you a code** (from the operator's "link an assistant" page) -> `POST {claim_url}` with the JSON body `{"code": code, "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", "client_assertion": assertion}` -> `204`. Then send a token request. The claim can give `402 pow_required`.
+- **The human hands you a code** (from the operator's "link an assistant" page) -> `POST {claim_url}` with the JSON body `{"code": code, "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", "client_assertion": assertion}` -> `204`. Then send a token request. The claim can give `402 pow_required`. `404 not_found`: the code is unknown or expired. `409 conflict`: the code is used. On either, do not send the code again: tell your human, and ask them for a new code.
 
 The two `/oauth/*` requests answer RFC 6749 error objects `{error, error_description}`, not problem documents. Branch on `error`:
 
@@ -267,7 +267,7 @@ Steps 5-6 apply only when the task includes a payment and `capabilities` has `pa
 
 1. **Compare the checkout's `total_amount_cents` with the ask-first amount.** At or below it, in the same currency: pay. Else ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?"
 2. Sign the 2 AP2 mandates for the `checkout_jwt` that the action gave you (see "AP2 payment mandates").
-3. `POST <endpoint>/pay {checkout_mandate, payment_mandate}` with the two DPoP headers. The answer is the settlement with two receipts: save them (see "The receipts").
+3. `POST <endpoint>/pay {checkout_mandate, payment_mandate}` with the two DPoP headers. The answer is the settlement with two receipts: verify them and save them (see "The receipts").
 
 **If you get no answer to `pay`, or a `payment_failed` whose outcome is unknown:** Send the IDENTICAL two mandates again, byte for byte. Do NOT sign new ones. The operator charges one pair of mandates at most once. Wait a few seconds between tries, and try at most three times. A repeat needs no second yes from your human. The answers:
 
@@ -409,7 +409,7 @@ Kiosk pays with two closed mandates of AP2 v0.2 (the Agent Payments Protocol): a
 
 ### The checkout
 
-An action that creates an order (or a booking) gives `checkout_jwt`, a JWT that the operator signs. Its claims are `iss`, `sub` (your account), `merchant` (`{id, name, website}`), `currency`, `total_amount_cents` and `line_items`. Read them without a signature check, to know what you pay. Do NOT change the string: put it into the checkout mandate exactly as you got it. You write no line items and no amount of your own. The first line item names the order, e.g. `{"order_id": "..."}`. If the operator refuses the checkout, its `detail` says what to do.
+An action that creates an order (or a booking) gives `checkout_jwt`, a JWT that the operator signs. Its claims are `iss`, `sub` (your account), `merchant` (`{id, name, website}`), `currency`, `total_amount_cents` and `line_items`. Verify the signature before you read them: the key is in the operator's JWKS, `<endpoint>/.well-known/jwks.json`, under the `kid` of the JWT header, and the algorithm is `EdDSA`. If the signature does not verify, do not pay, and tell your human. Do NOT change the string: put it into the checkout mandate exactly as you got it. You write no line items and no amount of your own. The first line item names the order, e.g. `{"order_id": "..."}`. If the operator refuses the checkout, its `detail` says what to do.
 
 `currency` is an ISO 4217 code (`"eur"`, `"EUR"`). One operator can refuse a currency that another accepts. The `currency` in the `pay` answer can have another case than the checkout's. Compare the two as codes.
 
@@ -442,8 +442,13 @@ def mandate(content):
                         private_key, algorithm="EdDSA", headers={"typ": "dc+sd-jwt"})
     return f"{signed}~{disclosure}~"
 
+jwks = jwt.PyJWKClient(f"{endpoint}/.well-known/jwks.json")  # endpoint: doc["kiosk"]["endpoint"], Step 1
+
+def operator_signed(token):  # the claims of a JWT that the operator signed; raises if the signature is bad
+    return jwt.decode(token, jwks.get_signing_key_from_jwt(token).key, algorithms=["EdDSA"], leeway=60)
+
 checkout_jwt = order["checkout_jwt"]  # `order`: the answer of the action -- copy it VERBATIM
-checkout = jwt.decode(checkout_jwt, options={"verify_signature": False})
+checkout = operator_signed(checkout_jwt)
 checkout_hash = b64(hashlib.sha256(checkout_jwt.encode()).digest())
 now = int(time.time())
 
@@ -461,7 +466,16 @@ Send both in one call, `POST <endpoint>/pay {"checkout_mandate": "...", "payment
 
 ### The receipts
 
-A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs EdDSA with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Save each payment in its own file, `~/.kiosk/<origin-dir>/receipts/<UTC time as YYYYMMDDTHHMMSSZ>-<payment_id>.json`, so that the files sort by time: the `pay` answer and the two mandates. They are the history of payments at this operator, and your human can show them in a dispute.
+A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs EdDSA with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Verify each receipt as you verify the checkout, and compare its `reference` with the mandate that you sent:
+
+```python
+# answer: the JSON body of the 200 from pay
+for name, sent in (("checkout_receipt", checkout_mandate), ("payment_receipt", payment_mandate)):
+    if operator_signed(answer[name])["reference"] != b64(hashlib.sha256(sent.encode()).digest()):
+        raise ValueError(f"{name} does not name the mandate that you sent")
+```
+
+If a check fails, do not pay again. Save the answer, and tell your human that the receipt does not match the payment. Save each payment in its own file, `~/.kiosk/<origin-dir>/receipts/<UTC time as YYYYMMDDTHHMMSSZ>-<payment_id>.json`, so that the files sort by time: the `pay` answer and the two mandates. They are the history of payments at this operator, and your human can show them in a dispute.
 
 ### The three 402s
 
