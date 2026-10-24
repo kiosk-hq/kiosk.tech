@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-25: The landing's problem paragraph names what an assistant on a laptop meets: a CAPTCHA, a CDN block or a ban, and gates that open by vendor list or partner deal.
+
 ## [skill 0.6.13] — 2026-10-25
 
 - 2026-10-25: **Skill 0.6.13**, the text of 0.6.12: an `invalid_client` 401 names `Kiosk-Client-Assertion`, and the verify page's 401 names `Kiosk-Session`. `Kiosk-Min-Client` stays 0.6.0.
