@@ -42,6 +42,13 @@
       <li>The site serves a changelog page, one section per release, built from both changelogs and linked from the landing footer.</li>
       <li>The spec names the challenge of the <code>invalid_client</code> 401, <code>Kiosk-Client-Assertion</code>, and of the verify page&#39;s 401, <code>Kiosk-Session</code>.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.13, matching skill 0.6.13, and every demo and the engine default pin <code>skill-v0.6.13.md</code>.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li><code>docker compose up</code> at the root runs the whole demo fleet with the KYC broker and stripe-mock, so payment and the identity check work in containers.</li>
+      <li>The KYC broker waits longer before each new attempt at the operator&#39;s callback (<code>retry_on wait: :polynomially_longer</code>).</li>
+      <li>The <code>invalid_client</code> 401 of the token and device-authorization endpoints names <code>Kiosk-Client-Assertion</code>; the 401 of the engine pages names <code>Kiosk-Session</code>.</li>
+    </ul>
   </section>
 
   <section id="v0.6.12">
