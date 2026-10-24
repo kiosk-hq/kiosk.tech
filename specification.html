@@ -792,7 +792,7 @@ Content-Type: application/problem+json
   "sub":   "a7f3…",                 // MUST equal the authenticated user_id
   "level": "verified",              // anything else is rejected
   "iss":   "https://kyc.example",   // MUST equal the configured KYC issuer
-  "aud":   "https://operator.example", // MUST equal this operator's kyc_audience
+  "aud":   "https://operator.example", // MUST equal the audience the KYC provider mints for this operator
   "iat":   1751846340,
   "exp":   1783382340,              // REQUIRED — one year after iat; an expired attestation is rejected
   "attributes": {                   // OPTIONAL — named ANONYMIZED booleans
