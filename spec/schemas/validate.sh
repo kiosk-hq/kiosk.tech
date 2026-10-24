@@ -79,6 +79,7 @@ chk validate "${F[@]}" -s "$(ref payreq  "$B/mandates.schema.json#/\$defs/payReq
 chk validate "${F[@]}" -s "$(ref settle  "$B/mandates.schema.json#/\$defs/settlement")" -r mandates.schema.json -d examples/settlement.json
 chk validate "${F[@]}" -s "$(ref crcpt   "$B/mandates.schema.json#/\$defs/checkoutReceipt")" -r mandates.schema.json -d examples/receipt.checkout.json
 chk validate "${F[@]}" -s "$(ref prcpt   "$B/mandates.schema.json#/\$defs/paymentReceipt")"  -r mandates.schema.json -d examples/receipt.payment.json
+chk validate "${F[@]}" -s "$(ref prcptnone "$B/mandates.schema.json#/\$defs/paymentReceipt")" -r mandates.schema.json -d examples/receipt.payment.no-network-id.json
 chk validate "${F[@]}" -s "$(ref att     "$B/kyc.schema.json#/\$defs/attestation")"     -r kyc.schema.json -d examples/kyc.attestation.json
 chk validate "${F[@]}" -s "$(ref kycreq  "$B/kyc.schema.json#/\$defs/request")"         -r kyc.schema.json -d examples/kyc.request.json
 chk validate "${F[@]}" -s "$(ref kycver  "$B/kyc.schema.json#/\$defs/verification")"    -r kyc.schema.json -d examples/kyc.verification.json
@@ -233,12 +234,17 @@ chkfail validate "${F[@]}" -s "$(ref coemptycur "$B/mandates.schema.json#/\$defs
 # states it: the pattern is the operator's MINIMUM refusal. Only the `pattern`
 # leaving the schema can turn this example green.
 chkfail validate "${F[@]}" -s "$(ref cocurname "$B/mandates.schema.json#/\$defs/checkout")" -r mandates.schema.json -d examples/rejected/checkout.currency-name.json
-# An OPEN mandate is not accepted: an operator takes the closed AP2 mandates
-# only (Section 11.1). Only the `vct` const leaving the schema can turn this green.
 # A payment receipt names the payment at the payment provider. This example is
 # examples/receipt.payment.json without `psp_confirmation_id`; only that key
 # leaving `required` turns it green.
 chkfail validate "${F[@]}" -s "$(ref prnopsp "$B/mandates.schema.json#/\$defs/paymentReceipt")" -r mandates.schema.json -d examples/rejected/receipt.payment.no-psp-confirmation.json
+# AP2 requires the network id in a payment receipt, and the operator writes a
+# fixed text when the payment provider reports none (Section 11.3). This example
+# is examples/receipt.payment.json without `network_confirmation_id`; only that
+# key leaving `required` turns it green.
+chkfail validate "${F[@]}" -s "$(ref prnonet "$B/mandates.schema.json#/\$defs/paymentReceipt")" -r mandates.schema.json -d examples/rejected/receipt.payment.no-network-confirmation.json
+# An OPEN mandate is not accepted: an operator takes the closed AP2 mandates
+# only (Section 11.1). Only the `vct` const leaving the schema can turn this green.
 chkfail validate "${F[@]}" -s "$(ref cmopen "$B/mandates.schema.json#/\$defs/checkoutMandate")" -r mandates.schema.json -d examples/rejected/mandate.checkout.open.json
 # A zero amount pays nothing and matches no checkout, whose total is positive.
 chkfail validate "${F[@]}" -s "$(ref pmzero "$B/mandates.schema.json#/\$defs/paymentMandate")" -r mandates.schema.json -d examples/rejected/mandate.payment.zero-amount.json

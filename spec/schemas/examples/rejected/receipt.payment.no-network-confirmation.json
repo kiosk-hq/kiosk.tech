@@ -1,0 +1,8 @@
+{
+  "status": "Success",
+  "iss": "https://getgrocery.demo.kiosk.tech",
+  "iat": 1751846352,
+  "reference": "Z8nB2vC4xL6kJ0hG9fD7sA5pO3iU1yT8rE6wQ4mN2bV",
+  "payment_id": "f1b3e259-8c4d-4a7f-9e12-84b5c7d2a963",
+  "psp_confirmation_id": "pi_3Rz"
+}

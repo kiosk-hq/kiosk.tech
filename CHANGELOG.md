@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-24: A payment receipt always carries `network_confirmation_id`: the network's id, or `not reported by the payment provider` when the provider reports none.
+
 ## [skill 0.6.11] — 2026-10-24
 
 - 2026-10-24: The spec says that a `402` and the retry that pays it count as one tolled call, and that `head` is 0 while an origin has no event.

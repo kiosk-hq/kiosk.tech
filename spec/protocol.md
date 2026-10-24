@@ -2597,11 +2597,11 @@ answers two receipts. Each receipt is a compact JWT that the operator signs
 | `checkout_receipt` | `status`: `"Success"`. `iss`: the operator's issuer. `iat`: when the operator signed it. `reference`: the reference of the checkout mandate (Section 11.6). `order_id`: the id in the first line item of the checkout (Section 11.7), as a string. |
 | `payment_receipt` | `status`: `"Success"`. `iss` and `iat`, as above. `reference`: the reference of the payment mandate. `payment_id`: the `settlement_id`. `psp_confirmation_id`: the `psp_reference`. `network_confirmation_id`: the card network's id of the transaction. |
 
-The operator **MUST** include `network_confirmation_id` when its payment
-provider reports one, and **MUST** leave it out when the provider reports none.
-A card network does not always return this id, and AP2 requires it in a
-successful payment receipt, so a receipt without it does not satisfy AP2's
-schema.
+AP2 requires `network_confirmation_id` in a successful payment receipt, and a
+card network does not always return this id. When the payment provider reports
+one, the operator **MUST** put it in `network_confirmation_id`. When the
+provider reports none, the operator **MUST** put the text `not reported by the
+payment provider` there.
 
 An AI assistant verifies a receipt as it verifies a checkout: the signature
 against the operator's JWKS, and `reference` against the reference of the
