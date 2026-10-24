@@ -1,7 +1,8 @@
 # kiosk.tech (published site) — constitution
 
 This repo is everything published at https://kiosk.tech (GitHub Pages,
-`CNAME`). Static files, no build step.
+`CNAME`). Static files, no build step. One page is generated and checked in:
+`changelog.html`, by `bin/check-changelog-page --write`.
 
 - `specification.html` — the normative spec, in narrative form.
 - `spec/` — the formal spec (`spec/protocol.md`) and JSON Schemas
@@ -9,7 +10,7 @@ This repo is everything published at https://kiosk.tech (GitHub Pages,
   `specification.html`.
 - `skill.md` — the agent skill. It is the alias of the newest cut and must be
   byte-identical to it. The current cut is `skill-v0.6.12.md`.
-- `index.html` (landing), `onboarding.html`, `known-issues.html`.
+- `index.html` (landing), `onboarding.html`, `known-issues.html`, `changelog.html`.
 
 Every workflow in `.github/workflows/` runs one `bin/check-*` guard over the
 checked-in files, and each guard has exactly one workflow. `ls` the two

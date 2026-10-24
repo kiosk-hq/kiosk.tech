@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <title>Kiosk — Changelog</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      background:#0d0d0d;color:#e0e0e0;line-height:1.7;letter-spacing:-0.01em;
+    }
+    .back{display:inline-block;font-size:13px;color:#888;text-decoration:none;margin:20px 0 0 16px}
+    .back:hover{color:#aaa}
+    article{max-width:760px;margin:0 auto;padding:24px 16px 80px}
+    h1{font-size:28px;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px}
+    h2{font-size:18px;font-weight:700;margin:32px 0 6px;padding-top:16px;border-top:1px solid #1a1a1a}
+    h2 span,h2 time{font-size:13px;font-weight:400;color:#888;margin-left:8px}
+    h3{font-size:13px;font-weight:600;color:#888;margin:10px 0 4px}
+    p,li{font-size:15px;color:#bbb}
+    p{margin-bottom:10px}
+    ul{padding-left:20px}
+    li{margin-bottom:4px;overflow-wrap:anywhere}
+    a{color:#8bc49a;text-decoration:none}
+    a:hover{text-decoration:underline}
+    code{font-family:'SF Mono','Fira Mono',monospace;font-size:13px;background:#1a1a1a;padding:2px 6px;border-radius:4px;color:#ccc;overflow-wrap:anywhere}
+    strong{color:#e0e0e0}
+  </style>
+</head>
+<body>
+<a href="/" class="back">← kiosk.tech</a>
+<article>
+  <h1>Changelog</h1>
+  <p>What each release changed, newest first. The specification, the skill and the reference implementation share one version number. Sources: <a href="https://github.com/kiosk-hq/kiosk.tech/blob/main/CHANGELOG.md">the site's changelog</a> and <a href="https://github.com/kiosk-hq/kiosk/blob/main/CHANGELOG.md">the reference implementation's changelog</a>.</p>
+  <section id="v0.6.12">
+    <h2>0.6.12 <time datetime="2026-10-24">2026-10-24</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.12</strong> says that <code>network_confirmation_id</code> of a payment receipt is the network&#39;s id, or <code>not reported by the payment provider</code>.</li>
+      <li>The onboarding page and the KYC schema name the operator&#39;s KYC provider as what sets the issuer, the key and the audience of an attestation.</li>
+      <li>The spec drops the JSON answer an operator MAY give at a human sign-in or sign-out page.</li>
+      <li>A payment receipt always carries <code>network_confirmation_id</code>: the network&#39;s id, or <code>not reported by the payment provider</code> when the provider reports none.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.12, matching skill 0.6.12, and every demo and the engine default pin <code>skill-v0.6.12.md</code>.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>Every demo battery runs <code>CallToll</code>: the call toll holds over HTTP against seven known ways to skip a proof.</li>
+      <li>Every demo serves /privacy, linked from its footer: what it and the Kiosk engine store, and for how long.</li>
+      <li>Every demo&#39;s robots.txt states its AI-use preferences as an IETF AIPREF <code>Content-Usage</code> line too: search and AI use yes, AI training no.</li>
+      <li>An operator sets its KYC provider in one setting, <code>c.kyc_provider</code>, which names the issuer, the public key and the audience; <code>kyc_issuer</code>, <code>kyc_public_key</code> and <code>kyc_audience</code> are removed.</li>
+      <li>The KYC broker demo sends a refused callback again from an in-process job, with Rails&#39; default retry_on.</li>
+      <li>A JSON call to a human sign-in, sign-out or browser page gets the plain Rails refusal; the JSON pointer to the protocol is removed.</li>
+      <li>When the payment provider reports no card network id, the payment receipt&#39;s <code>network_confirmation_id</code> is <code>not reported by the payment provider</code>.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.11">
+    <h2>0.6.11 <time datetime="2026-10-24">2026-10-24</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li>The spec says that a <code>402</code> and the retry that pays it count as one tolled call, and that <code>head</code> is 0 while an origin has no event.</li>
+      <li><strong>Skill 0.6.11</strong> names the listener&#39;s <code>--token-command</code>, <code>verification_uri_complete</code> and the receipt&#39;s <code>order_id</code>, shows the binding poll and the claim, and states both rules.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.11, matching skill 0.6.11, and every demo and the engine default pin <code>skill-v0.6.11.md</code>.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>The manage-assistants page shows when each assistant was linked, the spend only on an origin with payments, and the cap only with a <code>spending_cap</code>. Demos migrate 20261024100026.</li>
+      <li>Every demo lockfile takes crass 1.0.8, which fixes a CSS sanitizer bypass.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.10">
+    <h2>0.6.10 <time datetime="2026-10-23">2026-10-23</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.10</strong>: the assistant verifies the checkout and the two receipts against the operator&#39;s JWKS, and gets a step for a link code that is unknown, expired or used.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.10, matching skill 0.6.10, and every demo and the engine default pin <code>skill-v0.6.10.md</code>.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.9">
+    <h2>0.6.9 <time datetime="2026-10-23">2026-10-23</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.9</strong> has the text of 0.6.8. <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.9, matching skill 0.6.9, and every demo and the engine default pin <code>skill-v0.6.9.md</code>.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>Demo migration 20261022100025 creates <code>assistant_accounts</code> empty: only registration records an assistant account.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.8">
+    <h2>0.6.8 <time datetime="2026-10-22">2026-10-22</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.8</strong> has the text of 0.6.7. <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+      <li>The specification: the first binding merges the assistant&#39;s own account into the customer&#39;s account, so its payments and visits count as the customer&#39;s spend, also after an unlink.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.8, matching skill 0.6.8, and every demo and the engine default pin <code>skill-v0.6.8.md</code>.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>The first binding merges the assistant account into the human&#39;s account, so its settlements and visits count in the recent spend, also after an unlink. Demos migrate 20261022100025.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.7">
+    <h2>0.6.7 <time datetime="2026-10-22">2026-10-22</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.7</strong>: a 401, or a 400 on the arguments, does not count toward the toll; a token is kept in the origin&#39;s <code>token</code> file; shared scripts go in <code>~/.kiosk/bin/</code>.</li>
+      <li>The site says &quot;toll&quot; for the proof of work an operator asks, and gives the proof time measured on the pinned solver: 9 to 20 s and 1.0 to 1.4 GiB.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.7, matching skill 0.6.7.</strong> <code>MIN_CLIENT</code> stays 0.6.0: the protocol is the protocol of 0.6.6.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.6.7.md</code></strong>, which says which answers count toward the toll and gives the proof time as a range.</li>
+      <li>atablefor takes bookings for today and the next 13 days. An availability search with no date shows today and tomorrow.</li>
+      <li>The getgrocery and atablefor pages describe the toll every demo asks: 9 to 20 s per proof on one Apple M3 laptop core, to register and on every 10th call.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.6">
+    <h2>0.6.6 <time datetime="2026-10-22">2026-10-22</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.6</strong>: the operator counts the tolled calls of each account, so the assistants of one account share the count and the spend. <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+      <li>The onboarding guide installs the Kiosk gems from RubyGems.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.6, matching skill 0.6.6.</strong> <code>MIN_CLIENT</code> stays 0.6.0: a 0.6.5 assistant answers a 402 on any call.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.6.6.md</code></strong>, which says that the assistants of one account share the count.</li>
+      <li>The toll counts the tolled calls of each account, and the assistants of one account share the count and the spend. A binding adds the previous account&#39;s count.</li>
+      <li>The recent spend of an account also counts what its assistants paid on their own accounts before a binding moved them there.</li>
+      <li>The seven operator demos move the count from <code>kiosk.agents.calls_since_proof</code> to <code>kiosk.tolled_calls</code>, keyed by the account.</li>
+      <li>Every gem README installs its gem from RubyGems.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.5">
+    <h2>0.6.5 <time datetime="2026-10-22">2026-10-22</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.5</strong>, the text of 0.6.4: a 401 from a Kiosk auth endpoint names its challenge, <code>Kiosk-Client-Assertion</code> or <code>Kiosk-Session</code>. <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.5, matching skill 0.6.5.</strong> <code>MIN_CLIENT</code> stays 0.6.0: a 0.6.4 assistant reads no new header.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.6.5.md</code></strong>, which has the text of 0.6.4.</li>
+      <li>A 401 from <code>/auth/claim</code>, <code>/auth/rotate</code>, <code>/auth/link</code> or <code>/auth/unlink</code> names its challenge: <code>Kiosk-Client-Assertion</code> or <code>Kiosk-Session</code>.</li>
+      <li>Every demo sends a Content-Security-Policy that takes scripts and styles from its own origin only. The pages with an inline script or style load it from a file now.</li>
+      <li>A demo landing page answers Markdown when Accept ranks <code>text/markdown</code> first, also beside <code>*/*</code>, and wraps its content in <code>&lt;main&gt;</code>.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.4">
+    <h2>0.6.4 <time datetime="2026-10-22">2026-10-22</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.4</strong>, the text of 0.6.3: the OAuth metadata lists the scope <code>default</code>, and an operator ignores a requested <code>scope</code>. <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+      <li>A 401 for an access token names the protected-resource metadata (RFC 9728), and every discovery document answers <code>Access-Control-Allow-Origin: *</code>.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.4, matching skill 0.6.4.</strong> <code>MIN_CLIENT</code> stays 0.6.0: a 0.6.3 assistant sends no <code>scope</code> and reads no new header.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.6.4.md</code></strong>, which has the text of 0.6.3.</li>
+      <li>The OAuth metadata lists the one scope <code>default</code>. An operator ignores a requested <code>scope</code> and grants the role of the account; it still refuses a <code>role</code>.</li>
+      <li>A 401 for an access token names the protected-resource metadata (RFC 9728), and every discovery document answers <code>Access-Control-Allow-Origin: *</code>.</li>
+      <li>Refusal hints name <code>auth.registration_url</code> and <code>auth.token_url</code> of kiosk.json, the endpoints that exist.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.3">
+    <h2>0.6.3 <time datetime="2026-10-22">2026-10-22</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.3</strong>: the operator counts each assistant&#39;s tolled calls and can ask a proof on any call; a new access token keeps the count. <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+      <li>The reference policy asks a proof on every Nth call, N = ceil(10 / share), share = (cap − spend) / cap; it replaces one proof per access token by chance.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.3, matching skill 0.6.3.</strong> <code>MIN_CLIENT</code> stays 0.6.0: a 0.6.2 assistant handles a 402 on any call.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.6.3.md</code></strong>, which says that the operator counts the tolled calls and that a new token keeps the count.</li>
+      <li>The toll counts calls: <code>RecentSpend</code> asks a proof on every Nth tolled call of an assistant, N = ceil(10 / share). It replaces one proof per access token by chance.</li>
+      <li>The seven operator demos add <code>kiosk.agents.calls_since_proof</code>, each assistant&#39;s tolled calls since its last paid proof.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.2">
+    <h2>0.6.2 <time datetime="2026-10-22">2026-10-22</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.2</strong> and every page say &quot;protocol&quot; or &quot;HTTP API&quot; for the requests and answers the specification defines. The protocol does not change; <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.2, matching skill 0.6.2.</strong> <code>MIN_CLIENT</code> stays 0.6.0: the protocol does not change.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.6.2.md</code></strong>, which says &quot;protocol&quot; and &quot;HTTP API&quot; for the requests and answers.</li>
+      <li>READMEs, comments and messages say &quot;protocol&quot;, &quot;HTTP API&quot;, &quot;endpoint&quot; or &quot;request&quot;. The OpenAPI tag of <code>schema</code> and <code>pay</code> is <code>reserved</code>.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.1">
+    <h2>0.6.1 <time datetime="2026-10-22">2026-10-22</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.1</strong> names every error code of the specification and the two DPoP headers, and says each answer one time. The wire does not change; <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+      <li>Both specifications publish <code>scopes_supported: []</code> in the OAuth metadata, because an AI assistant requests no scope. auth.md writes each Discover URL bare.</li>
+      <li>The landing page is retold in the founder&#39;s voice: personal assistants, any service, the toll on the door, one card entry per operator, and the event stream.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.1, matching skill 0.6.1.</strong> <code>MIN_CLIENT</code> stays 0.6.0: the wire does not change.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.6.1.md</code></strong>, which names every error code of the specification and the two DPoP headers.</li>
+      <li>The OAuth metadata documents carry <code>scopes_supported: []</code>, because an AI assistant requests no scope. <code>/auth.md</code> writes each Discover URL bare, so a scanner reads it.</li>
+      <li>kiosk-test-support drops its <code>kiosk-pow-equihash</code> and <code>puma</code> dependencies; the host&#39;s bundle brings them.</li>
+      <li><code>deploy/rollout.sh</code> mints the KYC broker&#39;s Ed25519 <code>PROVE_KEY_PEM</code> when the box has none or an RSA one, and pins its public half in the KYC operators.</li>
+      <li>A DPoP proof or client assertion whose <code>alg</code> is not the algorithm of its key is refused with a message that names that algorithm.</li>
+      <li><code>deploy/deploy.sh</code> runs <code>rollout.sh</code> before the push, so an incomplete env file stops the deploy before the new code boots.</li>
+    </ul>
+  </section>
+
+  <section id="v0.6.0">
+    <h2>0.6.0 <time datetime="2026-10-21">2026-10-21</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.0</strong> opens protocol 0.6: it makes an Ed25519 key and signs every JWT EdDSA. <code>Kiosk-Min-Client</code> is 0.6.0: a 0.5 cut registers an RSA key, which is refused.</li>
+      <li>Both specifications move every signature from RSA to Ed25519 (EdDSA, RFC 8037). An operator may also accept ES256 from a P-256 assistant key.</li>
+      <li>A checkout carries a random 128-bit <code>jti</code>, because an EdDSA signature is the same for the same claims (AP2 v0.2).</li>
+      <li>The auth, mandate and KYC schemas and their examples describe Ed25519 and P-256 keys and EdDSA signatures; an RSA JWK is a rejected example.</li>
+      <li>The landing page and the onboarding guide make an Ed25519 key; the onboarding scripts sign with Ruby&#39;s OpenSSL alone.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.0, matching skill 0.6.0, and every inter-gem constraint is <code>~&gt; 0.6.0</code>.</strong> <code>MIN_CLIENT</code> is 0.6.0: a 0.5 skill registers an RSA key, which is refused.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.6.0.md</code></strong>, which makes an Ed25519 key and signs every JWT EdDSA.</li>
+      <li>Kiosk signs and verifies with Ed25519 (EdDSA, RFC 8037) and removes RSA. An operator can also accept ES256 from P-256 assistant keys.</li>
+      <li>A checkout carries a random 128-bit <code>jti</code>, because an EdDSA signature is the same for the same claims.</li>
+      <li>The KYC broker demo signs its attestations EdDSA with an Ed25519 key, and the operators that trust it read an Ed25519 public key.</li>
+      <li><code>deploy/rollout.sh</code> mints an Ed25519 signing key where the box holds another type, and names a broker key that is not Ed25519 as missing.</li>
+      <li>The e2e harness accepts ES256 too: a P-256 key registers and calls, and an RSA key is refused at registration.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.27">
+    <h2>0.5.27 <time datetime="2026-10-21">2026-10-21</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.27</strong> registers its key as an OAuth client and gets each token with a client assertion and a DPoP proof. <code>Kiosk-Min-Client</code> is 0.5.27: an older cut cannot register.</li>
+      <li>Both specifications move registration and tokens onto OAuth: RFC 7591 registration, RFC 7523 client assertions and the <code>client_credentials</code> grant, with DPoP on each token request.</li>
+      <li>The challenge, register, login and revoke endpoints under <code>/auth/</code> are removed.</li>
+      <li>The specification lists every standard that Kiosk follows and what it uses each one for, and names AAuth and Web Bot Auth as related work.</li>
+      <li>The auth, binding and discovery schemas describe the OAuth wire, and their examples follow.</li>
+      <li>The landing page, the onboarding guide and the problem pages describe the OAuth registration and token request.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.27, matching skill 0.5.27.</strong> <code>MIN_CLIENT</code> is 0.5.27: an older skill registers and logs in at paths that are gone.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.27.md</code></strong>, which registers on RFC 7591 and gets each token with a client assertion and DPoP.</li>
+      <li><code>kiosk-test-support</code> and <code>kiosk-redteam</code> register at <code>oauth/register</code> and get tokens by client assertion and DPoP; their login, revoke and challenge helpers are gone.</li>
+      <li>The e2e harness registers at <code>oauth/register</code>, gets tokens by client assertion and DPoP, and validates all eighteen auth and binding schema <code>$defs</code> against live bytes.</li>
+      <li><code>deploy/live-fleet-drive.rb</code> adds a read-only token probe: an unknown client must get <code>invalid_client</code>. The README walkthrough registers at <code>/kiosk/oauth/register</code>.</li>
+      <li>The edge rate-limit notes name the three tolled requests before a token: <code>oauth/register</code>, <code>auth/claim</code> and the first device-code poll at <code>oauth/token</code>.</li>
+      <li>Every operator demo drops <code>kiosk.auth_challenges</code> by a migration, and its stories register, link and sign in again over the OAuth wire.</li>
+      <li>The engine registers assistants by RFC 7591 and gives tokens at <code>oauth/token</code> for an RFC 7523 client assertion and a DPoP proof; binding and rotation use the assertion too.</li>
+      <li>Removed from the engine: <code>GET /auth/challenge</code>, <code>POST /auth/register</code>, <code>/auth/login</code>, <code>/auth/revoke</code>, and the <code>kiosk.auth_challenges</code> table of <code>kiosk:install</code>.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.26">
+    <h2>0.5.26 <time datetime="2026-10-21">2026-10-21</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.26</strong> keeps every file for an operator in that operator&#39;s directory, and saves the receipts of each payment in a file of their own. <code>Kiosk-Min-Client</code> stays 0.5.23.</li>
+      <li>Both specifications and the onboarding guide add RFC 9728 protected resource metadata, and the ARD manifest also at <code>/.well-known/ai-catalog.json</code>.</li>
+      <li>The landing page is short: the open way in for any assistant, how it works in five steps, operators and assistants, the demos, and what ships.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.26, matching skill 0.5.26.</strong> <code>MIN_CLIENT</code> stays 0.5.23: the two new discovery documents are additive.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.26.md</code></strong>, which keeps every file for an operator in its directory and saves each payment&#39;s receipts.</li>
+      <li>Every operator demo answers its landing page in markdown to <code>Accept: text/markdown</code>, and serves <code>/sitemap.xml</code>, which its robots.txt names.</li>
+      <li>The engine serves RFC 9728 protected resource metadata, and the ARD manifest also at <code>/.well-known/ai-catalog.json</code>, the path isitagentready.com reads.</li>
+      <li>Every deploy script that reaches the box takes the host as its first argument, or <code>KIOSK_DEPLOY_HOST</code>. <code>deploy/deploy.sh</code> pushes and rolls out.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.25">
+    <h2>0.5.25 <time datetime="2026-10-21">2026-10-21</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.25</strong> gives the same rules in less than half the words, in tables and short lists. The wire does not change, and <code>Kiosk-Min-Client</code> stays 0.5.23.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.25, matching skill 0.5.25.</strong> <code>MIN_CLIENT</code> stays 0.5.23: the wire does not change.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.25.md</code></strong>, which gives the same rules in less than half the words.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.24">
+    <h2>0.5.24 <time datetime="2026-10-21">2026-10-21</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.24</strong> keeps the two receipts that <code>pay</code> answers with its mandates. <code>Kiosk-Min-Client</code> stays 0.5.23: a 0.5.23 assistant pays as before.</li>
+      <li>Both specifications make a successful <code>pay</code> answer the AP2 v0.2 checkout and payment receipts: JWTs that the operator signs PS256, each naming its mandate.</li>
+      <li><code>mandates.schema.json</code> describes the two receipts and their claims; its examples follow. The landing page names the receipts.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.24, matching skill 0.5.24.</strong> <code>MIN_CLIENT</code> stays 0.5.23: a 0.5.23 skill pays and ignores the receipts.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.24.md</code></strong>, which keeps the two receipts that <code>pay</code> answers.</li>
+      <li><strong><code>pay</code> answers the AP2 v0.2 checkout and payment receipts</strong>, signed PS256 by the operator. Every demo adds <code>settlements.network_confirmation_id</code>.</li>
+      <li>The Stripe adapter answers the card network&#39;s id of a charge, <code>network_confirmation_id</code>, when the network gave one.</li>
+      <li>kiosk-test-support depends on kiosk-server and kiosk-user-idp-devise, so its in-process helpers and <code>Person</code> load in a bundle that names only it.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.23">
+    <h2>0.5.23 <time datetime="2026-10-21">2026-10-21</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.23</strong> sends a DPoP proof with each call that carries a token, and rotates a key without a new account. <code>Kiosk-Min-Client</code> is 0.5.23: an older cut sends no proof.</li>
+      <li>Both specifications bind every access token to the assistant&#39;s key (DPoP, RFC 9449): a call sends <code>Authorization: DPoP</code> and a <code>DPoP</code> proof.</li>
+      <li>Both specifications add assistant key rotation, <code>POST /auth/rotate</code>, and operator key rotation with a previous key in the JWKS. The key-rotation TODO is gone.</li>
+      <li>The card-setup <code>402</code> names <code>Kiosk-Payment-Setup</code> in <code>WWW-Authenticate</code>, in place of the IETF <code>Payment</code> scheme.</li>
+      <li>The listener <code>events/listen-v0.5.23.py</code> sends a DPoP proof that the assistant&#39;s <code>--proof-command</code> prints. The onboarding guide signs a DPoP proof for each curl call.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.23, matching skill 0.5.23.</strong> <code>MIN_CLIENT</code> is 0.5.23: an older skill sends no DPoP proof.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.23.md</code></strong>, which sends a DPoP proof with each call and rotates a key without a new account.</li>
+      <li><strong>Every access token is bound to the assistant&#39;s key (DPoP, RFC 9449).</strong> A call sends <code>Authorization: DPoP</code> with a <code>DPoP</code> proof; a token alone gets <code>401</code>.</li>
+      <li><code>POST /kiosk/auth/rotate</code> puts a new key on an assistant account. Both keys sign, and the account keeps its binding and reputation.</li>
+      <li><code>c.previous_signing_key</code> keeps an operator&#39;s old key in the JWKS, so a token or checkout that it signed still verifies while the key changes.</li>
+      <li>The card-setup <code>402</code> carries <code>WWW-Authenticate: Kiosk-Payment-Setup realm=&quot;&lt;issuer&gt;&quot;</code> in place of the IETF <code>Payment</code> scheme name.</li>
+      <li>The listener in <code>kiosk-server/listen.py</code> sends a DPoP proof that the assistant&#39;s <code>--proof-command</code> prints; it never reads the key.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.22">
+    <h2>0.5.22 <time datetime="2026-10-21">2026-10-21</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.22</strong> pays an operator&#39;s <code>checkout_jwt</code> with two closed AP2 v0.2 mandates, each an SD-JWT. <code>Kiosk-Min-Client</code> is 0.5.22: an older cut cannot pay.</li>
+      <li>Both specifications move payment to AP2 v0.2: the operator signs a PS256 checkout, and <code>pay</code> takes a closed checkout mandate and a closed payment mandate.</li>
+      <li>One checkout has at most one live pair of mandates; the mandate reference, a SHA-256 of the SD-JWT, is the idempotency key.</li>
+      <li>The JWKS key names no <code>alg</code>, because one key signs RS256 access tokens and PS256 checkouts.</li>
+      <li><code>mandates.schema.json</code> describes the checkout, the two AP2 v0.2 mandates and the pay request; its examples follow.</li>
+      <li>The landing page and the onboarding guide describe the signed checkout and the two AP2 v0.2 mandates.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.22, matching skill 0.5.22.</strong> <code>MIN_CLIENT</code> is 0.5.22: an older skill cannot pay.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.22.md</code></strong>, which pays a signed checkout with two AP2 v0.2 mandates.</li>
+      <li><strong><code>pay</code> takes two closed AP2 v0.2 mandates, each an SD-JWT, over a checkout the operator signs PS256.</strong> The intent, cart and payment trio is gone.</li>
+      <li>One checkout has at most one live pair of mandates. Demo migration <code>20261021100020</code> reshapes the mandate tables and keeps every settlement.</li>
+      <li><code>c.checkout_price_checker</code> replaces <code>c.cart_price_checker</code>, and <code>Kiosk::Payable#checkout</code> replaces <code>#cart</code>. The JWKS key names no <code>alg</code>.</li>
+      <li>kiosk-redteam, e2e and the paying demos attack and pay the signed checkout; <code>wrong_currency_cart</code> is <code>wrong_currency_payment</code>.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.21">
+    <h2>0.5.21 <time datetime="2026-10-21">2026-10-21</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.21</strong> puts <code>version</code>, <code>tags</code> and <code>trigger</code> under <code>metadata</code>, as agentskills.io asks, and says near its top that the skill, solver and listener come only from kiosk.tech.</li>
+      <li>Both specifications say every skill URL an operator publishes names a cut on kiosk.tech, and an assistant refuses one on another host. The discovery schema holds the pin to it.</li>
+      <li>agents.txt and agents.json name <code>x-kiosk-pop</code> and claim no AP2, no required payment and no required identity. <code>/.well-known/agent-configuration</code> is not served.</li>
+      <li>Both specifications add RFC 8414 OAuth metadata, the agent skills index and <code>ard.json</code>, and put the api-catalog&#39;s descriptions on the endpoint as RFC 9727 shows.</li>
+      <li>The onboarding guide says an operator does not put a bot challenge in front of <code>/kiosk/*</code> and the discovery documents.</li>
+      <li>The onboarding guide names <code>Kiosk.clock_gap_note</code> as the stock way to tell the caller how far the place&#39;s clock is from theirs.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.21, matching skill 0.5.21.</strong> <code>MIN_CLIENT</code> stays 0.5.20: the 0.5.20 skill reads the same wire.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.21.md</code></strong>, whose frontmatter follows agentskills.io and which names kiosk.tech as the only source of the skill.</li>
+      <li>agents.txt and agents.json name <code>x-kiosk-pop</code> and claim no AP2, no required payment or identity. <code>/.well-known/agent-configuration</code> is gone; each document passes its standard&#39;s schema.</li>
+      <li>kiosk-server serves RFC 8414 OAuth metadata, the agent skills index and <code>ard.json</code>, and its api-catalog follows RFC 9727. A landing page links the api-catalog.</li>
+      <li>Every operator demo&#39;s robots.txt states a Content-Signal and allows <code>/agents.txt</code>.</li>
+      <li>ROADMAP.md is removed.</li>
+      <li>RuboCop also runs the Rake plugin and the RSpec cops of rubocop-rspec, and the tree has no offense.</li>
+      <li>ROADMAP.md drops durable token revocation and operator-push events, which ship.</li>
+      <li><code>Kiosk.clock_gap_note</code> says how far a place&#39;s clock is from the caller&#39;s declared one. hoteling, atablefor and stylish build <code>timezone_note</code> on it.</li>
+      <li>atablefor&#39;s <code>availability</code> rows and stylish&#39;s <code>salons</code> rows carry <code>timezone_note</code> when the caller&#39;s declared zone is on another clock than the place.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.20">
+    <h2>0.5.20 <time datetime="2026-10-20">2026-10-20</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.20</strong> resolves every service time on the clock of the place where the service happens, and pays the toll on a link-code claim and on the first binding poll.</li>
+      <li>The onboarding guide reads a getgrocery <code>date</code> on the address&#39;s clock, recommends telling the caller when the clocks differ, and names the binding toll.</li>
+      <li>Both specifications read every service time on the clock of the place where the service happens. An operator SHOULD say so when the caller&#39;s declared zone differs.</li>
+      <li>Both specifications let an operator toll the link-code claim and the first token poll of each device code. It decides on the toll before it reads the code.</li>
+      <li>The onboarding guide says each verb route reaches the controller action that declares the verb.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.20, matching skill 0.5.20.</strong> <code>MIN_CLIENT</code> is 0.5.20: a 0.5.19 skill reads a service time on its human&#39;s clock.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.20.md</code></strong>, which reads a service time on the place&#39;s clock and pays the binding toll.</li>
+      <li>The link-code claim and the first token poll of each device code pay the registration toll before the code is looked up. <code>RegistrationPow</code> is renamed <code>AuthToll</code>.</li>
+      <li>getgrocery reads a <code>delivery_slots</code> date on the delivery address&#39;s clock. <code>Kiosk-Timezone</code> does not move it.</li>
+      <li>hoteling&#39;s <code>hotel_detail</code> row carries <code>timezone_note</code> when the caller&#39;s declared zone is on another clock than the hotel.</li>
+      <li><code>InProcessOrigin</code> and <code>InProcessExecutor</code> call a verb through its route with a linked assistant&#39;s token; <code>InProcessWire</code> does the call.</li>
+      <li>A verb route reaches the controller action that declares the verb, and <code>Kiosk::Handler</code> runs the wire&#39;s checks around it. <code>HandlerDispatch</code> is removed.</li>
+      <li>kiosk-server validates an action&#39;s body against its <code>input_schema</code> with no exemption. Only a query accepts an undeclared <code>limit</code> or <code>cursor</code>.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.19">
+    <h2>0.5.19 <span>listener 0.5.19</span> <time datetime="2026-10-20">2026-10-20</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.19</strong> sends a declared <code>limit</code> inside its range, says that a spending cap has one currency, and uses the pinned cut when it is older than <code>Kiosk-Min-Client</code>.</li>
+      <li>Listener 0.5.19 names an origin folder for its token file. The new pinned solver says that it has no path without numpy.</li>
+      <li>Both specifications say a spending cap has one currency, and a <code>pay</code> in another currency is refused with <code>403 spending_cap_exceeded</code>.</li>
+      <li>Both specifications say <code>Kiosk-Min-Client</code> is the oldest skill version that works with the operator: the same MAJOR.MINOR as <code>Kiosk-API-Version</code>, no newer, before 1.0 too.</li>
+      <li>Both specifications say a verb never declares <code>cursor</code>, and a query may declare <code>limit</code> as an integer to set its page size. The descriptor house style shows how.</li>
+      <li>Both specifications say the reference canonicalises a currency by lower-casing it. A currency with surrounding spaces is refused.</li>
+      <li>The landing says the scooter demo asks for the licence category a motorcycle needs, A1 or A.</li>
+      <li>Both specifications say skooti gates <code>rent_motorcycle</code> on <code>age_over_18</code> and the licence category the motorcycle needs.</li>
+      <li>Both specifications say a spending cap counts each settled charge less what the operator refunded of it: a refund gives its amount back to the cap.</li>
+      <li>Onboarding states the demos&#39; session toll as the chance (cap − spend) / cap: certain with no recorded spend, none at the cap.</li>
+      <li>The specification&#39;s reputation section says a keypair is unique per origin, as the formal specification and the skill do.</li>
+      <li>The formal specification&#39;s reference note says the Stripe adapter keys a capture by the principal&#39;s Stripe customer and the cart mandate id.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.5.19, matching skill 0.5.19.</strong> <code>MIN_CLIENT</code> stays 0.5.18: a 0.5.18 skill still works with this release.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.19.md</code></strong>, which sends a declared <code>limit</code> inside its range and says that a spending cap has one currency.</li>
+      <li>The listener&#39;s usage line keeps the token in the origin folder <code>~/.kiosk/https_shop.example_443/</code>, as the skill says.</li>
+      <li>The solver&#39;s numpy error says that the solver has no path without numpy.</li>
+      <li>getgrocery ships an order when the processor refuses a sold-out line&#39;s refund. The amount is credit (<code>credited_cents</code>) and <code>Rails.error</code> gets the error.</li>
+      <li>A spending cap has a currency. kiosk-server refuses a <code>pay</code> in another currency with <code>403 spending_cap_exceeded</code>; <code>config.spending_cap</code> returns <code>{ amount_cents:, currency: }</code>.</li>
+      <li>The seven operator demos add <code>kiosk.agents.spending_cap_currency</code>; an existing cap becomes a cap in euros.</li>
+      <li>The <code>min_client</code> setting is removed from kiosk-server. <code>Kiosk-Min-Client</code> and <code>kiosk.min_client</code> carry kiosk-core&#39;s <code>MIN_CLIENT</code>.</li>
+      <li><code>bin/check-version-parity</code> holds <code>MIN_CLIENT</code> to the MAJOR.MINOR of <code>API_VERSION</code> and no newer, before 1.0 too.</li>
+      <li>hoteling&#39;s <code>search_hotels</code> declares <code>limit</code>, 1 to 50 with 20 as default. A <code>limit</code> outside that range is refused; it is not clamped.</li>
+      <li>kiosk-server refuses at class load a verb that declares <code>cursor</code>, or a <code>limit</code> that is not an integer. A declared <code>limit</code> sets the query&#39;s page size.</li>
+      <li>The <code>on_bad_proof</code> setting is removed from kiosk-server.</li>
+      <li>The mandate verifier refuses a currency with surrounding spaces, as §11.1 says. Upper case is still folded to lower case.</li>
+      <li>skooti&#39;s <code>scooters_available</code> answers <code>licence_category</code> (A1, A or null) in place of <code>needs_licence</code>.</li>
+      <li>The kiosk-server README says a refund gives its amount back to the spending cap.</li>
+      <li>The spend the manage-assistants page shows is the settled part of what the spending cap counts. The cap also counts the carts in flight.</li>
+      <li>The derived OpenAPI document closes the verb and topic descriptors, as the spec does: a member the spec does not name fails validation.</li>
+      <li>The manage-assistants page shows what each assistant spent per currency, less refunds and never below zero: the figure the spending cap counts.</li>
+      <li>The prove broker&#39;s development callback host for skooti and getgrocery is <code>localhost</code>, the host of their development issuer, so <code>request_kyc</code> works under <code>bin/dev</code>.</li>
+      <li>The getgrocery, skooti and hoteling READMEs start stripe-mock behind the <code>Kiosk::TestHelpers::StripeMock</code> relay, because stripe-mock alone answers each charge as unpaid.</li>
+      <li>Each skooti motorcycle names the licence category it needs, A1 or A, and <code>rent_motorcycle</code> checks its attribute. The fleet adds the A1 motorcycle MC-002.</li>
+      <li>The prove broker asks the human for a licence category (A1, A, B1, B or none) and signs the requested <code>licence_*</code> attributes that category covers.</li>
+      <li><code>Kyc.require!</code> takes the attribute names an action needs and an optional refusal <code>detail</code>.</li>
+      <li>The Prove adapter asks the broker for the <code>kyc_claims</code> names as they are.</li>
+      <li>The prove README says the broker issues no attestation from an mDL.</li>
+      <li>The <code>capabilities</code> configuration setting is removed. Discovery always derives the list from what is registered.</li>
+      <li>The spending cap counts each settled charge less what the operator refunded of it, so a refund gives its amount back to the cap.</li>
+      <li>The getgrocery and skooti READMEs say <code>request_kyc</code> answers 500 under <code>docker compose up</code>, because the app cannot reach the KYC broker from its container.</li>
+      <li>The hoteling <code>check_out</code> argument of <code>hotel_detail</code>, <code>availability</code> and <code>reserve_room</code> says it is a day on the hotel&#39;s own clock.</li>
+      <li>The derived OpenAPI document writes the verb and topic name <code>pattern</code> as <code>^[a-z][a-z0-9_]*$</code>, a valid ECMA-262 pattern, as JSON Schema requires.</li>
+      <li>An error a handler renders keeps the <code>type</code>, <code>title</code>, <code>status</code> and <code>detail</code> of its code; the engine drops its <code>instance</code>, and its <code>challenges</code> unless the code is <code>pow_required</code>.</li>
+      <li>The derived OpenAPI document describes the <code>events</code> array of the <code>schema</code> catalog, so it accepts a catalog that serves topics.</li>
+      <li>A <code>Page</code> refuses an empty <code>next_cursor</code>: the last page passes nil, and the wire sends no <code>next</code> link that leads back to page one.</li>
+      <li>The engine refuses a query answer that is not a JSON array with <code>action_failed</code>, paginated or not.</li>
+      <li>The Prove KYC client, the Devise session client and the test-support wire and event clients connect to an IPv6 literal URL such as <code>http://[::1]:3004</code>.</li>
+      <li>The kiosk-server README says the engine keeps its own state in the <code>kiosk</code> schema and writes no audit record there; the audit sink is off by default.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.18">
+    <h2>0.5.18 <time datetime="2026-10-18">2026-10-18</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.18</strong> resolves a relative <code>next</code> link against the request URL, and does not guess the order of the rows from a cursor.</li>
+      <li>The specification page says that an AI assistant ignores unknown members in every response, as the formal specification does.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.18, matching skill 0.5.18.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.18.md</code></strong>, which resolves a relative <code>next</code> link and does not guess the row order from a cursor.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.17">
+    <h2>0.5.17 <time datetime="2026-10-18">2026-10-18</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.17</strong> polls <code>payment_setup</code> on the schedule its description states, ignores unknown members in every answer, and says that only an operator with no roles omits <code>scope</code>.</li>
+      <li>The landing says one assistant key per origin (scheme, host and port), as the skill does, and names Python for the event listener.</li>
+      <li>An operator keys its processor capture by the principal together with the cart mandate id.</li>
+      <li>The specification&#39;s reputation section names recent spend as the reference input, and its refunds TODO names only a refund or cancellation that an assistant asks for.</li>
+      <li>The onboarding guide keeps the money in <code>payment_status</code>, shows how to refund, and predicts the <code>events</code> capability.</li>
+      <li>The landing names the event listener beside the solver, about 20 ms to verify a proof, and the visits that count as spend.</li>
+      <li><code>POST /kiosk/agents/kyc</code> refuses with <code>403 forbidden</code> an attestation the operator&#39;s KYC provider does not accept, as the provider callback does.</li>
+      <li>Money that the operator refunds is not recent spend, so it does not lower the chance to pay the proof-of-work toll.</li>
+      <li>The reference reputation policy draws once for each customer in each access-token lifetime, so a new token in the same lifetime meets the same outcome.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.17, matching skill 0.5.17.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.17.md</code></strong>, which polls <code>payment_setup</code> on its description&#39;s schedule and ignores unknown members in every answer.</li>
+      <li>The PoW READMEs give measured memory: an Equihash verify holds under 3 KB live, and the bundled Cuckatoo solver needs ~59 GiB at edgebits=29.</li>
+      <li>The verify cost reads as measured: ~22 ms for a valid Equihash proof at n=168 k=7 in pure Ruby, ~15 ms with YJIT; the deploy runbook&#39;s figures follow it.</li>
+      <li>The kiosk-server README renders again, and its Configure example names every core key; the gem READMEs say what the code does.</li>
+      <li>The demo READMEs give the toll per access token, start stripe-mock before a payment by hand, and name the controller that holds each verb.</li>
+      <li>kiosk-pay-stripe keys a capture by the Stripe customer and the cart mandate id, so the carts of two customers cannot share an idempotency key.</li>
+      <li>The <code>kyc_required</code> hint names the attributes it asks for, as the specification says.</li>
+      <li>The skooti red-team battery scores a local beat whose setup step failed as UNTESTED and prints its summary, with or without a stripe-mock.</li>
+      <li>kiosk-redteam scores an attack that a failed setup step or an unreachable payment processor kept from its gate as UNTESTED, not BREACH. The run still fails.</li>
+      <li><code>refund</code> takes <code>key:</code>, which names the refund among the refunds of its charge; kiosk-pay-stripe keys the Stripe request by the charge and that key.</li>
+      <li>A <code>kyc_provider</code> with empty <code>kyc_claims</code> raises <code>ConfigurationError</code> at boot: no verification could grant a gated action.</li>
+      <li><code>PaymentClaim</code> takes no <code>status_column:</code> or <code>unpaid:</code> (the column is <code>payment_status</code>), and <code>ColumnSpendingCap.new</code> takes no arguments.</li>
+      <li>The kiosk-server README tells the operator to set the status column to <code>refunded</code> after a full refund, before the announcement.</li>
+      <li>A broker answer that is not HTTP raises <code>Unavailable</code>, so <code>request_kyc</code> answers <code>action_failed</code>, not 500.</li>
+      <li><code>PaymentFailed</code> takes no <code>reason:</code>; the engine reads only its message and <code>retryable?</code>.</li>
+      <li><code>AgentIdentityProviders::Base</code> declares only <code>verify</code>; the engine never called <code>issue</code> or <code>agent_payment_key</code> on a configured <code>c.agent_idp</code>.</li>
+      <li>A <code>reputation_policy</code> toll with string keys is a <code>ConfigurationError</code>; the toll reads <code>alg</code>, <code>params</code> and <code>count</code> as symbols, as the policy contract states.</li>
+      <li><code>RecentSpend</code> tolls every call of a caller whose token has no <code>iat</code> or <code>exp</code>, so a retry cannot fish for a free draw.</li>
+      <li><code>Kiosk::Reputation::Policies::RateAndReputation</code> is removed; <code>Factors</code> keeps only the two purchase fields the engine fills.</li>
+      <li>The kiosk-reputation README configures <code>RecentSpend</code> and states that the engine gives <code>RateAndReputation</code> no factors and keeps no count of wrong proofs.</li>
+      <li><code>Kiosk::Reputation::Policies::Backoff</code>, <code>BackoffStore</code> and the gate&#39;s <code>on_proof_verified</code> policy hook are removed.</li>
+      <li><code>POST /kiosk/agents/kyc</code> refuses with 403 an attestation the configured <code>kyc_provider</code> does not accept, as the provider callback does.</li>
+      <li>getgrocery&#39;s back office shows a cancelled, refunded order as REFUNDED: the badge reads the order&#39;s <code>payment_state</code>.</li>
+      <li>Recent spend counts a settlement less what the operator refunded of it. <code>kiosk:install</code> emits <code>create_kiosk_refunds</code>; every demo ships it.</li>
+      <li>The recent-spend policy draws once for each customer in each token lifetime: a new access token does not draw again.</li>
+      <li>The recent-spend policy draws once per access token: a session pays the toll with the chance its recent spend sets.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.16">
+    <h2>0.5.16 <time datetime="2026-10-18">2026-10-18</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.16</strong> lists a topic&#39;s <code>description</code>, <code>payload_schema</code> and <code>examples</code> among the operator-written strings that an assistant reads as data.</li>
+      <li>The published JSON Schemas&#39; long <code>description</code>s are one to three short sentences; the rules stay in the specification.</li>
+      <li>The onboarding guide sends the <code>rel=&quot;kiosk&quot;</code> Link header with <code>include Kiosk::SkillLink</code>.</li>
+      <li>An assistant&#39;s RSA key is 2048 to 4096 bits; an operator refuses any other key with <code>400 bad_request</code>.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.16, matching skill 0.5.16.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.16.md</code></strong>, which lists a topic&#39;s text among the operator-written strings an assistant reads as data.</li>
+      <li><code>Kiosk::UserIdentityProviders::DeviseSession#sign_out!</code> is removed.</li>
+      <li><code>Kiosk::Pow::Equihash.solver_path</code> is removed; a client solves with <code>Kiosk::Pow::Equihash.solve</code>.</li>
+      <li><code>Kiosk::Redteam::Scenario.new</code> takes only <code>name:</code>; <code>category</code> and <code>description</code> are removed.</li>
+      <li><code>Kiosk::Redteam::Runner#all_blocked?</code>, <code>#breaches</code> and <code>#blocked</code> are removed; <code>Battery#report!</code> is the exit status.</li>
+      <li>kiosk-redteam reads a query answer only as a bare array; ForgedUserId scores BREACH when the owner&#39;s query answers no rows array.</li>
+      <li><code>Kiosk::Server::ActionEvent#ok?</code> and <code>#error?</code> are removed; read <code>status</code>.</li>
+      <li><code>Kiosk::UuidCheck::JSON_SCHEMA_PATTERN</code> is removed.</li>
+      <li><code>Kiosk::Identity#agent?</code>, <code>#human?</code> and <code>#service?</code> are removed; read <code>actor</code>.</li>
+      <li><code>bin/check-solver-pin</code> refuses every argument with exit 2; it has no self-test.</li>
+      <li>Each demo&#39;s red-team battery moves from <code>script/redteam_suite.rb</code> to <code>kiosk-redteam/suites/&lt;demo&gt;.rb</code>; CI runs it in the demo with the demo&#39;s bundle.</li>
+      <li>The KYC broker demo&#39;s tests run on Minitest (<code>bin/rails test</code>), as six of the other demos&#39; do.</li>
+      <li>The vendored JSON Schemas carry kiosk.tech&#39;s shortened <code>description</code>s.</li>
+      <li><code>bin/check-vendored-schemas</code> holds each JSON Schema copied from kiosk.tech equal to the published file; CI runs it beside kiosk.tech.</li>
+      <li>The Stripe adapter keeps its key and URL in its own client; the demos pass stripe-mock as <code>api_base:</code>. A <code>pay</code> makes three Stripe calls, not five.</li>
+      <li>The KYC broker demo reads the intake from the request parameters; a body that is not JSON is a 400.</li>
+      <li>getgrocery keeps the money in <code>orders.payment_status</code> and the basket in <code>status</code>; a full refund reads <code>refunded</code> and is announced on the <code>payment</code> topic.</li>
+      <li>skooti derives <code>needs_licence</code> from <code>kind</code>: a motorcycle needs a licence. The <code>scooters.needs_licence</code> column goes; the wire field stays.</li>
+      <li><code>Kiosk::SkillLink</code> sends the <code>rel=&quot;kiosk&quot;</code> Link header; the seven demos include it in place of three hand-written spellings.</li>
+      <li>The KYC broker demo posts a callback over https, or over http only to a loopback host; its intake answer carries the stored <code>expires_at</code>.</li>
+      <li>kiosk-server refuses an RSA key over 4096 bits, and <code>pay</code> answers 401 before it reads the body.</li>
+      <li>kiosk-server drops its <code>solid_cable</code> dependency; each demo&#39;s Gemfile declares <code>solid_cable</code> for its <code>config/cable.yml</code>.</li>
+      <li>The payment provider port declares <code>refund</code>, which the Stripe adapter and <code>PaymentClaim</code> already answer.</li>
+      <li>kiosk-server&#39;s boot, declaration and currency refusal messages are one or two sentences: the fault and the fix.</li>
+      <li>hoteling drops the unread <code>bookings.decision_due_at</code> and <code>refunded_at</code> columns; the property answers 180 seconds after the capture.</li>
+      <li>philslist and atablefor call their models straight from the controller where an operation was one line; the four wrapper classes are gone.</li>
+      <li><code>Kiosk.reader_zone</code> answers the caller&#39;s <code>Kiosk-Timezone</code> zone; philslist, tudu and getgrocery read it there.</li>
+      <li>Every demo&#39;s wire handler controllers inherit <code>ActionController::API</code>, as the kiosk-server README examples now show.</li>
+      <li>kiosk-pow is the base of the PoW backends: one shared BLAKE2b-256 and a guide to add a backend. The Argon2id backend moves to kiosk-pow-argon2id.</li>
+      <li><code>c.after_payment</code> runs after the engine records the settlement, so getgrocery refunds a sold-out line against the charge; the test Stripe front refuses a refund with no charge.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.15">
+    <h2>0.5.15 <time datetime="2026-10-18">2026-10-18</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.15</strong> signs the <code>cart</code> that an action answers, reads <code>payment_state</code>, and listens on the <code>payment</code> topic.</li>
+      <li>The specification defines the <code>cart</code> an action answers, the <code>payment_state</code> a per-user query gives, and the <code>payment</code> topic; onboarding uses <code>Kiosk::Payable</code>.</li>
+      <li>Onboarding creates the <code>stripe_customers</code> table with <code>rails generate kiosk:pay_stripe:install</code>, given the same <code>--user-id-type</code> as <code>kiosk:install</code>.</li>
+      <li>The specification and the landing say the reference policy tolls a session with the chance <code>max(0, (cap - spend) / cap)</code>, linear in recent spend.</li>
+      <li>The landing says registration and each session pay the toll, recent spend lowers it, and two items are open; onboarding says the generator sets the KYC tables&#39; user-id type.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.15, matching skill 0.5.15.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.15.md</code></strong>, which signs the <code>cart</code> an action answers and reads <code>payment_state</code>.</li>
+      <li><code>Kiosk::Payable</code> gives a payable model <code>payment_state</code>, <code>cart</code> and <code>settlement</code>, and the engine pushes the <code>payment</code> topic; getgrocery, hoteling and skooti use them.</li>
+      <li>An action that creates a payable row answers <code>cart</code>, the cart to sign, in place of the prose <code>pay_hint</code>.</li>
+      <li><code>Kiosk::StoryTest#assert_refused(answer, code)</code> asserts a wire refusal and prints the answer when it fails.</li>
+      <li>A device authorization store answers <code>lookup_by_device_code_hash</code> and <code>lookup_by_user_code_hash</code>; a custom store renames its two <code>find_by_*</code> methods.</li>
+      <li>RuboCop also runs the Rails, Minitest and RSpec Rails plugins, new cops included, and the tree has no offense.</li>
+      <li>kiosk-test-support declares <code>puma</code>; <code>e2e/run.sh</code> makes <code>KIOSK_PYTHON</code> absolute; kiosk-demo-prove applies its layout.</li>
+      <li><code>bin/rails g kiosk:pay_stripe:install</code> writes the <code>stripe_customers</code> migration with its DDL in the file; <code>CustomerRecord.create_table</code> is removed.</li>
+      <li>hoteling, atablefor and stylish run their jobs on Solid Queue inside Puma, so a scheduled job survives a restart.</li>
+      <li><code>RecentSpend.new(within:, cap:)</code> tolls a session by chance: 1 with no recent spend, falling linearly to 0 at <code>cap</code> whole currency units. Every demo sets <code>cap: 100</code>.</li>
+      <li>The kiosk-user-idp-devise README names the human-side gate and the link endpoints as the adapter&#39;s callers; the kiosk-reputation README says kiosk-pow-equihash registers itself.</li>
+      <li>atablefor and stylish record a kept booking as a <code>Kiosk::Visit</code> once its time has passed, so a returning customer&#39;s toll falls without any payment.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.14">
+    <h2>0.5.14 <span>listener 0.5.14</span> <time datetime="2026-10-18">2026-10-18</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.14 is written in Simplified Technical English</strong>, sends the same chain again after a lost or unknown payment, and pays the toll once per access token.</li>
+      <li>Listener 0.5.14 shows <code>--topic order_delivery:&lt;order-id&gt;</code> in its usage line, a topic the demos publish.</li>
+      <li>The landing and onboarding say the demos toll once per session at full strength, and a customer who spent there recently pays none.</li>
+      <li>The proof-of-work toll is paid once per access token, one hour by default, and an operator MAY lower it by reputation to no proof at all.</li>
+      <li>The spending cap is exact: an operator serialises one assistant&#39;s payments, counts every unfinished cart, and stops counting a declined charge at once.</li>
+      <li>A repeat of the same unfinished <code>pay</code> chain is charged again under the same key and settled, not refused; <code>409 conflict</code> now means a declined chain or a reused mandate id.</li>
+      <li>Onboarding&#39;s sample initializer drops <code>user_id_column</code>, which repeats the default, and no longer lists a reservations table.</li>
+      <li>Onboarding configures <code>PaymentClaim</code> with the payable model (<code>model: &quot;Order&quot;</code>) instead of a table name, as the reference now takes it.</li>
+      <li>The landing says an owner&#39;s linked assistant sees every salon booking with its price; stylish no longer answers a separate revenue forecast row.</li>
+      <li>The wire is bearer-only: the MAY that let an operator&#39;s own sign-in session call a wire verb is gone.</li>
+      <li><code>auth/link</code> and <code>auth/unlink</code> MUST refuse a request that is not <code>application/json</code>, so a page on another origin cannot use the human&#39;s session.</li>
+      <li>The reference keeps revocation watermarks in a database table and holds the spending cap under concurrent pays; onboarding no longer says a session cookie reaches the wire.</li>
+      <li>Onboarding renders each answer with a Jbuilder view, as getgrocery now does, and quotes its current controllers, views and operations.</li>
+      <li>Onboarding teaches getgrocery as it now stands: controllers by resource, orders take a window&#39;s <code>slot_at</code>, validation lives in the models, topics carry examples.</li>
+      <li>A topic descriptor may carry <code>examples</code>, example payloads that satisfy its <code>payload_schema</code>.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.14, matching skill 0.5.14.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.14.md</code></strong>, written in Simplified Technical English, which repeats a lost payment with the same chain.</li>
+      <li>Every operator demo tolls once per access token with <code>RecentSpend</code>: a customer who spent 100 euros there within a week pays no proof.</li>
+      <li>The proof-of-work toll is paid once per access token (<code>access_token_ttl</code>, 3600 s). Settlements and recorded visits count as recent spend; <code>reputation_factors</code> is gone.</li>
+      <li>A repeat of an unfinished <code>pay</code> chain charges again under the same key and records the missing settlement. A declined charge stops counting against the spending cap at once.</li>
+      <li>Each operator demo&#39;s <code>db/migrate</code> is one fresh install with the DDL written in; deployed demo databases are dropped and rebuilt from <code>db/schema.rb</code>.</li>
+      <li>hoteling tells the guest&#39;s assistant when an unpaid hold lapses: <code>booking_confirmation</code> carries <code>cancelled</code> with reason <code>hold_lapsed</code>, once.</li>
+      <li>getgrocery restocks every shelf each morning, lists sold-out items as «Sold out. Check back tomorrow.», and refunds a line a payment race left empty.</li>
+      <li>skooti holds a vehicle 3 minutes; a paid hold whose ride has not started by then is released and refunded, and <code>booking_payment</code> says <code>refunded</code>.</li>
+      <li>getgrocery and skooti run their jobs on Solid Queue inside Puma, so a scheduled job survives a restart.</li>
+      <li>stylish drops the <code>availability</code> query; <code>service_menu</code> already lists every bookable service.</li>
+      <li><code>kiosk:install</code> writes each migration&#39;s DDL into the file, so a generated migration no longer depends on the installed kiosk-server version.</li>
+      <li>Every demo tolls registration only, at n=168 k=7: the per-demo query, browse and hold tolls are removed, and tests require <code>small_equihash</code>.</li>
+      <li>Registration proof-of-work runs at the Equihash default everywhere; <code>registration_pow_params</code> is gone, and only test setup may pick small params.</li>
+      <li>Settings live in the gem that reads them; <code>system_role</code> and <code>registration_difficulty=</code> are gone and initializers drop default lines. skooti reads its unlock key from <code>config.x</code>.</li>
+      <li>Auth challenges and events are stored in the database by default, and every demo ships the <code>kiosk.auth_challenges</code> migration; production needs a shared cable adapter to serve events.</li>
+      <li><code>PaymentClaim</code> takes the payable model by name (<code>model: &quot;Order&quot;</code>) instead of a table, so ids, owner and timestamps follow the model. <code>Kiosk::Owned</code> adds <code>owned_by</code>.</li>
+      <li>kiosk-server loads through Zeitwerk and keeps its controllers, events channel and views under app/. The in-process test executor and conformance origin moved to kiosk-test-support.</li>
+      <li>Suites and red-team runs reach a saved card through <code>payment_setup</code> against stripe-mock; no demo initializer carries a test switch or <code>Stripe.api_base</code>.</li>
+      <li>stylish&#39;s <code>my_appointments</code> lists the oldest booking first, as it says, instead of in random id order.</li>
+      <li>stylish&#39;s <code>salon_calendar</code> answers booking rows only, without the owner&#39;s forecast row; stylish spells its currency <code>eur</code>, as every other demo does.</li>
+      <li>hoteling drops <code>confirm_booking</code>, which wrote nothing: <code>my_bookings</code> carries the hotel&#39;s answer and its confirmation code.</li>
+      <li>tudu&#39;s <code>remove_member</code> refuses only an owner removing themselves; the last-owner count is gone.</li>
+      <li>The engine no longer creates <code>kiosk.reservations</code>, which nothing used; every demo drops it with a new migration.</li>
+      <li>skooti holds a vehicle for one rider at a time, for 15 minutes or until the rental token expires; a second <code>reserve</code> answers 409 <code>conflict</code>.</li>
+      <li>hoteling cancels a room hold left unpaid for 15 minutes and frees its nights; the property&#39;s answer to a paid booking refunds it at most once.</li>
+      <li>getgrocery keeps the price an order was placed at, refuses an order for more than the stock, lowers stock once per paid order, and sends one courier per order.</li>
+      <li>The spending cap counts carts whose capture may still run and serialises one assistant&#39;s pays, so two concurrent pays cannot pass the cap together.</li>
+      <li><code>PaymentClaim</code> runs <code>after_payment</code> only for the call that moves the row to paid, so a hook never runs twice for one payment.</li>
+      <li>The proof-of-work toll checks a proof&#39;s signature, expiry and parameters before it records the challenge as spent, and reads no more proofs than it asked for.</li>
+      <li>Token revocation is stored in the new <code>kiosk.revocations</code> table by default, so a revoke or an unlink holds in every process and after a restart; run <code>kiosk:install</code>&#39;s new migration.</li>
+      <li>The wire and the event stream accept only a bearer token, never the operator&#39;s session cookie; <code>auth/link</code> and <code>auth/unlink</code> refuse a request that is not <code>application/json</code>.</li>
+      <li>Demo lockfiles take the patched crass, loofah, mail, nokogiri, rails-html-sanitizer and websocket-driver releases.</li>
+      <li><code>bin/lint</code> and CI run RuboCop with the default cops over the whole tree, bundler-audit over every lockfile and Brakeman over every demo.</li>
+      <li>Public methods nothing called are removed from kiosk-core, kiosk-server, kiosk-redteam and kiosk-test-support; hoteling drops two environment overrides nothing set.</li>
+      <li>Every demo renders its query and action answers with Jbuilder views; getgrocery no longer declares <code>order_payment</code>, a topic nothing emitted.</li>
+      <li>A handler may answer through its JSON template, whatever the caller&#39;s <code>Accept</code>, and <code>render_kiosk_page</code> pages what that template renders.</li>
+      <li>Demo controllers are grouped by resource with short descriptions; getgrocery and atablefor verbs take the slot&#39;s or seating&#39;s instant in place of an id and a date.</li>
+      <li>Topics publish <code>examples</code> in the schema document, as verbs publish <code>example_params</code> and <code>example_row</code>.</li>
+      <li>Demo tooling that demonstrated nothing is gone: getgrocery&#39;s reconcile task, <code>Stripe::ChargeLookup</code> and the curl tours; red-team suites bind through kiosk-test-support.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.13">
+    <h2>0.5.13 <time datetime="2026-10-11">2026-10-11</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.13 asks how much it may spend without asking</strong>: once a card is saved the assistant keeps the human&#39;s amount and asks before any payment over it.</li>
+      <li>The landing says where things live: the card at Stripe, the assistant&#39;s keys with the assistant, kiosk.tech static with no server, the demos only examples.</li>
+      <li>Onboarding: Step 3 names queries and actions in a <code>kiosk do … end</code> block in <code>config/routes.rb</code>; the separate <code>config/routes/kiosk.rb</code> is gone.</li>
+      <li>Specification: an operator MAY answer a JSON caller at its human sign-in and sign-out pages with a JSON pointer to its /.well-known/kiosk.json.</li>
+      <li>The landing no longer claims a run against real Stripe; the site points at getgrocery&#39;s tests where it named its deleted walkthrough.</li>
+      <li>Onboarding: the initializer sets <code>c.signing_key</code> from <code>KIOSK_SIGNING_KEY_B64</code> itself; the engine no longer reads it.</li>
+      <li>Onboarding: handler controllers go in <code>app/controllers/kiosk/</code> and register themselves; the <code>c.handlers</code> line is gone.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.13, matching skill 0.5.13.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.13.md</code></strong>, whose assistant asks the human how much it may spend without asking.</li>
+      <li><strong>Operators route with a <code>kiosk do … end</code> block in <code>config/routes.rb</code></strong>: it mounts the engine, then draws <code>queries</code> as GET and <code>actions</code> as POST; <code>config/routes/kiosk.rb</code> is gone.</li>
+      <li><strong>hoteling checks stays in its models</strong>: a reservation holds at most 30 nights and a rate is at most €10,000, so the oversized-total refusal is gone.</li>
+      <li><strong>getgrocery checks orders in its models</strong>: a cart is at most 50 lines of at most 99 each, so the oversized-total refusal is gone.</li>
+      <li><strong>atablefor drops the table deposit and checks bookings in its models</strong>: <code>availability</code> rows lose <code>deposit_eur</code>, and a party is at most 20.</li>
+      <li><strong>A failed model validation answers 400 <code>bad_request</code> naming what is wrong</strong>: <code>RecordInvalid</code> and <code>ActiveModel::ValidationError</code> carry their full messages to the wire.</li>
+      <li><strong>Every gem requires Ruby 4.0</strong>, the version CI runs; the Ruby 3.2 CI leg is gone.</li>
+      <li><strong>The <code>bin/check-*</code> scripts check code, not prose</strong>: the prose-count, red-team-header and other prose rules are gone; each script now says only what it checks.</li>
+      <li><strong>kiosk-user-idp-devise answers a JSON caller at the human sign-in and sign-out pages with a pointer to the wire</strong>; the demos include it instead of carrying copies.</li>
+      <li><strong>Demo tests load no red-team code</strong>: they drive the wire with kiosk-test-support&#39;s <code>Assistant</code> and stand in for the KYC provider; the attack batteries run on their own.</li>
+      <li><strong>A demo resets with <code>bin/rails db:reset</code> and is tested with <code>bin/rails test</code></strong>; its <code>check:</code> and <code>demo:setup</code> rake tasks are gone.</li>
+      <li><strong>Every demo refuses with exceptions, keeps statuses in enums, reads its principal&#39;s rows through <code>own</code>, and pays only for its own rows</strong>; its argument checks are Minitest or RSpec tests.</li>
+      <li><strong>getgrocery refuses with exceptions, keeps order status in an enum, and reads a principal&#39;s orders through <code>Order.own</code></strong>; its argument checks are Minitest tests.</li>
+      <li><strong>stylish validates <code>staff_role</code> on write</strong>, so <code>User#kiosk_role</code> is <code>staff_role || &quot;customer&quot;</code>.</li>
+      <li><strong>The demos keep their schema in <code>db/schema.rb</code></strong>; they no longer use kiosk-rls, and getgrocery&#39;s <code>check:rls</code> is gone.</li>
+      <li><strong>No framework gem reads ENV; every demo configures Kiosk in its initializer from ENV, with development and test values in <code>config/local_env.rb</code>.</strong></li>
+      <li><strong><code>include Kiosk::Owned</code> gives a model <code>own</code>, the current principal&#39;s rows</strong>; demos drop their <code>Arel.sql(&quot;kiosk.current_user_id()&quot;)</code> scopes.</li>
+      <li><strong>A handler registers itself</strong>: the engine loads <code>app/controllers/kiosk/</code> and registers every class including <code>Kiosk::Handler</code>; <code>c.handlers</code> is removed.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.12">
+    <h2>0.5.12 <time datetime="2026-10-08">2026-10-08</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.12 names a URL that carries a credential</strong>, like skooti&#39;s <code>unlock_url</code>: hand it to the human once, as a card-setup link, and never paste the token elsewhere.</li>
+      <li>The landing&#39;s «Potentially works» tier adds OpenAI dots and Meta Muse, read off their documentation and never run.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.12, matching skill 0.5.12.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.12.md</code>.</strong></li>
+      <li><strong>skooti&#39;s rental verbs answer an <code>unlock_url</code>: a page it serves with the token and its QR, the link an assistant hands its human.</strong></li>
+    </ul>
+  </section>
+
+  <section id="v0.5.11">
+    <h2>0.5.11 <time datetime="2026-10-08">2026-10-08</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.11 and the spec say versions compare as integers, MAJOR then MINOR then PATCH</strong>, so an assistant holding 0.5.9 adopts a 0.5.10 pin.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.11, matching skill 0.5.11.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.11.md</code>.</strong></li>
+    </ul>
+  </section>
+
+  <section id="v0.5.10">
+    <h2>0.5.10 <time datetime="2026-10-08">2026-10-08</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.10 tells the assistant to read <code>detail</code> on a <code>403 forbidden</code></strong>: it names the operator-side precondition, which the assistant meets or hands to its human.</li>
+      <li>The onboarding page&#39;s <code>create_order</code> and <code>reschedule_delivery</code> require <code>delivery_date</code>, so a booked slot is always on the day its row was shown.</li>
+      <li>The onboarding page wires Stripe with the adapter&#39;s own customer table, laid down by one migration, instead of hand-written resolver lambdas and a model.</li>
+      <li>The hoteling demo card says it pays in Stripe test mode: hoteling and skooti now charge through kiosk-pay-stripe, no longer a stub.</li>
+      <li><strong><code>known-issues.html</code> lists environment stumbles live assistant runs hit, outside the skill</strong>, linked from the landing footer.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.10, matching skill 0.5.10.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.10.md</code>.</strong></li>
+      <li>skooti <code>start_rental</code> and <code>rent_motorcycle</code> say the reservation must be paid first, and an unpaid one is refused with what to do: pay it, then call again.</li>
+      <li>getgrocery <code>create_order</code> and <code>reschedule_delivery</code> require <code>delivery_date</code>, so the window booked is the one the <code>delivery_slots</code> row showed, never a defaulted tomorrow.</li>
+      <li>Demo columns every write path fills are NOT NULL: atablefor&#39;s booking table and seating, getgrocery&#39;s order window and address, skooti&#39;s scooter name, dock and position.</li>
+      <li>Each demo&#39;s <code>db/migrate</code> is one fresh install: users, the <code>kiosk:install</code> set, then its own tables in final form. Deployed databases are rebuilt (<code>deploy/CHECKLIST.md</code> §7b).</li>
+      <li>The deploy hook no longer restarts an app whose <code>db:migrate</code> failed, and the push exits non-zero naming it.</li>
+      <li>kiosk-pay-stripe settles only a <code>succeeded</code> card charge; demos and e2e reach that answer through kiosk-redteam&#39;s stripe-mock front.</li>
+      <li>getgrocery, hoteling and skooti configure a price checker over their own catalog; the engine checks the cart.</li>
+      <li>kiosk-pay-stripe ships the charge lookup getgrocery kept as its own copy; the demo uses the gem&#39;s.</li>
+      <li>hoteling, skooti and e2e pay through kiosk-pay-stripe in test mode (stripe-mock in CI); the stub PSPs are gone and a declined booking is refunded through Stripe.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.9">
+    <h2>0.5.9 <time datetime="2026-10-08">2026-10-08</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.5.9 says an event <code>id</code> is one delivery to one identity, keys an identity per origin rather than per hostname, and calls the mandate <code>scope</code> an optional label.</strong></li>
+      <li><strong>The landing&#39;s verified tier now rests on the October 2026 Hermes run on the 0.5 wire</strong>: getgrocery&#39;s KYC, card setup and payment, and hoteling&#39;s paid booking confirmed by event.</li>
+      <li><strong>§11.6&#39;s reference note names the engine&#39;s <code>PaymentClaim</code> as the operator half</strong>, which the paying demos now configure rather than copy.</li>
+      <li><strong>An event <code>id</code> names one event in one identity&#39;s stream</strong>, so the same change told to two members carries two ids and is never correlated by id.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.9, matching skill 0.5.9.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.9.md</code>.</strong></li>
+      <li><strong>getgrocery, hoteling and skooti pay through the engine&#39;s <code>PaymentClaim</code></strong>, keeping only their cashier, instead of three copies of the claim.</li>
+      <li><strong>getgrocery, hoteling and skooti read payment receipts through the engine&#39;s <code>Kiosk::Settlement</code></strong> instead of their own copies of two models.</li>
+      <li><strong>The demos render refusals with the engine&#39;s <code>render_kiosk_result</code></strong> instead of seven copies of their own concern.</li>
+      <li><strong>Demos serve <code>public/</code> with <code>cache-control: no-cache</code></strong>, so browsers revalidate an undigested stylesheet instead of holding it for a year.</li>
+      <li><strong>Each demo&#39;s environment files publish only the keys that demo reads</strong>; skooti&#39;s production requires its unlock key outright.</li>
+      <li><strong>The demos configure the PoW toll they run</strong>: getgrocery and hoteling toll with no env flag, atablefor reads only <code>KIOSK_POW_MODE</code>.</li>
+      <li><strong>tudu&#39;s <code>todo</code> topic says the actor&#39;s own calls are delivered too, and hoteling&#39;s <code>reserve_room</code> no longer promises a pay-by deadline its answer never carries</strong>.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.8">
+    <h2>0.5.8 <time datetime="2026-10-07">2026-10-07</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>The skill&#39;s dual-check example writes the pinned cut as <code>skill-vX.Y.Z.md</code></strong>, so no cut ever shows an earlier cut&#39;s name as its own pin.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.8, matching skill 0.5.8.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.8.md</code>.</strong></li>
+      <li><strong>skooti&#39;s <code>pay_hint</code> no longer asks for a line-item <code>sku</code></strong> either, and neither demo&#39;s scripts send one; the entry is <code>qty</code>, <code>price_cents</code> and the reservation or booking id.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.7">
+    <h2>0.5.7 <time datetime="2026-10-07">2026-10-07</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>The skill holds a second account on one origin in its own slot, takes a bound <code>user_id</code> from the new token, and hands the binding page to the human unfetched.</strong></li>
+      <li><strong><code>pow/solve-2ba89e902b14.py</code> published and pinned</strong>: the solver without an uncalled helper, an unsourced claim and an untested mode; the old file stays served.</li>
+      <li><strong>An unreadable <code>Kiosk-Timezone</code> is refused <code>400</code> with the arguments, before any proof-of-work toll is asked for.</strong></li>
+      <li><strong>The device verify page sends a signed-out browser to sign in and back, and answers any other caller <code>401</code> naming the sign-in page.</strong></li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.7, matching skill 0.5.7.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.7.md</code>.</strong></li>
+      <li><strong>The published solver drops an uncalled helper, an unsourced claim and an untested <code>--toy</code> mode</strong>; it solves and verifies exactly as before.</li>
+      <li><strong>hoteling&#39;s <code>pay_hint</code> no longer asks for a line-item <code>sku</code></strong>, which the operator never reads; the entry is <code>qty</code>, <code>price_cents</code> and <code>booking_id</code>.</li>
+      <li><strong>The heavy-toll <code>pow_notice</code> points at the solver the Kiosk skill pins</strong>, not at this gem&#39;s bundled one.</li>
+      <li><strong>An unreadable <code>Kiosk-Timezone</code> is refused <code>400</code> before the proof-of-work toll</strong>, with the arguments, rather than after a paid proof.</li>
+      <li><strong>The binding pages&#39; <code>401</code> names the operator&#39;s sign-in URL and the page&#39;s own</strong>, so a non-browser caller can hand the human a working path.</li>
+      <li><strong>hoteling&#39;s <code>my_bookings</code> publishes <code>payment_state: refunded</code> for a booking the property declined and refunded</strong>, instead of <code>paid</code>.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.6">
+    <h2>0.5.6 <time datetime="2026-10-07">2026-10-07</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>The skill carries three assistant duties</strong>: compare a payment&#39;s currency as a code, expect a currency one operator refuses, and never read an unanswered query as isolation.</li>
+      <li><strong>Section 17 lists <code>event.schema.json</code> for the event-stream message</strong>, so the schema list covers every JSON object the wire carries.</li>
+      <li><strong>The formal protocol makes submitting the KYC event&#39;s attestation optional</strong>, matching the narrative specification and the skill.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.6, matching skill 0.5.6.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.6.md</code>.</strong></li>
+      <li><strong>A malformed date or timestamp in an action body is refused with a hint naming <code>YYYY-MM-DD</code> or ISO 8601</strong>, as the query channel already did.</li>
+      <li><strong>The device-authorization call refuses an empty <code>role</code> or <code>scope</code> with <code>400 invalid_request</code></strong>, as it refuses any other value.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.5">
+    <h2>0.5.5 <span>listener 0.5.5</span> <time datetime="2026-10-07">2026-10-07</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>The listener reads the access token from a file, never its command line</strong>, and the skill has the assistant show its key&#39;s fingerprint during binding.</li>
+      <li><strong>The skill describes what an assistant meets</strong>: optional KYC submit, discovery versus fixed paths, opt-in <code>limit</code>, operator-chosen toll counts, <code>action_failed</code>.</li>
+      <li><strong>The <code>kyc_required</code> hint names only a KYC path the origin serves</strong>, and says verification is not available where it serves none.</li>
+      <li><strong>Onboarding says the payment provider, not Stripe, returns the human to the payment-setup return page</strong>, matching the provider-neutral card setup.</li>
+      <li><strong>The specification&#39;s Flow 3 diagram names a payment provider, not Stripe</strong>, matching the provider-neutral card setup.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.5, matching skill 0.5.5.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.5.md</code>, and <code>listen.py</code> is listener 0.5.5</strong>, which reads the bearer token from a file instead of its command line.</li>
+      <li><strong>kiosk-pay-stripe requires <code>customer_resolver:</code> and <code>customer_saver:</code></strong>; its unconfigured fallback charge mode is removed.</li>
+      <li><strong>kiosk-pay-stripe treats a mapped Customer Stripe no longer has as no saved card</strong>, so <code>payment_setup</code> and <code>pay</code> stop answering 500 for that principal.</li>
+      <li><strong>An <code>action_failed</code> detail names the verb and no longer the exception class</strong> the handler raised; the operator&#39;s log still carries both.</li>
+      <li><strong>getgrocery seeds its account holder&#39;s saved card only against stripe-mock</strong>, so a live origin no longer answers her <code>payment_setup</code> with a 500.</li>
+      <li><strong>Every demo&#39;s seeds re-apply the seeded humans&#39; sign-in credentials</strong>, so an account created before it had a password can sign in after the next seed.</li>
+      <li><strong>The seven operator demos send their production session cookie <code>Secure</code>.</strong></li>
+      <li><strong>With neither a <code>kyc_provider</code> nor a <code>kyc_public_key</code>, the <code>kyc_required</code> hint names no KYC path</strong> and says verification is not available at this origin.</li>
+      <li><strong>A person&#39;s KYC grants and open verifications are deleted with their user row</strong>; the seven demos add the key with a new migration.</li>
+      <li><strong>The <code>payment_setup</code> return page says the assistant can pay only when the provider confirms it</strong>; otherwise it says the assistant will check.</li>
+      <li><strong>The <code>kyc_required</code> hint names <code>request_kyc</code> only where a <code>kyc_provider</code> serves it</strong>, and a wrong-subject refusal names the principal each KYC path compares.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.4">
+    <h2>0.5.4 <time datetime="2026-10-07">2026-10-07</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>The skill caps open KYC checks per human, records attributes against the human for all their assistants, and names <code>payment_setup</code> as the fixed path.</strong></li>
+      <li><strong>KYC attributes are recorded against the person, and the provider callback <code>POST /kiosk/kyc/callback</code> is specified</strong> beside <code>request_kyc</code>, with its answers and the open-verification cap.</li>
+      <li><strong><code>payment_setup</code> is a fixed path of the <code>pay</code> module, provider-neutral, with a return page</strong> that pushes the <code>payment_setup</code> topic once the human finishes.</li>
+      <li><strong>The site keeps only the check scripts that have caught defects or guard the skill cuts; five scripts and their workflows are removed.</strong></li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.4, matching skill 0.5.4.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.4.md</code></strong>: the KYC cap and attributes are the human&#39;s, and <code>payment_setup</code> is a fixed path. The listener stays <code>listen-v0.5.3.py</code>.</li>
+      <li><strong>kiosk-server serves <code>request_kyc</code> and the KYC callback, recording attributes against the person</strong>; getgrocery and skooti drop their copies; the broker client is kiosk-kyc-prove.</li>
+      <li><strong>kiosk-server serves <code>payment_setup</code> and the provider&#39;s return page</strong>; three demos drop their copies, and the Stripe-specific return logic moves into kiosk-pay-stripe.</li>
+      <li><strong>The repository keeps only the check scripts that have caught defects; the rest and their CI jobs are removed.</strong></li>
+      <li><strong>The production boot refusal for an in-process event store now says why: a restart loses events inside the 24-hour retention window.</strong></li>
+    </ul>
+  </section>
+
+  <section id="v0.5.3">
+    <h2>0.5.3 <span>listener 0.5.3</span> <time datetime="2026-10-06">2026-10-06</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Waking is mandatory</strong>: the listener runs as a background process the runtime tracks, and on an event the assistant acts and tells its human unasked.</li>
+      <li><strong>The event cursor lives in the conversation</strong>, so a rewound session resumes from the id it knew; the operator holds none, and the support for runtimes that cannot be woken is removed.</li>
+      <li><strong>A KYC attestation is valid for one year</strong>: the provider sets <code>exp</code> one year after <code>iat</code>, so one recovered from the event tail is still good to submit.</li>
+      <li><strong>Before 1.0 version parity is the full MAJOR.MINOR.PATCH</strong> of protocol, implementation and skill; from 1.0 any two patches of one MINOR interoperate.</li>
+      <li><strong>The specification&#39;s <code>Kiosk-Min-Client</code> example and the discovery examples now show <code>0.5.2</code></strong>, the floor every 0.5.2 origin sends.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.3, matching skill 0.5.3.</strong></li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.3.md</code> and <code>listen-v0.5.3.py</code></strong>: waking is mandatory and the event cursor lives in the conversation.</li>
+      <li><strong>The KYC broker mints attestations valid for one year</strong> instead of one hour, so one recovered from the event tail can still be submitted.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.2">
+    <h2>0.5.2 <span>listener 0.5.2</span> <time datetime="2026-10-06">2026-10-06</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>The identity check waits on the <code>kyc_verification</code> event</strong>, which carries the signed attestation; the skill has no status verb and no poll for it.</li>
+      <li><strong>The skill says how an event wakes an idle assistant</strong>: run the listener so it exits on the event, as a background process the runtime tracks, and restart it with <code>--since</code>.</li>
+      <li><strong>The listener leaves on <code>501 module_not_served</code> with exit 4</strong> instead of reporting a dead token or re-minting one for ever, and sends no <code>Origin</code> header.</li>
+      <li><strong>The skill lists the <code>token_expired</code> disconnect, and the event stream among the capabilities <code>module_not_served</code> can name.</strong></li>
+      <li><strong>KYC (§12.4)</strong>: <code>request_kyc</code> opens a verification and the <code>kyc_verification</code> event delivers the signed attestation; KYC by verification implies the event stream.</li>
+      <li><strong><code>payment/return/</code> is withdrawn</strong>: a card-setup flow returns the human to the operator&#39;s own origin, so nothing sent anyone to the site&#39;s page.</li>
+      <li><strong>§4.1 states how an unserved hostname is answered</strong>: as the default origin, and a proof&#39;s <code>aud</code> must be the origin a request is answered as.</li>
+      <li><strong>One deployment MAY serve several origins, each its own operator</strong> (§4.1), replacing the one-origin constraint. Onboarding: redirect an alias, list a second business.</li>
+      <li><strong>§8.5.4 says what a cursor is</strong>: an event <code>id</code> or <code>head</code>, a non-negative integer within JSON&#39;s exact range. Any other <code>since</code>, or a <code>subject</code> that is not a string, is refused.</li>
+      <li><strong>The onboarding guide states the one-origin constraint where an operator sets the issuer</strong>, and says to redirect an alias hostname to the canonical origin rather than serve both.</li>
+      <li><strong>The response-shape rule names <code>schema</code>&#39;s third member.</strong> It said <code>{queries, actions}</code> where §8.3 beside it says <code>{queries, actions, events}</code>, which is what an origin serves.</li>
+      <li><strong>§8.5.4 states the rule instead of listing shapes, and no frame may get silence</strong>: an unresolvable <code>unsubscribe</code> or an unreadable <code>since</code> is refused, a live <code>subscribe</code> re-confirmed.</li>
+      <li><strong>The onboarding guide&#39;s list of what the mount draws now carries <code>/kiosk/events</code></strong> — the one path it serves that the page never mentioned.</li>
+      <li><strong>§8.5.4 says what a frame the operator cannot act on gets</strong>: <code>reject_subscription</code> where it names a subscription, an <code>invalid_request</code> close where it names none. Silence was the gap.</li>
+      <li><strong>An operator that serves no topics answers <code>501 module_not_served</code> at <code>&lt;endpoint&gt;/events</code>.</strong> Declining the events module is stated rather than left for a porter to invent.</li>
+      <li><strong>The narrative page&#39;s <code>unsubscribed</code> frame now prints <code>topic</code></strong>, which the formal spec, the skill and the wire all carry. A port read it one member short.</li>
+      <li><strong>§8.5 publishes the framing a port has to produce</strong>: the <code>welcome</code> frame, the refused-upgrade disconnect, the <code>identifier</code>/<code>message</code> envelope and <code>confirm_subscription</code>.</li>
+      <li><strong>§8.5.6 tells an expired credential from a revoked one</strong>: a token that merely aged out closes with <code>reconnect: true</code>, because minting another and resuming is what the assistant can do.</li>
+      <li><strong>§16.3 now says what a caller meets when an operator validates a request body:</strong> <code>400 bad_request</code> naming the member, never another status.</li>
+      <li><strong>§16.1: the note that the reference cannot decline binding is gone.</strong> It can: a switch puts every binding path on <code>501 module_not_served</code>, and the profile is exercised.</li>
+      <li><strong>§8.1: an indexed <code>name%5B0%5D=value</code> is not an array either</strong> — it is a one-level object, and a <code>400</code> where the schema declares an array. The porter note says where decoding sits.</li>
+      <li><strong>The onboarding page stopped demanding a <code>CREATE ROLE</code> Postgres login to run a demo.</strong> <code>demo:setup</code> no longer creates the <code>app_role</code> group role; <code>psql</code> on PATH is what it needs.</li>
+      <li><strong>The narrative page&#39;s conformance checklist gains the events module, in both profiles.</strong> The formal spec carried it, and the page promises the two match item for item.</li>
+      <li><strong>§8.5.3: the <code>Authorization</code> header alone authorises the stream upgrade — an operator must accept one carrying no <code>Origin</code>.</strong> A browser forgery check there locks out every other stack.</li>
+      <li><strong>§8.5.3 binds the operator too: the access token is accepted in the <code>Authorization</code> header and nowhere else on the upgrade.</strong> The assistant-side MUST had no counterpart.</li>
+      <li><strong>§8.5.4 now names the pinned reference listener as the client that can only subscribe in the URL</strong>, instead of arguing from one that might exist.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem, <code>API_VERSION</code> and <code>MIN_CLIENT</code> are 0.5.2, matching skill 0.5.2</strong>: before 1.0 they all carry one version, and <code>bin/check-version-parity</code> holds the full number.</li>
+      <li><strong><code>Kiosk::Protocol::MIN_CLIENT</code> is <code>0.5.2</code></strong>, so <code>Kiosk-Min-Client</code> and <code>kiosk.min_client</code> tell a 0.5.0 or 0.5.1 assistant it is behind a 0.5.2 origin.</li>
+      <li><strong><code>/auth.md</code> names the event stream among the modules <code>501 module_not_served</code> can mean</strong>, beside binding, payment and KYC.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.2.md</code></strong>, the cut that waits on the <code>kyc_verification</code> event for the attestation and says how an event wakes an idle assistant.</li>
+      <li><strong>The pinned listener leaves on <code>501 module_not_served</code> with exit 4</strong> rather than reporting a dead token or re-minting for ever, and sends no <code>Origin</code> header.</li>
+      <li><strong>getgrocery and skooti: the <code>kyc_verification</code> event carries the signed attestation</strong>, and <code>kyc_status</code> is removed.</li>
+      <li><strong>getgrocery and skooti: narrowing <code>kyc_verification</code> to a request id works</strong>; the subject rule queried a column the table lacks and refused every one.</li>
+      <li><strong>A subscription that names no <code>subject</code> is accepted on every topic</strong> and carries what was addressed to the subscriber; the subject rule answers for a named one.</li>
+      <li><strong>Security: a revoked or expired token closes every events socket, subscribed or not</strong>, and can no longer open a subscription on one held from before.</li>
+      <li><strong>The Stripe return url follows the origin being served</strong>: <code>kiosk-pay-stripe</code> joins a <code>return_url:</code> path to it, and getgrocery passes a path.</li>
+      <li><strong><code>kiosk-server</code> ships a <code>requirements.txt</code> for <code>listen.py</code></strong>, so every shipped python file with a third-party import has a manifest beside it.</li>
+      <li><strong>The e2e harness serves <code>localhost</code> beside <code>127.0.0.1</code> as a second origin</strong> and proves one key makes two accounts and no token crosses between them.</li>
+      <li><strong>One deployment may serve several origins, each its own operator</strong> (<code>c.additional_origins</code>). Accounts, tokens, proofs and mandates made on one are refused on another.</li>
+      <li><strong><code>kiosk-pow-equihash</code> ships a <code>requirements.txt</code> for its solver</strong>, so all three PoW backends declare their python dependency in a manifest rather than in prose.</li>
+      <li><strong>The event stream refuses a <code>since</code> that is not a cursor and a <code>subject</code> that is not a string.</strong> A word read as 0; an out-of-range integer opened it without its replay.</li>
+      <li><strong>A boot warning for an <code>issuer</code> that cannot be right.</strong> Unset warns in every environment; a loopback origin only outside development and test, so local demo boots stay quiet.</li>
+      <li><strong>The demo discovery drivers name the <code>schema</code> catalogue as it is served.</strong> Four copies printed <code>{queries, actions}</code>, or the retired <code>{verbs, …}</code>, where the origin answers <code>events</code> too.</li>
+      <li><strong>Three more event-stream frames are answered, not dropped.</strong> An <code>unsubscribe</code> nothing resolves and an unreadable <code>since</code> are refused; a duplicate <code>subscribe</code> is re-confirmed.</li>
+      <li><strong>The end-to-end harness declares its python dependencies in <code>e2e/requirements.txt</code>.</strong> CI installs that file, the pre-flight&#39;s remedy names it, and a fresh clone needs no prose.</li>
+      <li><strong>The demos&#39; binding helper returns only what a driver reads.</strong> <code>BoundAssistant</code> drops <code>key</code>, <code>pem</code> and <code>session</code>, and the <code>session:</code> reuse parameter no caller passed is gone.</li>
+      <li><strong>A frame the event stream cannot act on is now answered instead of dropped.</strong> A malformed <code>subscribe</code> gets <code>reject_subscription</code>; a frame naming no subscription closes the socket.</li>
+      <li><strong>An origin that declares no topic answers <code>501 module_not_served</code> at <code>&lt;endpoint&gt;/events</code>.</strong> It no longer welcomes an authenticated socket it can never stream on.</li>
+      <li><strong>The two KYC demos stop publishing an opaque broker token as <code>format: &quot;uuid&quot;</code>, and each check task now validates the event it emitted against the schema its origin serves.</strong></li>
+      <li><strong>An event replay no longer hands a subscription another topic&#39;s events.</strong> The filter compared the subject alone, so a subscriber got <code>data</code> its own topic&#39;s schema rejects.</li>
+      <li><strong>A revoked event stream is told <code>reconnect: false</code> once.</strong> Action Cable&#39;s own <code>close</code> carries the typed reason and the flag, so no defaulted <code>true</code> follows a millisecond later.</li>
+      <li><strong>Security: philslist keeps the seller&#39;s contact line out of its request log.</strong> The board publishes that text; the operator need not keep a second copy.</li>
+      <li><strong>Security: a handler dispatch inherits the host&#39;s parameter filter.</strong> A filtered field was masked on the wire request&#39;s log line and written in full on the handler&#39;s.</li>
+      <li><strong>The spent <code>box-prep-2026-08-11.sh</code> one-shot is out of <code>deploy/</code>.</strong> <code>rollout.sh</code> renders every env file from its template on every run; the runbook no longer ships it.</li>
+      <li><strong>Security: getgrocery filters the customer&#39;s postal address out of its request log.</strong> A demo-domain personal field is the operator&#39;s to name; the engine names only the wire&#39;s.</li>
+      <li><strong>Security: an origin no longer writes the caller&#39;s proofs and mandates into its request log.</strong> The engine filters its own field names; the three demos missing Rails&#39; list now ship it.</li>
+      <li><strong>A topic may declare <code>description nil</code>, which the published topic descriptor has always permitted and the engine refused.</strong> What is required is the declaration, not a truthy value.</li>
+      <li><strong>The in-process event store stops answering <code>truncated: true</code> for a cursor one below the retained floor.</strong> The durable store never did; a complete range now reads as complete in both.</li>
+      <li><strong>An event stream whose access token merely aged out now closes with <code>token_expired</code> and <code>reconnect: true</code>.</strong> <code>revoked</code> and its terminal flag are kept for a credential that is.</li>
+      <li><strong>Security: the event stream now stops when a human revokes.</strong> Its re-authorisation raised every tick, so a withdrawn reach kept delivering and a revoked token kept its socket.</li>
+      <li><strong>The manage-assistants listing now only falls back to a spend-free query when the settlements table is absent.</strong> Every other statement error reaches the operator.</li>
+      <li><strong>Every demo task that boots a server, and <code>e2e/run.sh</code>, now refuse to start when something already holds the port, naming the pid.</strong> They used to drive it and pass.</li>
+      <li><strong>A database now records which MAJOR of the Kiosk schema it carries, and the engine refuses a boot two or more majors ahead of it.</strong> Crossing a major stops at it.</li>
+      <li><strong><code>rails g kiosk:install</code> now draws the wire</strong>: it writes <code>config/routes/kiosk.rb</code> with the engine mounted and the <code>draw(:kiosk)</code> line that reaches it.</li>
+      <li><strong>getgrocery&#39;s stuck-<code>paying</code> sweep now asks Stripe</strong>: charged heals the order, not charged releases the claim, no answer keeps it. <code>check:reconcile</code> gates all three.</li>
+      <li><strong>every reserved-plane JSON body is held to the object §17 publishes for it</strong>. A wrong-typed member is a 400 naming it, not a verifier raising deeper in.</li>
+      <li><strong>An origin can now decline account binding — <code>c.serve_account_binding = false</code> — so the reference exhibits the optional-module profile the spec defines.</strong> Discovery is unchanged.</li>
+      <li><strong>The event stream accepts an upgrade that sends no <code>Origin</code>.</strong> Action Cable&#39;s browser forgery check was answering a bare 404 to every non-browser client on the advertised URL.</li>
+      <li><strong>The README names <code>bin/check-prose-counts</code> for the four-document <code>before-after.md</code> set.</strong> It credited <code>bin/check-demo-copies</code>, which says nothing about the count.</li>
+      <li><strong><code>CONTRIBUTING.md</code>, the container file and the CI comment no longer sell a <code>CREATE ROLE</code> privilege the demos stopped needing.</strong> Only <code>e2e/run.sh</code> still creates a role.</li>
+      <li><strong>The two engine event-store files say what the code does.</strong> The correction that set the retention floor and the retired row-count ceiling are in the commit instead.</li>
+      <li><strong>The eight demo lockfiles resolve activesupport 8.1.4 and json 3.</strong> The positional <code>JSON.parse</code> caller that made a <code>bundle update json</code> fatal in a demo is gone.</li>
+      <li><strong><code>bin/check-refusal-assertions</code> and <code>bin/check-redteam-headers</code> read a Ruby comment as a comment.</strong> A stray delimiter in one could move where a beat&#39;s call ended.</li>
+      <li><strong>stylish’s <code>salons</code> query publishes each salon’s IANA zone.</strong> It was the only clock an assistant needed before booking and the only one no reachable verb carried.</li>
+      <li><strong>Every demo and the engine default pin <code>skill-v0.5.1.md</code></strong>, the cut that asks the human’s time zone once and says how to hand over a bearer credential.</li>
+      <li><strong>A signed-out human landing on the claim ceremony’s verify page is sent to the operator’s sign-in, as on the manage-assistants page.</strong> All seven demos now set <code>sign_in_path</code>.</li>
+      <li><strong><code>bin/check-demo-derivations</code> checks the one block kind the demo narratives still carry, and refuses any other.</strong> The transcript and snippet machinery had no input left.</li>
+      <li><strong><code>demo:setup</code> no longer creates an <code>app_role</code> group role nothing uses, so a demo needs no <code>CREATE ROLE</code> login.</strong> The task is the one <code>db:drop … db:seed</code> line in every demo.</li>
+      <li><strong><code>deploy/README.md</code> says the shipped systemd unit is a reference the fleet does not run as is.</strong> The box runs as <code>ubuntu</code> with no hardening block; the runbook now says so.</li>
+      <li><strong>stylish&#39;s two <code>slot</code> refusals are driven by <code>check:clock_spec</code> through stand-ins, and the operation says the wire&#39;s own validation answers first.</strong> Nothing reached either branch.</li>
+      <li><strong>stylish&#39;s salon-clock spec holds the per-salon zone read through a stand-in, and its header names the section its watched fail reddens.</strong> Both coverage claims were false.</li>
+      <li><strong>skooti&#39;s rental verbs publish the <code>exp</code> read back out of the token they signed.</strong> It was a second copy of the lifetime, and nothing held the two equal.</li>
+      <li><strong>atablefor&#39;s README, seed, initializer and script headers say the seatings roll on each restaurant&#39;s own clock.</strong> Eight sentences still named the origin&#39;s zone.</li>
+      <li><strong>getgrocery&#39;s back office badges an order out for delivery and a delivered one by name.</strong> A delivered basket read PAID, because the badge only knew a settlement.</li>
+      <li><strong>getgrocery&#39;s <code>my_orders</code> declares all six order states as an enum, courier states included.</strong> The description named four; a delivered basket was published under none of them.</li>
+      <li><strong><code>bin/check-demo-copies</code> holds the Kiosk env block of every operator demo&#39;s <code>development.rb</code> in lockstep.</strong> Only the host line and getgrocery&#39;s payment paragraph may differ.</li>
+      <li><strong>The published onboarding guide is compared against this checkout on every push, in the CI job that already checks kiosk.tech out.</strong> Until now only the daily schedule asked.</li>
+      <li><strong>getgrocery&#39;s order model stops naming a <code>scheduled</code> state nothing writes.</strong> A delivery move leaves the row <code>rescheduled</code>, so the one-member set beside it goes too.</li>
+      <li><strong>getgrocery&#39;s out-of-zone refusal names the served districts instead of a range over them.</strong> The range claimed D18 and D19, which it does not deliver to.</li>
+      <li><strong><code>bin/check-tls-seam</code> now runs in CI, and a check whose CI arm is not its bare run declares that arm in its own source.</strong> A bare local battery read a red tree as green.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.1">
+    <h2>0.5.1 <time datetime="2026-09-28">2026-09-28</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Both specification pages now say which earlier 0.5 cut a 0.5.1 operator no longer serves</strong>, the sentence every series needs once it has more than one cut.</li>
+      <li><strong><code>skill-v0.5.1.md</code>: the human’s time zone is asked once and reused at every operator</strong>, and an operator that never sees it falls back to the service place’s clock.</li>
+      <li><strong><code>skill-v0.5.1.md</code>: a bearer credential in an answer goes to the human once, never repeated or logged.</strong> The skill had a rule for relaying a URL and none for a capability.</li>
+      <li><strong>§12 now names which id an attestation&#39;s <code>sub</code> must equal</strong> — the principal, not the AI assistant&#39;s own account — so the narrative page says what the formal spec already did.</li>
+    </ul>
+  </section>
+
+  <section id="v0.5.0">
+    <h2>0.5.0 <time datetime="2026-09-25">2026-09-25</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>The protocol is 0.5, and <code>skill-v0.5.0.md</code> is the renumber.</strong> The catalog&#39;s third array is REQUIRED, which a 0.4 reader refuses, so the wire now advertises the number it is.</li>
+      <li><strong>The skill forbids promising a notification it cannot deliver.</strong> Say you will be told only while holding a foreground wait or a helper that can wake you.</li>
+      <li><strong>A release section names which artefact line it cut</strong>, because the skill and the pinned listener carry independent numbers. <code>CHANGELOG-RULE.md</code> has the rule.</li>
+      <li><strong>The landing drops operator-push events from its known TODOs</strong> — the event stream shipped — and dates the Hermes run to the 0.4 wire it ran against.</li>
+      <li><strong>The onboarding guide names the demo task that runs the worked flow, <code>rake check:shop</code>, instead of the retired <code>rake demo</code></strong>.</li>
+      <li><strong>Both specification pages now say the wire may still change before 1.0</strong>, which is what the landing already told a reader and what this week&#39;s event-stream change demonstrated.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>The protocol is 0.5.0, and <code>min_client</code> with it.</strong> The catalogue&#39;s REQUIRED <code>events</code> array broke 0.4, so every gem, constraint and lock moves to the line the wire speaks.</li>
+      <li><strong>The fleet re-pins to <code>skill-v0.5.0.md</code>.</strong> All seven operator demos and the engine default move <code>skill_url</code> and <code>skill_sha256</code> together.</li>
+      <li><strong>Shipped comments stop dating what the wire does by the version that introduced it.</strong> <code>bin/check-shipped-archaeology</code> R5 widened on its own when the wire moved.</li>
+      <li><strong>0.5.0 is the first release section every record carries.</strong> Nothing here has ever been tagged or published, so everything under <code>[Unreleased]</code> is in it.</li>
+      <li><strong>A demo task says what it is by its namespace: <code>check:</code> asserts, <code>demo:</code> is one a person runs and reads</strong>. The bare <code>rake demo</code> was a smoke test called a demo; it is gone.</li>
+      <li><strong>the README taglines no longer put a database in Kiosk&#39;s headline</strong>. Kiosk is named as the protocol it is; Postgres stays where the implementation&#39;s requirements are stated.</li>
+      <li><strong><code>listen.py</code> gains a one-shot wait: <code>--until-event</code> exits 0 on the first event and 5 at the deadline.</strong> A wait held in the foreground costs what the human took.</li>
+      <li><strong>The fleet re-pins to <code>skill-v0.4.17.md</code> and <code>events/listen-v0.5.1.py</code>.</strong> All seven demos and the engine default move URL and digest together.</li>
+      <li><strong><code>deploy/rollout.sh</code> is 65 lines and takes no arguments: it renders, keeps or mints, names what it cannot, and writes owner and mode as two literal lines.</strong></li>
+      <li><strong><code>deploy/rollout.sh --apply</code> now gives every env file to the account the deploy hook runs as, at <code>0640</code>, instead of preserving what it finds and warning about it.</strong></li>
+      <li><strong><code>deploy/rollout.sh</code> preserves an env file&#39;s owner and mode rather than setting them, and reports who can read it.</strong> Tightening them took the deploy hook&#39;s access away on the fleet.</li>
+      <li><strong>The fleet re-pins to <code>skill-v0.4.16.md</code>, the cut that puts the two out-of-band waits on the event stream.</strong> All seven demos and the engine default move URL and digest together.</li>
+      <li><strong><code>bin/check-listener-pin</code> now asks the ALIAS whether the current skill pins the listener, not &quot;some published cut&quot;.</strong> A cut is immutable, so the wide question answers yes for ever.</li>
+      <li><strong><code>deploy/rollout.sh</code> makes <code>deploy/env/*.env.example</code> drive the boxes, which nothing in any repository did before.</strong> A missing secret stops the run rather than writing a blank.</li>
+      <li><strong>An origin that declares an event topic and leaves the in-process store in place is refused at production boot.</strong> One declaring no topic is untouched.</li>
+      <li><strong>skooti told an assistant a verb unlocks the vehicle, on the same served document that says nothing on this wire opens a lock.</strong> Both sentences now name activation.</li>
+      <li><strong>There is always a default role: an origin declaring <code>c.roles</code> and no <code>registration_role</code> is refused at boot.</strong> One declaring no roles is untouched.</li>
+      <li><strong>A rebind resolves its role the way a fresh key does — the operator&#39;s default, never the assistant&#39;s previous one.</strong> No role outlives the principal it was resolved for.</li>
+      <li><strong>The <code>json &lt; 3.0</code> pin comes off: activesupport 8.1.4 calls <code>JSON.parse</code> with a keyword splat.</strong> The four declarations, the check that watched the condition and its CI job all go.</li>
+      <li><strong>Entries are grouped by the release that carries them, version and date in the heading.</strong> A patch cut is as visible as a minor; <code>CHANGELOG-RULE.md</code> carries the rules.</li>
+    </ul>
+  </section>
+
+  <section id="v0.4.17">
+    <h2>0.4.17 <time datetime="2026-09-25">2026-09-25</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong><code>skill-v0.4.17</code> published: the skill now says HOW to wait, not only what to subscribe to.</strong> A wait blocks in the foreground; a subscription is delivered by a stored cursor.</li>
+      <li><strong><code>events/listen-v0.5.1.py</code> published.</strong> Its <code>--until-event</code> returns on the first event instead of on the deadline, so a foreground wait costs what the human took.</li>
+    </ul>
+  </section>
+
+  <section id="v0.4.16">
+    <h2>0.4.16 <time datetime="2026-09-25">2026-09-25</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong><code>skill-v0.4.16</code> published: an assistant is told a wait is over, not left asking.</strong> It subscribes to the event stream for the identity check and the card; polling is the fallback.</li>
+      <li><strong>The skill pins <code>events/listen-v0.5.0.py</code> by SHA-256</strong>, the way it has always pinned the proof-of-work solver — fetch, verify, run, and never write a client of your own.</li>
+      <li><strong>§6.3 and §5.4: role totality reaches self-registration, the one way in with no human.</strong> An operator that assigns roles at all assigns one to every AI assistant it admits.</li>
+      <li><strong>§6.3: the reference resolves a role-less rebind from the operator&#39;s default, not from the assistant&#39;s previous role.</strong> The forbidden mixture now costs staff their own access.</li>
+      <li><strong>An assistant MUST put the upgrade&#39;s token in the <code>Authorization</code> header.</strong> With the ticket gone there is one place a credential goes, so the page says so.</li>
+      <li><strong>Entries are grouped by the cut that carries them, version and date in the heading.</strong> A skill patch is as visible as a minor; <code>CHANGELOG-RULE.md</code> carries the rules.</li>
+    </ul>
+  </section>
+</article>
+</body>
+</html>

@@ -1,0 +1,31 @@
+name: changelog-page
+
+# changelog.html is the build of this repository's CHANGELOG.md and the
+# reference implementation's (bin/check-changelog-page). The reference
+# repository is public, so the job checks out its main beside this one. The
+# daily run catches a release cut pushed there after the page was last built.
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 6 * * *'
+
+jobs:
+  changelog-page:
+    name: the changelog page is the build of both changelogs (bin/check-changelog-page)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: kiosk-hq/kiosk
+          path: reference
+
+      # The runner's preinstalled Ruby: the check is stdlib-only.
+      - name: Each rule of the build holds on a fixture
+        run: ruby bin/check-changelog-page --self-test
+
+      - name: The page is the build of both changelogs
+        run: ruby bin/check-changelog-page --reference reference

@@ -1,0 +1,210 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# check-changelog-page -- `changelog.html` is the build of the two changelogs.
+#
+# The page has one section per release, newest first. A release joins the
+# section of this repository's `CHANGELOG.md` (the specification, the skill and
+# the listener) and the section of the same number in the reference
+# implementation's `CHANGELOG.md`. Unreleased entries and the entries written
+# before release sections are not on the page. An entry loses its leading date
+# (the release heading carries one) and the task-store citations in brackets,
+# which no reader of the site can open.
+#
+#   bin/check-changelog-page [--reference DIR]          fail when the page is stale
+#   bin/check-changelog-page --write [--reference DIR]  write the page
+#   bin/check-changelog-page --self-test                check each rule on a fixture
+#
+# DIR is the reference checkout, `../reference` by default. Without it the run
+# fails: the page cannot be checked from one half.
+#
+# After a release cut is pushed to the reference repository, run `--write` here
+# and push the page. CI checks the page against the reference `main` on every
+# push and every day.
+
+require 'cgi'
+require 'optparse'
+require 'tmpdir'
+
+ROOT = File.expand_path('..', __dir__)
+PAGE = File.join(ROOT, 'changelog.html')
+
+# `## [skill 0.6.12] — 2026-10-24`, `## [skill 0.5.19 · listener 0.5.19] — …`, `## [0.4.17] — …`
+SECTION = /\A## \[(?<label>[^\]]+)\] — (?<date>\d{4}-\d{2}-\d{2})\s*\z/
+VERSION = /(\d+\.\d+\.\d+)/
+CITATION = /\s*\((?:(?:[KT]-\d+|ADR-\d+)[^)]*)\)/
+DATE_PREFIX = /\A\d{4}-\d{2}-\d{2}: /
+
+Release = Struct.new(:version, :date, :label, :site, :reference)
+
+# { version => [label, date, entries] } for each release section of `text`.
+def sections(text)
+  out = {}
+  current = nil
+  text.each_line(chomp: true) do |line|
+    if line.start_with?('## ')
+      match = SECTION.match(line)
+      current = match && [match[:label], match[:date], []]
+      out[match[:label][VERSION, 1]] = current if match
+    elsif current && line.start_with?('- ')
+      current[2] << line.delete_prefix('- ')
+    elsif current && !line.strip.empty?
+      current[2][-1] = "#{current[2][-1]} #{line.strip}"
+    end
+  end
+  out
+end
+
+def releases(site_text, reference_text)
+  site = sections(site_text)
+  reference = sections(reference_text)
+  versions = (site.keys | reference.keys).sort_by { |v| Gem::Version.new(v) }.reverse
+  versions.map do |v|
+    label, date, = site[v] || reference[v]
+    Release.new(v, date, label, site.dig(v, 2) || [], reference.dig(v, 2) || [])
+  end
+end
+
+def inline(entry)
+  text = CGI.escapeHTML(entry.sub(DATE_PREFIX, '').gsub(CITATION, ''))
+  text.gsub(/`([^`]+)`/) { "<code>#{Regexp.last_match(1)}</code>" }
+      .gsub(/\*\*(.+?)\*\*/) { "<strong>#{Regexp.last_match(1)}</strong>" }
+end
+
+def list(title, entries)
+  return '' if entries.empty?
+
+  items = entries.map { |e| "      <li>#{inline(e)}</li>\n" }.join
+  "    <h3>#{title}</h3>\n    <ul>\n#{items}    </ul>\n"
+end
+
+def release_html(release)
+  listener = release.label[/listener (\d+\.\d+\.\d+)/, 1]
+  heading = listener ? "#{release.version} <span>listener #{listener}</span>" : release.version
+  "  <section id=\"v#{release.version}\">\n" \
+    "    <h2>#{heading} <time datetime=\"#{release.date}\">#{release.date}</time></h2>\n" \
+    "#{list('Specification and skill', release.site)}" \
+    "#{list('Reference implementation', release.reference)}" \
+    "  </section>\n"
+end
+
+def page(site_text, reference_text)
+  body = releases(site_text, reference_text).map { |r| release_html(r) }.join("\n")
+  <<~HTML
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="icon" href="/favicon.ico" sizes="any">
+      <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+      <title>Kiosk — Changelog</title>
+      <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+          background:#0d0d0d;color:#e0e0e0;line-height:1.7;letter-spacing:-0.01em;
+        }
+        .back{display:inline-block;font-size:13px;color:#888;text-decoration:none;margin:20px 0 0 16px}
+        .back:hover{color:#aaa}
+        article{max-width:760px;margin:0 auto;padding:24px 16px 80px}
+        h1{font-size:28px;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px}
+        h2{font-size:18px;font-weight:700;margin:32px 0 6px;padding-top:16px;border-top:1px solid #1a1a1a}
+        h2 span,h2 time{font-size:13px;font-weight:400;color:#888;margin-left:8px}
+        h3{font-size:13px;font-weight:600;color:#888;margin:10px 0 4px}
+        p,li{font-size:15px;color:#bbb}
+        p{margin-bottom:10px}
+        ul{padding-left:20px}
+        li{margin-bottom:4px;overflow-wrap:anywhere}
+        a{color:#8bc49a;text-decoration:none}
+        a:hover{text-decoration:underline}
+        code{font-family:'SF Mono','Fira Mono',monospace;font-size:13px;background:#1a1a1a;padding:2px 6px;border-radius:4px;color:#ccc;overflow-wrap:anywhere}
+        strong{color:#e0e0e0}
+      </style>
+    </head>
+    <body>
+    <a href="/" class="back">← kiosk.tech</a>
+    <article>
+      <h1>Changelog</h1>
+      <p>What each release changed, newest first. The specification, the skill and the reference implementation share one version number. Sources: <a href="https://github.com/kiosk-hq/kiosk.tech/blob/main/CHANGELOG.md">the site's changelog</a> and <a href="https://github.com/kiosk-hq/kiosk/blob/main/CHANGELOG.md">the reference implementation's changelog</a>.</p>
+    #{body}</article>
+    </body>
+    </html>
+  HTML
+end
+
+def build(reference_dir)
+  reference_log = File.join(reference_dir, 'CHANGELOG.md')
+  raise "no #{reference_log}: pass --reference DIR, the reference implementation checkout" unless File.file?(reference_log)
+
+  page(File.read(File.join(ROOT, 'CHANGELOG.md')), File.read(reference_log))
+end
+
+SITE_FIXTURE = <<~MD
+  ## [Unreleased]
+
+  - 2026-10-25: Not released yet.
+
+  ## [skill 0.2.0 · listener 0.2.0] — 2026-10-24
+
+  - 2026-10-24: **Skill 0.2.0** names `a < b` (K-12, K-13).
+
+  ## [0.1.0] — 2026-10-01
+
+  - 2026-10-01: First cut.
+
+  ## Before release sections
+
+  - 2026-09-01: Old.
+MD
+REFERENCE_FIXTURE = <<~MD
+  ## [0.2.0] — 2026-10-24
+
+  - 2026-10-24: The engine answers a 401 with a challenge (ADR-0007).
+MD
+
+def self_test
+  built = page(SITE_FIXTURE, REFERENCE_FIXTURE)
+  arms = {
+    'a release joins both records' => built.include?('<li>The engine answers a 401 with a challenge.</li>') &&
+                                      built.include?('<strong>Skill 0.2.0</strong> names <code>a &lt; b</code>.'),
+    'newest release first' => built.index('id="v0.2.0"') < built.index('id="v0.1.0"'),
+    'the listener is named' => built.include?('0.2.0 <span>listener 0.2.0</span>'),
+    'unreleased and older entries stay off' => !built.include?('Not released') && !built.include?('Old.'),
+    'a stale page is refused' => page(SITE_FIXTURE.sub('First cut.', 'Changed.'), REFERENCE_FIXTURE) != built,
+    'a missing reference is refused' => begin
+      build(Dir.mktmpdir)
+      false
+    rescue RuntimeError
+      true
+    end
+  }
+  arms.each { |name, ok| puts "#{ok ? 'holds' : 'FAILS'}: #{name}" }
+  exit(arms.values.all? ? 0 : 1)
+end
+
+options = { reference: File.expand_path('../reference', ROOT) }
+OptionParser.new do |o|
+  o.on('--reference DIR') { |d| options[:reference] = File.expand_path(d) }
+  o.on('--write') { options[:write] = true }
+  o.on('--self-test') { options[:self_test] = true }
+end.parse!
+
+self_test if options[:self_test]
+
+begin
+  fresh = build(options[:reference])
+rescue RuntimeError => e
+  warn "check-changelog-page: #{e.message}"
+  exit 1
+end
+
+if options[:write]
+  File.write(PAGE, fresh)
+  puts "wrote #{PAGE}"
+elsif File.file?(PAGE) && File.read(PAGE) == fresh
+  puts 'changelog.html is the build of both changelogs'
+else
+  warn 'check-changelog-page: changelog.html is stale. Run bin/check-changelog-page --write and commit the page.'
+  exit 1
+end
