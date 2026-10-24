@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.11"
+  version: "0.6.12"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -495,7 +495,7 @@ Send both in one call, `POST <endpoint>/pay {"checkout_mandate": "...", "payment
 
 ### The receipts
 
-A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs EdDSA with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `checkout_receipt` also names `order_id`: the id in the first line item of the checkout, whatever the name of its key (for example `booking_id`). `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Verify each receipt as you verify the checkout, and compare its `reference` with the mandate that you sent:
+A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs EdDSA with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `checkout_receipt` also names `order_id`: the id in the first line item of the checkout, whatever the name of its key (for example `booking_id`). `payment_receipt` also names `payment_id`, `psp_confirmation_id` and `network_confirmation_id`: the card network's id of the payment, or `not reported by the payment provider` when the payment provider reports none. Verify each receipt as you verify the checkout, and compare its `reference` with the mandate that you sent:
 
 ```python
 # answer: the JSON body of the 200 from pay

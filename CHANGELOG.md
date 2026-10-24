@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.12] — 2026-10-24
+
+- 2026-10-24: **Skill 0.6.12** says that `network_confirmation_id` of a payment receipt is the network's id, or `not reported by the payment provider`.
 - 2026-10-24: The onboarding page and the KYC schema name the operator's KYC provider as what sets the issuer, the key and the audience of an attestation.
 - 2026-10-24: The spec drops the JSON answer an operator MAY give at a human sign-in or sign-out page.
 - 2026-10-24: A payment receipt always carries `network_confirmation_id`: the network's id, or `not reported by the payment provider` when the provider reports none.
