@@ -568,9 +568,14 @@ PROSE_EXTENSIONS = %w[.md .html .json .txt].freeze
 # a plant in either left all six candidate mechanisms in this workspace at exit
 # 0. So the exemption is a predicate over LINES: CHANGELOG.md is history end to
 # end, skills.md exempts its table rows and nothing else.
+#
+# `changelog.html` is the page that bin/check-changelog-page builds from the
+# released sections of CHANGELOG.md and the reference implementation's record.
+# It is the same history, so it takes CHANGELOG.md's exemption in both maps.
 HISTORY_LINES = {
   "skills.md" => ->(line) { line.start_with?("|") },
-  "CHANGELOG.md" => ->(_line) { true }
+  "CHANGELOG.md" => ->(_line) { true },
+  "changelog.html" => ->(_line) { true }
 }.freeze
 
 # THE CURRENT-CUT RULES' history exemption, and it is NARROWER than the one
@@ -608,7 +613,7 @@ HISTORY_LINES = {
 #     sense that matters here — a NEW cut adds a NEW row, and no existing row has
 #     to change for either rule to stay satisfied.
 # Adding a rule here is therefore a decision with a reason, not a default.
-CLAIM_HISTORY_LINES = { "CHANGELOG.md" => ->(_line) { true } }.freeze
+CLAIM_HISTORY_LINES = { "CHANGELOG.md" => ->(_line) { true }, "changelog.html" => ->(_line) { true } }.freeze
 
 CUT_TABLE = "skills.md"
 
@@ -1410,6 +1415,8 @@ def self_test_prose_cases
     # exemption with no red side is how a guard quietly stops guarding.
     ["R1 serves-claim in CHANGELOG.md is history (K-1228)",
      "CHANGELOG.md", "- 2026-08-27: after that wave a 0.4.9 operator serves the same protocol.\n", :green],
+    ["R1 serves-claim on changelog.html, the page built from CHANGELOG.md, is history",
+     "changelog.html", "<li>after that wave a 0.4.9 operator serves the same protocol.</li>\n", :green],
     ["R1 those same serves bytes OUTSIDE CHANGELOG.md still fail (K-1228)",
      "spec/protocol.md", "- 2026-08-27: after that wave a 0.4.9 operator serves the same protocol.\n", :red],
     ["R1 current-skill sentence in CHANGELOG.md is history (K-1228)",

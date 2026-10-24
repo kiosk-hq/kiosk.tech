@@ -34,6 +34,23 @@
 <article>
   <h1>Changelog</h1>
   <p>What each release changed, newest first. The specification, the skill and the reference implementation share one version number. Sources: <a href="https://github.com/kiosk-hq/kiosk.tech/blob/main/CHANGELOG.md">the site's changelog</a> and <a href="https://github.com/kiosk-hq/kiosk/blob/main/CHANGELOG.md">the reference implementation's changelog</a>.</p>
+  <section id="v0.6.13">
+    <h2>0.6.13 <time datetime="2026-10-25">2026-10-25</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.13</strong>, the text of 0.6.12: an <code>invalid_client</code> 401 names <code>Kiosk-Client-Assertion</code>, and the verify page&#39;s 401 names <code>Kiosk-Session</code>. <code>Kiosk-Min-Client</code> stays 0.6.0.</li>
+      <li>The site serves a changelog page, one section per release, built from both changelogs and linked from the landing footer.</li>
+      <li>The spec names the challenge of the <code>invalid_client</code> 401, <code>Kiosk-Client-Assertion</code>, and of the verify page&#39;s 401, <code>Kiosk-Session</code>.</li>
+    </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.13, matching skill 0.6.13, and every demo and the engine default pin <code>skill-v0.6.13.md</code>.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li><code>docker compose up</code> at the root runs the whole demo fleet with the KYC broker and stripe-mock, so payment and the identity check work in containers.</li>
+      <li>The KYC broker waits longer before each new attempt at the operator&#39;s callback (<code>retry_on wait: :polynomially_longer</code>).</li>
+      <li>The <code>invalid_client</code> 401 of the token and device-authorization endpoints names <code>Kiosk-Client-Assertion</code>; the 401 of the engine pages names <code>Kiosk-Session</code>.</li>
+    </ul>
+  </section>
+
   <section id="v0.6.12">
     <h2>0.6.12 <time datetime="2026-10-24">2026-10-24</time></h2>
     <h3>Specification and skill</h3>

@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.13] — 2026-10-25
+
+- 2026-10-25: **Skill 0.6.13**, the text of 0.6.12: an `invalid_client` 401 names `Kiosk-Client-Assertion`, and the verify page's 401 names `Kiosk-Session`. `Kiosk-Min-Client` stays 0.6.0.
 - 2026-10-25: The site serves a changelog page, one section per release, built from both changelogs and linked from the landing footer.
 - 2026-10-25: The spec names the challenge of the `invalid_client` 401, `Kiosk-Client-Assertion`, and of the verify page's 401, `Kiosk-Session`.
 
