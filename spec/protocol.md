@@ -770,10 +770,10 @@ client that a human unlinked is not live. The operator records the `jti` only
 after every other check passes. Every failure is one refusal: `401
 invalid_client` on the `/oauth/*` endpoints, and `401 unauthenticated`
 (Section 9) on the two Kiosk endpoints that take an assertion, `/auth/claim` and
-`/auth/rotate`. Its `error_description` or `hint` says what to correct. The
-`401 unauthenticated` carries `WWW-Authenticate: Kiosk-Client-Assertion
-realm="<issuer>"`: RFC 9110 requires a challenge on every `401`, and no
-registered scheme names a client assertion in the request body.
+`/auth/rotate`. Its `error_description` or `hint` says what to correct. Each
+`401` carries `WWW-Authenticate: Kiosk-Client-Assertion realm="<issuer>"`: RFC
+9110 requires a challenge on every `401`, and no registered scheme names a
+client assertion in the request body.
 
 ### 5.3 The token request
 
@@ -976,7 +976,8 @@ identity.
    on the operator's session-authenticated page (Section 15.8), which names the
    access the approval hands over. A browser with no session there is sent to
    the operator's sign-in page and back; any other caller without a session is
-   answered `401` with a body naming that sign-in page.
+   answered `401` with `WWW-Authenticate: Kiosk-Session realm="<issuer>"` and a
+   body naming that sign-in page.
 3. The AI assistant polls `POST <endpoint>/oauth/token` (form-encoded) with
    `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, a
    client assertion (Section 5.2) and a `DPoP` header with no `ath`
@@ -1027,8 +1028,9 @@ Five are request-level codes:
   valid, or another key signs it (RFC 9449 Section 5).
 
 **The status is `400` for every one of them except `invalid_client`, which is
-`401`** -- RFC 6749 Section 5.2 makes a failed client authentication the one error
-the server SHOULD signal that way. An operator **MUST NOT** answer these
+`401`** with the `Kiosk-Client-Assertion` challenge (Section 5.2). RFC 6749
+Section 5.2 lets a failed client authentication answer `401`, and RFC 9110 then
+requires the challenge. An operator **MUST NOT** answer these
 endpoints with a problem document except in the two cases below, and **MUST
 NOT** emit an `error` code outside this list; every other endpoint answers
 problem documents (Section 9), and `POST <endpoint>/oauth/register` answers
@@ -3589,7 +3591,7 @@ Kiosk follows these standards. Each line says what Kiosk uses it for.
   `module_not_served`).
 - RFC 7235 -- HTTP authentication framework: the `WWW-Authenticate` challenge
   of the `402` gates, of `DPoP` on a `401`, and of `Kiosk-Client-Assertion`
-  and `Kiosk-Session` on the `401`s of the Kiosk auth endpoints.
+  and `Kiosk-Session` on the other `401`s.
 - RFC 9111 -- HTTP caching (Section 3, point 7).
 - RFC 9457 -- Problem Details for HTTP APIs: the error shape (Section 9).
 - RFC 8288 -- Web Linking: the `Link` header and `rel="next"` (Section 8.4).

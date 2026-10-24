@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-25: The spec names the challenge of the `invalid_client` 401, `Kiosk-Client-Assertion`, and of the verify page's 401, `Kiosk-Session`.
+
 ## [skill 0.6.12] — 2026-10-24
 
 - 2026-10-24: **Skill 0.6.12** says that `network_confirmation_id` of a payment receipt is the network's id, or `not reported by the payment provider`.
