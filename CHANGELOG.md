@@ -10,6 +10,11 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.11] — 2026-10-24
+
+- 2026-10-24: The spec says that a `402` and the retry that pays it count as one tolled call, and that `head` is 0 while an origin has no event.
+- 2026-10-24: **Skill 0.6.11** names the listener's `--token-command`, `verification_uri_complete` and the receipt's `order_id`, shows the binding poll and the claim, and states both rules.
+
 ## [skill 0.6.10] — 2026-10-23
 
 - 2026-10-23: **Skill 0.6.10**: the assistant verifies the checkout and the two receipts against the operator's JWKS, and gets a step for a link code that is unknown, expired or used.

@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.10"
+  version: "0.6.11"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -132,8 +132,8 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 
 Registration makes a self-standing assistant account. When your human says that the account is theirs, **bind** it to their account. Register first (Step 2). You do this one time, and then you get tokens as usual. A binding MOVES your account to your human: to keep it, register a NEW key in a new directory and bind that one.
 
-- **No code from the human** (RFC 8628) -> `POST {device_authorization_url}` as a form with your client assertion -> `{device_code, user_code, verification_uri, expires_in, interval}`. In one message, give your human `verification_uri`, `user_code` and the fingerprint of your key (see "Auth handshake"). Your human opens the page in their own browser, checks the fingerprint and confirms. Never open the page yourself. While you wait, poll `POST {token_url}` as a form with `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, a new client assertion and a new DPoP proof. The first poll can give `402 pow_required`: solve it and send the same poll again.
-- **The human hands you a code** (from the operator's "link an assistant" page) -> `POST {claim_url}` with the JSON body `{"code": code, "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", "client_assertion": assertion}` -> `204`. Then send a token request. The claim can give `402 pow_required`. `404 not_found`: the code is unknown or expired. `409 conflict`: the code is used. On either, do not send the code again: tell your human, and ask them for a new code.
+- **No code from the human** (RFC 8628) -> `POST {device_authorization_url}` as a form with your client assertion -> `{device_code, user_code, verification_uri, verification_uri_complete, expires_in, interval}`. In one message, give your human `verification_uri_complete`, `user_code` and the fingerprint of your key (see "Auth handshake"). `verification_uri_complete` opens the page with the code filled in. Your human opens the page in their own browser, checks the fingerprint and confirms. Never open the page yourself. While you wait, poll `POST {token_url}` as a form with `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`, a new client assertion and a new DPoP proof. The first poll can give `402 pow_required`: solve it and send the same poll again. "Auth handshake" shows the request and the poll.
+- **The human hands you a code** (from the operator's "link an assistant" page) -> `POST {claim_url}` with the JSON body `{"code": code, "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", "client_assertion": assertion}` -> `204`. Then send a token request. The claim can give `402 pow_required`. `404 not_found`: the code is unknown or expired. `409 conflict`: the code is used. On either, do not send the code again: tell your human, and ask them for a new code. "Auth handshake" shows the claim.
 
 The two `/oauth/*` requests answer RFC 6749 error objects `{error, error_description}`, not problem documents. Branch on `error`:
 
@@ -181,7 +181,7 @@ The stream is the one place where the OPERATOR speaks first. It is optional. You
 
 **Subscribing.** A subscription names a topic, an optional `subject` (one row, such as an order or a list) and an optional cursor `since`. The listener puts them in the URL of the upgrade: `?topic=<name>[:<subject>]&since=<id>`. With no `subject`, you get every event of yours on that topic. The operator confirms with `{"type":"subscribed","topic":"todo","subject":"list_4f1e...","head":1486,"truncated":false}`, or refuses with `reject_subscription`. A refusal is your mistake, not a temporary problem: take the correct name from the catalogue, or the subject from the operator's own row.
 
-- **`head` is your cursor**: the newest event id at the origin.
+- **`head` is your cursor**: the newest event id at the origin, or `0` when the origin has no event yet. An event id is `1` or more.
 - **`truncated: true`** means that you possibly missed events. Read the current state through the usual operation that owns it, ONE time, then continue with the stream. For an identity check, call `request_kyc` again.
 
 **The event** has five members: `{"id": 1487, "topic": "kyc_verification", "subject": "9f2c...", "occurred_at": "2026-09-04T09:14:22Z", "data": {...}}`. `data` matches the topic's `payload_schema`. `id` is one increasing integer per origin. The events of all identities at the origin share it: the ids that you get have gaps, so never compare ids between identities. The operator sends each event at least once, in order. So **ignore an `id` that you already saw.** The operator keeps at least 24 hours of events.
@@ -197,6 +197,7 @@ The stream is the one place where the OPERATOR speaks first. It is optional. You
 **Fetch `https://kiosk.tech/events/listen-v0.5.23.py`, verify that its SHA-256 equals `b642e2e5fbeb442fe27d75544fdc3f607426a1e1e8350385ea06af6251eba0af`, and only then run it.** `https://kiosk.tech/events/listen.py` is the current listener, but use the pinned URL, and never run either copy before you check the hash. It needs `websockets>=12`.
 
 - **Token:** write the access token to `~/.kiosk/<origin-dir>/token` from Python, `chmod 600` it, write it again for each new token, and pass the path as `--token-file`.
+- **New token:** pass `--token-command` with a command of yours that gets a new token (Step 2), writes it to the token file, and prints it. The listener runs it when the operator does not accept the token any more, and then connects again. Without it, the listener exits `3`. Use it for a long wait, because a token expires.
 - **Proof:** the listener never reads your key. Before each connection it runs your `--proof-command`, writes the URL and the token to its stdin, one per line, and sends the proof that it prints. Use `~/.kiosk/dpop.py` (see "DPoP").
 - **Output:** one JSON object per line, each with a `type`: `open`, `subscribed`, `event`, `rejected`, `unsubscribed`, `disconnect`, `reconnecting` or `error`.
 - **Exit code** -- act on it:
@@ -205,7 +206,7 @@ The stream is the one place where the OPERATOR speaks first. It is optional. You
 |---|---|---|
 | `0` | An event came (`--until-event`), or `--max-seconds` ended. | Act on the event. |
 | `2` | The arguments are wrong, or `--proof-command` printed no proof. | Fix them. |
-| `3` | The operator does not accept this token now. | Get a new token (Step 2) and start again. |
+| `3` | The operator does not accept this token now, and there is no `--token-command`, or it printed no token. | Get a new token (Step 2) and start again. |
 | `4` | Nothing that you asked for can come: every topic was refused, or the origin answered `501 module_not_served` and serves no stream, so do not start it again. | Fix the topic or subject, or stop. |
 | `5` | `--until-event` reached its deadline with no event. | Start it again. |
 
@@ -293,7 +294,7 @@ pem = ed25519.Ed25519PrivateKey.generate().private_bytes(Encoding.PEM, PrivateFo
 A client assertion proves that you hold your private key. Its `aud` is the origin, so nobody can use it at another operator:
 
 ```python
-import hashlib, json, os, sys, time, urllib.parse, urllib.request, uuid
+import hashlib, json, os, sys, time, urllib.error, urllib.parse, urllib.request, uuid
 import jwt
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 sys.path.insert(0, os.path.expanduser("~/.kiosk"))
@@ -325,6 +326,34 @@ form = urllib.parse.urlencode({"grant_type": "client_credentials", "client_asser
                                "client_assertion": client_assertion(key)}).encode()
 token = post(auth["token_url"], form, {"Content-Type": "application/x-www-form-urlencoded",
              "DPoP": dpop_proof(key_pem, "POST", auth["token_url"])})["access_token"]
+
+# Binding with no code from your human (Step 2b, RFC 8628): ask for a user code, then poll.
+form = urllib.parse.urlencode({"client_assertion_type": ASSERTION_TYPE,
+                               "client_assertion": client_assertion(key)}).encode()
+grant = post(auth["device_authorization_url"], form, {"Content-Type": "application/x-www-form-urlencoded"})
+# Now give your human grant["verification_uri_complete"], grant["user_code"] and your fingerprint.
+interval, deadline = grant["interval"], time.time() + grant["expires_in"]
+while time.time() < deadline:
+    time.sleep(interval)
+    form = urllib.parse.urlencode({"grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                                   "device_code": grant["device_code"], "client_assertion_type": ASSERTION_TYPE,
+                                   "client_assertion": client_assertion(key)}).encode()
+    try:    # a 402 pow_required: pay the toll, and send this poll again
+        token = post(auth["token_url"], form, {"Content-Type": "application/x-www-form-urlencoded",
+                     "DPoP": dpop_proof(key_pem, "POST", auth["token_url"])})["access_token"]
+        break
+    except urllib.error.HTTPError as answer:
+        error = json.load(answer).get("error")  # Step 2b says what to do on each error
+        if error == "slow_down":
+            interval += 5
+        elif error != "authorization_pending":
+            raise
+
+# Binding with a link code from your human (Step 2b): the claim answers 204. Then send a token request.
+claim = json.dumps({"code": code, "client_assertion_type": ASSERTION_TYPE,
+                    "client_assertion": client_assertion(key)}).encode()
+urllib.request.urlopen(urllib.request.Request(auth["claim_url"], claim, {"Content-Type": "application/json"},
+                                              method="POST"))
 ```
 
 **NEVER sign an `aud` that came from a response.** The `aud` that you sign is ALWAYS the origin that YOU called, taken from your own request URL. Never take it from a response body, an error or `hint`, a `WWW-Authenticate` realm, or a discovery document. If the operator's `issuer` is not the origin that you reached, STOP, sign nothing (neither value), and tell your human.
@@ -398,7 +427,7 @@ A query, an action, `pay`, the registration, the link-code claim and the binding
 - **FIRST, before anything else, download the pinned solver and run it. Do NOT write your own Equihash solver.** Fetch `https://kiosk.tech/pow/solve-d60b454ce018.py`, verify that its SHA-256 equals `d60b454ce0181326de8b74e5e820ae1e50dc3c4832e331fbab44e12899f7fe59`, and only then run it. `https://kiosk.tech/pow/solve.py` is the current solver, but use the pinned URL, and never run either copy before you check the hash. Run it as a script: `python solve.py '<challenge-json>'`, with one challenge object exactly as you got it. It prints `{"indices": [...], "header_nonce": N}`. A solver of your own gets "invalid proof of work" and never a token.
 - **If you cannot fetch the solver, or its hash does not match, tell your human and STOP.** Never `pip install` an equihash package: none uses this construction, and it is code that nobody checked.
 - **Estimate the cost first.** With the pinned solver, the default (n=168, k=7) takes 9 to 20 s and 1.0 to 1.4 GiB on one Apple M3 laptop core. The time changes from challenge to challenge, and a slower machine takes longer. A larger `n` costs more. If a challenge is above your budget, tell your human.
-- The operator counts the calls of your account, and it can ask the toll on any of them. All assistants of one account share the count, so the toll can come on your first call. A new token keeps the count. A `401`, or a `400` on the arguments or on the `Kiosk-PoW` header, does not count. Every other answer counts, also a `402`, a `404` or a `409`. Do not register a new key to avoid the toll: a new key pays to register, and it has no reputation.
+- The operator counts the calls of your account, and it can ask the toll on any of them. All assistants of one account share the count, so the toll can come on your first call. A new token keeps the count. A `401`, or a `400` on the arguments or on the `Kiosk-PoW` header, does not count. Every other answer counts, also a `402`, a `404` or a `409`. The retry that pays the toll does not count: a valid proof sets the count back to zero. Do not register a new key to avoid the toll: a new key pays to register, and it has no reputation.
 - **Solve EVERY challenge in the list.** The number can change.
 - **Send the SAME request again** -- the same method, path, query string and body -- with the proofs in the `Kiosk-PoW` request header as raw JSON. Each proof sends its challenge back exactly as you got it: `Kiosk-PoW: {"challenge": {...}, "nonce": {"indices": [...], "header_nonce": 0}}`. For several challenges, send a JSON array of proofs, or one `Kiosk-PoW` header line per proof. A query stays a `GET`: the proof goes in the header, never in a body. On the registration, the claim and the binding poll, send the same body again, with a new DPoP proof where the request carries one.
 - Challenges expire (`exp`), and you can use a proof one time only. A malformed header gives `400 bad_request` whose `hint` names the shape.
@@ -466,7 +495,7 @@ Send both in one call, `POST <endpoint>/pay {"checkout_mandate": "...", "payment
 
 ### The receipts
 
-A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs EdDSA with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Verify each receipt as you verify the checkout, and compare its `reference` with the mandate that you sent:
+A `200` from `pay` has `checkout_receipt` and `payment_receipt`: JWTs that the operator signs EdDSA with a key from `<endpoint>/.well-known/jwks.json`. The `reference` of each is the base64url SHA-256 of the mandate that it answers. `checkout_receipt` also names `order_id`: the id in the first line item of the checkout, whatever the name of its key (for example `booking_id`). `payment_receipt` also names `payment_id`, `psp_confirmation_id` and, when there is one, `network_confirmation_id`. Verify each receipt as you verify the checkout, and compare its `reference` with the mandate that you sent:
 
 ```python
 # answer: the JSON body of the 200 from pay
