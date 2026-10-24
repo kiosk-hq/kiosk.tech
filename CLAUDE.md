@@ -2,7 +2,7 @@
 
 This repo is everything published at https://kiosk.tech (GitHub Pages,
 `CNAME`). Static files, no build step. One page is generated and checked in:
-`changelog.html`, by `bin/check-changelog-page --write`.
+`changelog.html`, by `bin/check-releases-page --write`.
 
 - `specification.html` — the normative spec, in narrative form.
 - `spec/` — the formal spec (`spec/protocol.md`) and JSON Schemas

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# check-changelog-page -- `changelog.html` is the build of the two changelogs.
+# check-releases-page -- `changelog.html` is the build of the two changelogs.
 #
 # The page has one section per release, newest first. A release joins the
 # section of this repository's `CHANGELOG.md` (the specification, the skill and
@@ -11,9 +11,9 @@
 # (the release heading carries one) and the task-store citations in brackets,
 # which no reader of the site can open.
 #
-#   bin/check-changelog-page [--reference DIR]          fail when the page is stale
-#   bin/check-changelog-page --write [--reference DIR]  write the page
-#   bin/check-changelog-page --self-test                check each rule on a fixture
+#   bin/check-releases-page [--reference DIR]          fail when the page is stale
+#   bin/check-releases-page --write [--reference DIR]  write the page
+#   bin/check-releases-page --self-test                check each rule on a fixture
 #
 # DIR is the reference checkout, `../reference` by default. Without it the run
 # fails: the page cannot be checked from one half.
@@ -195,7 +195,7 @@ self_test if options[:self_test]
 begin
   fresh = build(options[:reference])
 rescue RuntimeError => e
-  warn "check-changelog-page: #{e.message}"
+  warn "check-releases-page: #{e.message}"
   exit 1
 end
 
@@ -205,6 +205,6 @@ if options[:write]
 elsif File.file?(PAGE) && File.read(PAGE) == fresh
   puts 'changelog.html is the build of both changelogs'
 else
-  warn 'check-changelog-page: changelog.html is stale. Run bin/check-changelog-page --write and commit the page.'
+  warn 'check-releases-page: changelog.html is stale. Run bin/check-releases-page --write and commit the page.'
   exit 1
 end

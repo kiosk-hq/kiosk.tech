@@ -79,7 +79,7 @@ The order of one cut, and it is the order that keeps the heading true:
 3. `bin/check-skill-immutability` green, and the
    operator pins relinked and, before 1.0, `reference` cut to the same version,
    before the merge.
-4. After `reference` is pushed, run `bin/check-changelog-page --write` and push
+4. After `reference` is pushed, run `bin/check-releases-page --write` and push
    `changelog.html`. The page joins the released sections of both records.
 
 ## Nothing already written is edited

@@ -569,7 +569,7 @@ PROSE_EXTENSIONS = %w[.md .html .json .txt].freeze
 # 0. So the exemption is a predicate over LINES: CHANGELOG.md is history end to
 # end, skills.md exempts its table rows and nothing else.
 #
-# `changelog.html` is the page that bin/check-changelog-page builds from the
+# `changelog.html` is the page that bin/check-releases-page builds from the
 # released sections of CHANGELOG.md and the reference implementation's record.
 # It is the same history, so it takes CHANGELOG.md's exemption in both maps.
 HISTORY_LINES = {
