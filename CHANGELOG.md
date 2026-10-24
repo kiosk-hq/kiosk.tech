@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.14] — 2026-10-25
+
+- 2026-10-25: **Skill 0.6.14**: `WWW-Authenticate` names the gate in the three 402s only, and the token-file rule is stated once. The protocol is that of 0.6.13.
 - 2026-10-25: The landing's problem paragraph names what an assistant on a laptop meets: a CAPTCHA, a CDN block or a ban, and gates that open by vendor list or partner deal.
 
 ## [skill 0.6.13] — 2026-10-25

@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.13"
+  version: "0.6.14"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -29,7 +29,7 @@ Two terms; do not mix them up. **`origin`** is the operator's base URL: scheme, 
 
 ## Setup
 
-- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Use `urllib` or `requests` for HTTP. Never put an access token on a command line. Write each new token to `~/.kiosk/<origin-dir>/token` from Python, and `chmod 600` it. Read the token from that file in each new process, also when your runtime starts a new process for each tool call. It is the one file where you write a token, and the listener reads it (`--token-file`).
+- **Use Python, not shell:** JWT signing requires `pyjwt` + `cryptography`. Use `urllib` or `requests` for HTTP. Never put an access token on a command line. Write each new token to `~/.kiosk/<origin-dir>/token` from Python. Read the token from that file in each new process, also when your runtime starts a new process for each tool call. It is the one file where you write a token, and the listener reads it (`--token-file`).
 - **Dependencies:** `pyjwt` and `cryptography` for signing, plus `numpy`, which is there only because the pinned solver script imports it, and `websockets` (>= 12) for the pinned listener. Use ONE venv for every operator and every snippet in this skill: `python3 -m venv ~/.kiosk/venv && ~/.kiosk/venv/bin/pip install pyjwt cryptography numpy websockets`, then run `~/.kiosk/venv/bin/python`.
 - **Files:** each origin has its own directory `~/.kiosk/<origin-dir>/`. EVERY file that you write for an operator goes in it: `key.pem`, `identity.json`, `token`, `spend.json`, `receipts/`, and your own notes, state and scripts for that operator. Only `~/.kiosk/venv`, `~/.kiosk/dpop.py`, the pinned solver and listener, and `~/.kiosk/bin/` are shared. `~/.kiosk/bin/` holds your own scripts that serve every operator. Such a script holds no key, no token and no state: it reads and writes the files of each operator in that operator's directory. `chmod 600` every file. Use a new Ed25519 key per origin (scheme, host and port), so that operators cannot track you across origins.
 
@@ -196,7 +196,7 @@ The stream is the one place where the OPERATOR speaks first. It is optional. You
 
 **Fetch `https://kiosk.tech/events/listen-v0.5.23.py`, verify that its SHA-256 equals `b642e2e5fbeb442fe27d75544fdc3f607426a1e1e8350385ea06af6251eba0af`, and only then run it.** `https://kiosk.tech/events/listen.py` is the current listener, but use the pinned URL, and never run either copy before you check the hash. It needs `websockets>=12`.
 
-- **Token:** write the access token to `~/.kiosk/<origin-dir>/token` from Python, `chmod 600` it, write it again for each new token, and pass the path as `--token-file`.
+- **Token:** pass the token file (see "Setup") as `--token-file`.
 - **New token:** pass `--token-command` with a command of yours that gets a new token (Step 2), writes it to the token file, and prints it. The listener runs it when the operator does not accept the token any more, and then connects again. Without it, the listener exits `3`. Use it for a long wait, because a token expires.
 - **Proof:** the listener never reads your key. Before each connection it runs your `--proof-command`, writes the URL and the token to its stdin, one per line, and sends the proof that it prints. Use `~/.kiosk/dpop.py` (see "DPoP").
 - **Output:** one JSON object per line, each with a `type`: `open`, `subscribed`, `event`, `rejected`, `unsubscribed`, `disconnect`, `reconnecting` or `error`.
@@ -516,7 +516,7 @@ If a check fails, do not pay again. Save the answer, and tell your human that th
     - **Definitive:** no money moved, and these mandates are closed. Tell your human. Your human fixes the card through Step 5. Then sign new mandates for the same `checkout_jwt` and pay again.
     - **Unknown:** the charge MAY have gone through. Send the SAME mandates again (Step 6).
 
-`WWW-Authenticate` names a gate only: `Kiosk-PoW` or `Kiosk-Payment-Setup`. `payment_failed` has none. Its `detail` is safe to show to your human.
+In these three answers, `WWW-Authenticate` names the gate: `Kiosk-PoW` or `Kiosk-Payment-Setup`. `payment_failed` has none. Its `detail` is safe to show to your human.
 
 ### Spending cap (HTTP 403)
 
