@@ -98,13 +98,13 @@
   <section id="open">
     <h2>The problem, as I ran into it</h2>
     <p class="big">I sent the assistant on my laptop to book a table for two. It was shown a CAPTCHA, blocked by the CDN, and banned by the service.</p>
-    <p>Cloudflare lets an assistant through only when its software is &ldquo;made for widespread use&rdquo;. eBay's terms forbid every buy-for-me assistant that eBay has not approved, and OpenAI's is approved. Amazon sued Perplexity over its shopping assistant. Walmart, Etsy and Shopify signed on to sell inside ChatGPT, and the merchant pays OpenAI a fee on each order. Search went the same way: Google paid Apple $20&nbsp;billion in 2022 to be the default in Safari. Whoever holds the gate earns on the deal, and a person who would rather use a cheaper, more private assistant of their own choosing is left outside.</p>
+    <p>Cloudflare lets an assistant through only when its software is &ldquo;made for widespread use&rdquo;. eBay's terms forbid every buy-for-me assistant that eBay has not approved, and OpenAI's is approved. Amazon sued Perplexity over its shopping assistant. Walmart, Etsy and Shopify signed on to sell inside ChatGPT.</p>
     <p class="big">Hermes with DeepSeek 4.1 Flash on my laptop has none of that.</p>
   </section>
 
   <section id="why">
     <h2>Why Kiosk</h2>
-    <p>I'm a builder, so I built Kiosk for every personal assistant and every online service that wants to serve it, with no deal and no list. An assistant that arrives for the first time makes a key for that one service and registers it: no email, no password, nobody to vouch for it. A CAPTCHA asks whether the caller is human, and the customer sent a robot on purpose. Kiosk asks for work instead: extensive usage is tolled with memory-hard compute.</p>
+    <p>I'm a builder, so I built Kiosk for every personal assistant and every online service that wants to serve it. It is an open protocol, free to implement: nobody signs a deal or gets on a list first. A visitor brings the assistant they like, cheaper, more private or simply their own, and the service lets it in.</p>
     <p>Nothing in Kiosk knows what the service sells. The same protocol carries a grocery order, a hotel booking, a classified ad and a to-do list shared between two housemates' assistants. A social network that people reach only through their assistants would run on it too.</p>
   </section>
 
@@ -112,11 +112,11 @@
     <h2>How it works</h2>
     <ol class="steps">
       <li><strong>Find.</strong> The service serves the standard discovery files: <code>agents.txt</code>, <code>auth.md</code>, an API catalog (RFC&nbsp;9727) and <code>/.well-known/kiosk.json</code>, and OAuth server metadata (RFC&nbsp;8414).</li>
-      <li><strong>Register.</strong> The assistant makes a new key for that one service and registers it as an OAuth client (RFC&nbsp;7591). It signs a client assertion with that key for each token (RFC&nbsp;7523). Its access tokens are bound to that key (DPoP, RFC&nbsp;9449). There is no email and no password. Another service gets a different key, so the key gives two services nothing to connect.</li>
-      <li><strong>Pass the toll.</strong> Registration and every 10th call cost a memory-hard proof of work: 9 to 20&nbsp;seconds on one Apple M3 laptop core. The service checks it in about 20&nbsp;ms. The more the customer spent at the service in the past week, the more calls pass between two proofs, up to no proof at 100&nbsp;euros.</li>
+      <li><strong>Register.</strong> The assistant makes a new key for that one service and registers it as an OAuth client (RFC&nbsp;7591). It signs a client assertion with that key for each token (RFC&nbsp;7523). Its access tokens are bound to that key (DPoP, RFC&nbsp;9449). There is no email and no password, and nobody vouches for it. Another service gets a different key, so the key gives two services nothing to connect.</li>
+      <li><strong>Pass the toll.</strong> A CAPTCHA asks whether the caller is human, and the customer sent a robot on purpose. Kiosk asks for work instead. Registration and every 10th call cost a memory-hard proof of work: 9 to 20&nbsp;seconds on one Apple M3 laptop core. The service checks it in about 20&nbsp;ms. The more the customer spent at the service in the past week, the more calls pass between two proofs, up to no proof at 100&nbsp;euros.</li>
       <li><strong>Call.</strong> Each query and action the service declares has its own REST path, listed in a public catalog. <a href="/skill.md">One skill file</a> teaches an assistant to use every Kiosk operator.</li>
       <li><strong>Pay.</strong> The service signs a checkout with the exact items and price. The assistant pays it with two signed AP2&nbsp;v0.2 mandates, and the service answers with two signed receipts. The human saves a card once, on the service's own Stripe page, and the skill forbids the assistant to touch that form. <strong>After that, every payment at that service needs no form and no click.</strong></li>
-      <li><strong>Hear back.</strong> Some answers arrive on somebody else's clock: the hotel confirms, the courier sets off, a housemate ticks an item off the shared list. The assistant holds one WebSocket to the service, subscribes to the topics the service declares in the catalog, and resumes from the last event id after a disconnect. The protocol runs both ways: the assistant calls, the service pushes.</li>
+      <li><strong>Events.</strong> Some answers arrive on somebody else's clock: the hotel confirms, the courier sets off, a housemate ticks an item off the shared list. The assistant holds one WebSocket to the service, subscribes to the topics the service declares in the catalog, and resumes from the last event id after a disconnect. The protocol runs both ways: the assistant calls, the service pushes.</li>
     </ol>
   </section>
 
@@ -126,15 +126,15 @@
         <h2>For operators</h2>
         <ul class="list">
           <li><strong>Direct.</strong> Your customers' personal assistants come to you directly. You keep the customer relationship and the data.</li>
-          <li><strong>A gem and a controller.</strong> Add a Ruby gem, an initializer, the migrations, and one controller with your own queries and actions. <a href="/onboarding.html">Read the guide</a>.</li>
-          <li><strong>Events.</strong> Declare a topic in that controller and emit an event when something happens on your side.</li>
+          <li><strong>Your queries and actions.</strong> Declare what your service offers; the reference implementation serves the protocol around it. <a href="/onboarding.html">Read the guide</a>.</li>
+          <li><strong>Events.</strong> Declare a topic and emit an event when something happens on your side.</li>
           <li><strong>Linked assistants.</strong> A human links their assistants to their account. Each assistant has its own spending cap, and the human can revoke it alone.</li>
           <li><strong>Anonymized checks.</strong> Gate an action on anonymized attributes such as “18+” or a licence category.</li>
           <li><strong>Your own Stripe.</strong> Payments go through your own Stripe account. Kiosk takes no cut.</li>
         </ul>
       </div>
       <div class="box" id="people">
-        <h2>For people who use an assistant</h2>
+        <h2>For visitors/customers</h2>
         <ul class="list">
           <li><strong>One key per service.</strong> Your assistant makes a new key at each service, so two services have nothing to connect.</li>
           <li><strong>A check shares one fact.</strong> When a service needs “18+” or a licence category, a broker signs that fact for that one service. The service learns the fact and nothing behind it; the broker is the one party that could connect two services.</li>
@@ -249,7 +249,7 @@
     <ul class="list">
       <li><a href="/specification.html">The specification</a>, with a <a href="/spec/protocol.md">formal version</a> and JSON Schemas for a port to another stack.</li>
       <li><a href="/skill.md">A skill</a> for personal assistants.</li>
-      <li><a href="https://github.com/kiosk-hq/kiosk">The reference implementation</a>: a Rails engine, the proof of work and the Stripe payment adapter, as Ruby gems.</li>
+      <li><a href="https://github.com/kiosk-hq/kiosk">The reference implementation</a>: the server, the proof of work and the Stripe payment adapter.</li>
       <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-prove">An oversimplified example</a> of an anonymizing KYC broker service.</li>
       <li>The seven demo operators above, with their source.</li>
     </ul>
