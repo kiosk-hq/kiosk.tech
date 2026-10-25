@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-25: The landing says Claude Code has run the demos too, and names the section "Compatible assistants".
 - 2026-10-25: The reference notes and the onboarding page name Kiosk's tables `kiosk_*` (`kiosk_stripe_customers` among them), and the `kiosk_current_*()` functions as kiosk-rls's.
 
 ## [skill 0.6.15] — 2026-10-25
