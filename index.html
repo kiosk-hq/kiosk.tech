@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <title>Kiosk — Your Service, Assistant-Ready</title>
-  <meta name="description" content="Kiosk is an opinionated, standards-based open protocol and reference implementation that lets your customers' AI assistants discover, transact with, and pay your service.">
+  <title>Kiosk — An open door for every personal AI assistant</title>
+  <meta name="description" content="Kiosk is an open protocol and reference implementation that makes a personal AI assistant a first-class citizen of an online service: it opens an account, reads what the service offers, books, orders, pays and hears back.">
   <style>
     :root{--bg:#0d0d0d;--card:#161616;--line:#252525;--text:#e0e0e0;--soft:#a8a8a8;--dim:#6a6a6a;--accent:#8bc49a;--button:#2d6b3f}
     *{margin:0;padding:0;box-sizing:border-box}
@@ -29,34 +29,52 @@
     .note{font-size:12px;color:var(--dim)}
     section{padding:40px 0;border-top:1px solid #1a1a1a}
     h2{font-size:22px;font-weight:800;margin-bottom:12px}
-    h3{font-size:16px;margin-bottom:10px}
     p{color:var(--soft);margin-bottom:12px}
     .big{font-size:17px;color:var(--text)}
     .steps{list-style:none;counter-reset:step;display:flex;flex-direction:column;gap:14px}
     .steps li{counter-increment:step;position:relative;padding-left:40px;color:var(--soft)}
     .steps li::before{content:counter(step);position:absolute;left:0;top:1px;width:26px;height:26px;border-radius:50%;background:#1f2a22;color:var(--accent);font-size:13px;font-weight:700;text-align:center;line-height:26px}
-    .steps strong,.cols strong{color:var(--text)}
+    .steps strong,.list strong{color:var(--text)}
     .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
     .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
-    .box ul{list-style:none;display:flex;flex-direction:column;gap:9px}
-    .box li{font-size:14px;color:var(--soft);padding-left:16px;position:relative}
-    .box li::before{content:"·";position:absolute;left:3px;color:var(--accent);font-weight:700}
-    .box p{font-size:14px}
-    .tier{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:14px 0 6px}
-    .tier-maybe{color:#c9a86a}
-    .demos{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-    .demo-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
-    .demo-card__title{font-weight:700;font-size:15px}
-    .demo-card__meta{color:var(--dim);font-size:12px}
-    .demo-card__desc{color:var(--text);font-size:13px}
-    .demo-card__prompt-row{display:flex;gap:6px;align-items:flex-start;margin-top:auto}
-    .demo-prompt{flex:1;color:#bdbdbd;font-size:12px;line-height:1.5}
-    .demo-copy{position:relative;flex-shrink:0;width:1.5em;background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;line-height:1.4}
-    .demo-copy::after{content:"Copied";position:absolute;bottom:100%;right:0;margin-bottom:4px;padding:2px 6px;border-radius:4px;background:var(--button);color:#fff;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
-    .demo-copy.copied::after{opacity:1}
-    .standards{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin-top:6px}
-    .standards li{font-size:12px;color:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
-    .status{background:#141414;border:1px solid #242424;border-radius:10px;padding:16px 18px;font-size:13px;color:#8a8a8a}
+    .list{list-style:none;display:flex;flex-direction:column;gap:9px}
+    .list li{font-size:14px;color:var(--soft);padding-left:16px;position:relative}
+    .list li::before{content:"·";position:absolute;left:3px;color:var(--accent);font-weight:700}
+    .icon{width:14px;height:14px;vertical-align:-2px}
+    .prompts{list-style:none;display:flex;flex-direction:column;gap:10px}
+    .prompt{display:grid;grid-template-columns:1fr auto;grid-template-areas:"area copy" "text copy";column-gap:10px;background:var(--card);border-left:2px solid var(--accent);border-radius:0 10px 10px 0;padding:10px 12px}
+    .area{grid-area:area;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+    .prompt-text{grid-area:text;color:var(--text);font-size:14px;line-height:1.5}
+    .copy{grid-area:copy;align-self:center;position:relative;width:1.5em;background:none;border:none;color:var(--accent);font-size:18px;cursor:pointer;line-height:1.4}
+    .copy::after{content:"Copied";position:absolute;bottom:100%;right:0;margin-bottom:4px;padding:2px 6px;border-radius:4px;background:var(--button);color:#fff;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
+    .copy.copied::after{opacity:1}
+    .scene{--x0:0px;--y0:0px;--x1:0px;--y1:0px;--x2:0px;--y2:0px;position:relative;display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0 22px;font-size:12px;line-height:1.4;pointer-events:none;user-select:none}
+    .scene-prompt{align-self:start;display:grid;grid-template-columns:1fr auto;grid-template-areas:"area copy" "text copy";column-gap:8px;background:var(--card);border-left:2px solid var(--accent);border-radius:0 8px 8px 0;padding:8px 10px;color:var(--text)}
+    .scene-prompt .area{font-size:9px}
+    .scene-copy{grid-area:copy;align-self:center;display:grid;color:var(--accent);font-size:15px}
+    .scene-glyph,.scene-tick{grid-area:1/1}
+    .scene-glyph{animation:scene-untick 8s infinite}
+    .scene-tick{opacity:0;animation:scene-tick 8s infinite}
+    .scene-chat{display:flex;flex-direction:column;justify-content:flex-end;gap:6px;min-height:80px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}
+    .scene-bubble{align-self:flex-end;max-width:85%;background:var(--button);color:#fff;border-radius:10px 10px 2px 10px;padding:5px 8px;opacity:0;animation:scene-bubble 8s infinite}
+    .scene-input{position:relative;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:5px 8px;min-height:28px}
+    .scene-field{flex:1;position:relative;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .scene-hint{color:var(--dim);animation:scene-hint 8s infinite}
+    .scene-typed{position:absolute;left:0;top:0;right:0;color:var(--text);opacity:0;overflow:hidden;text-overflow:ellipsis;animation:scene-typed 8s infinite}
+    .scene-send{color:var(--accent);font-size:14px}
+    .scene-cursor{position:absolute;left:0;top:0;width:14px;height:20px;opacity:0;translate:var(--x0) var(--y0);animation:scene-move 8s infinite,scene-click 8s infinite}
+    @keyframes scene-move{0%{translate:var(--x0) var(--y0);opacity:0}4%{opacity:1}12%{translate:var(--x0) var(--y0)}36%,40%{translate:var(--x1) var(--y1)}62%,92%{translate:var(--x2) var(--y2);opacity:1}97%,100%{translate:var(--x2) var(--y2);opacity:0}}
+    @keyframes scene-click{0%,9%,13%,37%,41%,63%,67%,100%{scale:1}11%,39%,65%{scale:.8}}
+    @keyframes scene-tick{0%,11%,100%{opacity:0}12%,30%{opacity:1}34%{opacity:0}}
+    @keyframes scene-untick{0%,11%,34%,100%{opacity:1}12%,30%{opacity:0}}
+    @keyframes scene-typed{0%,39%,100%{opacity:0}41%,64%{opacity:1}67%{opacity:0}}
+    @keyframes scene-hint{0%,39%,67%,100%{opacity:1}41%,64%{opacity:0}}
+    @keyframes scene-bubble{0%,65%{opacity:0;translate:0 6px}70%,96%{opacity:1;translate:0 0}100%{opacity:0;translate:0 0}}
+    @media (max-width:560px){.scene{grid-template-columns:1fr}.standards{columns:1}}
+    @media (prefers-reduced-motion:reduce){.scene *{animation:none}.scene-cursor{display:none}.scene-bubble{opacity:1}}
+    .standards{list-style:none;columns:2;column-gap:24px}
+    .standards li{font-size:14px;padding-left:16px;position:relative;break-inside:avoid;margin-bottom:6px}
+    .standards li::before{content:"·";position:absolute;left:3px;color:var(--accent);font-weight:700}
     footer{text-align:center;padding:32px 16px 40px;font-size:12px;color:#555;border-top:1px solid #1a1a1a}
     footer a{color:#777}
   </style>
@@ -68,8 +86,8 @@
     <img src="/logo.png" alt="Kiosk" class="logo">
     <p class="version">v0.6</p>
     <p class="ref-badge">First-class AI assistants' interface to online services</p>
-    <h1>Open your service to every personal AI&nbsp;assistant</h1>
-    <p class="lead">A personal AI assistant running on your customer's laptop opens an account with you, reads what you offer, books, orders, posts, pays, and hears back when something happens. It brings a key it made for you alone and a proof of work it paid in compute. That is all it takes to come in.</p>
+    <h1>An open door for every personal AI&nbsp;assistant</h1>
+    <p class="lead">A personal AI assistant opens an account at an online service, reads what it offers, books, orders, posts, pays, and hears back when something happens. It registers with no email and no password. Extensive usage is tolled with memory-hard compute.</p>
     <div class="actions">
       <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">Get the source code</a>
       <a href="/specification.html" class="cta">Read the specification</a>
@@ -79,20 +97,20 @@
 
   <section id="open">
     <h2>The problem, as I ran into it</h2>
-    <p class="big">A Hermes assistant running on my laptop meets a CAPTCHA, gets blocked by a CDN, or gets banned by the service. Cloudflare's bot filter waves a vendor's fleet through once the vendor is on its list, and to get on the list you need software “made for widespread use”. A big shop lets an assistant in after a partner deal. The one on my laptop has neither.</p>
-    <p>Kiosk is the door I would build if I ran the restaurant. An assistant that arrives for the first time makes a fresh key for that one service and registers it: no email, no password, nobody to vouch for it. A CAPTCHA exists to tell a bot from a human, and the customer sent a robot on purpose, so “are you human” is the wrong question. “Did you pay for this request” is one every assistant can answer, so Kiosk puts a toll on the door: a proof of work that the assistant pays in compute. Let's Encrypt gave every website a certificate without asking who runs it. Kiosk gives every assistant a way in on the same terms, and puts a price on abuse.</p>
-    <p>Nothing in that door knows what your service does. The same protocol carries a grocery order, a hotel booking, a classified ad and a to-do list shared between two housemates' assistants. A social network that people reach only through their assistants would run on it too.</p>
+    <p class="big">I sent the assistant on my laptop to book a table for two. It was shown a CAPTCHA, blocked by the CDN, and banned by the service. A bot filter waves a vendor's fleet through once the vendor is on its list, and a big shop lets an assistant in after a partner deal. The assistant on my laptop has neither.</p>
+    <p>Kiosk is the door I would build if I ran the restaurant. An assistant that arrives for the first time makes a key for that one service and registers it: no email, no password, nobody to vouch for it. A CAPTCHA asks whether the caller is human, and the customer sent a robot on purpose. Kiosk asks for work instead: extensive usage is tolled with memory-hard compute.</p>
+    <p>Nothing in that door knows what the service sells. The same protocol carries a grocery order, a hotel booking, a classified ad and a to-do list shared between two housemates' assistants. A social network that people reach only through their assistants would run on it too.</p>
   </section>
 
   <section id="how">
     <h2>How it works</h2>
     <ol class="steps">
-      <li><strong>Find.</strong> You serve the standard discovery files: <code>agents.txt</code>, <code>auth.md</code>, an API catalog (RFC&nbsp;9727) and <code>/.well-known/kiosk.json</code>, and OAuth server metadata (RFC&nbsp;8414).</li>
-      <li><strong>Register.</strong> The assistant makes a new key for you alone and registers it as an OAuth client (RFC&nbsp;7591). It signs a client assertion with that key for each token (RFC&nbsp;7523). Its access tokens are bound to that key (DPoP, RFC&nbsp;9449). There is no email and no password. Another operator gets a different key, so the key gives two operators nothing to connect.</li>
-      <li><strong>Pay the toll.</strong> Registration and every 10th call cost a memory-hard proof of work: 9 to 20&nbsp;seconds on one Apple M3 laptop core. Your server checks it in about 20&nbsp;ms. The more a customer spent with you in the past week, the more calls pass between two proofs, up to no proof at 100&nbsp;euros.</li>
-      <li><strong>Call.</strong> Each query and action that you declare has its own REST path, listed in a public catalog. <a href="/skill.md">One skill file</a> teaches an assistant to use every Kiosk operator.</li>
-      <li><strong>Pay.</strong> You sign a checkout with the exact items and price. The assistant pays it with two signed AP2&nbsp;v0.2 mandates, and you answer with two signed receipts. The human saves a card once, on your own Stripe page, and the skill forbids the assistant to touch that form. <strong>After that, every payment at your service needs no form and no click.</strong></li>
-      <li><strong>Hear back.</strong> Some answers arrive on somebody else's clock: the hotel confirms, the courier sets off, a housemate ticks an item off the shared list. The assistant holds one WebSocket to you, subscribes to the topics you declare in the catalog, and resumes from the last event id after a disconnect. The protocol runs both ways: the assistant calls, you push.</li>
+      <li><strong>Find.</strong> The service serves the standard discovery files: <code>agents.txt</code>, <code>auth.md</code>, an API catalog (RFC&nbsp;9727) and <code>/.well-known/kiosk.json</code>, and OAuth server metadata (RFC&nbsp;8414).</li>
+      <li><strong>Register.</strong> The assistant makes a new key for that one service and registers it as an OAuth client (RFC&nbsp;7591). It signs a client assertion with that key for each token (RFC&nbsp;7523). Its access tokens are bound to that key (DPoP, RFC&nbsp;9449). There is no email and no password. Another service gets a different key, so the key gives two services nothing to connect.</li>
+      <li><strong>Pass the toll.</strong> Registration and every 10th call cost a memory-hard proof of work: 9 to 20&nbsp;seconds on one Apple M3 laptop core. The service checks it in about 20&nbsp;ms. The more the customer spent at the service in the past week, the more calls pass between two proofs, up to no proof at 100&nbsp;euros.</li>
+      <li><strong>Call.</strong> Each query and action the service declares has its own REST path, listed in a public catalog. <a href="/skill.md">One skill file</a> teaches an assistant to use every Kiosk operator.</li>
+      <li><strong>Pay.</strong> The service signs a checkout with the exact items and price. The assistant pays it with two signed AP2&nbsp;v0.2 mandates, and the service answers with two signed receipts. The human saves a card once, on the service's own Stripe page, and the skill forbids the assistant to touch that form. <strong>After that, every payment at that service needs no form and no click.</strong></li>
+      <li><strong>Hear back.</strong> Some answers arrive on somebody else's clock: the hotel confirms, the courier sets off, a housemate ticks an item off the shared list. The assistant holds one WebSocket to the service, subscribes to the topics the service declares in the catalog, and resumes from the last event id after a disconnect. The protocol runs both ways: the assistant calls, the service pushes.</li>
     </ol>
   </section>
 
@@ -100,7 +118,7 @@
     <div class="cols">
       <div class="box" id="operators">
         <h2>For operators</h2>
-        <ul>
+        <ul class="list">
           <li>Your customers' personal assistants come to you directly. You keep the customer relationship and the data.</li>
           <li>Add a Ruby gem, an initializer, the migrations, and one controller with your own queries and actions. <a href="/onboarding.html">Read the guide</a>.</li>
           <li>Declare a topic in that controller and emit an event when something happens on your side.</li>
@@ -109,122 +127,140 @@
           <li>Payments go through your own Stripe account. Kiosk takes no cut.</li>
         </ul>
       </div>
-      <div class="box" id="compatible">
-        <h2>For personal AI assistants</h2>
-        <p>Read <a href="/skill.md">the skill</a>. An assistant needs:</p>
-        <ul>
-          <li>Filesystem — store an Ed25519 keypair per origin at <code>~/.kiosk/&lt;origin&gt;/</code></li>
-          <li>HTTP — REST with JSON + JWS signatures</li>
-          <li>Crypto — sign AP2 v0.2 mandates (two SD-JWTs) with EdDSA</li>
-          <li>Code — Python for JWT signing, Equihash proof-of-work solving and the event listener</li>
+      <div class="box" id="people">
+        <h2>For people who use an assistant</h2>
+        <ul class="list">
+          <li><strong>One key per service.</strong> Your assistant makes a new key at each service, so two services have nothing to connect.</li>
+          <li><strong>A check shares one fact.</strong> When a service needs “18+” or a licence category, a broker signs that fact for that one service. The service learns the fact and nothing behind it; the broker is the one party that could connect two services.</li>
+          <li><strong>The card stays with Stripe.</strong> You enter it once, on the service's own Stripe page. The service sees no card number, and the skill forbids your assistant to touch that form.</li>
+          <li><strong>Each assistant has its own cap.</strong> Where a service offers one, you set a spending cap per assistant on its page and unlink an assistant there. Your own login stays.</li>
+          <li><strong>Nothing passes through kiosk.tech.</strong> This site is static files. Your assistant talks to each service directly.</li>
         </ul>
-        <p class="tier">Verified by a run, October 2026, with skill 0.5.8</p>
-        <p><a href="https://hermes-agent.nousresearch.com/" style="color:var(--text);font-weight:600"><img src="data:image/png;base64,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" width="14" height="14" style="vertical-align:-2px" alt="">Hermes</a>: at getgrocery it registered, passed the 18+ check, saved a card on Stripe's test page and paid. At hoteling it held a room, paid, and waited for the hotel's confirmation on the event stream.</p>
-        <p class="tier tier-maybe">Meets the requirements by its own documentation, not run yet</p>
-        <p><a href="https://code.claude.com/docs/en/overview">Claude Code</a> · <a href="https://developers.openai.com/codex/cli/">Codex CLI</a> (with network access on) · <a href="https://openclaw.ai/">OpenClaw</a> · <a href="https://pi.dev/">pi</a></p>
-        <p class="note"><a href="https://github.com/kiosk-hq/kiosk.tech">Add an assistant after a run</a>: send a pull request.</p>
       </div>
     </div>
   </section>
 
+  <section id="compatible">
+    <h2>Compatible agents</h2>
+    <p>An assistant that reads <a href="/skill.md">the skill</a> needs:</p>
+    <ul class="list" style="margin-bottom:14px">
+      <li>Filesystem — store an Ed25519 keypair per origin at <code>~/.kiosk/&lt;origin&gt;/</code></li>
+      <li>HTTP — REST with JSON + JWS signatures</li>
+      <li>Crypto — sign AP2 v0.2 mandates (two SD-JWTs) with EdDSA</li>
+      <li>Code — Python for JWT signing, Equihash proof-of-work solving and the event listener</li>
+    </ul>
+    <p><a href="https://hermes-agent.nousresearch.com/" style="color:var(--text);font-weight:600"><img src="data:image/png;base64,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" class="icon" alt="">Hermes</a> has run it: at getgrocery it registered, passed the 18+ check, saved a card on Stripe's test page and paid; at hoteling it held a room, paid, and waited for the hotel's confirmation on the event stream.</p>
+    <p>By their own documentation, <a href="https://code.claude.com/docs/en/overview">Claude Code</a>, <a href="https://developers.openai.com/codex/cli/">Codex CLI</a> (with network access on), <a href="https://openclaw.ai/">OpenClaw</a> and <a href="https://pi.dev/">pi</a> meet the requirements.</p>
+    <p class="note"><a href="https://github.com/kiosk-hq/kiosk.tech">Add an assistant after a run</a>: send a pull request.</p>
+  </section>
+
   <section id="demo">
     <h2>Try it with your personal assistant</h2>
-    <p>Groceries. Scooter rental. Salon booking. Restaurant reservations. All via Kiosk. A hotel, a classifieds board and a shared to-do list as well. Seven sample operators run the reference code. Copy a prompt and give it to your assistant.</p>
-    <div class="demos" id="try">
-      <div class="demo-card">
-        <a href="https://getgrocery.demo.kiosk.tech"><span class="demo-card__title">getgrocery</span> <span class="demo-card__meta">grocery delivery</span></a>
-        <span class="demo-card__desc">Stripe test-mode payments · 18+ check for alcohol</span>
-        <div class="demo-card__prompt-row">
-          <span class="demo-prompt">Order a week of groceries for a family of three from getgrocery.demo.kiosk.tech — milk, eggs, bread, cheese, and red wine. Delivery address: 85 South Great George's Street, Dublin 2.</span>
-          <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="demo-copy">⧉</button>
+    <p>Seven sample operators run the reference code. Copy a prompt and give it to your assistant.</p>
+    <div class="scene" aria-hidden="true">
+      <div class="scene-prompt">
+        <span class="area">Grocery delivery</span>
+        <span>Order a week of groceries for a family of three from getgrocery.demo.kiosk.tech…</span>
+        <span class="scene-copy"><span class="scene-glyph">⧉</span><span class="scene-tick">✓</span></span>
+      </div>
+      <div class="scene-chat">
+        <div class="scene-bubble">Order a week of groceries for a family of three from getgrocery.demo.kiosk.tech…</div>
+        <div class="scene-input">
+          <span class="scene-field"><span class="scene-hint">Message your assistant</span><span class="scene-typed">Order a week of groceries for a family of three from getgrocery.demo.kiosk.tech…</span></span>
+          <span class="scene-send">➤</span>
         </div>
       </div>
-      <div class="demo-card">
-        <a href="https://atablefor.demo.kiosk.tech"><span class="demo-card__title">atablefor</span> <span class="demo-card__meta">restaurant reservations</span></a>
-        <span class="demo-card__desc">Link your assistant to your existing account</span>
-        <div class="demo-card__prompt-row">
-          <span class="demo-prompt">I'm in Alfama, Lisbon. Book a table for two at Tasca do Tejo on atablefor.demo.kiosk.tech tomorrow at 8.</span>
-          <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="demo-copy">⧉</button>
-        </div>
-      </div>
-      <div class="demo-card">
-        <a href="https://skooti.demo.kiosk.tech"><span class="demo-card__title">skooti</span> <span class="demo-card__meta">scooter &amp; motorcycle rental</span></a>
-        <span class="demo-card__desc">Anonymized KYC gate — 18+ &amp; licence</span>
-        <div class="demo-card__prompt-row">
-          <span class="demo-prompt">Rent an electric scooter near the Jordaan on skooti.demo.kiosk.tech.</span>
-          <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="demo-copy">⧉</button>
-        </div>
-      </div>
-      <div class="demo-card">
-        <a href="https://stylish.demo.kiosk.tech"><span class="demo-card__title">stylish</span> <span class="demo-card__meta">salon bookings</span></a>
-        <span class="demo-card__desc">Staff roles inherited from your IdP</span>
-        <div class="demo-card__prompt-row">
-          <span class="demo-prompt">Book a haircut at stylish.demo.kiosk.tech.</span>
-          <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="demo-copy">⧉</button>
-        </div>
-      </div>
-      <div class="demo-card">
-        <a href="https://hoteling.demo.kiosk.tech"><span class="demo-card__title">hoteling</span> <span class="demo-card__meta">hotel bookings</span></a>
-        <span class="demo-card__desc">Confirmed only once paid (Stripe test mode)</span>
-        <div class="demo-card__prompt-row">
-          <span class="demo-prompt">Book me a room in Istanbul at hoteling.demo.kiosk.tech for 2 nights this weekend.</span>
-          <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="demo-copy">⧉</button>
-        </div>
-      </div>
-      <div class="demo-card">
-        <a href="https://philslist.demo.kiosk.tech"><span class="demo-card__title">philslist</span> <span class="demo-card__meta">classifieds</span></a>
-        <span class="demo-card__desc">No payment module · listings are public text</span>
-        <div class="demo-card__prompt-row">
-          <span class="demo-prompt">On philslist.demo.kiosk.tech, post my carbon road bike for €300 with my phone number 555-123-4567 as the contact.</span>
-          <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="demo-copy">⧉</button>
-        </div>
-      </div>
-      <div class="demo-card">
-        <a href="https://tudu.demo.kiosk.tech"><span class="demo-card__title">tudu</span> <span class="demo-card__meta">shared to-do lists</span></a>
-        <span class="demo-card__desc">Lists shared between people's assistants</span>
-        <div class="demo-card__prompt-row">
-          <span class="demo-prompt">Create a shared to-do list called 'Roommate errands' on tudu.demo.kiosk.tech, add 'take out the recycling', and share it with my housemate.</span>
-          <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="demo-copy">⧉</button>
-        </div>
-      </div>
+      <svg class="scene-cursor" viewBox="0 0 14 20"><path d="M1 1l5 15 2.3-6.2L14 7.5z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
     </div>
+    <ul class="prompts" id="try">
+      <li class="prompt">
+        <span class="area">Grocery delivery</span>
+        <span class="prompt-text">Order a week of groceries for a family of three from <a href="https://getgrocery.demo.kiosk.tech">getgrocery.demo.kiosk.tech</a> — milk, eggs, bread, cheese, and red wine. Delivery address: 85 South Great George's Street, Dublin 2.</span>
+        <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
+      </li>
+      <li class="prompt">
+        <span class="area">Restaurant reservations</span>
+        <span class="prompt-text">I'm in Alfama, Lisbon. Book a table for two at Tasca do Tejo on <a href="https://atablefor.demo.kiosk.tech">atablefor.demo.kiosk.tech</a> tomorrow at 8.</span>
+        <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
+      </li>
+      <li class="prompt">
+        <span class="area">Scooter &amp; motorcycle rental</span>
+        <span class="prompt-text">Rent an electric scooter near the Jordaan on <a href="https://skooti.demo.kiosk.tech">skooti.demo.kiosk.tech</a>.</span>
+        <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
+      </li>
+      <li class="prompt">
+        <span class="area">Salon bookings</span>
+        <span class="prompt-text">Book a haircut at <a href="https://stylish.demo.kiosk.tech">stylish.demo.kiosk.tech</a>.</span>
+        <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
+      </li>
+      <li class="prompt">
+        <span class="area">Hotel bookings</span>
+        <span class="prompt-text">Book me a room in Istanbul at <a href="https://hoteling.demo.kiosk.tech">hoteling.demo.kiosk.tech</a> for 2 nights this weekend.</span>
+        <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
+      </li>
+      <li class="prompt">
+        <span class="area">Classifieds</span>
+        <span class="prompt-text">On <a href="https://philslist.demo.kiosk.tech">philslist.demo.kiosk.tech</a>, post my carbon road bike for €300 with my phone number 555-123-4567 as the contact.</span>
+        <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
+      </li>
+      <li class="prompt">
+        <span class="area">Shared to-do lists</span>
+        <span class="prompt-text">Create a shared to-do list called 'Roommate errands' on <a href="https://tudu.demo.kiosk.tech">tudu.demo.kiosk.tech</a>, add 'take out the recycling', and share it with my housemate.</span>
+        <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
+      </li>
+    </ul>
     <script>
       function copyPrompt(btn){
-        var text = btn.parentNode.querySelector('.demo-prompt').textContent.trim();
+        var text = btn.parentNode.querySelector('.prompt-text').textContent.trim();
         navigator.clipboard.writeText(text).then(function(){
           btn.textContent = '✓';
           btn.classList.add('copied');
           setTimeout(function(){ btn.textContent = '⧉'; btn.classList.remove('copied'); }, 1200);
         });
       }
+      (function(){
+        var scene = document.querySelector('.scene');
+        function place(){
+          var box = scene.getBoundingClientRect();
+          ['scene-copy', 'scene-input', 'scene-send'].forEach(function(name, i){
+            var r = scene.querySelector('.' + name).getBoundingClientRect();
+            scene.style.setProperty('--x' + i, (r.left + r.width / 2 - box.left) + 'px');
+            scene.style.setProperty('--y' + i, (r.top + r.height / 2 - box.top) + 'px');
+          });
+        }
+        place();
+        addEventListener('load', place);
+        addEventListener('resize', place);
+      })();
     </script>
   </section>
 
   <section id="ships">
     <h2>What ships</h2>
-    <div class="cols">
-      <div class="box">
-        <ul>
-          <li><a href="/specification.html">The specification</a>, with a <a href="/spec/protocol.md">formal version</a> and JSON Schemas for a port to another stack.</li>
-          <li><a href="/skill.md">The skill</a> that an assistant reads, versioned and pinned by its SHA-256.</li>
-          <li><a href="https://github.com/kiosk-hq/kiosk">The reference implementation</a>: a Rails engine, the proof of work, the Stripe payment adapter, the KYC check and an attack test suite, as Ruby gems.</li>
-          <li>The seven demo operators above, with their source.</li>
-        </ul>
-      </div>
-      <div class="box">
-        <p>Built on open standards:</p>
-        <ul class="standards">
-          <li>agents.txt</li><li>auth.md</li><li>Agent Skills</li><li>OAuth registration (RFC 7591)</li><li>Client assertions (RFC 7523)</li><li>DPoP (RFC 9449)</li><li>Device grant (RFC 8628)</li><li>RFC 8414</li><li>RFC 9727</li><li>RFC 9457 problems</li><li>AP2 v0.2</li>
-        </ul>
-        <p style="margin-top:12px">The reference is Rails. The protocol is HTTPS, JSON and JWS, so you can port it to any stack.</p>
-      </div>
-    </div>
+    <ul class="list">
+      <li><a href="/specification.html">The specification</a>, with a <a href="/spec/protocol.md">formal version</a> and JSON Schemas for a port to another stack.</li>
+      <li><a href="/skill.md">A skill</a> for personal assistants.</li>
+      <li><a href="https://github.com/kiosk-hq/kiosk">The reference implementation</a>: a Rails engine, the proof of work and the Stripe payment adapter, as Ruby gems.</li>
+      <li><a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-prove">An oversimplified example</a> of an anonymizing KYC broker service.</li>
+      <li>The seven demo operators above, with their source.</li>
+    </ul>
   </section>
 
-  <section>
-    <div class="status">
-      <strong style="color:var(--accent)">Status: v0.6</strong> — pre-1.0: the protocol may still change between releases, and an assistant relies on the skill file that the operator pins. A known TODO is in <a href="/specification.html">the specification</a>: refunds or cancellations that an assistant asks for. kiosk.tech is static files: no request, order or payment goes through it.
-    </div>
+  <section id="standards">
+    <h2>Built on open standards</h2>
+    <ul class="standards">
+      <li><a href="https://agents-txt.com">agents.txt</a></li>
+      <li><a href="https://workos.com/auth-md">auth.md</a></li>
+      <li><a href="https://agentskills.io/specification">Agent Skills</a></li>
+      <li><a href="https://www.rfc-editor.org/rfc/rfc7591">OAuth client registration (RFC 7591)</a></li>
+      <li><a href="https://www.rfc-editor.org/rfc/rfc7523">Client assertions (RFC 7523)</a></li>
+      <li><a href="https://www.rfc-editor.org/rfc/rfc9449">DPoP (RFC 9449)</a></li>
+      <li><a href="https://www.rfc-editor.org/rfc/rfc8628">Device grant (RFC 8628)</a></li>
+      <li><a href="https://www.rfc-editor.org/rfc/rfc8414">OAuth server metadata (RFC 8414)</a></li>
+      <li><a href="https://www.rfc-editor.org/rfc/rfc9727">API catalog (RFC 9727)</a></li>
+      <li><a href="https://www.rfc-editor.org/rfc/rfc9457">Problem details (RFC 9457)</a></li>
+      <li><a href="https://ap2-protocol.org">AP2 v0.2</a></li>
+    </ul>
   </section>
   </div>
 

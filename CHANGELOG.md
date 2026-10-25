@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-25: The landing speaks to operators and to people who use an assistant. It adds a privacy section for people and one prompt to copy per demo, and lists the standards in their own section.
+
 ## [skill 0.6.14] — 2026-10-25
 
 - 2026-10-25: **Skill 0.6.14**: `WWW-Authenticate` names the gate in the three 402s only, and the token-file rule is stated once. The protocol is that of 0.6.13.
