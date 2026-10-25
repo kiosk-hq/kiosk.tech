@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.15] — 2026-10-25
+
+- 2026-10-25: **Skill 0.6.15**, the protocol and the text of 0.6.14: the skill cut of reference release 0.6.15. `Kiosk-Min-Client` stays 0.6.0.
 - 2026-10-25: The onboarding page sets `skill_sha256` in the initializer, adds the skill pin test, and says that kiosk-server gives `skill_url`.
 - 2026-10-25: The landing speaks to operators and to people who use an assistant. It adds a privacy section for people and one prompt to copy per demo, and lists the standards in their own section.
 

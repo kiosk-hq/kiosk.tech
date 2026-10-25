@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | What it describes |
 |---|---|---|
+| `skill-v0.6.15.md` | **0.6** | The protocol and the text of 0.6.14. A 0.6.14 assistant still transacts. |
 | `skill-v0.6.14.md` | **0.6** | The protocol of 0.6.13. The skill says that `WWW-Authenticate` names the gate in the three 402s, and states the token-file rule once. A 0.6.13 assistant still transacts. |
 | `skill-v0.6.13.md` | **0.6** | The protocol and the text of 0.6.12, except that an `invalid_client` 401 names `Kiosk-Client-Assertion` and the verify page's 401 names `Kiosk-Session`. A 0.6.12 assistant still transacts. |
 | `skill-v0.6.12.md` | **0.6** | The protocol of 0.6.11, except that every payment receipt names `network_confirmation_id`. The skill says what it holds when the payment provider reports no network id. A 0.6.11 assistant still transacts. |
@@ -117,9 +118,9 @@ and 0.6.0 opens a new protocol group in which 0.6.0 = 0.6.1 = 0.6.2,
 and 0.6.3 opens a new protocol group of which it stayed the only member,
 and 0.6.4 opens a new protocol group of which it stayed the only member,
 and 0.6.5 opens a new protocol group of which it stayed the only member,
-and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14,
+and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15,
 but the eighteen groups are NOT the same protocol, and only the last describes
-what a 0.6.14 operator serves. The formal spec
+what a 0.6.15 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the
