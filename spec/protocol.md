@@ -2081,6 +2081,19 @@ stream overlap -- so **an AI assistant MUST ignore an `id` it has already
 seen.** With a stateful payload that is not a nicety: acting twice on one event
 is the failure at-least-once trades for never losing one.
 
+**Two event writes that overlap can break that order, and can lose an event.**
+The operator gives an event its `id` when it writes the event. A subscriber
+sees the event only when that write commits. When two writes overlap, the
+write with the higher `id` can commit first. Then a subscriber can get the
+higher `id` first and the lower `id` later. It can also never get the lower
+`id`: a replay after a cursor past that `id` does not send it, and a live
+stream that reads new events by `id` can skip it. The two writes can be for
+different identities, because the `id` is one counter per origin. This can
+occur only between an event write and its commit. Thus an operator
+**SHOULD** write an event at the end of its transaction, and keep that
+transaction short. A missed event does not change the state: the operation
+that owns the state answers its current value.
+
 `since` reaches only into what the operator still retains. There is no "from the
 beginning".
 

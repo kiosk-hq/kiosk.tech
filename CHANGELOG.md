@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-26: The specification states that two event writes that overlap can commit out of `id` order, so a subscriber can get an event late or never.
+
 ## [skill 0.6.18] — 2026-10-25
 
 - 2026-10-25: **Skill 0.6.18**: the toll is solved, and the request sent again after a `402` is the tolled retry. The specification and onboarding use the same words.
