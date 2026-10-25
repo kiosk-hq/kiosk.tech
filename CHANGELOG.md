@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-26: The landing says the operator picks how to measure the reputation that makes proofs rarer, with recent spend as the default.
+
 ## [skill 0.6.20] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.20**: a wait that ends with no event reads the state one time: KYC calls the gated action again, card setup calls `payment_setup`. One rule ends every wait.
