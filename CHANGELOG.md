@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-25: The landing: one headline, Why Kiosk before How it works, Events, "For visitors/customers", no Ruby jargon, a plain list of compatible assistants, and what each demo shows.
+
 ## [skill 0.6.17] — 2026-10-25
 
 - 2026-10-25: **Skill 0.6.17**: the registration example pays the proof-of-work toll when the operator answers `402 pow_required`.
