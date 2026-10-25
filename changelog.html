@@ -42,6 +42,11 @@
       <li>The onboarding page sets <code>skill_sha256</code> in the initializer, adds the skill pin test, and says that kiosk-server gives <code>skill_url</code>.</li>
       <li>The landing speaks to operators and to people who use an assistant. It adds a privacy section for people and one prompt to copy per demo, and lists the standards in their own section.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.15, matching skill 0.6.15; the engine default is <code>skill-v0.6.15.md</code> and every demo pins its digest.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>The demos take <code>skill_url</code> from kiosk-server and set only <code>skill_sha256</code>. Each has a skill pin test that fails, with the steps to fix, when kiosk-server gives a different skill.</li>
+    </ul>
   </section>
 
   <section id="v0.6.14">
