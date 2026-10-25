@@ -14,13 +14,14 @@ protocol cannot transact with it.
 
 | Cut | Protocol | What it describes |
 |---|---|---|
-| `skill-v0.6.17.md` | **0.6** | The protocol of 0.6.16. The registration example pays the proof-of-work toll when the operator asks for it. A 0.6.16 assistant still transacts. |
+| `skill-v0.6.18.md` | **0.6** | The protocol of 0.6.17. The skill says that the toll is solved, and names the request sent again after a `402` the tolled retry. A 0.6.17 assistant still transacts. |
+| `skill-v0.6.17.md` | **0.6** | The protocol of 0.6.16. The registration example solves the proof-of-work toll when the operator asks for it. A 0.6.16 assistant still transacts. |
 | `skill-v0.6.16.md` | **0.6** | The protocol of 0.6.15. The skill gives the body of `POST <endpoint>/agents/kyc`, introduces `owner`, `min_client` and a topic's `examples`, and drops the token's `sub` and `agent_id` claims. A 0.6.15 assistant still transacts. |
 | `skill-v0.6.15.md` | **0.6** | The protocol and the text of 0.6.14. A 0.6.14 assistant still transacts. |
 | `skill-v0.6.14.md` | **0.6** | The protocol of 0.6.13. The skill says that `WWW-Authenticate` names the gate in the three 402s, and states the token-file rule once. A 0.6.13 assistant still transacts. |
 | `skill-v0.6.13.md` | **0.6** | The protocol and the text of 0.6.12, except that an `invalid_client` 401 names `Kiosk-Client-Assertion` and the verify page's 401 names `Kiosk-Session`. A 0.6.12 assistant still transacts. |
 | `skill-v0.6.12.md` | **0.6** | The protocol of 0.6.11, except that every payment receipt names `network_confirmation_id`. The skill says what it holds when the payment provider reports no network id. A 0.6.11 assistant still transacts. |
-| `skill-v0.6.11.md` | **0.6** | The protocol of 0.6.10. The skill says that the retry that pays the toll does not count and that `head` is 0 on an origin with no event. It names the listener's `--token-command` and `verification_uri_complete`, and shows the binding poll and the claim. A 0.6.10 assistant still transacts. |
+| `skill-v0.6.11.md` | **0.6** | The protocol of 0.6.10. The skill says that the tolled retry does not count and that `head` is 0 on an origin with no event. It names the listener's `--token-command` and `verification_uri_complete`, and shows the binding poll and the claim. A 0.6.10 assistant still transacts. |
 | `skill-v0.6.10.md` | **0.6** | The protocol of 0.6.9. The assistant verifies the signature of the checkout and of the two receipts, and the `reference` of each receipt. It has a step for a link code that is unknown, expired or used. A 0.6.9 assistant still transacts. |
 | `skill-v0.6.9.md` | **0.6** | The protocol and the text of 0.6.8. The reference implementation records an assistant account only at registration. A 0.6.8 assistant still transacts. |
 | `skill-v0.6.8.md` | **0.6** | The protocol and the text of 0.6.7. The reference policy counts the spend of the account that an assistant registered in its customer's spend from the first binding on, also after an unlink. A 0.6.7 assistant still transacts. |
@@ -39,13 +40,13 @@ protocol cannot transact with it.
 | `skill-v0.5.23.md` | **0.5** | **A PROTOCOL CHANGE in auth.** Every access token is bound to the assistant's key: each call sends `Authorization: DPoP <token>` and a `DPoP` proof that the key signs (RFC 9449). `POST <endpoint>/auth/rotate` changes the key and keeps the account and its reputation. The card-setup `402` names `Kiosk-Payment-Setup`. The listener `listen-v0.5.23.py` gets its proof from the assistant's `--proof-command`. |
 | `skill-v0.5.22.md` | **0.5** | **A PROTOCOL CHANGE in payment.** An action answers `checkout_jwt`, a checkout the operator signs. The assistant pays it with two closed AP2 v0.2 mandates, each an SD-JWT: `POST <endpoint>/pay {checkout_mandate, payment_mandate}`. Older cuts cannot pay at a 0.5.22 operator. |
 | `skill-v0.5.21.md` | **0.5** | The same protocol as 0.5.20. Its frontmatter follows agentskills.io: `version`, `tags` and `trigger` are under `metadata`. It says near its top that the skill, the solver and the listener come only from kiosk.tech. |
-| `skill-v0.5.20.md` | **0.5** | A new protocol. The operator reads every service time on the clock of the place where the service happens, and MAY toll the link-code claim and the first binding poll of a `device_code`. The assistant resolves a time on that clock and pays those tolls. |
+| `skill-v0.5.20.md` | **0.5** | A new protocol. The operator reads every service time on the clock of the place where the service happens, and MAY toll the link-code claim and the first binding poll of a `device_code`. The assistant resolves a time on that clock and solves those tolls. |
 | `skill-v0.5.19.md` | **0.5** | The same protocol as 0.5.18. The assistant sends a declared `limit` inside its range, knows that a spending cap has one currency, and uses the pinned cut when it is older than `Kiosk-Min-Client`. It pins a new solver and listener `listen-v0.5.19.py`, whose usage line names an origin folder. |
 | `skill-v0.5.18.md` | **0.5** | The same protocol as 0.5.17. The assistant resolves a relative `next` link against the URL of its request, and does not guess the order of the rows from a cursor. |
 | `skill-v0.5.17.md` | **0.5** | The same protocol as 0.5.16. Where no topic covers card setup, the assistant polls `payment_setup` on the schedule its description states. It ignores unknown members in every answer, and an absent `scope` means that the operator assigns no roles. |
 | `skill-v0.5.16.md` | **0.5** | The same protocol as 0.5.15. A topic's `description`, `payload_schema` and `examples` join the list of operator-written strings that the assistant reads as data. |
 | `skill-v0.5.15.md` | **0.5** | **A PROTOCOL CHANGE in payment.** An action that creates an order answers `cart`, which the assistant signs unchanged; a per-user query gives `payment_state`; the `payment` topic says when an order is paid or refunded. |
-| `skill-v0.5.14.md` | **0.5** | **A PROTOCOL CHANGE in payment and the toll.** A repeat of the same unfinished payment chain is charged again under the same key, so it cannot charge twice; a declined charge stops counting against an exact spending cap at once; the proof-of-work toll is paid once per access token. The listener `listen-v0.5.14.py` shows a delivery topic in its usage line. The skill is rewritten in Simplified Technical English. |
+| `skill-v0.5.14.md` | **0.5** | **A PROTOCOL CHANGE in payment and the toll.** A repeat of the same unfinished payment chain is charged again under the same key, so it cannot charge twice; a declined charge stops counting against an exact spending cap at once; the proof-of-work toll is solved once per access token. The listener `listen-v0.5.14.py` shows a delivery topic in its usage line. The skill is rewritten in Simplified Technical English. |
 | `skill-v0.5.13.md` | **0.5** | The same protocol as 0.5.12. Once a card is saved, the assistant asks the human how much it may pay at that operator without asking, keeps the amount beside its key, and asks before any payment over it. |
 | `skill-v0.5.12.md` | **0.5** | The same protocol as 0.5.11. A URL that carries a credential, like skooti's `unlock_url`, is handed to the human once, as a card-setup link is, and the token it carries is never pasted elsewhere. |
 | `skill-v0.5.11.md` | **0.5** | The same protocol as 0.5.10. The assistant compares a pinned cut with its cached one as numbers, MAJOR, MINOR and PATCH each an integer, so 0.5.10 is newer than 0.5.9. |
@@ -120,9 +121,9 @@ and 0.6.0 opens a new protocol group in which 0.6.0 = 0.6.1 = 0.6.2,
 and 0.6.3 opens a new protocol group of which it stayed the only member,
 and 0.6.4 opens a new protocol group of which it stayed the only member,
 and 0.6.5 opens a new protocol group of which it stayed the only member,
-and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15 = 0.6.16 = 0.6.17,
+and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15 = 0.6.16 = 0.6.17 = 0.6.18,
 but the eighteen groups are NOT the same protocol, and only the last describes
-what a 0.6.17 operator serves. The formal spec
+what a 0.6.18 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

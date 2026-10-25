@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.18] — 2026-10-25
+
+- 2026-10-25: **Skill 0.6.18**: the toll is solved, and the request sent again after a `402` is the tolled retry. The specification and onboarding use the same words.
 - 2026-10-25: The landing: one headline, Why Kiosk before How it works, Events, "For visitors/customers", no Ruby jargon, a plain list of compatible assistants, and what each demo shows.
 
 ## [skill 0.6.17] — 2026-10-25

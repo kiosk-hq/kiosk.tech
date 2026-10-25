@@ -38,7 +38,7 @@ send, and the call 400s. So state a fact ONCE, in the place where it can be
 checked.
 
 The acceptance test for a good descriptor is the **cold-assistant run**: a
-fresh assistant, given only `GET /kiosk/schema`, reaches the user's goal on the
+fresh assistant, given only `GET /kiosk/schema`, reaches the human's goal on the
 first well-formed call. If it has to guess a field name, a currency, an id
 format, or whether a list is complete, the descriptor is under-written.
 
