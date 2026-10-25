@@ -42,6 +42,14 @@
       <li>The landing says Claude Code has run the demos too, and names the section &quot;Compatible assistants&quot;.</li>
       <li>The reference notes and the onboarding page name Kiosk&#39;s tables <code>kiosk_*</code> (<code>kiosk_stripe_customers</code> among them), and the <code>kiosk_current_*()</code> functions as kiosk-rls&#39;s.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.16, matching skill 0.6.16; the engine default is <code>skill-v0.6.16.md</code> and every demo pins its digest.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>Kiosk&#39;s tables are <code>kiosk_*</code> tables in the schema <code>c.schema</code> names, <code>public</code> by default, made by plain Rails migrations. A 0.6 database is rebuilt to upgrade.</li>
+      <li><code>bin/rails g kiosk:rls:install</code> creates the <code>kiosk_current_*()</code> functions RLS policies call; <code>kiosk:install</code> does not.</li>
+      <li>Each demo&#39;s migrations are one fresh install again, with kiosk:install&#39;s migrations; every deployed demo database is rebuilt.</li>
+      <li><code>Kiosk::Identity</code> takes the actor <code>agent</code> or <code>human</code>; <code>service</code> is removed.</li>
+    </ul>
   </section>
 
   <section id="v0.6.15">
