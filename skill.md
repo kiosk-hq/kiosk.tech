@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.18"
+  version: "0.6.19"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -186,7 +186,7 @@ The stream is the one place where the OPERATOR speaks first. It is optional. You
 - **`head` is your cursor**: the newest event id at the origin, or `0` when the origin has no event yet. An event id is `1` or more.
 - **`truncated: true`** means that you possibly missed events. Read the current state through the usual operation that owns it, ONE time, then continue with the stream. For an identity check, call `request_kyc` again.
 
-**The event** has five members: `{"id": 1487, "topic": "kyc_verification", "subject": "9f2c...", "occurred_at": "2026-09-04T09:14:22Z", "data": {...}}`. `data` matches the topic's `payload_schema`. `id` is one increasing integer per origin. The events of all identities at the origin share it: the ids that you get have gaps, so never compare ids between identities. The operator sends each event at least once, in order. So **ignore an `id` that you already saw.** The operator keeps at least 24 hours of events.
+**The event** has five members: `{"id": 1487, "topic": "kyc_verification", "subject": "9f2c...", "occurred_at": "2026-09-04T09:14:22Z", "data": {...}}`. `data` matches the topic's `payload_schema`. `id` is one increasing integer per origin. The events of all identities at the origin share it: the ids that you get have gaps, so never compare ids between identities. The operator sends events in `id` order, and can send an event more than once. So **ignore an `id` that you already saw.** An event can also come late, after a higher `id`, or not come at all. When a state matters, read it through the operation that owns it: that operation gives the current value. The operator keeps at least 24 hours of events.
 
 **While the stream is up:**
 

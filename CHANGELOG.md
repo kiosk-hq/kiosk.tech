@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.19] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.19**: an event can come late or not at all, and the operation that owns a state gives its current value. The specification says the same.
 - 2026-10-26: The specification states that two event writes that overlap can commit out of `id` order, so a subscriber can get an event late or never.
 
 ## [skill 0.6.18] — 2026-10-25
