@@ -41,6 +41,14 @@
       <li><strong>Skill 0.6.19</strong>: an event can come late or not at all, and the operation that owns a state gives its current value. The specification says the same.</li>
       <li>The specification states that two event writes that overlap can commit out of <code>id</code> order, so a subscriber can get an event late or never.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.19, matching skill 0.6.19; the engine default is <code>skill-v0.6.19.md</code> and every demo pins its digest.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>The vendored event schema and the channel comment say that an event can come more than once.</li>
+      <li>The event comments say that an event committed after a higher id is outside id order, and that <code>Events.emit</code> goes last in its transaction.</li>
+      <li>hoteling&#39;s confirmation code is six digits, unique at its property. The <code>reserve_room</code> checkout line names the room type.</li>
+      <li>ROADMAP.md says why Kiosk exists, what 0.6 ships, what 0.7 and later bring, and what is out of scope.</li>
+    </ul>
   </section>
 
   <section id="v0.6.18">
