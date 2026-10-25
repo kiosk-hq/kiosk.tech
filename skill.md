@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.16"
+  version: "0.6.17"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -296,7 +296,7 @@ pem = ed25519.Ed25519PrivateKey.generate().private_bytes(Encoding.PEM, PrivateFo
 A client assertion proves that you hold your private key. Its `aud` is the origin, so nobody can use it at another operator:
 
 ```python
-import hashlib, json, os, sys, time, urllib.error, urllib.parse, urllib.request, uuid
+import hashlib, json, os, subprocess, sys, time, urllib.error, urllib.parse, urllib.request, uuid
 import jwt
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 sys.path.insert(0, os.path.expanduser("~/.kiosk"))
@@ -306,6 +306,7 @@ auth    = doc["kiosk"]["auth"]                  # the discovery document, Step 1
 origin  = "https://getgrocery.demo.kiosk.tech"  # the origin you dialed
 key_pem = open(os.path.expanduser("~/.kiosk/<origin-dir>/key.pem"), "rb").read()
 key     = load_pem_private_key(key_pem, password=None)
+SOLVER  = os.path.expanduser("~/.kiosk/solve.py")  # the pinned solver, after you check its SHA-256
 ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
 def post(url, body, headers):
@@ -313,9 +314,20 @@ def post(url, body, headers):
 def fingerprint(jwk):                           # RFC 7638 thumbprint
     return b64(hashlib.sha256(json.dumps(jwk, sort_keys=True, separators=(",", ":")).encode()).digest())
 
-# Client registration (RFC 7591), one time per key.
-client_id = post(auth["registration_url"], json.dumps({"jwks": {"keys": [public_jwk(key)]}}).encode(),
-                 {"Content-Type": "application/json"})["client_id"]   # keep it in identity.json
+def pow_proofs(answer):                         # a 402 pow_required: one proof for each challenge
+    return json.dumps([{"challenge": c, "nonce": json.loads(subprocess.check_output(
+        [sys.executable, SOLVER, json.dumps(c)]))} for c in json.load(answer)["challenges"]])
+
+# Client registration (RFC 7591), one time per key. It can give 402 pow_required:
+# pay the toll, and send the same body again with the Kiosk-PoW header.
+registration, headers = json.dumps({"jwks": {"keys": [public_jwk(key)]}}).encode(), {"Content-Type": "application/json"}
+try:
+    client_id = post(auth["registration_url"], registration, headers)["client_id"]
+except urllib.error.HTTPError as answer:
+    if answer.code != 402:
+        raise
+    client_id = post(auth["registration_url"], registration, {**headers, "Kiosk-PoW": pow_proofs(answer)})["client_id"]
+# keep client_id in identity.json
 
 def client_assertion(signing_key, **claims):    # RFC 7523: a new one for each request
     now = int(time.time())

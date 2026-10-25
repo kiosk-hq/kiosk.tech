@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.17] — 2026-10-25
+
+- 2026-10-25: **Skill 0.6.17**: the registration example pays the proof-of-work toll when the operator answers `402 pow_required`.
 - 2026-10-25: The landing has one headline, a "Why Kiosk" section, the gatekeepers' deals in the problem, a plain list of compatible assistants, and what each demo shows.
 
 ## [skill 0.6.16] — 2026-10-25
