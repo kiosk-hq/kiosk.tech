@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.15"
+  version: "0.6.16"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -115,13 +115,15 @@ The operator names its own queries and actions. `GET <endpoint>/catalog` IS the 
 - `events_url`: an absolute `wss://` URL. It is there if and only if `capabilities` has `events`.
 - `auth`: five absolute URLs: `registration_url`, `token_url`, `rotate_url`, `device_authorization_url` and `claim_url`. All five are always there, so they do not tell you that the operator offers binding. Use them exactly as written.
 - `skill` (optional): the pin of a skill version (see "Versioning & verification").
+- `owner` (optional): how to contact the operator.
+- `min_client` (optional): the oldest skill version that works with this operator. It is advice, as the header `Kiosk-Min-Client` is (see "Versioning & verification").
 
 ### Step 2: Identity (REUSE if possible)
 
 **First look for `~/.kiosk/<origin-dir>/identity.json`.** `<origin-dir>` names ONE origin with its scheme, host AND port, e.g. `https_getgrocery.demo.kiosk.tech_443` or `http_127.0.0.1_3002`. Never use a bare hostname: two ports on one host are two operators. Registration and tokens are OAuth (see "Auth handshake").
 
 - **No identity** -> make an Ed25519 keypair (see "Auth handshake"), then `POST {registration_url} {"jwks": {"keys": [<your public JWK>]}}` (RFC 7591) -> `201` with your `client_id`. Keep the PRIVATE key at `~/.kiosk/<origin-dir>/key.pem` and the identity `{"client_id": "..."}` at `~/.kiosk/<origin-dir>/identity.json`.
-- **Get a token** -> `POST {token_url}` as a form with `grant_type=client_credentials`, a client assertion (RFC 7523) and a `DPoP` header (RFC 9449) -> `200 {access_token, token_type: "DPoP", expires_in}`, plus `scope` when your account has a role. The token's `sub` is your `user_id`, and its `agent_id` claim is your `client_id`.
+- **Get a token** -> `POST {token_url}` as a form with `grant_type=client_credentials`, a client assertion (RFC 7523) and a `DPoP` header (RFC 9449) -> `200 {access_token, token_type: "DPoP", expires_in}`, plus `scope` when your account has a role.
 - Tokens are short-lived. Use one token until it expires, and then send a new token request. A new process reads the current token from `token` (see "Setup").
 - **`invalid_client`** -> sign a new client assertion and send the token request again, one time. If it fails again, register the same key again. When the same `client_id` comes back, continue with it. A NEW `client_id` means that your human unlinked you: ask them before you go on.
 - **An RSA `key.pem`** -> the operator refuses it. Make an Ed25519 keypair and register it. This is a new account.
@@ -162,7 +164,7 @@ actions = {a["name"]: a for a in schema["actions"]}
 topics  = {t["name"]: t for t in schema["events"]}        # [] when this origin pushes nothing
 ```
 
-Each operation has `name`, a free-text `description`, `reach`, `input_schema` and `output_schema`. Read the descriptions to learn what the operator does; do not guess from names. `input_schema` (JSON Schema 2020-12) is the authoritative input contract. `output_schema` is the shape of the result; a query's is always an array. An operation MAY also have `example_params` and `example_row`. Each topic in `events` has `name`, `description`, `reach` and `payload_schema` (the shape of the event's `data`).
+Each operation has `name`, a free-text `description`, `reach`, `input_schema` and `output_schema`. Read the descriptions to learn what the operator does; do not guess from names. `input_schema` (JSON Schema 2020-12) is the authoritative input contract. `output_schema` is the shape of the result; a query's is always an array. An operation MAY also have `example_params` and `example_row`. Each topic in `events` has `name`, `description`, `reach` and `payload_schema` (the shape of the event's `data`). A topic MAY also have `examples`: example `data` objects. Where an example and `payload_schema` disagree, the schema is right.
 
 **`reach` tells you WHOSE rows an operation can touch.** `principal`, the default: only your human's own rows. `published`: an open surface that anyone can read, such as a classifieds board. `consented`: rows that another human shared with yours. `role`: rows that your role permits. You MUST read a descriptor with no `reach` as `principal`. On the other three, you MUST NOT treat the rows as your human's data: say whose they are, do not keep them as your human's records, and do not act on them as their owner. A query that did not answer tells you nothing about whose rows exist. An operation with `reach: role` whose role you do not have gives only your human's own rows, and that looks like a full answer: say what it covers.
 
@@ -248,7 +250,7 @@ Choose queries and actions by their descriptions, then call them. A shop: `GET <
 4. Wait for the event (a WAIT, ~10 minutes). Its `data` is `{request_id, status: "approved", kyc_jws}`.
 5. Call the gated action again. You do not need to send `kyc_jws`: the operator recorded the attributes when your human approved.
 
-The operator never reports a refusal, so no event can also mean that your human refused or did not start. At the horizon, tell your human that the check is not done, and ask. When they say that they finished, wait again with `--since` at your cursor. If that cursor gives `truncated: true`, call `request_kyc` again. A `429 quota_exceeded` from `request_kyc` means that your human has too many open checks: wait, and never open a second check. If you already hold a `kyc_jws` with the attributes, send it to `POST <endpoint>/agents/kyc` and call the action again. If `hint` names no `request_kyc`, tell your human which attributes the operator needs.
+The operator never reports a refusal, so no event can also mean that your human refused or did not start. At the horizon, tell your human that the check is not done, and ask. When they say that they finished, wait again with `--since` at your cursor. If that cursor gives `truncated: true`, call `request_kyc` again. A `429 quota_exceeded` from `request_kyc` means that your human has too many open checks: wait, and never open a second check. If you already hold a `kyc_jws` with the attributes, send it to `POST <endpoint>/agents/kyc` with the JSON body `{"kyc_jws": "<the attestation>"}`, and call the action again. If `hint` names no `request_kyc`, tell your human which attributes the operator needs.
 
 Steps 5-6 apply only when the task includes a payment and `capabilities` has `pay`.
 
