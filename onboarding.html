@@ -52,8 +52,9 @@
   <h1>Operator onboarding — from install to agent-ready</h1>
   <p class="intro">A step-by-step guide for adding Kiosk to an existing Rails app, worked through the <a href="https://github.com/kiosk-hq/kiosk/tree/main/kiosk-demo-getgrocery">getgrocery</a> demo operator: a grocery catalogue, delivery windows, and orders that are paid and can be moved once.</p>
 
-  <p class="intro">The controllers below are getgrocery's own, one per resource: <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/catalog_controller.rb"><code>Kiosk::CatalogController</code></a>, <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/delivery_slots_controller.rb"><code>Kiosk::DeliverySlotsController</code></a> and <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/orders_controller.rb"><code>Kiosk::OrdersController</code></a>. Name yours after your own domain; nothing depends on the word "catalog".</p>
-  <p><strong>Check this first.</strong> <code>kiosk-server</code> declares <code>railties</code>, <code>actionpack</code>, <code>activerecord</code> and <code>activesupport</code> at <code>~&gt; 8.1</code>, so this integration needs <strong>Rails 8.1</strong>: <strong>Rails 7.x and 8.0.x are excluded</strong> and bundler will refuse to resolve against an app on either. Older Rails lines are untested, so they are not claimed. You also need <strong>Ruby 3.2.0 or newer</strong> — the floor every Kiosk gemspec declares — and <strong>PostgreSQL</strong>, which is the only database Kiosk supports.</p>
+  <p class="intro">The controllers below are getgrocery's own, one per resource: <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/catalog_controller.rb"><code>Kiosk::CatalogController</code></a>, <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/delivery_slots_controller.rb"><code>Kiosk::DeliverySlotsController</code></a>, <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/orders_controller.rb"><code>Kiosk::OrdersController</code></a> and <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/deliveries_controller.rb"><code>Kiosk::DeliveriesController</code></a>. Name yours after your own domain; nothing depends on the word "catalog".</p>
+  <p class="intro">A code block whose first line names a path is that file of getgrocery, copied whole from the <code>main</code> branch of the reference repository. A first line that ends in <code>, an excerpt</code> marks a part of the file, copied unchanged.</p>
+  <p><strong>Check this first.</strong> <code>kiosk-server</code> declares <code>railties</code>, <code>actionpack</code>, <code>actioncable</code>, <code>activerecord</code> and <code>activesupport</code> at <code>~&gt; 8.1</code>, so this integration needs <strong>Rails 8.1</strong>: <strong>Rails 7.x and 8.0.x are excluded</strong> and bundler will refuse to resolve against an app on either. Older Rails lines are untested, so they are not claimed. You also need <strong>Ruby 4.0 or newer</strong> — the floor every Kiosk gemspec declares — and <strong>PostgreSQL</strong>, which is the only database Kiosk supports.</p>
   <p>Two scopes, assuming a working Rails 8.1 + Postgres app you already know:</p>
   <ul>
     <li><strong>Read-only, no payments — a short integration.</strong> Add the gem, run the install generator, draw the routes, declare a couple of read-only queries in a controller by adapting the examples below, name them in the <code>kiosk</code> routes block, and verify discovery + one query. That's the minimal agent-ready surface.</li>
@@ -147,16 +148,34 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 rails db:migrate</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 3: Draw the routes</h2>
-  <p>Step 1's generator already wrote a <code>kiosk</code> block at the top of your <code>config/routes.rb</code>, with an example query and action commented out, because it knows none of your verbs. Naming the five that Steps 4 and 5 declare is this step's work:</p>
+  <p>Step 1's generator already wrote a <code>kiosk</code> block at the top of your <code>config/routes.rb</code>, with an example query and action commented out, because it knows none of your verbs. Naming the five that Steps 4 and 5 declare is this step's work. getgrocery's routes:</p>
   <pre><code class="language-ruby"># config/routes.rb
+# frozen_string_literal: true
+
 Rails.application.routes.draw do
+  # Human sign-in (Devise): the web session that approves assistant links.
+  devise_for :users
+
+  # Human storefront + the agent hook ("Agents → Kiosk here") on the homepage.
+  # Devise needs this as its post-sign-in destination too.
+  root 'home#index'
+
+  # What this demo stores and for how long.
+  get '/privacy', to: 'privacy#show'
+
+  # Crawlers: robots.txt names the sitemap.
+  get '/robots.txt', to: 'crawler#robots'
+  get '/sitemap.xml', to: 'crawler#sitemap'
+
+  # ── The Kiosk HTTP API surface ────────────────────────────────────────────────
   kiosk do
     queries :catalog, :delivery_slots, :my_orders
     actions :create_order, :reschedule_delivery
   end
 
-  root "home#index"
-  # ...your own pages...
+  # ─── Provider admin (read-only demo back-office) ──────────────────────────
+  # No auth required — demo provider only. Production would authenticate.
+  get '/admin/orders' =&gt; 'admin/orders#index', as: :admin_orders
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The block does two things, in this order. It <strong>mounts the engine</strong> at the <code>mount_path</code> from Step 2's initializer — <code>/kiosk</code> unless you set another — which draws the protocol plane: the paths whose shape and answers are the specification's. Then it draws <strong>one route per verb you name, and the method follows the kind</strong>: <code>GET /kiosk/&lt;name&gt;</code> for each query and <code>POST /kiosk/&lt;name&gt;</code> for each action, each reaching the controller action that declares the verb. You draw no verb route by hand: one drawn straight at a handler action answers 404. Adding a verb is two edits from here on — the declaration in your controller, and its name in this block — and in exchange <code>bin/rails routes</code> prints your actual verbs.</p>
@@ -216,6 +235,8 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>A delivery window is offered by one verb and booked by two, so its arithmetic lives in one place — <code>app/models/delivery_slots.rb</code>, a plain Ruby module Rails autoloads. A window is named by its start, <code>slot_at</code>: an ISO 8601 time with its offset, which <code>delivery_slots</code> publishes and the two actions take back unchanged.</p>
   <pre><code class="language-ruby"># app/models/delivery_slots.rb
+# frozen_string_literal: true
+
 # Two-hour delivery windows from 08:00, on the clock of the delivery district.
 # Every verb that offers, books, moves or reads a window computes it here.
 module DeliverySlots
@@ -228,7 +249,7 @@ module DeliverySlots
   DRIVE   = 5.minutes
 
   # The origin's zone, used where no address is involved: published examples.
-  DEFAULT_ZONE_NAME = "Europe/Dublin"
+  DEFAULT_ZONE_NAME = 'Europe/Dublin'
 
   module_function
 
@@ -245,7 +266,7 @@ module DeliverySlots
 
   # Each window's start on `date`, on the clock of `zone`.
   def starts(date, zone = default_zone)
-    Array.new(COUNT) { date.in_time_zone(zone).change(hour: FIRST_HOUR + _1 * WINDOW_HOURS) }
+    Array.new(COUNT) { date.in_time_zone(zone).change(hour: FIRST_HOUR + (it * WINDOW_HOURS)) }
   end
 
   def start?(time, zone) = starts(time.in_time_zone(zone).to_date, zone).include?(time)
@@ -253,7 +274,7 @@ module DeliverySlots
   # "08:00–10:00 (Europe/Dublin)".
   def label(time, zone = default_zone)
     hour = time.in_time_zone(zone).hour
-    format("%02d:00–%02d:00 (%s)", hour, hour + WINDOW_HOURS, zone.name)
+    format('%&lt;from&gt;02d:00–%&lt;to&gt;02d:00 (%&lt;zone&gt;s)', from: hour, to: hour + WINDOW_HOURS, zone: zone.name)
   end
 
   # A window takes orders while a basket paid now still reaches the door inside it.
@@ -261,10 +282,10 @@ module DeliverySlots
     (slot_at + WINDOW_HOURS.hours - PICKING.max.minutes - DRIVE).past?
   end
 
-  def bookable(date, zone) = starts(date, zone).reject { closed?(_1) }
+  def bookable(date, zone) = starts(date, zone).reject { closed?(it) }
 
   # "14:35 (Europe/Dublin)".
-  def clock_label(time, zone) = "#{time.in_time_zone(zone).strftime("%H:%M")} (#{zone.name})"
+  def clock_label(time, zone) = "#{time.in_time_zone(zone).strftime('%H:%M')} (#{zone.name})"
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <blockquote><strong>Which zone? The place the service happens.</strong> For a table, a room or a chair that is the venue's address; for a delivery it is the customer's door. getgrocery keeps a clock per served district in <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/models/dublin_zones.rb"><code>DublinZones::ZONES</code></a> and reads it with <code>zone_at(address)</code>; <code>DEFAULT_ZONE_NAME</code> fills the published examples, which name no address. The specification forbids answering from one zone configured on the origin, because an operator may run stores in many time zones: record the zone against the thing it belongs to.
@@ -272,95 +293,111 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <br><br><strong>A <code>date</code> an assistant sends is a day at the same place</strong>, the delivery address. The assistant reads the zone from the row and resolves its human's words on that clock. A day that has ended at the address is a <code>400</code> naming the zone and the earliest day it can ask for.
   <br><br><strong>Tell the caller when the clocks differ.</strong> An assistant declares its human's zone in the <code>Kiosk-Timezone</code> request header, and <code>Kiosk.reader_zone</code> reads it. The header never moves a service time. When the place's zone differs from the declared one, say so in the answer, briefly and clearly: the place, its zone, how far it is from the caller, and that every time in the answer is the place's. <code>Kiosk.clock_gap_note(name, zone, Kiosk.reader_zone)</code> writes the first sentence (the place, its zone and the hours between the two clocks), or answers <code>nil</code> when the clocks are the same now. hoteling adds a second sentence and sends both in a <code>timezone_note</code> on its <code>hotel_detail</code> row: every date and time in the row is the hotel's.</blockquote>
 
-  <p><code>app/controllers/kiosk/catalog_controller.rb</code>:</p>
+  <p><a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/catalog_controller.rb"><code>app/controllers/kiosk/catalog_controller.rb</code></a>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/catalog_controller.rb
-# The shop's shelf.
-class Kiosk::CatalogController &lt; ActionController::API
-  include Kiosk::Handler
+# frozen_string_literal: true
 
-  kind :query
-  description "The products in stock now, at the price a checkout is signed at. Alcohol is marked " \
-              "`age_restricted`: `create_order` takes it only after an 18+ check (`request_kyc`)."
-  input_schema type: "object", additionalProperties: false, properties: {}, required: []
-  output_schema type: "array",
-                description: "In-stock products, by name.",
-                items: {
-                  type: "object", additionalProperties: false,
-                  properties: {
-                    sku:            { type: "string", description: "The product's handle in an order." },
-                    name:           { type: "string" },
-                    price_cents:    { type: "integer", description: "EUR cents." },
-                    price_eur:      { type: "string", description: "The price as a human reads it, e.g. \"€4.49\"." },
-                    currency:       { type: "string" },
-                    low:            { type: "boolean", description: "Present when stock is running out." },
-                    age_restricted: { type: "boolean", description: "Present on alcohol." },
-                  },
-                  required: %w[sku name price_cents price_eur currency],
-                }
-  example_params({})
-  example_row({
-    sku: "sourdough-bread", name: "Sourdough Bread", price_cents: 449,
-    price_eur: "€4.49", currency: "eur",
-  })
-  def catalog
-    @products = Product.in_stock.order(:name)
+# The shop's shelf.
+module Kiosk
+  class CatalogController &lt; ActionController::API
+    include Kiosk::Handler
+
+    kind :query
+    description 'Every product, at the price a checkout is signed at. One with nothing left carries `sold_out`; ' \
+                'the shelves are restocked every morning. Alcohol is marked `age_restricted`: `create_order` ' \
+                'takes it only after an 18+ check (`request_kyc`).'
+    input_schema type: 'object', additionalProperties: false, properties: {}, required: []
+    output_schema type: 'array',
+                  description: 'Products, by name.',
+                  items: {
+                    type: 'object', additionalProperties: false,
+                    properties: {
+                      sku: { type: 'string', description: "The product's handle in an order." },
+                      name: { type: 'string' },
+                      price_cents: { type: 'integer', description: 'EUR cents.' },
+                      price_eur: { type: 'string', description: 'The price as a human reads it, e.g. "€4.49".' },
+                      currency: { type: 'string' },
+                      low: { type: 'boolean', description: 'Present when stock is running out.' },
+                      sold_out: { type: 'string', enum: [Product::SOLD_OUT],
+                                  description: 'Present when nothing is left; offer the customer another product.' },
+                      age_restricted: { type: 'boolean', description: 'Present on alcohol.' }
+                    },
+                    required: %w[sku name price_cents price_eur currency]
+                  }
+    example_params({})
+    example_row({
+                  sku: 'sourdough-bread', name: 'Sourdough Bread', price_cents: 449,
+                  price_eur: '€4.49', currency: 'eur'
+                })
+    def catalog
+      @products = Product.order(:name)
+    end
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>The action loads the products; its view shapes the answer. <code>ignore_nil!</code> leaves <code>low</code> and <code>age_restricted</code> out unless they are true, as the <code>output_schema</code> says:</p>
+  <p>The action loads the products; its view shapes the answer. <code>ignore_nil!</code> leaves <code>low</code> and <code>age_restricted</code> out unless they are true, and <code>sold_out</code> is there only on a product with nothing left, as the <code>output_schema</code> says:</p>
   <pre><code class="language-ruby"># app/views/kiosk/catalog/catalog.json.jbuilder
+# frozen_string_literal: true
+
 json.ignore_nil!
 json.array! @products do |product|
   json.extract! product, :sku, :name, :price_cents
   json.price_eur Product.format_eur(product.price_cents)
-  json.currency "eur"
+  json.currency 'eur'
   json.low product.low_stock? || nil
+  json.sold_out(Product::SOLD_OUT) if product.sold_out?
   json.age_restricted product.age_restricted? || nil
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p><code>app/controllers/kiosk/delivery_slots_controller.rb</code>:</p>
+  <p><a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/delivery_slots_controller.rb"><code>app/controllers/kiosk/delivery_slots_controller.rb</code></a>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/delivery_slots_controller.rb
-# The delivery windows at an address.
-class Kiosk::DeliverySlotsController &lt; ActionController::API
-  include Kiosk::Handler
+# frozen_string_literal: true
 
-  kind :query
-  description "The delivery windows still bookable on a day at a Dublin address in a served " \
-              "district. Ask the customer for their real address first; an empty answer means " \
-              "that day is full, so try a later one."
-  input_schema type: "object",
-               additionalProperties: false,
-               properties: {
-                 date:             { type: "string", format: "date",
-                                     description: "A day on the delivery address's clock. Omit it " \
-                                                  "for the soonest day the shop delivers." },
-                 delivery_address: { type: "string", description: "A Dublin address naming its postal district, e.g. \"Dublin 2\"." },
-               },
-               required: ["delivery_address"]
-  output_schema type: "array",
-                description: "Bookable windows, earliest first.",
-                items: {
-                  type: "object", additionalProperties: false,
-                  properties: {
-                    slot_at:  { type: "string", description: "The window's start; pass it to create_order." },
-                    label:    { type: "string", description: "The window as a human reads it, e.g. " \
-                                                             "\"08:00–10:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})\"." },
-                    timezone: { type: "string", description: "The delivery address's IANA zone." },
-                    district: { type: "string", description: "The postal district the address routed to, e.g. \"D02\"." },
-                  },
-                  required: %w[slot_at label timezone district],
-                }
-  example_params({ date:             -&gt; { DeliverySlots.default_zone.tomorrow.iso8601 },
-                   delivery_address: "42 Camden Street, Dublin 2" })
-  example_row({ slot_at:  -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow).first.iso8601 },
-                label:    "08:00–10:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
-                timezone: DeliverySlots::DEFAULT_ZONE_NAME, district: "D02" })
-  def delivery_slots
-    @search = SlotSearch.new(delivery_address: params[:delivery_address], date: params[:date])
-    @search.validate!
+# The delivery windows at an address.
+module Kiosk
+  class DeliverySlotsController &lt; ActionController::API
+    include Kiosk::Handler
+
+    kind :query
+    description 'The delivery windows still bookable on a day at a Dublin address in a served ' \
+                'district. Ask the customer for their real address first; an empty answer means ' \
+                'that day is full, so try a later one.'
+    input_schema type: 'object',
+                 additionalProperties: false,
+                 properties: {
+                   date: { type: 'string', format: 'date',
+                           description: "A day on the delivery address's clock. Omit it " \
+                                        'for the soonest day the shop delivers.' },
+                   delivery_address: { type: 'string', description: 'A Dublin address naming its postal district, e.g. "Dublin 2".' }
+                 },
+                 required: ['delivery_address']
+    output_schema type: 'array',
+                  description: 'Bookable windows, earliest first.',
+                  items: {
+                    type: 'object', additionalProperties: false,
+                    properties: {
+                      slot_at: { type: 'string', description: "The window's start; pass it to create_order." },
+                      label: { type: 'string', description: 'The window as a human reads it, e.g. ' \
+                                                            "\"08:00–10:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})\"." },
+                      timezone: { type: 'string', description: "The delivery address's IANA zone." },
+                      district: { type: 'string', description: 'The postal district the address routed to, e.g. "D02".' }
+                    },
+                    required: %w[slot_at label timezone district]
+                  }
+    example_params({ date: -&gt; { DeliverySlots.default_zone.tomorrow.iso8601 },
+                     delivery_address: '42 Camden Street, Dublin 2' })
+    example_row({ slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow).first.iso8601 },
+                  label: "08:00–10:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
+                  timezone: DeliverySlots::DEFAULT_ZONE_NAME, district: 'D02' })
+    def delivery_slots
+      @search = SlotSearch.new(delivery_address: params[:delivery_address], date: params[:date])
+      @search.validate!
+    end
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-ruby"># app/views/kiosk/delivery_slots/delivery_slots.json.jbuilder
+# frozen_string_literal: true
+
 zone = @search.zone
 json.array! DeliverySlots.bookable(@search.day, zone) do |slot_at|
   json.slot_at slot_at.iso8601
@@ -371,6 +408,8 @@ end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p>The handler checks nothing itself. Its arguments are validated in a model, the way an order is in Step 5: <code>search.validate!</code> raises on a refusal, and the engine answers <code>400</code> with the model's own messages. <code>served_address: true</code> is getgrocery's <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/validators/served_address_validator.rb"><code>ServedAddressValidator</code></a>, which accepts a Dublin address in a district the shop serves.</p>
   <pre><code class="language-ruby"># app/models/slot_search.rb
+# frozen_string_literal: true
+
 # The arguments of a delivery-slots search: an address, and a day on that
 # address's clock.
 class SlotSearch
@@ -404,10 +443,12 @@ class SlotSearch
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <h2>Step 5: Declare your actions</h2>
-  <p>Actions mutate state — place an order, move a paid delivery. They are the same shape as Step 4's queries, marked <code>kind :action</code>. getgrocery groups its verbs by resource, so the orders controller holds the <code>my_orders</code> query beside the two actions and the order's event topic: one controller declares all three.</p>
+  <p>Actions mutate state — place an order, move a paid delivery. They are the same shape as Step 4's queries, marked <code>kind :action</code>. getgrocery groups its verbs by resource. The orders controller holds the <code>my_orders</code> query beside the <code>create_order</code> action. The deliveries controller holds the <code>reschedule_delivery</code> action and the <code>order_delivery</code> event topic.</p>
 
   <p>The rules an order is held to live on the model, in validation contexts: <code>:place</code> for <code>create_order</code>, <code>:reschedule</code> for <code>reschedule_delivery</code>. <code>window_bookable</code> takes a <code>slot_at</code> only when it is the start of a window on the address's clock that is still open.</p>
   <pre><code class="language-ruby"># app/models/order.rb
+# frozen_string_literal: true
+
 # One basket, its delivery window and address. `status` is the basket,
 # `payment_status` the money. `timezone` is the clock of the delivery district
 # the window was quoted on.
@@ -418,211 +459,266 @@ class Order &lt; ApplicationRecord
   MAX_ITEMS = 50
 
   enum :status, {
-    placed:           "placed",
-    rescheduled:      "rescheduled",
-    out_for_delivery: "out_for_delivery",
-    delivered:        "delivered",
-    cancelled:        "cancelled",
+    placed: 'placed',
+    rescheduled: 'rescheduled',
+    out_for_delivery: 'out_for_delivery',
+    delivered: 'delivered',
+    cancelled: 'cancelled'
   }
-  enum :payment_status, { unpaid: "unpaid", paying: "paying", paid: "paid", refunded: "refunded" }
+  enum :payment_status, { unpaid: 'unpaid', paying: 'paying', paid: 'paid', refunded: 'refunded' }
 
   belongs_to :user
   has_many :order_items, dependent: :destroy, autosave: true
 
   # What a caller placing or moving an order is held to.
-  validates :order_items, length: { in: 1..MAX_ITEMS, too_short: "must name a product",
-                                    too_long: "are at most %{count} lines" }, on: :place
+  validates :order_items, length: { in: 1..MAX_ITEMS, too_short: 'must name a product',
+                                    too_long: 'are at most %{count} lines' }, on: :place # rubocop:disable Style/FormatStringToken -- Rails I18n interpolates %{count}
   validates :address, served_address: true, on: %i[place reschedule]
   validate :window_bookable, on: %i[place reschedule]
 
+  # Paid and not yet with the courier.
+  scope :awaiting_courier, -&gt; { paid.where(status: %i[placed rescheduled]) }
   # One move per order, and none once the courier has the basket.
   scope :reschedulable,    -&gt; { placed }
 
-  def self.readable_by?(order_id, user_id) = where(id: order_id, user_id: user_id).exists?
+  def self.readable_by?(order_id, user_id) = exists?(id: order_id, user_id: user_id)
 
   def zone = Time.find_zone!(timezone)
+
+  def items_by_product = order_items.sort_by { it.product.name }
+
+  # What the shelf cannot fill, e.g. ["milk-1l: Sold out. Check back tomorrow.", "banana: 3 ordered, 2 left"];
+  # empty when it can.
+  def shortfall
+    order_items.group_by(&amp;:product).filter_map do |product, items|
+      qty = items.sum(&amp;:qty)
+      next if qty &lt;= product.stock
+
+      product.sold_out? ? "#{product.sku}: #{Product::SOLD_OUT}" : "#{product.sku}: #{qty} ordered, #{product.stock} left"
+    end
+  end
+
+  def awaiting_courier? = paid? &amp;&amp; (placed? || rescheduled?)
 
   private
 
   # A window takes orders while a basket paid now still reaches the door inside it.
   def window_bookable
     if slot_at.nil? || !DeliverySlots.start?(slot_at, zone)
-      errors.add(:slot_at, "must be the slot_at of a delivery_slots row")
+      errors.add(:slot_at, 'must be the slot_at of a delivery_slots row')
     elsif DeliverySlots.closed?(slot_at)
-      errors.add(:slot_at, "#{DeliverySlots.label(slot_at, zone)} on #{slot_at.in_time_zone(zone).to_date.iso8601} " \
-                           "is no longer bookable; call delivery_slots for the open windows")
+      errors.add(:slot_at, "#{window_name} is no longer bookable; call delivery_slots for the open windows")
     end
   end
+
+  # "08:00–10:00 (Europe/Dublin) on 2026-09-01".
+  def window_name = "#{DeliverySlots.label(slot_at, zone)} on #{slot_at.in_time_zone(zone).to_date.iso8601}"
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
   <p><code>Kiosk::Owned</code> gives the model <code>own</code>, the signed-in customer's rows. <code>Kiosk::Payable</code> gives each order its <code>payment_state</code> (<code>unpaid</code>, <code>pending</code> while a capture is in flight, <code>paid</code> or <code>refunded</code>), <code>checkout(lines)</code>, the checkout it signs for the assistant to pay, and <code>settlement</code>. <code>with_settlement</code> reads the payment state of many orders in one query from <code>Kiosk::Settlement</code>, the engine's model over the capture receipts it records after a successful <code>pay</code>.</p>
 
-  <p><code>app/controllers/kiosk/orders_controller.rb</code>:</p>
+  <p><a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/orders_controller.rb"><code>app/controllers/kiosk/orders_controller.rb</code></a>:</p>
   <pre><code class="language-ruby"># app/controllers/kiosk/orders_controller.rb
-# The customer's orders: placing, moving and following them. The work is in app/operations.
-class Kiosk::OrdersController &lt; ActionController::API
-  include Kiosk::Handler
+# frozen_string_literal: true
 
-  ORDER_ID = "e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e"
-  ETA      = DeliverySlots.starts(DeliverySlots.default_zone.tomorrow).first + 40.minutes
+# The customer's orders: placing and reading them. The work is in app/operations.
+module Kiosk
+  class OrdersController &lt; ActionController::API
+    include Kiosk::Handler
 
-  topic :order_delivery do
-    description "The order is on its way (`out_for_delivery`, with the courier's ETA) or at the " \
-                "door (`delivered`)."
-    payload_schema type: "object", additionalProperties: false,
-                   properties: { order_id:  { type: "string", format: "uuid" },
-                                 status:    { enum: %w[out_for_delivery delivered] },
-                                 eta:       { type: "string", format: "date-time",
-                                              description: "When the courier arrives." },
-                                 eta_label: { type: "string", description: "The ETA as a human reads it." },
-                                 timezone:  { type: "string", description: "The delivery address's IANA zone." } },
-                   required: %w[order_id status]
-    example order_id: ORDER_ID, status: "out_for_delivery", eta: ETA.utc.iso8601,
-            eta_label: DeliverySlots.clock_label(ETA, DeliverySlots.default_zone),
-            timezone: DeliverySlots::DEFAULT_ZONE_NAME
-    example order_id: ORDER_ID, status: "delivered"
-    subject_reachable -&gt;(order_id, identity) { Order.readable_by?(order_id, identity.user_id) }
-  end
+    ORDER_ID = 'e2b1c0d4-5f6a-4b3c-8d2e-1f0a9b8c7d6e'
 
-  kind :query
-  description "The signed-in customer's orders, with their delivery window and where the money " \
-              "stands. Re-read it after a payment whose answer never arrived."
-  input_schema type: "object", additionalProperties: false, properties: {}, required: []
-  output_schema type: "array",
-                description: "Orders, newest first.",
-                items: {
-                  type: "object", additionalProperties: false,
-                  properties: {
-                    order_id:      { type: "string" },
-                    status:        { type: "string", enum: Order.statuses.keys,
-                                     description: "Where the basket stands." },
-                    total_cents:   { type: "integer", description: "EUR cents." },
-                    slot_at:       { type: "string", description: "The delivery window's start." },
-                    slot_label:    { type: "string", description: "The window as a human reads it." },
-                    address:       { type: "string" },
-                    payment_state: Kiosk::Payable::STATE_SCHEMA,
-                  },
-                  required: %w[order_id status total_cents slot_at slot_label address payment_state],
-                }
-  def my_orders
-    @orders = Order.own.with_settlement(Kiosk::Settlement.own).order(created_at: :desc)
-  end
+    kind :query
+    description "The signed-in customer's orders, with their delivery window and where the money " \
+                'stands. Re-read it after a payment whose answer never arrived.'
+    input_schema type: 'object', additionalProperties: false, properties: {}, required: []
+    output_schema type: 'array',
+                  description: 'Orders, newest first.',
+                  items: {
+                    type: 'object', additionalProperties: false,
+                    properties: {
+                      order_id: { type: 'string' },
+                      status: { type: 'string', enum: Order.statuses.keys,
+                                description: 'Where the basket stands.' },
+                      total_cents: { type: 'integer', description: 'EUR cents.' },
+                      slot_at: { type: 'string', description: "The delivery window's start." },
+                      slot_label: { type: 'string', description: 'The window as a human reads it.' },
+                      address: { type: 'string' },
+                      payment_state: Kiosk::Payable::STATE_SCHEMA,
+                      refunded_cents: { type: 'integer',
+                                        description: 'EUR cents returned to the card for items that sold out ' \
+                                                     'before the basket was packed; all of it on a `cancelled` order.' },
+                      credited_cents: { type: 'integer',
+                                        description: 'EUR cents the shop owes your account for items that sold out ' \
+                                                     'before the basket was packed, when the payment processor ' \
+                                                     'refused to return them to the card.' }
+                    },
+                    required: %w[order_id status total_cents slot_at slot_label address payment_state refunded_cents
+                                 credited_cents]
+                  }
+    def my_orders
+      @orders = Order.own.with_settlement(Kiosk::Settlement.own).order(created_at: :desc)
+    end
 
-  kind :action
-  description "Place an order for delivery in a window at an address. The answer carries the " \
-              "checkout to pay. Alcohol needs a completed 18+ check (`request_kyc`); an order is at " \
-              "most #{Order::MAX_ITEMS} lines of at most #{OrderItem::MAX_QTY} each."
-  input_schema type: "object",
-               additionalProperties: false,
-               properties: {
-                 items: {
-                   type: "array", minItems: 1, maxItems: Order::MAX_ITEMS,
+    kind :action
+    description 'Place an order for delivery in a window at an address. The answer carries the ' \
+                'checkout to pay. Alcohol needs a completed 18+ check (`request_kyc`); an order is at ' \
+                "most #{Order::MAX_ITEMS} lines of at most #{OrderItem::MAX_QTY} each."
+    input_schema type: 'object',
+                 additionalProperties: false,
+                 properties: {
                    items: {
-                     type: "object", additionalProperties: false,
-                     properties: {
-                       sku: { type: "string", description: "A catalog sku." },
-                       qty: { type: "integer", minimum: 1, maximum: OrderItem::MAX_QTY },
-                     },
-                     required: ["sku", "qty"],
+                     type: 'array', minItems: 1, maxItems: Order::MAX_ITEMS,
+                     items: {
+                       type: 'object', additionalProperties: false,
+                       properties: {
+                         sku: { type: 'string', description: 'A catalog sku.' },
+                         qty: { type: 'integer', minimum: 1, maximum: OrderItem::MAX_QTY }
+                       },
+                       required: %w[sku qty]
+                     }
                    },
+                   slot_at: { type: 'string', format: 'date-time',
+                              description: 'The `slot_at` of a delivery_slots row.' },
+                   delivery_address: { type: 'string', description: 'The address delivery_slots was asked about.' }
                  },
-                 slot_at:          { type: "string", format: "date-time",
-                                     description: "The `slot_at` of a delivery_slots row." },
-                 delivery_address: { type: "string", description: "The address delivery_slots was asked about." },
-               },
-               required: ["items", "slot_at", "delivery_address"]
-  output_schema type: "object",
-                description: "The order, priced.",
-                additionalProperties: false,
-                properties: {
-                  order_id:    { type: "string", description: "`my_orders` lists it." },
-                  total_cents: { type: "integer", description: "EUR cents." },
-                  total_eur:   { type: "string", description: "The total as a human reads it." },
-                  currency:    { type: "string" },
-                  slot_at:     { type: "string", description: "The delivery window's start." },
-                  slot_label:  { type: "string", description: "The window as a human reads it." },
-                  timezone:    { type: "string", description: "The delivery address's IANA zone." },
-                  checkout_jwt: Kiosk::Payable::CHECKOUT_SCHEMA,
-                },
-                required: %w[order_id total_cents total_eur currency slot_at slot_label timezone checkout_jwt]
-  example_params({
-    items: [{ sku: "sourdough-bread", qty: 2 }, { sku: "greek-yogurt", qty: 1 }],
-    slot_at:          -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
-    delivery_address: "42 Camden Street, Dublin 2",
-  })
-  example_row({
-    order_id: ORDER_ID, total_cents: 1287, total_eur: "€12.87", currency: "eur",
-    slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
-    slot_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
-    timezone: DeliverySlots::DEFAULT_ZONE_NAME,
-    checkout_jwt: "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJjdXJyZW5jeSI6ImV1ciIsInRvdGFsX2Ftb3VudF9jZW50cyI6MTI4N30.c2lnbmF0dXJl",
-  })
-  def create_order
-    @order = CreateOrderOperation.call(
-      customer_id:      kiosk_identity.user_id,
-      items:            params[:items].map { _1.permit(:sku, :qty).to_h.symbolize_keys },
-      slot_at:          params[:slot_at],
-      delivery_address: params[:delivery_address],
-    )
-  end
-
-  kind :action
-  description "Move a paid order to another delivery window, optionally to another address. The " \
-              "payment already made covers it. Once per order."
-  input_schema type: "object",
-               additionalProperties: false,
-               properties: {
-                 order_id:         { type: "string", format: "uuid",
-                                     pattern: Kiosk::UuidCheck::JSON_SCHEMA_PATTERN },
-                 slot_at:          { type: "string", format: "date-time",
-                                     description: "The `slot_at` of a delivery_slots row." },
-                 delivery_address: { type: "string", description: "The new address; the order's own if omitted." },
-               },
-               required: ["order_id", "slot_at"]
-  output_schema type: "object",
-                description: "The moved order.",
-                additionalProperties: false,
-                properties: {
-                  order_id:          { type: "string" },
-                  rescheduled_at:    { type: "string", description: "The new window's start." },
-                  rescheduled_label: { type: "string", description: "The new window as a human reads it." },
-                  timezone:          { type: "string", description: "The delivery address's IANA zone." },
-                },
-                required: %w[order_id rescheduled_at rescheduled_label timezone]
-  example_params({ order_id: ORDER_ID,
-                   slot_at:  -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 } })
-  example_row({ order_id: ORDER_ID,
-                rescheduled_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
-                rescheduled_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
-                timezone: DeliverySlots::DEFAULT_ZONE_NAME })
-  def reschedule_delivery
-    @order = RescheduleDeliveryOperation.call(
-      order_id:         params[:order_id],
-      slot_at:          params[:slot_at],
-      delivery_address: params[:delivery_address],
-    )
+                 required: %w[items slot_at delivery_address]
+    output_schema type: 'object',
+                  description: 'The order, priced.',
+                  additionalProperties: false,
+                  properties: {
+                    order_id: { type: 'string', description: '`my_orders` lists it.' },
+                    total_cents: { type: 'integer', description: 'EUR cents.' },
+                    total_eur: { type: 'string', description: 'The total as a human reads it.' },
+                    currency: { type: 'string' },
+                    slot_at: { type: 'string', description: "The delivery window's start." },
+                    slot_label: { type: 'string', description: 'The window as a human reads it.' },
+                    timezone: { type: 'string', description: "The delivery address's IANA zone." },
+                    checkout_jwt: Kiosk::Payable::CHECKOUT_SCHEMA
+                  },
+                  required: %w[order_id total_cents total_eur currency slot_at slot_label timezone checkout_jwt]
+    example_params({
+                     items: [{ sku: 'sourdough-bread', qty: 2 }, { sku: 'greek-yogurt', qty: 1 }],
+                     slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
+                     delivery_address: '42 Camden Street, Dublin 2'
+                   })
+    example_row({
+                  order_id: ORDER_ID, total_cents: 1287, total_eur: '€12.87', currency: 'eur',
+                  slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
+                  slot_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
+                  timezone: DeliverySlots::DEFAULT_ZONE_NAME,
+                  checkout_jwt: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJjdXJyZW5jeSI6ImV1ciIsInRvdGFsX2Ftb3VudF9jZW50cyI6MTI4N30.c2lnbmF0dXJl'
+                })
+    def create_order
+      @order = CreateOrderOperation.call(
+        customer_id: kiosk_identity.user_id,
+        items: params[:items].map { it.permit(:sku, :qty).to_h.symbolize_keys },
+        slot_at: params[:slot_at],
+        delivery_address: params[:delivery_address]
+      )
+    end
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <p>One view per verb:</p>
+  <p>One view per verb, in a directory named after its controller:</p>
   <pre><code class="language-ruby"># app/views/kiosk/orders/my_orders.json.jbuilder
+# frozen_string_literal: true
+
 json.array! @orders do |order|
   json.order_id order.id
   json.extract! order, :status, :total_cents
   json.slot_at order.slot_at.in_time_zone(order.zone).iso8601
   json.slot_label DeliverySlots.label(order.slot_at, order.zone)
-  json.extract! order, :address, :payment_state
+  json.extract! order, :address, :payment_state, :refunded_cents, :credited_cents
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-ruby"># app/views/kiosk/orders/create_order.json.jbuilder
+# frozen_string_literal: true
+
 json.order_id @order.id
 json.total_cents @order.total_cents
 json.total_eur Product.format_eur(@order.total_cents)
-json.currency "eur"
+json.currency 'eur'
 json.slot_at @order.slot_at.in_time_zone(@order.zone).iso8601
 json.slot_label DeliverySlots.label(@order.slot_at, @order.zone)
 json.timezone @order.timezone
 json.checkout_jwt @order.checkout(@order.order_items.map { { sku: it.product.sku, qty: it.qty, price_cents: it.price_cents } })</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <pre><code class="language-ruby"># app/views/kiosk/orders/reschedule_delivery.json.jbuilder
+
+  <p><a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/controllers/kiosk/deliveries_controller.rb"><code>app/controllers/kiosk/deliveries_controller.rb</code></a> moves a paid order and declares the courier's topic:</p>
+  <pre><code class="language-ruby"># app/controllers/kiosk/deliveries_controller.rb
+# frozen_string_literal: true
+
+# An order's delivery: moving it to another window, and following the courier. The work is in app/operations.
+module Kiosk
+  class DeliveriesController &lt; ActionController::API
+    include Kiosk::Handler
+
+    eta = DeliverySlots.starts(DeliverySlots.default_zone.tomorrow).first + 40.minutes
+
+    topic :order_delivery do
+      description "The order is on its way (`out_for_delivery`, with the courier's ETA), at the " \
+                  'door (`delivered`), or `cancelled`: everything in it sold out before it was packed, and the ' \
+                  'payment went back to the card. `credited_cents` (on `placed` or `cancelled`): items sold out ' \
+                  'before packing, the payment processor refused to return their price to the card, and the shop ' \
+                  'owes it to your account. A `placed` order is delivered without them.'
+      payload_schema type: 'object', additionalProperties: false,
+                     properties: { order_id: { type: 'string', format: 'uuid' },
+                                   status: { enum: %w[placed out_for_delivery delivered cancelled] },
+                                   credited_cents: { type: 'integer', minimum: 1,
+                                                     description: 'EUR cents the shop owes your account.' },
+                                   eta: { type: 'string', format: 'date-time',
+                                          description: 'When the courier arrives.' },
+                                   eta_label: { type: 'string', description: 'The ETA as a human reads it.' },
+                                   timezone: { type: 'string', description: "The delivery address's IANA zone." } },
+                     required: %w[order_id status]
+      example order_id: OrdersController::ORDER_ID, status: 'out_for_delivery', eta: eta.utc.iso8601,
+              eta_label: DeliverySlots.clock_label(eta, DeliverySlots.default_zone),
+              timezone: DeliverySlots::DEFAULT_ZONE_NAME
+      example order_id: OrdersController::ORDER_ID, status: 'delivered'
+      example order_id: OrdersController::ORDER_ID, status: 'cancelled'
+      example order_id: OrdersController::ORDER_ID, status: 'placed', credited_cents: 349
+      subject_reachable -&gt;(order_id, identity) { Order.readable_by?(order_id, identity.user_id) }
+    end
+
+    kind :action
+    description 'Move a paid order to another delivery window, optionally to another address. The ' \
+                'payment already made covers it. Once per order.'
+    input_schema type: 'object',
+                 additionalProperties: false,
+                 properties: {
+                   order_id: { type: 'string', format: 'uuid' },
+                   slot_at: { type: 'string', format: 'date-time',
+                              description: 'The `slot_at` of a delivery_slots row.' },
+                   delivery_address: { type: 'string', description: "The new address; the order's own if omitted." }
+                 },
+                 required: %w[order_id slot_at]
+    output_schema type: 'object',
+                  description: 'The moved order.',
+                  additionalProperties: false,
+                  properties: {
+                    order_id: { type: 'string' },
+                    rescheduled_at: { type: 'string', description: "The new window's start." },
+                    rescheduled_label: { type: 'string', description: 'The new window as a human reads it.' },
+                    timezone: { type: 'string', description: "The delivery address's IANA zone." }
+                  },
+                  required: %w[order_id rescheduled_at rescheduled_label timezone]
+    example_params({ order_id: OrdersController::ORDER_ID,
+                     slot_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 } })
+    example_row({ order_id: OrdersController::ORDER_ID,
+                  rescheduled_at: -&gt; { DeliverySlots.starts(DeliverySlots.default_zone.tomorrow)[2].iso8601 },
+                  rescheduled_label: "12:00–14:00 (#{DeliverySlots::DEFAULT_ZONE_NAME})",
+                  timezone: DeliverySlots::DEFAULT_ZONE_NAME })
+    def reschedule_delivery
+      @order = RescheduleDeliveryOperation.call(
+        order_id: params[:order_id],
+        slot_at: params[:slot_at],
+        delivery_address: params[:delivery_address]
+      )
+    end
+  end
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <pre><code class="language-ruby"># app/views/kiosk/deliveries/reschedule_delivery.json.jbuilder
+# frozen_string_literal: true
+
 json.order_id @order.id
 json.rescheduled_at @order.slot_at.in_time_zone(@order.zone).iso8601
 json.rescheduled_label DeliverySlots.label(@order.slot_at, @order.zone)
@@ -630,37 +726,54 @@ json.timezone @order.timezone</code><button class="copy-btn" onclick="copy(this)
 
   <p>The actions hand their work to an operation each, which returns the order the view renders:</p>
   <pre><code class="language-ruby"># app/operations/create_order_operation.rb
+# frozen_string_literal: true
+
 # Places one order for the customer: the basket, its delivery window and
-# address, priced at catalogue prices. Returns the order; raises a Kiosk error on a refusal.
+# address, each line at today's catalogue price. Returns the order; raises a Kiosk error on a refusal.
 class CreateOrderOperation
   def self.call(customer_id:, items:, slot_at:, delivery_address:)
-    zone     = DeliverySlots.zone_at(delivery_address)
-    products = Product.where(sku: items.pluck(:sku)).index_by(&amp;:sku)
-    order    = Order.new(
-      user_id:     customer_id,
-      slot_at:     slot_at,
-      address:     delivery_address,
-      timezone:    zone.name,
-      order_items: items.map { OrderItem.new(sku: _1[:sku], product: products[_1[:sku]], qty: _1[:qty]) },
-    )
+    order = Order.new(user_id: customer_id, slot_at: slot_at, address: delivery_address,
+                      timezone: DeliverySlots.zone_at(delivery_address).name, order_items: lines(items))
     order.validate!(:place)
 
-    Kiosk::Server::Kyc.require! if order.order_items.any? { _1.product.age_restricted? }
+    refuse_short!(order)
+    Kiosk::Server::Kyc.require! if age_restricted?(order)
 
-    order.update!(total_cents: order.order_items.sum { _1.product.price_cents * _1.qty })
+    order.update!(total_cents: order.order_items.sum { it.price_cents * it.qty })
     order
+  end
+
+  def self.refuse_short!(order)
+    short = order.shortfall
+    return if short.empty?
+
+    raise Kiosk::Server::Errors::Conflict.new("not enough in stock — #{short.join('; ')}",
+                                              hint: 'Call catalog for what is in stock, then order again.')
+  end
+
+  def self.age_restricted?(order) = order.order_items.any? { it.product.age_restricted? }
+
+  # One order line per requested item, each with its catalogue product and price.
+  def self.lines(items)
+    products = Product.where(sku: items.pluck(:sku)).index_by(&amp;:sku)
+    items.map do |item|
+      product = products[item[:sku]]
+      OrderItem.new(sku: item[:sku], product:, qty: item[:qty], price_cents: product&amp;.price_cents)
+    end
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
   <pre><code class="language-ruby"># app/operations/reschedule_delivery_operation.rb
+# frozen_string_literal: true
+
 # Moves a paid order to another delivery window, and optionally another
 # address, on the payment it already has. Returns the order; raises a Kiosk error on a refusal.
 class RescheduleDeliveryOperation
   def self.call(order_id:, slot_at:, delivery_address:)
     order = Order.own.reschedulable.find_by(id: order_id)
     # One answer for absent, foreign and already moved, so ids cannot be probed.
-    refuse "no order of yours with this id can be moved: it was moved once already or is with the courier" unless order
+    refuse 'no order of yours with this id can be moved: it was moved once already or is with the courier' unless order
     refuse "this order's payment is still in progress; reschedule once my_orders reads `paid`" if order.paying?
-    refuse "this order is not paid; only a paid order can be moved" unless order.paid?
+    refuse 'this order is not paid; only a paid order can be moved' unless order.paid?
 
     address = delivery_address.presence || order.address
     zone    = DeliverySlots.zone_at(address)
@@ -675,26 +788,33 @@ class RescheduleDeliveryOperation
   end
 end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
 
-  <blockquote><strong>Paid is the order's own <code>payment_status</code>.</strong> The orders table carries it: <code>t.string :payment_status, null: false, default: "unpaid"</code>. The reschedule operation reads <code>order.paid?</code>. <code>paid</code> is written by the engine's <code>Kiosk::Server::PaymentClaim</code>, which wraps the payment provider: it moves the order's <code>payment_status</code> from <code>unpaid</code> to <code>paying</code> before the capture, checks the checkout against your price, writes <code>paid</code> once the capture returns, and tells the customer on the <code>payment</code> topic. getgrocery configures it in place of Step 2's bare provider:
-  <pre><code class="language-ruby"># config/initializers/kiosk.rb
-  # There is no `payment_gated:` option. PaymentClaim writes the payment_status an action gates on.
+  <blockquote><strong>Paid is the order's own <code>payment_status</code>.</strong> The orders table carries it: <code>t.string :payment_status, null: false, default: "unpaid"</code>. The reschedule operation reads <code>order.paid?</code>. <code>paid</code> is written by the engine's <code>Kiosk::Server::PaymentClaim</code>, which wraps the payment provider: it moves the order's <code>payment_status</code> from <code>unpaid</code> to <code>paying</code> before the capture, checks the checkout against your price, writes <code>paid</code> once the capture returns, and tells the customer on the <code>payment</code> topic. There is no <code>payment_gated:</code> option: <code>PaymentClaim</code> writes the <code>payment_status</code> that an action gates on. getgrocery configures it in place of Step 2's bare provider:
+  <pre><code class="language-ruby"># config/initializers/kiosk.rb, an excerpt
+# Payments: the card setup, the capture, and what follows it.
+Kiosk.configure do |c|
   c.payment_provider = Kiosk::Server::PaymentClaim.new(
-    Kiosk::PaymentProviders::Stripe.new(api_key: ENV.fetch("STRIPE_SECRET_KEY")),
-    currency: "eur", model: "Order", reference: "order_id", query: "my_orders",
+    # STRIPE_MOCK_URL names a local stripe-mock in development and test.
+    Kiosk::PaymentProviders::Stripe.new(api_key: ENV.fetch('STRIPE_SECRET_KEY'),
+                                        api_base: ENV.fetch('STRIPE_MOCK_URL', nil)),
+    currency: 'eur', model: 'Order', reference: 'order_id', query: 'my_orders'
   )
-  c.checkout_price_checker = PriceChecker</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
-  <code>c.checkout_price_checker</code> answers the order's total once the checkout mirrors it; getgrocery's is <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/services/price_checker.rb"><code>PriceChecker</code></a>. Refund through the same object: <code>claim.refund(psp_reference:, amount_cents:, key:)</code> records the refund in <code>kiosk.refunds</code>, so that money stops counting as recent spend. Then write <code>payment_status: :refunded</code> and call <code>claim.announce(order.id, Kiosk::Payable::REFUNDED)</code>. A refund made only in the processor's dashboard still counts as spend. getgrocery's <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/models/order.rb"><code>Order#refund!</code></a> refunds a line that the shelf cannot fill.</blockquote>
+  c.checkout_price_checker = PriceChecker
+  c.after_payment          = -&gt;(order_id) { FulfilOrderOperation.call(order_id) }
+end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre>
+  <code>c.checkout_price_checker</code> answers the order's total once the checkout mirrors it; getgrocery's is <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/services/price_checker.rb"><code>PriceChecker</code></a>. Refund through the same object: <code>claim.refund(psp_reference:, amount_cents:, key:)</code> records the refund in <code>kiosk.refunds</code>, so that money stops counting as recent spend. When the whole payment went back, write <code>payment_status: :refunded</code> and call <code>claim.announce(order.id, Kiosk::Payable::REFUNDED)</code>. A refund made only in the processor's dashboard still counts as spend. <code>c.after_payment</code> runs once the engine records the settlement. getgrocery's <a href="https://github.com/kiosk-hq/kiosk/blob/main/kiosk-demo-getgrocery/app/operations/fulfil_order_operation.rb"><code>FulfilOrderOperation</code></a> takes the basket off the shelf there, and refunds a line that the shelf cannot fill.</blockquote>
 
-  <blockquote><strong>Topics.</strong> A <code>topic</code> block declares an event an assistant can follow on <code>GET /kiosk/events</code> (Step 3): a <code>description</code>, a <code>payload_schema</code>, and <code>subject_reachable</code>, which says whether a subscriber may follow a given order. Each <code>example</code> call adds one sample payload; it is checked against <code>payload_schema</code> when the class loads and published as <code>examples</code> on the topic's entry in <code>GET /kiosk/schema</code>. Your code emits the event when it happens:
-  <pre><code class="language-ruby"># app/jobs/courier_dispatch_job.rb, once the courier leaves
-Kiosk::Server::Events.emit(
-  topic: :order_delivery, subject: order.id, identity_scope: [order.user_id],
-  data: { "order_id"  =&gt; order.id,
-          "status"    =&gt; "out_for_delivery",
-          "eta"       =&gt; arrival.utc.iso8601,
-          "eta_label" =&gt; DeliverySlots.clock_label(arrival, order.zone),
-          "timezone"  =&gt; order.timezone },
-)</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre></blockquote>
+  <blockquote><strong>Topics.</strong> A <code>topic</code> block declares an event an assistant can follow on <code>GET /kiosk/events</code> (Step 3): a <code>description</code>, a <code>payload_schema</code>, and <code>subject_reachable</code>, which says whether a subscriber may follow a given order. getgrocery declares <code>order_delivery</code> in its deliveries controller, above. Each <code>example</code> call adds one sample payload; it is checked against <code>payload_schema</code> when the class loads and published as <code>examples</code> on the topic's entry in <code>GET /kiosk/schema</code>. Your code emits the event when it happens:
+  <pre><code class="language-ruby"># app/jobs/courier_dispatch_job.rb, an excerpt
+  def announce_departure(order, arrival)
+    Kiosk::Server::Events.emit(
+      topic: :order_delivery, subject: order.id, identity_scope: [order.user_id],
+      data: { 'order_id' =&gt; order.id,
+              'status' =&gt; 'out_for_delivery',
+              'eta' =&gt; arrival.utc.iso8601,
+              'eta_label' =&gt; DeliverySlots.clock_label(arrival, order.zone),
+              'timezone' =&gt; order.timezone }
+    )
+  end</code><button class="copy-btn" onclick="copy(this)">Copy</button></pre></blockquote>
 
   <h2>Step 6: Start the server and verify</h2>
   <p>Set the issuer, the signing key, and a Stripe test key, then boot. The <code>issuer</code> is config-driven (it is the <code>iss</code> of the checkouts you sign) — the request host only <em>selects</em> among the origins you configure and never adds one, so set <code>KIOSK_ISSUER</code> to the URL agents will actually reach.</p>
@@ -858,7 +978,7 @@ curl -s -X POST http://localhost:3000/kiosk/create_order -H "Authorization: DPoP
 
   <h2>What to do next</h2>
   <ul>
-    <li><strong>Test with your own agent.</strong> Point an AI assistant that can fetch a skill file and make its own HTTP calls at your local server and say "order groceries." (Hermes has driven this loop end to end against the hosted demos on the 0.5 protocol, on a deliberately weak model at low effort. No other runtime has been run against it &mdash; so treat your first run as a test of your integration <em>and</em> of your assistant.)</li>
+    <li><strong>Test with your own agent.</strong> Point an AI assistant that can fetch a skill file and make its own HTTP calls at your local server and say "order groceries." (Hermes and Claude Code have each driven this loop end to end against the hosted demos on protocol 0.6. No other assistant has been run against them, so treat your first run as a test of your integration <em>and</em> of your assistant.)</li>
     <li><strong>Add more queries.</strong> Expose anything an agent might need — store locations, nutritional info, allergy filters. A new verb needs a method in a handler controller and its name in the <code>kiosk</code> block of <code>config/routes.rb</code>.</li>
     <li><strong>Add more actions.</strong> Reservations, cancellations, loyalty points — anything your app does today.</li>
     <li><strong>Go to production.</strong> Swap <code>STRIPE_SECRET_KEY</code> for a live key, add your domain to <code>KIOSK_ISSUER</code>, and deploy.</li>
