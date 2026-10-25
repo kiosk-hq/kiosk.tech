@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-25: The reference notes and the onboarding page name Kiosk's tables `kiosk_*` (`kiosk_stripe_customers` among them), and the `kiosk_current_*()` functions as kiosk-rls's.
+
 ## [skill 0.6.15] — 2026-10-25
 
 - 2026-10-25: **Skill 0.6.15**, the protocol and the text of 0.6.14: the skill cut of reference release 0.6.15. `Kiosk-Min-Client` stays 0.6.0.

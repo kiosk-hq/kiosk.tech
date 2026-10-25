@@ -1330,7 +1330,7 @@ on any origin to meet text written by somebody hostile.
 
 > *Reference note (non-normative).* The Ruby reference resolves the identity in
 > the controller that serves the verbs, before it dispatches, and propagates it into PostgreSQL as
-> transaction-scoped settings (`kiosk.current_user_id()` and friends) -- four of
+> transaction-scoped settings (`app.current_user_id` and friends) -- four of
 > them, of which `role` and `agent_id` are set only when the identity carries
 > one, so a role-less identity leaves the role setting NULL rather than empty.
 > Neither is the filter: `kiosk-rls` is an unbundled opt-in gem and the
