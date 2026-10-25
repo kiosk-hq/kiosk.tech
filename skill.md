@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.20"
+  version: "0.6.21"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -224,9 +224,11 @@ python3 listen-v0.5.23.py --url "$EVENTS_URL" --token-file ~/.kiosk/<origin-dir>
 
 Run the listener with `--until-event` as a background process that your runtime TRACKS and that wakes you when it exits. On exit `0`, act on the event and tell your human at once. Then, if you still want that topic, start it again with `--since <the highest id you saw>`. Keep `--max-seconds` below the longest time that your runtime lets a background process live. In Claude Code, use the Bash tool with `run_in_background` (at most 2 hours, so `--max-seconds 6600`). In Hermes, use `terminal(background=true, notify_on_complete=true)`. **A process that your runtime does not track wakes NOTHING:** never start the listener with `nohup`, `&` or `setsid`.
 
-Keep the highest `id` that you saw (`head`, then each event's `id`) in the conversation, not in long-term memory or a shared file. Start every listener with `--since <that id>`.
+Keep the highest `id` that you saw (`head`, then each event's `id`) in the conversation, not in long-term memory or a shared file. Start the first listener with no `--since`, and keep the `head` of its `subscribed` line. Start every later listener with `--since <that id>`.
 
 A WAIT is for an answer to something that you asked for (an identity check, a saved card, a booking answer). It is ONE run of the listener, to a give-up horizon that the step gives. When it ends with no event, read the state ONE time through the operation that owns it, as the step says. Then tell your human what that read gives. When your human says that they finished, read the state again before you wait again. A SUBSCRIPTION (a delivery, a shared list) can take days.
+
+You are done when what your human asked for is done, for example when `pay` gives a receipt or the booking is confirmed. Do not wait for a SUBSCRIPTION to end. Then tell your human what comes later, for example the delivery window and the events that its topic announces. Tell them that you can read the state again when they ask.
 
 ### Step 4: Act
 
@@ -234,7 +236,7 @@ Choose queries and actions by their descriptions, then call them. A shop: `GET <
 
 **Give a summary, not every row.** Send your human's limits as filter parameters (`max_price`, `date`, ...) and a `limit`. Give your human a few options that fit. Follow `next` only when your human needs more.
 
-**Real-world details come from your human. Never invent them and never derive them.** A delivery address, a date, a name, contact data: ask your human, and read it back to them before you order. Do not read it from the OS, the locale or the IP address. Never invent a value that looks correct ("123 Demo Street"): the operator cannot tell a false address from a real one. If you do not have the detail, stop and ask.
+**Real-world details come from your human. Never invent them and never derive them.** A delivery address, a date, a name, contact data: ask your human, and read it back to them before you order. Do not read it from the OS, the locale or the IP address. Never invent a value that looks correct ("123 Demo Street"): the operator cannot tell a false address from a real one. If you do not have the detail, stop and ask. Put every open question in ONE message: the read-back, your own choices (a window, the quantities) and the time zone for `Kiosk-Timezone`.
 
 **Give long strings complete.** Give every URL to your human complete and exactly as written; never drop the part after `#`. Send every JWS (`kyc_jws`, `checkout_jwt`, a mandate) byte for byte from the field that carries it, never from a console line.
 
@@ -473,7 +475,7 @@ Use an `exp` a few minutes ahead (e.g. now + 600). The operator refuses an `exp`
 import base64, hashlib, json, os, secrets, time
 import jwt
 
-private_key = open(os.path.expanduser("~/.kiosk/<origin-dir>/key.pem")).read()
+key_pem = open(os.path.expanduser("~/.kiosk/<origin-dir>/key.pem"), "rb").read()  # as in "Auth handshake"
 
 def b64(data):
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
@@ -482,7 +484,7 @@ def mandate(content):
     disclosure = b64(json.dumps([b64(secrets.token_bytes(16)), content]).encode())
     digest = b64(hashlib.sha256(disclosure.encode()).digest())
     signed = jwt.encode({"_sd_alg": "sha-256", "delegate_payload": [{"...": digest}]},
-                        private_key, algorithm="EdDSA", headers={"typ": "dc+sd-jwt"})
+                        key_pem, algorithm="EdDSA", headers={"typ": "dc+sd-jwt"})
     return f"{signed}~{disclosure}~"
 
 jwks = jwt.PyJWKClient(f"{endpoint}/.well-known/jwks.json")  # endpoint: doc["kiosk"]["endpoint"], Step 1

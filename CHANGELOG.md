@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.21] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.21**: the first listener starts with no `--since`, the work ends when the request is done, open questions go in one message, and both samples read `key.pem` as bytes.
 - 2026-10-26: The onboarding guide shows getgrocery's code as the reference repository has it: each file copied whole, or marked as an excerpt.
 - 2026-10-26: The onboarding guide names Ruby 4.0, the floor of every gemspec, and the `actioncable` dependency of kiosk-server.
 - 2026-10-26: The onboarding guide says that Hermes and Claude Code have each driven the loop against the hosted demos on protocol 0.6.
