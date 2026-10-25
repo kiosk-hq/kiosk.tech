@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.19"
+  version: "0.6.20"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -226,7 +226,7 @@ Run the listener with `--until-event` as a background process that your runtime 
 
 Keep the highest `id` that you saw (`head`, then each event's `id`) in the conversation, not in long-term memory or a shared file. Start every listener with `--since <that id>`.
 
-A WAIT is for an answer to something that you asked for (an identity check, a saved card, a booking answer). It has a give-up horizon, ~10 minutes for an identity check. Run one more wait before you tell your human that anything is still pending. A SUBSCRIPTION (a delivery, a shared list) can take days.
+A WAIT is for an answer to something that you asked for (an identity check, a saved card, a booking answer). It is ONE run of the listener, to a give-up horizon that the step gives. When it ends with no event, read the state ONE time through the operation that owns it, as the step says. Then tell your human what that read gives. When your human says that they finished, read the state again before you wait again. A SUBSCRIPTION (a delivery, a shared list) can take days.
 
 ### Step 4: Act
 
@@ -250,7 +250,7 @@ Choose queries and actions by their descriptions, then call them. A shop: `GET <
 4. Wait for the event (a WAIT, ~10 minutes). Its `data` is `{request_id, status: "approved", kyc_jws}`.
 5. Call the gated action again. You do not need to send `kyc_jws`: the operator recorded the attributes when your human approved.
 
-The operator never reports a refusal, so no event can also mean that your human refused or did not start. At the horizon, tell your human that the check is not done, and ask. When they say that they finished, wait again with `--since` at your cursor. If that cursor gives `truncated: true`, call `request_kyc` again. A `429 quota_exceeded` from `request_kyc` means that your human has too many open checks: wait, and never open a second check. If you already hold a `kyc_jws` with the attributes, send it to `POST <endpoint>/agents/kyc` with the JSON body `{"kyc_jws": "<the attestation>"}`, and call the action again. If `hint` names no `request_kyc`, tell your human which attributes the operator needs.
+The operator never reports a refusal, so no event can also mean that your human refused or did not start, or that the event did not come. When the wait ends with no event, call the gated action again ONE time: it is the read. If it gives `403 kyc_required` again, tell your human that the check is not done, and ask. When they say that they finished, call the gated action again. If it still gives `403 kyc_required`, wait again with `--since` at your cursor. If that cursor gives `truncated: true`, call `request_kyc` again. A `429 quota_exceeded` from `request_kyc` means that your human has too many open checks: wait, and never open a second check. If you already hold a `kyc_jws` with the attributes, send it to `POST <endpoint>/agents/kyc` with the JSON body `{"kyc_jws": "<the attestation>"}`, and call the action again. If `hint` names no `request_kyc`, tell your human which attributes the operator needs.
 
 Steps 5-6 apply only when the task includes a payment and `capabilities` has `pay`.
 
@@ -262,7 +262,7 @@ Steps 5-6 apply only when the task includes a payment and `capabilities` has `pa
 
 - Where the origin publishes the card-setup topic `payment_setup` in `events`, subscribe BEFORE you give the link. The event's `data` has `status:"ready"` when the card is saved. This is a WAIT (Step 3b): give up after ~5 minutes, as for the poll. Do not poll next to it.
 - Else poll `payment_setup` on the LIMITED schedule that its `description` states. With no schedule: every ~5 s for the first minute, then every ~15 s, and stop after ~5 minutes. Give the link ONE time, not on each poll.
-- When the wait ends with no `ready`, stop. Tell your human that the card setup is not complete. When they say that they finished, call `payment_setup` one time to check.
+- When the wait ends with no `ready`, call `payment_setup` ONE time: it is the read. If it gives `ready`, continue. Else stop, and tell your human that the card setup is not complete. When they say that they finished, call `payment_setup` one time to check.
 
 **Ask for the ask-first amount.** When the card is ready and you have no amount for this origin, ask your human: "Up to what amount may I pay here without checking with you?" Write the answer to `~/.kiosk/<origin-dir>/spend.json` as `{"amount_cents": 2500, "currency": "eur"}`. With no answer, ask before every payment.
 

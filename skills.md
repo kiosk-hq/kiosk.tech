@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | What it describes |
 |---|---|---|
+| `skill-v0.6.20.md` | **0.6** | The protocol of 0.6.19. The skill gives one rule for the end of a wait: read the state one time through the operation that owns it, then tell your human. A 0.6.19 assistant still transacts. |
 | `skill-v0.6.19.md` | **0.6** | The protocol of 0.6.18. The skill says that an event can come late or not at all, and that the operation that owns a state gives its current value. A 0.6.18 assistant still transacts. |
 | `skill-v0.6.18.md` | **0.6** | The protocol of 0.6.17. The skill says that the toll is solved, and names the request sent again after a `402` the tolled retry. A 0.6.17 assistant still transacts. |
 | `skill-v0.6.17.md` | **0.6** | The protocol of 0.6.16. The registration example solves the proof-of-work toll when the operator asks for it. A 0.6.16 assistant still transacts. |
@@ -122,9 +123,9 @@ and 0.6.0 opens a new protocol group in which 0.6.0 = 0.6.1 = 0.6.2,
 and 0.6.3 opens a new protocol group of which it stayed the only member,
 and 0.6.4 opens a new protocol group of which it stayed the only member,
 and 0.6.5 opens a new protocol group of which it stayed the only member,
-and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15 = 0.6.16 = 0.6.17 = 0.6.18 = 0.6.19,
+and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15 = 0.6.16 = 0.6.17 = 0.6.18 = 0.6.19 = 0.6.20,
 but the eighteen groups are NOT the same protocol, and only the last describes
-what a 0.6.19 operator serves. The formal spec
+what a 0.6.20 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.20] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.20**: a wait that ends with no event reads the state one time: KYC calls the gated action again, card setup calls `payment_setup`. One rule ends every wait.
+
 ## [skill 0.6.19] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.19**: an event can come late or not at all, and the operation that owns a state gives its current value. The specification says the same.
