@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <title>Kiosk — An open door for every personal AI assistant</title>
+  <title>Kiosk — First-class access for personal AI assistants</title>
   <meta name="description" content="Kiosk is an open protocol and reference implementation that makes a personal AI assistant a first-class citizen of an online service: it opens an account, reads what the service offers, books, orders, pays and hears back.">
   <style>
     :root{--bg:#0d0d0d;--card:#161616;--line:#252525;--text:#e0e0e0;--soft:#a8a8a8;--dim:#6a6a6a;--accent:#8bc49a;--button:#2d6b3f}
@@ -19,8 +19,7 @@
     .header-gh{position:absolute;top:16px;right:0}
     .logo{width:110px;height:auto;display:block;margin:0 auto 6px}
     .version{font-size:11px;color:var(--dim);letter-spacing:.08em;margin-bottom:18px}
-    .ref-badge{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
-    h1{font-size:clamp(28px,6vw,44px);line-height:1.15;font-weight:800;letter-spacing:-.02em;margin-bottom:14px}
+    h1{font-size:clamp(22px,5vw,32px);line-height:1.15;font-weight:800;letter-spacing:-.02em;margin-bottom:14px}
     .lead{font-size:clamp(16px,3.4vw,19px);color:var(--soft);max-width:600px;margin:0 auto 24px}
     .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}
     .cta{display:inline-block;padding:11px 20px;border-radius:10px;font-weight:700;font-size:14px;border:1px solid var(--line);color:var(--text)}
@@ -37,10 +36,12 @@
     .steps strong,.list strong{color:var(--text)}
     .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
     .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
-    .list{list-style:none;display:flex;flex-direction:column;gap:9px}
+    .box h2{font-size:18px}
+    .list{list-style:none}
     .list li{font-size:14px;color:var(--soft);padding-left:16px;position:relative}
     .list li::before{content:"·";position:absolute;left:3px;color:var(--accent);font-weight:700}
-    .icon{width:14px;height:14px;vertical-align:-2px}
+    .icon{width:14px;height:14px;vertical-align:-2px;margin-right:.3em}
+    .what{text-transform:none;letter-spacing:0;color:var(--dim)}
     .prompts{list-style:none;display:flex;flex-direction:column;gap:10px}
     .prompt{display:grid;grid-template-columns:1fr auto;grid-template-areas:"area copy" "text copy";column-gap:10px;background:var(--card);border-left:2px solid var(--accent);border-radius:0 10px 10px 0;padding:10px 12px}
     .area{grid-area:area;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
@@ -85,8 +86,7 @@
     <a href="https://github.com/kiosk-hq/kiosk" class="header-gh"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23ffffff'%3E%3Cpath d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z'/%3E%3C/svg%3E" width="28" height="28" alt="GitHub"></a>
     <img src="/logo.png" alt="Kiosk" class="logo">
     <p class="version">v0.6</p>
-    <p class="ref-badge">First-class AI assistants' interface to online services</p>
-    <h1>An open door for every personal AI&nbsp;assistant</h1>
+    <h1>First-class access for personal AI&nbsp;assistants</h1>
     <p class="lead">A personal AI assistant opens an account at an online service, reads what it offers, books, orders, posts, pays, and hears back when something happens. It registers with no email and no password. Extensive usage is tolled with memory-hard compute.</p>
     <div class="actions">
       <a href="https://github.com/kiosk-hq/kiosk" class="cta cta-primary">Get the source code</a>
@@ -97,9 +97,15 @@
 
   <section id="open">
     <h2>The problem, as I ran into it</h2>
-    <p class="big">I sent the assistant on my laptop to book a table for two. It was shown a CAPTCHA, blocked by the CDN, and banned by the service. A bot filter waves a vendor's fleet through once the vendor is on its list, and a big shop lets an assistant in after a partner deal. The assistant on my laptop has neither.</p>
-    <p>Kiosk is the door I would build if I ran the restaurant. An assistant that arrives for the first time makes a key for that one service and registers it: no email, no password, nobody to vouch for it. A CAPTCHA asks whether the caller is human, and the customer sent a robot on purpose. Kiosk asks for work instead: extensive usage is tolled with memory-hard compute.</p>
-    <p>Nothing in that door knows what the service sells. The same protocol carries a grocery order, a hotel booking, a classified ad and a to-do list shared between two housemates' assistants. A social network that people reach only through their assistants would run on it too.</p>
+    <p class="big">I sent the assistant on my laptop to book a table for two. It was shown a CAPTCHA, blocked by the CDN, and banned by the service.</p>
+    <p>Cloudflare lets an assistant through only when its software is &ldquo;made for widespread use&rdquo;. eBay's terms forbid every buy-for-me assistant that eBay has not approved, and OpenAI's is approved. Amazon sued Perplexity over its shopping assistant. Walmart, Etsy and Shopify signed on to sell inside ChatGPT, and the merchant pays OpenAI a fee on each order. Search went the same way: Google paid Apple $20&nbsp;billion in 2022 to be the default in Safari. Whoever holds the gate earns on the deal, and a person who would rather use a cheaper, more private assistant of their own choosing is left outside.</p>
+    <p class="big">Hermes with DeepSeek 4.1 Flash on my laptop has none of that.</p>
+  </section>
+
+  <section id="why">
+    <h2>Why Kiosk</h2>
+    <p>I'm a builder, so I built Kiosk for every personal assistant and every online service that wants to serve it, with no deal and no list. An assistant that arrives for the first time makes a key for that one service and registers it: no email, no password, nobody to vouch for it. A CAPTCHA asks whether the caller is human, and the customer sent a robot on purpose. Kiosk asks for work instead: extensive usage is tolled with memory-hard compute.</p>
+    <p>Nothing in Kiosk knows what the service sells. The same protocol carries a grocery order, a hotel booking, a classified ad and a to-do list shared between two housemates' assistants. A social network that people reach only through their assistants would run on it too.</p>
   </section>
 
   <section id="how">
@@ -119,12 +125,12 @@
       <div class="box" id="operators">
         <h2>For operators</h2>
         <ul class="list">
-          <li>Your customers' personal assistants come to you directly. You keep the customer relationship and the data.</li>
-          <li>Add a Ruby gem, an initializer, the migrations, and one controller with your own queries and actions. <a href="/onboarding.html">Read the guide</a>.</li>
-          <li>Declare a topic in that controller and emit an event when something happens on your side.</li>
-          <li>A human links their assistants to their account. Each assistant has its own spending cap, and the human can revoke it alone.</li>
-          <li>Gate an action on anonymized attributes such as “18+” or a licence category.</li>
-          <li>Payments go through your own Stripe account. Kiosk takes no cut.</li>
+          <li><strong>Direct.</strong> Your customers' personal assistants come to you directly. You keep the customer relationship and the data.</li>
+          <li><strong>A gem and a controller.</strong> Add a Ruby gem, an initializer, the migrations, and one controller with your own queries and actions. <a href="/onboarding.html">Read the guide</a>.</li>
+          <li><strong>Events.</strong> Declare a topic in that controller and emit an event when something happens on your side.</li>
+          <li><strong>Linked assistants.</strong> A human links their assistants to their account. Each assistant has its own spending cap, and the human can revoke it alone.</li>
+          <li><strong>Anonymized checks.</strong> Gate an action on anonymized attributes such as “18+” or a licence category.</li>
+          <li><strong>Your own Stripe.</strong> Payments go through your own Stripe account. Kiosk takes no cut.</li>
         </ul>
       </div>
       <div class="box" id="people">
@@ -142,6 +148,11 @@
 
   <section id="compatible">
     <h2>Compatible assistants</h2>
+    <ul class="list" style="margin-bottom:12px">
+      <li><a href="https://hermes-agent.nousresearch.com/"><img src="data:image/png;base64,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" class="icon" alt="">Hermes</a></li>
+      <li><a href="https://code.claude.com/docs/en/overview">Claude Code</a></li>
+    </ul>
+    <p>Should work too: <a href="https://developers.openai.com/codex/cli/">Codex CLI</a> (with network access on), <a href="https://openclaw.ai/">OpenClaw</a> and <a href="https://pi.dev/">pi</a>.</p>
     <p>An assistant that reads <a href="/skill.md">the skill</a> needs:</p>
     <ul class="list" style="margin-bottom:14px">
       <li>Filesystem — store an Ed25519 keypair per origin at <code>~/.kiosk/&lt;origin&gt;/</code></li>
@@ -149,9 +160,6 @@
       <li>Crypto — sign AP2 v0.2 mandates (two SD-JWTs) with EdDSA</li>
       <li>Code — Python for JWT signing, Equihash proof-of-work solving and the event listener</li>
     </ul>
-    <p><a href="https://hermes-agent.nousresearch.com/" style="color:var(--text);font-weight:600"><img src="data:image/png;base64,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" class="icon" alt="">Hermes</a> has run it: at getgrocery it registered, passed the 18+ check, saved a card on Stripe's test page and paid; at hoteling it held a room, paid, and waited for the hotel's confirmation on the event stream.</p>
-    <p><a href="https://code.claude.com/docs/en/overview" style="color:var(--text);font-weight:600">Claude Code</a> has run it too: the same two orders, and at tudu two assistants on one account shared one toll count.</p>
-    <p>By their own documentation, <a href="https://developers.openai.com/codex/cli/">Codex CLI</a> (with network access on), <a href="https://openclaw.ai/">OpenClaw</a> and <a href="https://pi.dev/">pi</a> meet the requirements.</p>
     <p class="note"><a href="https://github.com/kiosk-hq/kiosk.tech">Add an assistant after a run</a>: send a pull request.</p>
   </section>
 
@@ -175,37 +183,37 @@
     </div>
     <ul class="prompts" id="try">
       <li class="prompt">
-        <span class="area">Grocery delivery</span>
+        <span class="area">Grocery delivery <span class="what">· Stripe test-mode payments · 18+ check for alcohol</span></span>
         <span class="prompt-text">Order a week of groceries for a family of three from <a href="https://getgrocery.demo.kiosk.tech">getgrocery.demo.kiosk.tech</a> — milk, eggs, bread, cheese, and red wine. Delivery address: 85 South Great George's Street, Dublin 2.</span>
         <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
       </li>
       <li class="prompt">
-        <span class="area">Restaurant reservations</span>
+        <span class="area">Restaurant reservations <span class="what">· Link your assistant to your existing account</span></span>
         <span class="prompt-text">I'm in Alfama, Lisbon. Book a table for two at Tasca do Tejo on <a href="https://atablefor.demo.kiosk.tech">atablefor.demo.kiosk.tech</a> tomorrow at 8.</span>
         <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
       </li>
       <li class="prompt">
-        <span class="area">Scooter &amp; motorcycle rental</span>
+        <span class="area">Scooter &amp; motorcycle rental <span class="what">· Anonymized KYC check: 18+ and licence</span></span>
         <span class="prompt-text">Rent an electric scooter near the Jordaan on <a href="https://skooti.demo.kiosk.tech">skooti.demo.kiosk.tech</a>.</span>
         <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
       </li>
       <li class="prompt">
-        <span class="area">Salon bookings</span>
+        <span class="area">Salon bookings <span class="what">· Staff roles come from the salon's login provider</span></span>
         <span class="prompt-text">Book a haircut at <a href="https://stylish.demo.kiosk.tech">stylish.demo.kiosk.tech</a>.</span>
         <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
       </li>
       <li class="prompt">
-        <span class="area">Hotel bookings</span>
+        <span class="area">Hotel bookings <span class="what">· Paid in Stripe test mode, confirmed on the event stream</span></span>
         <span class="prompt-text">Book me a room in Istanbul at <a href="https://hoteling.demo.kiosk.tech">hoteling.demo.kiosk.tech</a> for 2 nights this weekend.</span>
         <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
       </li>
       <li class="prompt">
-        <span class="area">Classifieds</span>
+        <span class="area">Classifieds <span class="what">· No payments · listings are public text</span></span>
         <span class="prompt-text">On <a href="https://philslist.demo.kiosk.tech">philslist.demo.kiosk.tech</a>, post my carbon road bike for €300 with my phone number 555-123-4567 as the contact.</span>
         <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
       </li>
       <li class="prompt">
-        <span class="area">Shared to-do lists</span>
+        <span class="area">Shared to-do lists <span class="what">· Lists shared between people's assistants</span></span>
         <span class="prompt-text">Create a shared to-do list called 'Roommate errands' on <a href="https://tudu.demo.kiosk.tech">tudu.demo.kiosk.tech</a>, add 'take out the recycling', and share it with my housemate.</span>
         <button onclick="copyPrompt(this)" aria-label="Copy prompt" class="copy">⧉</button>
       </li>

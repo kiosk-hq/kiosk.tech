@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-25: The landing has one headline, a "Why Kiosk" section, the gatekeepers' deals in the problem, a plain list of compatible assistants, and what each demo shows.
+
 ## [skill 0.6.16] — 2026-10-25
 
 - 2026-10-25: **Skill 0.6.16**: it gives the body of `POST <endpoint>/agents/kyc`, introduces `owner`, `min_client` and a topic's `examples`, and drops the token's `sub` and `agent_id` claims.
