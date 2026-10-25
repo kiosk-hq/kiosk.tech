@@ -41,6 +41,12 @@
       <li><strong>Skill 0.6.17</strong>: the registration example pays the proof-of-work toll when the operator answers <code>402 pow_required</code>.</li>
       <li>The landing has one headline, a &quot;Why Kiosk&quot; section, the gatekeepers&#39; deals in the problem, a plain list of compatible assistants, and what each demo shows.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.17, matching skill 0.6.17; the engine default is <code>skill-v0.6.17.md</code> and every demo pins its digest.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>The event stream sends the replay of every subscription the upgrade URL declares in one ascending id order, and live events in the order the pubsub gives them.</li>
+      <li><code>deploy/kyc-pairing-audit.sh</code> finds a KYC operator whose Gemfile indents the <code>kiosk-kyc-prove</code> line.</li>
+    </ul>
   </section>
 
   <section id="v0.6.16">
