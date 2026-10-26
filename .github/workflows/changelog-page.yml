@@ -2,8 +2,10 @@ name: changelog-page
 
 # changelog.html is the build of this repository's CHANGELOG.md and the
 # reference implementation's (bin/check-releases-page). The reference
-# repository is public, so the job checks out its main beside this one. The
-# daily run catches a release cut pushed there after the page was last built.
+# repository is public, so the job checks out its main beside this one. This
+# repository is pushed first, so the job waits up to 20 minutes for the
+# reference commit that changelog.reference names. The daily run catches a
+# release cut pushed there after the page was last built.
 
 on:
   push:
@@ -22,10 +24,11 @@ jobs:
         with:
           repository: kiosk-hq/kiosk
           path: reference
+          fetch-depth: 0
 
       # The runner's preinstalled Ruby: the check is stdlib-only.
       - name: Each rule of the build holds on a fixture
         run: ruby bin/check-releases-page --self-test
 
       - name: The page is the build of both changelogs
-        run: ruby bin/check-releases-page --reference reference
+        run: ruby bin/check-releases-page --await-reference 1200 --reference reference

@@ -79,8 +79,11 @@ The order of one cut, and it is the order that keeps the heading true:
 3. `bin/check-skill-immutability` green, and the
    operator pins relinked and, before 1.0, `reference` cut to the same version,
    before the merge.
-4. After `reference` is pushed, run `bin/check-releases-page --write` and push
-   `changelog.html`. The page joins the released sections of both records.
+4. After the `reference` release commit, run `bin/check-releases-page --write`
+   and commit `changelog.html` with `changelog.reference`. The page joins the
+   released sections of both records. `changelog.reference` names the reference
+   commit that the page was built from. CI waits for that commit on the
+   reference `main`, so push this repository first, then `reference`.
 
 ## Nothing already written is edited
 

@@ -12,22 +12,28 @@
 # which no reader of the site can open.
 #
 #   bin/check-releases-page [--reference DIR]          fail when the page is stale
-#   bin/check-releases-page --write [--reference DIR]  write the page
+#   bin/check-releases-page --write [--reference DIR]  write the page and `changelog.reference`
+#   bin/check-releases-page --await-reference SECONDS --reference DIR
+#                                                      fetch DIR's `main` until it holds the
+#                                                      recorded commit, check it out, then check
 #   bin/check-releases-page --self-test                check each rule on a fixture
 #
 # DIR is the reference checkout, `../reference` by default. Without it the run
 # fails: the page cannot be checked from one half.
 #
-# After a release cut is pushed to the reference repository, run `--write` here
-# and push the page. CI checks the page against the reference `main` on every
-# push and every day.
+# After the reference release commit, run `--write` here and commit the page
+# with `changelog.reference`, the reference commit that the page was built from.
+# kiosk.tech is pushed before reference, so CI waits for that commit on the
+# reference `main` (`--await-reference`), then checks the page against `main`.
 
 require 'cgi'
+require 'English'
 require 'optparse'
 require 'tmpdir'
 
 ROOT = File.expand_path('..', __dir__)
 PAGE = File.join(ROOT, 'changelog.html')
+BUILT_FROM = File.join(ROOT, 'changelog.reference')
 
 # `## [skill 0.6.12] — 2026-10-24`, `## [skill 0.5.19 · listener 0.5.19] — …`, `## [0.4.17] — …`
 SECTION = /\A## \[(?<label>[^\]]+)\] — (?<date>\d{4}-\d{2}-\d{2})\s*\z/
@@ -140,6 +146,32 @@ def build(reference_dir)
   page(File.read(File.join(ROOT, 'CHANGELOG.md')), File.read(reference_log))
 end
 
+def built_from(reference_dir)
+  IO.popen(['git', '-C', reference_dir, 'rev-parse', 'HEAD'], &:read).strip.tap do |sha|
+    raise "#{reference_dir} is not a git checkout: --write records its HEAD" unless $CHILD_STATUS.success?
+  end
+end
+
+# Fetches the reference `main` until it holds the commit that the page was
+# built from, then checks that `main` out.
+def await_reference(reference_dir, seconds)
+  sha = File.read(BUILT_FROM).strip
+  deadline = Time.now + seconds
+  until fetch_main(reference_dir).include?(sha)
+    if Time.now > deadline
+      raise "reference commit #{sha} is not on the reference main after #{seconds} s. " \
+            'Push the reference repository, then run this check again.'
+    end
+    sleep 15
+  end
+  system('git', '-C', reference_dir, 'checkout', '--quiet', '--detach', 'FETCH_HEAD', exception: true)
+end
+
+def fetch_main(reference_dir)
+  system('git', '-C', reference_dir, 'fetch', '--quiet', 'origin', 'main', exception: true)
+  IO.popen(['git', '-C', reference_dir, 'rev-list', 'FETCH_HEAD'], &:readlines).map(&:chomp)
+end
+
 SITE_FIXTURE = <<~MD
   ## [Unreleased]
 
@@ -187,13 +219,16 @@ options = { reference: File.expand_path('../reference', ROOT) }
 OptionParser.new do |o|
   o.on('--reference DIR') { |d| options[:reference] = File.expand_path(d) }
   o.on('--write') { options[:write] = true }
+  o.on('--await-reference SECONDS', Integer) { |s| options[:await] = s }
   o.on('--self-test') { options[:self_test] = true }
 end.parse!
 
 self_test if options[:self_test]
 
 begin
+  await_reference(options[:reference], options[:await]) if options[:await]
   fresh = build(options[:reference])
+  File.write(BUILT_FROM, "#{built_from(options[:reference])}\n") if options[:write]
 rescue RuntimeError => e
   warn "check-releases-page: #{e.message}"
   exit 1
@@ -201,7 +236,7 @@ end
 
 if options[:write]
   File.write(PAGE, fresh)
-  puts "wrote #{PAGE}"
+  puts "wrote #{PAGE} and #{BUILT_FROM}"
 elsif File.file?(PAGE) && File.read(PAGE) == fresh
   puts 'changelog.html is the build of both changelogs'
 else
