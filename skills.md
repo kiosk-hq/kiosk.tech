@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | What it describes |
 |---|---|---|
+| `skill-v0.6.24.md` | **0.6** | The protocol of 0.6.23. The binding poll and the claim in the skill's code solve the toll and send the request again. On exit `5` of the listener, a wait reads the state one time, and a subscription starts again. A 0.6.23 assistant still transacts. |
 | `skill-v0.6.23.md` | **0.6** | The protocol of 0.6.22. The skill says to wait for the listener's `subscribed` line before the call, that the total in the one message is an estimate, and to subscribe to `payment` before `pay`, whose `200` with verified receipts needs no event. A 0.6.22 assistant still transacts. |
 | `skill-v0.6.22.md` | **0.6** | The protocol of 0.6.21. The skill starts the identity check and the card setup before the first order, and asks the human for all their steps and the ask-first amount in one message. A 0.6.21 assistant still transacts. |
 | `skill-v0.6.21.md` | **0.6** | The protocol of 0.6.20. The skill says that the first listener starts with no `--since`, that the work for a request ends when it is done, and that the open questions go in one message. Both code samples read `key.pem` as bytes. A 0.6.20 assistant still transacts. |
@@ -126,9 +127,9 @@ and 0.6.0 opens a new protocol group in which 0.6.0 = 0.6.1 = 0.6.2,
 and 0.6.3 opens a new protocol group of which it stayed the only member,
 and 0.6.4 opens a new protocol group of which it stayed the only member,
 and 0.6.5 opens a new protocol group of which it stayed the only member,
-and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15 = 0.6.16 = 0.6.17 = 0.6.18 = 0.6.19 = 0.6.20 = 0.6.21 = 0.6.22 = 0.6.23,
+and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15 = 0.6.16 = 0.6.17 = 0.6.18 = 0.6.19 = 0.6.20 = 0.6.21 = 0.6.22 = 0.6.23 = 0.6.24,
 but the eighteen groups are NOT the same protocol, and only the last describes
-what a 0.6.23 operator serves. The formal spec
+what a 0.6.24 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

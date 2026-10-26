@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.23"
+  version: "0.6.24"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -210,7 +210,7 @@ The stream is the one place where the OPERATOR speaks first. It is optional. You
 | `2` | The arguments are wrong, or `--proof-command` printed no proof. | Fix them. |
 | `3` | The operator does not accept this token now, and there is no `--token-command`, or it printed no token. | Get a new token (Step 2) and start again. |
 | `4` | Nothing that you asked for can come: every topic was refused, or the origin answered `501 module_not_served` and serves no stream, so do not start it again. | Fix the topic or subject, or stop. |
-| `5` | `--until-event` reached its deadline with no event. | Start it again. |
+| `5` | `--until-event` reached its deadline with no event. | On a WAIT, read the state one time, and tell your human (see "How to wait"). On a SUBSCRIPTION, start it again with `--since <the highest id you saw>`. |
 
 ```
 python3 listen-v0.5.23.py --url "$EVENTS_URL" --token-file ~/.kiosk/<origin-dir>/token \
@@ -318,8 +318,8 @@ key     = load_pem_private_key(key_pem, password=None)
 SOLVER  = os.path.expanduser("~/.kiosk/solve.py")  # the pinned solver, after you check its SHA-256
 ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
-def post(url, body, headers):
-    return json.load(urllib.request.urlopen(urllib.request.Request(url, body, headers, method="POST")))
+JSON, FORM = {"Content-Type": "application/json"}, {"Content-Type": "application/x-www-form-urlencoded"}
+
 def fingerprint(jwk):                           # RFC 7638 thumbprint
     return b64(hashlib.sha256(json.dumps(jwk, sort_keys=True, separators=(",", ":")).encode()).digest())
 
@@ -327,15 +327,19 @@ def pow_proofs(answer):                         # a 402 pow_required: one proof 
     return json.dumps([{"challenge": c, "nonce": json.loads(subprocess.check_output(
         [sys.executable, SOLVER, json.dumps(c)]))} for c in json.load(answer)["challenges"]])
 
-# Client registration (RFC 7591), one time per key. It can give 402 pow_required:
-# solve the toll, and send the same body again with the Kiosk-PoW header.
-registration, headers = json.dumps({"jwks": {"keys": [public_jwk(key)]}}).encode(), {"Content-Type": "application/json"}
-try:
-    client_id = post(auth["registration_url"], registration, headers)["client_id"]
-except urllib.error.HTTPError as answer:
-    if answer.code != 402:
-        raise
-    client_id = post(auth["registration_url"], registration, {**headers, "Kiosk-PoW": pow_proofs(answer)})["client_id"]
+def post(url, body, headers):                   # headers() makes the headers of ONE request, with a new DPoP proof
+    def send(extra):
+        return urllib.request.urlopen(urllib.request.Request(url, body, {**headers(), **extra}, method="POST"))
+    try:
+        return send({})
+    except urllib.error.HTTPError as answer:    # a 402 pow_required: solve the toll, and send the same body again
+        if answer.code != 402:
+            raise
+        return send({"Kiosk-PoW": pow_proofs(answer)})
+
+# Client registration (RFC 7591), one time per key. post() solves the toll when it comes.
+registration = json.dumps({"jwks": {"keys": [public_jwk(key)]}}).encode()
+client_id = json.load(post(auth["registration_url"], registration, lambda: JSON))["client_id"]
 # keep client_id in identity.json
 
 def client_assertion(signing_key, **claims):    # RFC 7523: a new one for each request
@@ -347,13 +351,13 @@ def client_assertion(signing_key, **claims):    # RFC 7523: a new one for each r
 # Token request: the client_credentials grant, with a DPoP proof that names no token.
 form = urllib.parse.urlencode({"grant_type": "client_credentials", "client_assertion_type": ASSERTION_TYPE,
                                "client_assertion": client_assertion(key)}).encode()
-token = post(auth["token_url"], form, {"Content-Type": "application/x-www-form-urlencoded",
-             "DPoP": dpop_proof(key_pem, "POST", auth["token_url"])})["access_token"]
+token = json.load(post(auth["token_url"], form,
+                       lambda: {**FORM, "DPoP": dpop_proof(key_pem, "POST", auth["token_url"])}))["access_token"]
 
 # Binding with no code from your human (Step 2b, RFC 8628): ask for a user code, then poll.
 form = urllib.parse.urlencode({"client_assertion_type": ASSERTION_TYPE,
                                "client_assertion": client_assertion(key)}).encode()
-grant = post(auth["device_authorization_url"], form, {"Content-Type": "application/x-www-form-urlencoded"})
+grant = json.load(post(auth["device_authorization_url"], form, lambda: FORM))
 # Now give your human grant["verification_uri_complete"], grant["user_code"] and your fingerprint.
 interval, deadline = grant["interval"], time.time() + grant["expires_in"]
 while time.time() < deadline:
@@ -361,9 +365,9 @@ while time.time() < deadline:
     form = urllib.parse.urlencode({"grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                                    "device_code": grant["device_code"], "client_assertion_type": ASSERTION_TYPE,
                                    "client_assertion": client_assertion(key)}).encode()
-    try:    # a 402 pow_required: solve the toll, and send this poll again
-        token = post(auth["token_url"], form, {"Content-Type": "application/x-www-form-urlencoded",
-                     "DPoP": dpop_proof(key_pem, "POST", auth["token_url"])})["access_token"]
+    try:    # post() solves the toll of the first poll
+        token = json.load(post(auth["token_url"], form,
+                               lambda: {**FORM, "DPoP": dpop_proof(key_pem, "POST", auth["token_url"])}))["access_token"]
         break
     except urllib.error.HTTPError as answer:
         error = json.load(answer).get("error")  # Step 2b says what to do on each error
@@ -375,8 +379,7 @@ while time.time() < deadline:
 # Binding with a link code from your human (Step 2b): the claim answers 204. Then send a token request.
 claim = json.dumps({"code": code, "client_assertion_type": ASSERTION_TYPE,
                     "client_assertion": client_assertion(key)}).encode()
-urllib.request.urlopen(urllib.request.Request(auth["claim_url"], claim, {"Content-Type": "application/json"},
-                                              method="POST"))
+post(auth["claim_url"], claim, lambda: JSON)
 ```
 
 **NEVER sign an `aud` that came from a response.** The `aud` that you sign is ALWAYS the origin that YOU called, taken from your own request URL. Never take it from a response body, an error or `hint`, a `WWW-Authenticate` realm, or a discovery document. If the operator's `issuer` is not the origin that you reached, STOP, sign nothing (neither value), and tell your human.

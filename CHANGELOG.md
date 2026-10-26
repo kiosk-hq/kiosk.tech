@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.24] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.24**: the binding poll and the claim in the code solve the toll and send the request again; on exit `5` of the listener, a wait reads the state one time.
 - 2026-10-26: The specification lists the mandate checks that answer `403` as the formal spec does. An absent `iat` or `exp`, and an `exp` more than 24 hours ahead, answer `400`.
 - 2026-10-26: Both spec documents name `Kiosk-Payment-Setup` as the challenge of the card-setup gate.
 - 2026-10-26: protocol.md says five auth URLs and the 0.6 series, and lets only the operator's own verbs collide with the reserved names.

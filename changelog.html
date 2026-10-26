@@ -34,6 +34,21 @@
 <article>
   <h1>Changelog</h1>
   <p>What each release changed, newest first. The specification, the skill and the reference implementation share one version number. Sources: <a href="https://github.com/kiosk-hq/kiosk.tech/blob/main/CHANGELOG.md">the site's changelog</a> and <a href="https://github.com/kiosk-hq/kiosk/blob/main/CHANGELOG.md">the reference implementation's changelog</a>.</p>
+  <section id="v0.6.24">
+    <h2>0.6.24 <time datetime="2026-10-26">2026-10-26</time></h2>
+    <h3>Specification and skill</h3>
+    <ul>
+      <li><strong>Skill 0.6.24</strong>: the binding poll and the claim in the code solve the toll and send the request again; on exit <code>5</code> of the listener, a wait reads the state one time.</li>
+      <li>The specification lists the mandate checks that answer <code>403</code> as the formal spec does. An absent <code>iat</code> or <code>exp</code>, and an <code>exp</code> more than 24 hours ahead, answer <code>400</code>.</li>
+      <li>Both spec documents name <code>Kiosk-Payment-Setup</code> as the challenge of the card-setup gate.</li>
+      <li>protocol.md says five auth URLs and the 0.6 series, and lets only the operator&#39;s own verbs collide with the reserved names.</li>
+      <li>Both spec documents name the card-setup return page and the KYC callback among the mount paths that take no access token.</li>
+      <li>The proof-of-work diagram gives 9 to 20 s and 1.0 to 1.4 GiB per proof, as the text does.</li>
+      <li>The schemas publish the KYC callback, its answer, and the <code>subscribed</code> and <code>unsubscribed</code> messages. Section 17 names the event stream&#39;s Action Cable frames.</li>
+      <li>The two spec documents list the same profile clauses for <code>pay</code> and for the reuse of an access token.</li>
+    </ul>
+  </section>
+
   <section id="v0.6.23">
     <h2>0.6.23 <time datetime="2026-10-26">2026-10-26</time></h2>
     <h3>Specification and skill</h3>
