@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-26: The landing shows a screencast: Hermes, messaged over Telegram, orders a handwritten list at the grocery demo and pays.
+
 ## [skill 0.6.28] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.28**: only the human sets the ask-first amount. An assistant's payment script stops above it, and a spending cap that accepts a payment is not a yes.

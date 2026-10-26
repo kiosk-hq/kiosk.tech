@@ -73,6 +73,10 @@
     @keyframes scene-bubble{0%,65%{opacity:0;translate:0 6px}70%,96%{opacity:1;translate:0 0}100%{opacity:0;translate:0 0}}
     @media (max-width:560px){.scene{grid-template-columns:1fr}.standards{columns:1}}
     @media (prefers-reduced-motion:reduce){.scene *{animation:none}.scene-cursor{display:none}.scene-bubble{opacity:1}}
+    .film{position:relative;display:flex;justify-content:center;margin-top:16px}
+    .film video{display:block;height:min(92svh,880px);max-width:100%;aspect-ratio:888/1920;object-fit:contain;border-radius:16px;background:#000}
+    .replay{position:absolute;top:50%;left:50%;translate:-50% -50%;padding:11px 20px;border-radius:10px;border:1px solid var(--button);background:var(--button);color:#fff;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer}
+    .replay[hidden]{display:none}
     .standards{list-style:none;columns:2;column-gap:24px}
     .standards li{font-size:14px;padding-left:16px;position:relative;break-inside:avoid;margin-bottom:6px}
     .standards li::before{content:"·";position:absolute;left:3px;color:var(--accent);font-weight:700}
@@ -106,6 +110,28 @@
     <h2>Why Kiosk</h2>
     <p>I'm a builder, so I built Kiosk for every personal assistant and every online service that wants to serve it. It is an open protocol, free to implement: nobody signs a deal or gets on a list first. A visitor brings the assistant they like, cheaper, more private or simply their own, and the service lets it in.</p>
     <p>Nothing in Kiosk knows what the service sells. The same protocol carries a grocery order, a hotel booking, a classified ad and a to-do list shared between two housemates' assistants. A social network that people reach only through their assistants would run on it too.</p>
+  </section>
+
+  <section id="watch">
+    <h2>Watch it order</h2>
+    <p>The same Hermes, messaged from my phone over Telegram: one photo of a handwritten list and one sentence. It orders at the grocery demo and pays with the card saved there earlier. The wait is sped up; the counter shows real seconds.</p>
+    <div class="film">
+      <video src="/video/hermes-getgrocery.mp4" poster="/video/hermes-getgrocery.jpg" muted playsinline preload="metadata" aria-label="Hermes orders groceries over Telegram"></video>
+      <button class="replay" hidden>Watch again</button>
+    </div>
+    <script>
+      (function(){
+        var video = document.querySelector('.film video');
+        var replay = document.querySelector('.film .replay');
+        if (matchMedia('(prefers-reduced-motion:reduce)').matches) { video.controls = true; return; }
+        new IntersectionObserver(function(entries){
+          if (video.ended) return;
+          entries[0].isIntersecting ? video.play() : video.pause();
+        }, {threshold: .6}).observe(video);
+        video.addEventListener('ended', function(){ replay.hidden = false; });
+        replay.addEventListener('click', function(){ replay.hidden = true; video.currentTime = 0; video.play(); });
+      })();
+    </script>
   </section>
 
   <section id="how">
