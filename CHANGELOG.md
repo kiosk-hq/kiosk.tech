@@ -10,6 +10,14 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-26: The specification lists the mandate checks that answer `403` as the formal spec does. An absent `iat` or `exp`, and an `exp` more than 24 hours ahead, answer `400`.
+- 2026-10-26: Both spec documents name `Kiosk-Payment-Setup` as the challenge of the card-setup gate.
+- 2026-10-26: protocol.md says five auth URLs and the 0.6 series, and lets only the operator's own verbs collide with the reserved names.
+- 2026-10-26: Both spec documents name the card-setup return page and the KYC callback among the mount paths that take no access token.
+- 2026-10-26: The proof-of-work diagram gives 9 to 20 s and 1.0 to 1.4 GiB per proof, as the text does.
+- 2026-10-26: The schemas publish the KYC callback, its answer, and the `subscribed` and `unsubscribed` messages. Section 17 names the event stream's Action Cable frames.
+- 2026-10-26: The two spec documents list the same profile clauses for `pay` and for the reuse of an access token.
+
 ## [skill 0.6.23] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.23**: wait for the listener's `subscribed` line before the call; the total in the one message is an estimate; subscribe to `payment` before `pay`.

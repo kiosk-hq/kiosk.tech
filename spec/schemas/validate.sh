@@ -61,6 +61,8 @@ chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/pro
 chk validate "${F[@]}" -s problem.schema.json -r pow.schema.json -d examples/problem.module-not-served.json
 chk validate "${F[@]}" -s schema-descriptor.schema.json -d examples/schema-descriptor.json
 chk validate "${F[@]}" -s event.schema.json -d examples/event.json
+chk validate "${F[@]}" -s "$(ref evsub   "$B/event.schema.json#/\$defs/subscribed")"   -r event.schema.json -d examples/event.subscribed.json
+chk validate "${F[@]}" -s "$(ref evunsub "$B/event.schema.json#/\$defs/unsubscribed")" -r event.schema.json -d examples/event.unsubscribed.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.proofs.json
 chk validate "${F[@]}" -s pow.schema.json -d examples/pow.shorthand.json
 # The LARGEST LEGAL index, 2**64-1, must VALIDATE, and how the bound is SPELLED
@@ -84,6 +86,8 @@ chk validate "${F[@]}" -s "$(ref att     "$B/kyc.schema.json#/\$defs/attestation
 chk validate "${F[@]}" -s "$(ref kycreq  "$B/kyc.schema.json#/\$defs/request")"         -r kyc.schema.json -d examples/kyc.request.json
 chk validate "${F[@]}" -s "$(ref kycver  "$B/kyc.schema.json#/\$defs/verification")"    -r kyc.schema.json -d examples/kyc.verification.json
 chk validate "${F[@]}" -s "$(ref kycevt  "$B/kyc.schema.json#/\$defs/verificationEvent")" -r kyc.schema.json -d examples/kyc.verification-event.json
+chk validate "${F[@]}" -s "$(ref kyccb   "$B/kyc.schema.json#/\$defs/callback")"       -r kyc.schema.json -d examples/kyc.callback.json
+chk validate "${F[@]}" -s "$(ref kyccba  "$B/kyc.schema.json#/\$defs/callbackAnswer")" -r kyc.schema.json -d examples/kyc.callback-answer.json
 # Sections 5 and 6. One example per `$def`, because the claim these
 # schemas exist to make honest is per-OBJECT, not per-file: a file that compiles
 # while one of its objects is a typo'd `$def` nobody validates against is the
@@ -191,6 +195,9 @@ chkfail validate "${F[@]}" -s schema-descriptor.schema.json -d examples/rejected
 chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.unknown-member.json
 chkfail validate "${F[@]}" -s "$(ref kycevt3 "$B/kyc.schema.json#/\$defs/verificationEvent")" -r kyc.schema.json -d examples/rejected/kyc.verification-event.no-jws.json
 chkfail validate "${F[@]}" -s event.schema.json -d examples/rejected/event.id-above-json-range.json
+# `head` is the cursor a subscriber records, so a `subscribed` without it is refused.
+chkfail validate "${F[@]}" -s "$(ref evsub2  "$B/event.schema.json#/\$defs/subscribed")" -r event.schema.json -d examples/rejected/event.subscribed.no-head.json
+chkfail validate "${F[@]}" -s "$(ref kyccb2  "$B/kyc.schema.json#/\$defs/callback")" -r kyc.schema.json -d examples/rejected/kyc.callback.no-jws.json
 # And a TOPIC descriptor is closed too. `subject_reachable` is the member a
 # porter reaches for, because the operator really does have such a rule -- it is
 # deliberately NOT published, so the schema has to refuse it rather than leave

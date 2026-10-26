@@ -76,8 +76,8 @@ protocol only where they do not:
   Grant** ([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)).
 - Section 18 lists every standard this document uses, and what for.
 - The two `402` gates carry a `WWW-Authenticate` challenge per
-  [RFC 7235](https://www.rfc-editor.org/rfc/rfc7235); the payment gate names the
-  IETF `Payment` scheme.
+  [RFC 7235](https://www.rfc-editor.org/rfc/rfc7235): `Kiosk-PoW` on the toll and
+  `Kiosk-Payment-Setup` on the card-setup gate.
 - Discovery is additionally emitted into the standard agent-web surfaces
   (`agents.txt`, `agents.json`, RFC 8414 OAuth metadata, RFC 9728 protected
   resource metadata, the Agent Skills discovery index, ARD `ard.json`, RFC 9727
@@ -153,7 +153,7 @@ proof-of-work toll, assistant key rotation and the link-code claim.
 5. **Version parity and additivity, from 1.0 onward.** From 1.0 the protocol is
    additive and backward-compatible within a MINOR series: new endpoints and
    fields only, existing flows never break. **Before 1.0 -- which includes the
-   0.5 series this document specifies -- any release MAY change the protocol, a
+   0.6 series this document specifies -- any release MAY change the protocol, a
    PATCH included** (Section 14).
 6. **Version-handshake response headers.** Every response served under the
    operator's mount path -- the discovery document's `endpoint`, and everything
@@ -1365,11 +1365,14 @@ the read/write semantics:**
 | `pay` | POST | `<endpoint>/pay` | DPoP |
 
 `schema` is the one VERB under `endpoint` that takes no credential
-(Section 8.3); the other uncredentialed path under the mount is the OPTIONAL
-`<endpoint>/openapi.json` (Section 4.6), which is a tooling description rather
-than a verb, and the JWKS document of Section 4.4. An operator **MUST NOT**
-require a credential on any of the three, and **MUST NOT** toll them
-(Section 10): a toll prices a caller, and there is no caller to price.
+(Section 8.3). The OPTIONAL `<endpoint>/openapi.json` (Section 4.6), which is a
+tooling description rather than a verb, and the JWKS document of Section 4.4
+take no credential either. An operator **MUST NOT** require a credential on
+`schema`, `openapi.json` or the JWKS document, and **MUST NOT** toll them
+(Section 10): a toll prices a caller, and there is no caller to price. The
+card-setup return page (Section 11.4) and the KYC callback (Section 12.4.1) are
+under the mount too and take no access token; their sections say how each is
+checked.
 
 The concrete query and action **names** are operator-defined and discovered via
 `schema`; they are not part of this specification. A name is one path segment
@@ -1615,12 +1618,15 @@ belongs to `input_schema`, and a result field to `output_schema`, which is
 where each can be checked against the handler that produces it.
 
 A verb **name** is one path segment matching `^[a-z][a-z0-9_]*$` (Section 8.1),
-it **MUST NOT** be one of the reserved first segments the operator's mount
-occupies (`schema`, `pay`, `payment_setup`, `request_kyc`, `kyc`, and whatever else the origin serves
-directly under `endpoint`), and one name is one KIND: a name published in `queries` **MUST
+the operator's own verb **MUST NOT** take one of the reserved first segments the
+protocol occupies under the mount (`schema`, `pay`, `payment_setup`, `request_kyc`,
+`kyc`, and whatever else the origin serves directly under `endpoint`), and one
+name is one KIND: a name published in `queries` **MUST
 NOT** also appear in `actions`, since `GET` and `POST` at that path would
 otherwise reach two different verbs and the `405` of Section 8.1 could never be
-right for it.
+right for it. `payment_setup` (Section 11.4) and `request_kyc` (Section 12.4) are
+the protocol's own actions, and `actions` publishes them where the operator
+serves their module.
 
 `params` -- a free-form operator-defined hint object mapping a parameter name
 to a type-hint string -- is **not part of this protocol**. A descriptor
@@ -2356,7 +2362,7 @@ The whole class answers alike so that an AI assistant learns one branch rather
 than a table:
 
 - a mandate that is not an SD-JWT of Section 11.1, or whose `typ`, `vct` or
-  member of Section 11.1 is wrong or ABSENT;
+  other member of Section 11.1 is wrong or ABSENT;
 - a mandate whose `exp` has passed, or whose signature does not verify against
   the AI assistant's registered key;
 - a checkout whose signature does not verify, or that names another origin or
@@ -2365,8 +2371,8 @@ than a table:
 
 **Two mandate checks are NOT in the class and DO answer `400`,** and they are
 stated rather than left to be inferred, because the boundary does not fall out
-of the reason above on its own: `iat` or `exp` that is not a NumericDate, and a
-mandate whose lifetime exceeds the operator's maximum. Neither is a claim about
+of the reason above on its own: `iat` or `exp` that is absent or not a
+NumericDate, and an `exp` more than 24 hours ahead (Section 11.1). Neither is a claim about
 what the mandate authorises -- they ask whether it is a well-formed, bounded
 credential at all -- and they are the only mandate checks rule 1 reaches.
 
@@ -2552,7 +2558,7 @@ control that the human sets.
 
 **The status for every refusal of a mandate or of its checkout is `403
 forbidden`,** with two exceptions that answer `400 bad_request`: an `iat` or
-`exp` that is not an integer, and an `exp` more than 24 hours ahead. A mandate
+`exp` that is absent or not an integer, and an `exp` more than 24 hours ahead. A mandate
 is authorisation, not an argument: a mandate that does not carry what it must
 carry authorises nothing (Section 9.1).
 
@@ -3329,9 +3335,10 @@ the discovery document, and are absent from `capabilities` for that reason:
    identical unfinished pair is captured again under the same key and settled,
    and a declined pair or a second live pair for one checkout answers `409
    conflict` raised BEFORE any capture -- an exact spending cap where one is configured
-   (Section 11.5), and a reconcilable paid state that is anchored to the capture
+   (Section 11.5), a reconcilable paid state that is anchored to the capture
    rather than to the settlement record: never *not paid* while a capture may be
-   outstanding (Section 11.6).
+   outstanding (Section 11.6), published as `payment_state`, and the `payment`
+   topic where the operator serves events (Section 11.7).
 6. **Module proof-of-work** (Section 10): the Equihash 402 gate -- stateless
    HMAC-signed challenges, verification of EVERY proof in the list, rejection of
    a solution whose indices are not in canonical order, `WWW-Authenticate:
@@ -3348,7 +3355,7 @@ the discovery document, and are absent from `capabilities` for that reason:
    partial identity system -- a role for staff, nothing for customers -- is a
    misconfiguration this profile excludes, not a variant it permits. PUBLISHING `device_authorization_url` and `claim_url` is not
    part of this module: the auth block is core discovery (item 1) and carries all
-   six URLs on every conformant origin (Section 4.3), whether or not the operator
+   five URLs on every conformant origin (Section 4.3), whether or not the operator
    serves what the last two reach. **An operator that does not serve an OPTIONAL
    module answers `501 module_not_served` at the published paths that module
    would have served** (Section 9) -- for binding that is the two URLs above, for
@@ -3497,10 +3504,10 @@ counts on purpose -- see the count note below.
 | Schema descriptor | [`schema-descriptor.schema.json`](./schemas/schema-descriptor.schema.json) |
 | PoW challenge + proof | [`pow.schema.json`](./schemas/pow.schema.json) |
 | The checkout and the AP2 mandates | [`mandates.schema.json`](./schemas/mandates.schema.json) |
-| KYC attestation | [`kyc.schema.json`](./schemas/kyc.schema.json) |
+| KYC attestation, and the KYC callback body and its answer, Section 12 | [`kyc.schema.json`](./schemas/kyc.schema.json) |
 | Registration and tokens, Section 5 | [`auth.schema.json`](./schemas/auth.schema.json) |
 | Account binding, Section 6 | [`binding.schema.json`](./schemas/binding.schema.json) |
-| Event-stream message, Section 8.5 | [`event.schema.json`](./schemas/event.schema.json) |
+| Event-stream message, and the `subscribed` and `unsubscribed` messages, Section 8.5 | [`event.schema.json`](./schemas/event.schema.json) |
 
 Each file carries one `$def` per object; the `$def` names are the objects'
 names, and the example payloads under `./schemas/examples/` -- including a
@@ -3520,6 +3527,7 @@ protocol and not in this section reads the omission as an oversight.
 | `/.well-known/agent-skills/index.json`, Section 4.5 (OPTIONAL) | [Agent Skills Discovery v0.2.0](https://github.com/cloudflare/agent-skills-discovery-rfc) |
 | `/.well-known/oauth-protected-resource`, Section 4.5 (OPTIONAL) | [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) |
 | `/.well-known/ard.json` and `/.well-known/ai-catalog.json`, Section 4.5 (OPTIONAL) | [Agentic Resource Discovery v0.91](https://agenticresourcediscovery.org/spec) and [AI Catalog 1.0](https://github.com/Agent-Card/ai-catalog) |
+| The connection frames of the event stream -- `welcome`, `ping`, `confirm_subscription`, `reject_subscription`, `disconnect` -- Section 8.5 (OPTIONAL) | the `actioncable-v1-json` subprotocol of Action Cable. Section 8.5 says which frame the operator sends, and when |
 | `agents.txt`, `agents.json`, `/auth.md`, Section 4.5 (OPTIONAL) | the agent-web conventions each is named for. Section 4.5 binds their CONTENT to `kiosk.json` -- they are envelopes around it and MUST NOT drift from it -- so what this document has to say about them is a non-drift rule, not a shape |
 
 **What has no oracle here at all, and why.** No count is written in this
