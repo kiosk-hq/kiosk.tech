@@ -2212,7 +2212,7 @@ members it does not recognise.
 | `unauthenticated` | 401 | Missing, invalid, expired, wrong-issuer, or revoked access token, or a missing or wrong DPoP proof (Section 5.6), or a failed client assertion on `/auth/claim` or `/auth/rotate` (Section 5.2). |
 | `forbidden` | 403 | Authenticated, but this identity may not do this. |
 | `rls_denied` | 403 | A row-level-security policy denied the statement (opt-in RLS). |
-| `spending_cap_exceeded` | 403 | The acting assistant's per-assistant spending cap would be exceeded by this `pay`, or the checkout is in a currency other than the cap's (Section 11.5); the human must raise the cap or set it in the checkout's currency. |
+| `spending_cap_exceeded` | 403 | The checkout total of this `pay` is above the acting assistant's spending cap, or the checkout is in a currency other than the cap's (Section 11.5); the human must raise the cap or set it in the checkout's currency. |
 | `kyc_required` | 403 | An Action requires KYC attribute(s) the AI assistant has not attested (Section 12.3); `hint` names what is needed. The AI assistant submits a KYC attestation carrying the missing attributes, then retries. |
 | `verb_not_found` | 404 | **No verb by that NAME is registered at this operator** -- the path's last segment matches nothing in the catalogue (Section 8.1). `hint` carries the names that ARE registered, so a mistyped `listings` for `browse_listings` self-corrects without a catalogue round-trip. The AI assistant re-reads `GET <endpoint>/schema` and picks a name that exists; it **MUST NOT** report to its human that the operator cannot do the thing, because a different verb may well do it. |
 | `not_found` | 404 | **The verb exists and an argument ADDRESSES a resource which does not exist** (Section 9.1 rule 2) -- a `property_id` no property has. The call was well formed and the answer is final: no retry finds it, and the AI assistant tells its human the thing is not there. Distinct from `verb_not_found`, which is about the NAME of the call rather than about what the call addressed. |
@@ -2654,53 +2654,33 @@ configuring a `payment_provider` serves both paths.
 
 ### 11.5 Per-assistant spending cap (optional)
 
-An operator MAY cap what an individual bound assistant (Section 6) may settle -- the
-natural governance control when one human has several assistants bound to their
-account. When a cap is configured for the acting `agent_id`, the operator **MUST**
-enforce it exactly:
+An operator MAY let the human cap each bound assistant (Section 6). The cap is
+the most that one `pay` of that assistant may charge, in the cap's currency.
+When a cap is configured for the acting `agent_id`, the operator **MUST**
+enforce it:
 
-1. It counts each settled charge of the assistant (optionally within a rolling
-   window) less what the operator refunded of it, never below zero, and every
-   checkout mandate whose charge can still go through: one with no settlement,
-   whose `exp` has not passed, and whose charge was not declined. A refund
-   gives its amount back to the cap at once.
-2. It **MUST** reject a `pay` that would push that count past the cap with
-   `403 spending_cap_exceeded` **before** the irreversible capture -- no charge, no
-   settlement row.
-3. It **MUST** serialise the concurrent `pay` calls of one assistant, so that two
-   of them cannot both fit under the cap when together they do not.
-4. A declined charge -- refused by the operator or its processor, with no money
-   moved -- stops counting at once. A repeat of mandates already counted
-   (Section 11.6) does not count twice.
-5. A cap has one currency. The operator **MUST** reject a `pay` whose checkout is
-   in another currency with `403 spending_cap_exceeded` **before** the capture: a
-   cap in one currency allows no payment in another.
+1. It **MUST** reject a `pay` whose checkout total is above the cap with
+   `403 spending_cap_exceeded` **before** the irreversible capture -- no charge,
+   no mandate row, no settlement row.
+2. A cap has one currency. The operator **MUST** reject a `pay` whose checkout is
+   in another currency with `403 spending_cap_exceeded` **before** the capture.
+   An operator that accepts two spellings of one code (`"eur"` and `"EUR"`)
+   **MUST** compare them as one code.
+3. A repeat of mandates that the operator recorded (Section 11.6) is not checked
+   again: the first `pay` of that checkout passed the check.
 
-A cap of `0` disables the assistant's payments entirely. The AI assistant cannot
-pay past the cap; it surfaces the condition to the human, who raises the cap out
-of band. Caps are operator policy and off by default; how an operator stores and
-edits them is out of scope for the protocol.
-
-**The tally is per CURRENCY, and a currency is not a string.** Cents are not
-fungible across currencies, so the settled total a cap is measured against is the
-total IN THE CAP'S OWN CURRENCY. An operator that accepts two spellings of one
-code (`"eur"` and `"EUR"`) **MUST** count them as one: a tally keyed on the raw
-bytes gives a fresh cap for every spelling, and the cap the operator published is
-then not the cap it enforces.
+A cap of `0` stops the payments of the assistant. The AI assistant cannot pay
+above the cap; it tells the human, who raises the cap out of band. Caps are
+operator policy and off by default; how an operator stores and edits them is out
+of scope for the protocol.
 
 > *Reference note (non-normative).* The Ruby reference enforces this via the
 > `config.spending_cap` pay-hook seam and ships a column-backed default
 > (`agents.spending_cap_cents` and `agents.spending_cap_currency`) editable from
-> the manage-assistants page. It
-> serialises one assistant's `pay` calls under a per-assistant advisory lock,
-> records a declined charge as `checkout_mandates.declined_at` and a refund through
-> `PaymentClaim#refund` in `refunds`, and counts the
-> settled and the unfinished checkout mandates in ONE statement, so a settlement
-> that commits between two reads cannot drop out of both. It lower-cases
-> `currency` at the point a checkout becomes a verified value, so the Section
-> 11.2 comparisons, the persisted rows, the PSP call and this tally use one
-> value. Lower case, because the shipped payment adapter's API documents that
-> spelling.
+> the manage-assistants page. It lower-cases `currency` at the point a checkout
+> becomes a verified value, so the Section 11.2 comparisons, the persisted rows,
+> the PSP call and the cap use one value. Lower case, because the shipped
+> payment adapter's API documents that spelling.
 
 ### 11.6 Idempotency -- the mandates ARE the key
 
@@ -3334,7 +3314,7 @@ the discovery document, and are absent from `capabilities` for that reason:
    repeat -- an identical settled pair answers `200` with that settlement, an
    identical unfinished pair is captured again under the same key and settled,
    and a declined pair or a second live pair for one checkout answers `409
-   conflict` raised BEFORE any capture -- an exact spending cap where one is configured
+   conflict` raised BEFORE any capture -- a spending cap on one payment where one is configured
    (Section 11.5), a reconcilable paid state that is anchored to the capture
    rather than to the settlement record: never *not paid* while a capture may be
    outstanding (Section 11.6), published as `payment_state`, and the `payment`

@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-26: The spending cap is the most that one `pay` of an assistant may charge. The operator no longer counts the spend of an assistant over time.
+
 ## [skill 0.6.25] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.25**: the text is that of 0.6.24. The version matches release 0.6.25 of the reference implementation.

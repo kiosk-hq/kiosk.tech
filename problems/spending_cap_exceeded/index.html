@@ -35,10 +35,10 @@
     <p><span class="status">HTTP 403</span> &nbsp; <code>title</code>: Spending cap exceeded</p>
 
     <h2>What it means</h2>
-    <p>The acting assistant has a per-assistant spending cap configured, and this <code>pay</code> would push its settled total past it. Rejected <strong>before</strong> charging — no money moved. A cap of <code>0</code> disables that assistant’s payments entirely.</p>
+    <p>The human set a spending cap for the acting assistant: the most that one <code>pay</code> may charge. The checkout total of this <code>pay</code> is above it, or the checkout is in another currency than the cap. Rejected <strong>before</strong> charging — no money moved. A cap of <code>0</code> stops the payments of that assistant.</p>
 
     <h2>What to do next</h2>
-    <p>The assistant cannot raise its own cap; that is the human’s. Report the refusal and let the human raise it (the reference implementation exposes it on the manage-assistants page). Caps are operator policy and off by default.</p>
+    <p>The assistant cannot raise its own cap; that is the human’s. Report the refusal and let the human raise it, or set it in the checkout’s currency (the reference implementation exposes it on the manage-assistants page). Caps are operator policy and off by default.</p>
 
     <h2>The response</h2>
     <pre><code>{
