@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.24"
+  version: "0.6.25"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---

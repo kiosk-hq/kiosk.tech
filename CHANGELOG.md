@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.25] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.25**: the text is that of 0.6.24. The version matches release 0.6.25 of the reference implementation.
+
 ## [skill 0.6.24] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.24**: the binding poll and the claim in the code solve the toll and send the request again; on exit `5` of the listener, a wait reads the state one time.
