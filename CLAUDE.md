@@ -10,7 +10,7 @@ This repo is everything published at https://kiosk.tech (GitHub Pages,
   (`spec/schemas/`) for adopters and porters. Keep it consistent with
   `specification.html`.
 - `skill.md` — the agent skill. It is the alias of the newest cut and must be
-  byte-identical to it. The current cut is `skill-v0.6.26.md`.
+  byte-identical to it. The current cut is `skill-v0.6.27.md`.
 - `index.html` (landing), `onboarding.html`, `known-issues.html`, `changelog.html`.
 
 Every workflow in `.github/workflows/` runs one `bin/check-*` guard over the

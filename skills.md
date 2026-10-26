@@ -14,6 +14,7 @@ protocol cannot transact with it.
 
 | Cut | Protocol | What it describes |
 |---|---|---|
+| `skill-v0.6.27.md` | **0.6** | The protocol of 0.6.26. The text is that of 0.6.26; only the version differs. A 0.6.26 assistant still transacts. |
 | `skill-v0.6.26.md` | **0.6** | The protocol of 0.6.25, except that a spending cap limits one payment. The text is that of 0.6.25; only the version differs. A 0.6.25 assistant still transacts. |
 | `skill-v0.6.25.md` | **0.6** | The protocol of 0.6.24. The text is that of 0.6.24; only the version differs. A 0.6.24 assistant still transacts. |
 | `skill-v0.6.24.md` | **0.6** | The protocol of 0.6.23. The binding poll and the claim in the skill's code solve the toll and send the request again. On exit `5` of the listener, a wait reads the state one time, and a subscription starts again. A 0.6.23 assistant still transacts. |
@@ -129,9 +130,9 @@ and 0.6.0 opens a new protocol group in which 0.6.0 = 0.6.1 = 0.6.2,
 and 0.6.3 opens a new protocol group of which it stayed the only member,
 and 0.6.4 opens a new protocol group of which it stayed the only member,
 and 0.6.5 opens a new protocol group of which it stayed the only member,
-and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15 = 0.6.16 = 0.6.17 = 0.6.18 = 0.6.19 = 0.6.20 = 0.6.21 = 0.6.22 = 0.6.23 = 0.6.24 = 0.6.25 = 0.6.26,
+and 0.6.6 opens a new protocol group, the one served now, in which 0.6.6 = 0.6.7 = 0.6.8 = 0.6.9 = 0.6.10 = 0.6.11 = 0.6.12 = 0.6.13 = 0.6.14 = 0.6.15 = 0.6.16 = 0.6.17 = 0.6.18 = 0.6.19 = 0.6.20 = 0.6.21 = 0.6.22 = 0.6.23 = 0.6.24 = 0.6.25 = 0.6.26 = 0.6.27,
 but the eighteen groups are NOT the same protocol, and only the last describes
-what a 0.6.26 operator serves. The formal spec
+what a 0.6.27 operator serves. The formal spec
 §14.2 now scopes its additivity promise to 1.0 and later, for the reason this
 table already made visible: the compatibility mechanism on this protocol is the
 operator's pin, which names one exact cut and its SHA-256. Adopt the cut the

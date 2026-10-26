@@ -10,6 +10,9 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.27] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.27**: the text is that of 0.6.26. The version matches release 0.6.27 of the reference implementation.
 - 2026-10-26: The KYC broker demo, its adapter gem and its class are named Proveli: `kiosk-demo-proveli`, `kiosk-kyc-proveli`, `Kiosk::KycProviders::Proveli`.
 
 ## [skill 0.6.26] — 2026-10-26
