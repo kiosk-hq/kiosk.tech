@@ -41,6 +41,14 @@
       <li><strong>Skill 0.6.26</strong>: the text is that of 0.6.25. The version matches release 0.6.26 of the reference implementation.</li>
       <li>The spending cap is the most that one <code>pay</code> of an assistant may charge. The operator no longer counts the spend of an assistant over time.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.26, matching skill 0.6.26; the engine default is <code>skill-v0.6.26.md</code> and every demo pins its digest.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>kiosk-server: the spending cap is the most one <code>pay</code> may charge. <code>spending_cap_window_days</code> and the running total of settled and unfinished charges are removed.</li>
+      <li>ROADMAP: 0.7 adds a client script, DNS-AID, Poppy business side and UCP to consider; 0.8 adds Shared Payment Tokens and MPP; rejected ideas are gone.</li>
+      <li>kiosk-server: the PoW gate and the auth toll raise their ConfigurationError when only a gem&#39;s version file is loaded, as a path bundle loads it, and no NoMethodError or NameError.</li>
+      <li>kiosk-reputation: <code>RecentSpend</code> asks the Equihash params only when the gem is loaded, so a path bundle that loads only its version file gets n=168, k=7 and no NoMethodError.</li>
+    </ul>
   </section>
 
   <section id="v0.6.25">
