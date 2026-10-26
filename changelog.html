@@ -47,6 +47,13 @@
       <li>The schemas publish the KYC callback, its answer, and the <code>subscribed</code> and <code>unsubscribed</code> messages. Section 17 names the event stream&#39;s Action Cable frames.</li>
       <li>The two spec documents list the same profile clauses for <code>pay</code> and for the reuse of an access token.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.24, matching skill 0.6.24; the engine default is <code>skill-v0.6.24.md</code> and every demo pins its digest.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li><code>validate_requests</code> holds the KYC callback body to the published <code>callback</code> object: a wrong-typed member is a 400 naming it.</li>
+      <li>The <code>101</code> answer at <code>&lt;endpoint&gt;/events</code> carries the three version headers, as every answer under the mount does.</li>
+      <li>A subscription whose reach is withdrawn leaves the connection, so a later <code>subscribe</code> with its identifier gets <code>reject_subscription</code>.</li>
+    </ul>
   </section>
 
   <section id="v0.6.23">
