@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.28] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.28**: only the human sets the ask-first amount. An assistant's payment script stops above it, and a spending cap that accepts a payment is not a yes.
+
 ## [skill 0.6.27] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.27**: the text is that of 0.6.26. The version matches release 0.6.27 of the reference implementation.

@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.27"
+  version: "0.6.28"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -273,11 +273,11 @@ Steps 5-6 apply only when the task includes a payment and `capabilities` has `pa
 - Else poll `payment_setup` on the LIMITED schedule that its `description` states. With no schedule: every ~5 s for the first minute, then every ~15 s, and stop after ~5 minutes. Give the link ONE time, not on each poll.
 - When the wait ends with no `ready`, call `payment_setup` ONE time: it is the read. If it gives `ready`, continue. Else stop, and tell your human that the card setup is not complete. When they say that they finished, call `payment_setup` one time to check.
 
-**Ask for the ask-first amount.** When you have no amount for this origin, ask your human in your one message (Step 4): "Up to what amount may I pay here without checking with you?" Write the answer to `~/.kiosk/<origin-dir>/spend.json` as `{"amount_cents": 2500, "currency": "eur"}`. With no answer, ask before every payment.
+**Ask for the ask-first amount.** When you have no amount for this origin, ask your human in your one message (Step 4): "Up to what amount may I pay here without checking with you?" Write the answer to `~/.kiosk/<origin-dir>/spend.json` as `{"amount_cents": 2500, "currency": "eur"}`. Only your human sets or changes this amount. Write `spend.json` only with an amount that your human stated. Never raise it to fit a checkout. With no answer, ask before every payment.
 
 ### Step 6: Pay
 
-1. **Compare the checkout's `total_amount_cents` with the ask-first amount.** At or below it, in the same currency: pay. Else ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?" The checkout's total is the exact one: if it differs from your estimate, tell your human both totals.
+1. **Compare the checkout's `total_amount_cents` with the ask-first amount.** At or below it, in the same currency: pay. Else ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?" A script that you write for payments does the same: above the amount, it stops before `pay`, and you ask your human. The checkout's total is the exact one: if it differs from your estimate, tell your human both totals.
 2. Sign the 2 AP2 mandates for the `checkout_jwt` that the action gave you (see "AP2 payment mandates").
 3. `POST <endpoint>/pay {checkout_mandate, payment_mandate}` with the two DPoP headers. The answer is the settlement with two receipts: verify them and save them (see "The receipts").
 
@@ -546,7 +546,7 @@ In these three answers, `WWW-Authenticate` names the gate: `Kiosk-PoW` or `Kiosk
 
 ### Spending cap (HTTP 403)
 
-`403 spending_cap_exceeded` from `pay`: your human set a spending cap for this assistant in their operator account, and this payment is above it or in another currency. A cap of `0` stops the payments of that assistant: it can still register, read and act. You CANNOT pay above the cap. Read `hint`. Tell your human to raise this assistant's spending cap, or to set it in the checkout's currency, in their operator account, and try again after they do. Your ask-first amount is a different thing: the operator does not know it.
+`403 spending_cap_exceeded` from `pay`: your human set a spending cap for this assistant in their operator account, and this payment is above it or in another currency. A cap of `0` stops the payments of that assistant: it can still register, read and act. You CANNOT pay above the cap. Read `hint`. Tell your human to raise this assistant's spending cap, or to set it in the checkout's currency, in their operator account, and try again after they do. Your ask-first amount is a different thing: the operator does not know it. When the cap accepts a payment, that is not a yes from your human.
 
 ## Versioning & verification
 
