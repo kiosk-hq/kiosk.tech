@@ -10,6 +10,8 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-26: The KYC broker demo, its adapter gem and its class are named Proveli: `kiosk-demo-proveli`, `kiosk-kyc-proveli`, `Kiosk::KycProviders::Proveli`.
+
 ## [skill 0.6.26] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.26**: the text is that of 0.6.25. The version matches release 0.6.26 of the reference implementation.
