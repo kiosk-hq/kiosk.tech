@@ -40,6 +40,22 @@
     <ul>
       <li><strong>Skill 0.6.25</strong>: the text is that of 0.6.24. The version matches release 0.6.25 of the reference implementation.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.25, matching skill 0.6.25; the engine default is <code>skill-v0.6.25.md</code> and every demo pins its digest.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li>The root README, CONTRIBUTING and SECURITY state the release process, the e2e prerequisites, what CI checks, the seeded demo passwords and the whole scope.</li>
+      <li>Demo READMEs match the code and tests: stylish shows no spending cap, a revoked tudu key gets 401, skooti lists A1, A, B, C, the getgrocery KYC submit is optional.</li>
+      <li>The KYC broker README says the broker proves only that the human holds a government account, and names the gap that leaves.</li>
+      <li>skooti&#39;s <code>unlock_url</code> description and before-after page say a phone app of the shop gives the token to the lock; the demo publishes no such app.</li>
+      <li>Demo READMEs and compose files carry no history or internal labels, and name operations and their paths.</li>
+      <li>Demo error pages and footers call the operator «this site» or «a demo»; tudu has one footer; the GetGrocery logo and its Start shopping link are fixed.</li>
+      <li>The KYC broker page says it proves that the human holds a government account, and that the human answers each check afresh.</li>
+      <li>atablefor names diners as the people who sign in, in its header link, its note and its signed-in label.</li>
+      <li>The sign-in page of atablefor, getgrocery, hoteling, philslist, skooti and stylish is a whole document under the demo&#39;s header.</li>
+      <li>skooti <code>/unlock</code> with a missing parameter answers a 400 page that tells the person what to do; its pages say that no phone app is published.</li>
+      <li>The manage-assistants page shows money amounts and a cap of 0 as «no payments allowed»; its <code>spending_cap</code> field takes an amount in the cap currency.</li>
+      <li>The manage-assistants and link-approval pages are whole documents with a title, in the engine layout <code>layouts/kiosk/server/application</code>.</li>
+    </ul>
   </section>
 
   <section id="v0.6.24">
