@@ -41,6 +41,12 @@
       <li><strong>Skill 0.6.27</strong>: the text is that of 0.6.26. The version matches release 0.6.27 of the reference implementation.</li>
       <li>The KYC broker demo, its adapter gem and its class are named Proveli: <code>kiosk-demo-proveli</code>, <code>kiosk-kyc-proveli</code>, <code>Kiosk::KycProviders::Proveli</code>.</li>
     </ul>
+    <h3>Reference implementation</h3>
+    <ul>
+      <li><strong>Every gem and <code>API_VERSION</code> are 0.6.27, matching skill 0.6.27; the engine default is <code>skill-v0.6.27.md</code> and every demo pins its digest.</strong> <code>MIN_CLIENT</code> stays 0.6.0.</li>
+      <li><strong>The KYC broker is Proveli</strong>: gem <code>kiosk-kyc-proveli</code>, class <code>Kiosk::KycProviders::Proveli</code>, demo <code>kiosk-demo-proveli</code>, env names <code>KIOSK_PROVELI_*</code> and <code>PROVELI_KEY_PEM</code>.</li>
+      <li>deploy: the broker unit, env file, role and database are named <code>proveli</code>; <code>deploy/CHECKLIST.md</code> §7c moves a box once. The broker&#39;s migrations are one fresh install.</li>
+    </ul>
   </section>
 
   <section id="v0.6.26">
