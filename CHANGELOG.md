@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.23] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.23**: wait for the listener's `subscribed` line before the call; the total in the one message is an estimate; subscribe to `payment` before `pay`.
+
 ## [skill 0.6.22] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.22**: before the first order, the assistant starts the identity check and the card setup, and asks for all human steps and the ask-first amount in one message.

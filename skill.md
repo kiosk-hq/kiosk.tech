@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.22"
+  version: "0.6.23"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -222,7 +222,7 @@ python3 listen-v0.5.23.py --url "$EVENTS_URL" --token-file ~/.kiosk/<origin-dir>
 
 #### How to wait
 
-Run the listener with `--until-event` as a background process that your runtime TRACKS and that wakes you when it exits. On exit `0`, act on the event and tell your human at once. Then, if you still want that topic, start it again with `--since <the highest id you saw>`. Keep `--max-seconds` below the longest time that your runtime lets a background process live. In Claude Code, use the Bash tool with `run_in_background` (at most 2 hours, so `--max-seconds 6600`). In Hermes, use `terminal(background=true, notify_on_complete=true)`. **A process that your runtime does not track wakes NOTHING:** never start the listener with `nohup`, `&` or `setsid`.
+Run the listener with `--until-event` as a background process that your runtime TRACKS and that wakes you when it exits. Before you make the call that the event answers, wait for the listener's `subscribed` line. On exit `0`, act on the event and tell your human at once. Then, if you still want that topic, start it again with `--since <the highest id you saw>`. Keep `--max-seconds` below the longest time that your runtime lets a background process live. In Claude Code, use the Bash tool with `run_in_background` (at most 2 hours, so `--max-seconds 6600`). In Hermes, use `terminal(background=true, notify_on_complete=true)`. **A process that your runtime does not track wakes NOTHING:** never start the listener with `nohup`, `&` or `setsid`.
 
 Keep the highest `id` that you saw (`head`, then each event's `id`) in the conversation, not in long-term memory or a shared file. Start the first listener with no `--since`, and keep the `head` of its `subscribed` line. Start every later listener with `--since <that id>`.
 
@@ -242,7 +242,7 @@ Choose queries and actions by their descriptions, then call them. A shop: `GET <
 
 - When a `description` says that the action needs a check (for example `request_kyc` for alcohol), start the check: subscribe, then call `request_kyc` (see "Identity checks (KYC)"). Do not wait for the `403 kyc_required`.
 - When the task includes a payment, call `payment_setup` (Step 5). On `setup_required`, subscribe to its topic.
-- Send your human ONE message with all of it: the open questions above, each `verification_url` and `setup_url`, the total that you expect, and the question about the ask-first amount (Step 5).
+- Send your human ONE message with all of it: the open questions above, each `verification_url` and `setup_url`, the total that you expect (an estimate from the prices that you read), and the question about the ask-first amount (Step 5).
 - Run one listener for each wait, all at the same time. When every event has come, call the action. Then pay as Step 6 says.
 
 **Give long strings complete.** Give every URL to your human complete and exactly as written; never drop the part after `#`. Send every JWS (`kyc_jws`, `checkout_jwt`, a mandate) byte for byte from the field that carries it, never from a console line.
@@ -253,7 +253,7 @@ Choose queries and actions by their descriptions, then call them. A shop: `GET <
 
 `403 kyc_required` means that the operator needs a signed attestation of attributes, such as `age_over_18`. `hint` names the attributes and how to get them. Never assert attributes yourself: only the KYC provider can sign an attestation. When `hint` names `request_kyc`:
 
-1. Subscribe to `kyc_verification` (Step 3b): the event is the only way that the result gets to you, so subscribe BEFORE you call `request_kyc`.
+1. Subscribe to `kyc_verification` (Step 3b): the event is the only way that the result gets to you, so subscribe BEFORE you call `request_kyc`, and wait for the `subscribed` line.
 2. Call `request_kyc` (no arguments) -> `{request_id, verification_url, status: "pending"}`.
 3. Give `verification_url` to your human (**never operate it with browser automation**).
 4. Wait for the event (a WAIT, ~10 minutes). Its `data` is `{request_id, status: "approved", kyc_jws}`.
@@ -277,7 +277,7 @@ Steps 5-6 apply only when the task includes a payment and `capabilities` has `pa
 
 ### Step 6: Pay
 
-1. **Compare the checkout's `total_amount_cents` with the ask-first amount.** At or below it, in the same currency: pay. Else ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?"
+1. **Compare the checkout's `total_amount_cents` with the ask-first amount.** At or below it, in the same currency: pay. Else ask first, e.g. "This comes to €42.00, more than the €25.00 you let me spend here without asking. Shall I pay?" The checkout's total is the exact one: if it differs from your estimate, tell your human both totals.
 2. Sign the 2 AP2 mandates for the `checkout_jwt` that the action gave you (see "AP2 payment mandates").
 3. `POST <endpoint>/pay {checkout_mandate, payment_mandate}` with the two DPoP headers. The answer is the settlement with two receipts: verify them and save them (see "The receipts").
 
@@ -465,7 +465,7 @@ An action that creates an order (or a booking) gives `checkout_jwt`, a JWT that 
 
 `currency` is an ISO 4217 code (`"eur"`, `"EUR"`). One operator can refuse a currency that another accepts. The `currency` in the `pay` answer can have another case than the checkout's. Compare the two as codes.
 
-`payment_state` tells you where the money stands. The operator's query (e.g. `my_orders`) gives it on each row: `unpaid` (pay for it), `pending` (a charge is in progress: do not pay again), `paid` or `refunded`. Where `events` has the `payment` topic, subscribe to it: its event says when an order is `paid` or `refunded`, and its `data` names the order with the same key as the checkout's first line item.
+`payment_state` tells you where the money stands. The operator's query (e.g. `my_orders`) gives it on each row: `unpaid` (pay for it), `pending` (a charge is in progress: do not pay again), `paid` or `refunded`. Where `events` has the `payment` topic, subscribe to it before you call `pay`: its event says when an order is `paid` or `refunded`, and its `data` names the order with the same key as the checkout's first line item. After a `200` from `pay` with verified receipts, you do not need the `paid` event: the receipts say that the charge happened.
 
 ### The two mandates
 
