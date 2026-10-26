@@ -10,6 +10,10 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+## [skill 0.6.22] — 2026-10-26
+
+- 2026-10-26: **Skill 0.6.22**: before the first order, the assistant starts the identity check and the card setup, and asks for all human steps and the ask-first amount in one message.
+
 ## [skill 0.6.21] — 2026-10-26
 
 - 2026-10-26: **Skill 0.6.21**: the first listener starts with no `--since`, the work ends when the request is done, open questions go in one message, and both samples read `key.pem` as bytes.

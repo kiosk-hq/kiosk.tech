@@ -2,7 +2,7 @@
 name: kiosk-agent-protocol
 description: "A protocol that lets an AI assistant use the service of any Kiosk operator -- a shop, a booking desk, a job board, a classifieds board, or data, not only commerce. Register, read the catalogue to learn the operations, then act: browse, order, book, apply, pay -- and subscribe to the operator's event stream for anything that you would otherwise wait for."
 metadata:
-  version: "0.6.21"
+  version: "0.6.22"
   tags: "kiosk, agent-protocol"
   trigger: '<link rel="kiosk">'
 ---
@@ -238,6 +238,13 @@ Choose queries and actions by their descriptions, then call them. A shop: `GET <
 
 **Real-world details come from your human. Never invent them and never derive them.** A delivery address, a date, a name, contact data: ask your human, and read it back to them before you order. Do not read it from the OS, the locale or the IP address. Never invent a value that looks correct ("123 Demo Street"): the operator cannot tell a false address from a real one. If you do not have the detail, stop and ask. Put every open question in ONE message: the read-back, your own choices (a window, the quantities) and the time zone for `Kiosk-Timezone`.
 
+**Start every step for your human before the first order.** Your human waits less when they do all their steps at one time. Before you call the action:
+
+- When a `description` says that the action needs a check (for example `request_kyc` for alcohol), start the check: subscribe, then call `request_kyc` (see "Identity checks (KYC)"). Do not wait for the `403 kyc_required`.
+- When the task includes a payment, call `payment_setup` (Step 5). On `setup_required`, subscribe to its topic.
+- Send your human ONE message with all of it: the open questions above, each `verification_url` and `setup_url`, the total that you expect, and the question about the ask-first amount (Step 5).
+- Run one listener for each wait, all at the same time. When every event has come, call the action. Then pay as Step 6 says.
+
 **Give long strings complete.** Give every URL to your human complete and exactly as written; never drop the part after `#`. Send every JWS (`kyc_jws`, `checkout_jwt`, a mandate) byte for byte from the field that carries it, never from a console line.
 
 **A credential goes to your human ONE time.** Most links for your human are pages on the operator's site: a card-setup URL, a KYC `verification_url`. Some answer fields are credentials that operate a physical thing for whoever holds them: skooti's `rental_token` unlocks a scooter, and its `unlock_url` carries that token. The operation's `description` and `output_schema` tell you which kind you have. A URL can also carry a credential. When they do not say, treat a value that you must give to a device as a credential. Give a credential to your human one time, complete, and say what it is and how long it is valid. Do NOT repeat it, put it in a summary, or write it to a log or a file.
@@ -266,7 +273,7 @@ Steps 5-6 apply only when the task includes a payment and `capabilities` has `pa
 - Else poll `payment_setup` on the LIMITED schedule that its `description` states. With no schedule: every ~5 s for the first minute, then every ~15 s, and stop after ~5 minutes. Give the link ONE time, not on each poll.
 - When the wait ends with no `ready`, call `payment_setup` ONE time: it is the read. If it gives `ready`, continue. Else stop, and tell your human that the card setup is not complete. When they say that they finished, call `payment_setup` one time to check.
 
-**Ask for the ask-first amount.** When the card is ready and you have no amount for this origin, ask your human: "Up to what amount may I pay here without checking with you?" Write the answer to `~/.kiosk/<origin-dir>/spend.json` as `{"amount_cents": 2500, "currency": "eur"}`. With no answer, ask before every payment.
+**Ask for the ask-first amount.** When you have no amount for this origin, ask your human in your one message (Step 4): "Up to what amount may I pay here without checking with you?" Write the answer to `~/.kiosk/<origin-dir>/spend.json` as `{"amount_cents": 2500, "currency": "eur"}`. With no answer, ask before every payment.
 
 ### Step 6: Pay
 
