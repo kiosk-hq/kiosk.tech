@@ -10,6 +10,7 @@ it under `## [Unreleased]`; nothing already written is edited.
 
 ## [Unreleased]
 
+- 2026-10-26: The specification's Standards table links the protocol schemas to the formal specification, which lists them; the directory link answered 404.
 - 2026-10-26: The landing states Cloudflare's rule as its Verified bots policy says it: a bot that signs its requests and behaves, or what the site owner allows.
 - 2026-10-26: The landing shows a screencast: Hermes, messaged over Telegram, orders a handwritten list at the grocery demo and pays.
 
